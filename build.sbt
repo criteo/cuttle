@@ -3,15 +3,19 @@ val devMode = Option(System.getProperty("devMode")).exists(_ == "true")
 name := "langoustinepp"
 organization := "com.criteo"
 version := "0.1.0"
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.1"
+
+scalacOptions := Seq("-feature", "-deprecation")
 
 mainClass in(Compile, run) := Some("com.criteo.langoustinepp.LangoustinePP")
 
 libraryDependencies ++= Seq(
-  "com.criteo.lolhttp" %% "lolhttp" % "0.1.0",
-  "com.criteo.lolhttp" %% "loljson" % "0.1.0",
+  "org.criteo.lolhttp" %% "lolhttp" % "0.2.2",
+  "org.criteo.lolhttp" %% "loljson" % "0.2.2",
+  "org.scala-stm" %% "scala-stm" % "0.8",
   "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-  "org.scalacheck" %% "scalacheck" % "1.13.2" % "provided"
+  "org.scalacheck" %% "scalacheck" % "1.13.4" % "provided",
+  "codes.reactive" %% "scala-time" % "0.4.1"
 )
 
 resolvers += "Nexus" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty/"

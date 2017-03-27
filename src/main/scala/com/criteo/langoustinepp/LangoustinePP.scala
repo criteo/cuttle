@@ -2,27 +2,22 @@ package com.criteo.langoustinepp
 
 import lol.http._
 
-import scala.language.implicitConversions
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class Langoustine[S <: Scheduling](graph: Graph[S]) {
-  def run(): Unit = () /* FIXME */
+trait Scheduler[S <: Scheduling] {
+  def run(graph: Graph[S])(implicit executor: ExecutionContext): Unit
 }
 
 trait Scheduling {
   type Context
   type DependencyDescriptor
-
-  def defaultDependencyDescriptor: DependencyDescriptor
-  implicit def graphToGraphAndDepDescriptor(job: Graph[this.type]): (Graph[this.type], DependencyDescriptor) =
-    (job, defaultDependencyDescriptor)
 }
 
 
-trait Graph[S <: Scheduling] {
+sealed trait Graph[S <: Scheduling] {
   type Dependency = (Job[S], Job[S], S#DependencyDescriptor)
-
 
   private[langoustinepp] def vertices: Set[Job[S]]
   private[langoustinepp] def edges: Set[Dependency]
@@ -35,17 +30,21 @@ trait Graph[S <: Scheduling] {
     }
   }
 
-  private def roots = vertices.filter (v =>
-      edges.forall { case (_, v2, _) => v2 != v })
-  private def leaves = vertices.filter (v =>
+  private[langoustinepp] lazy val roots = vertices.filter (v =>
       edges.forall { case (v1, _, _) => v1 != v })
+  private[langoustinepp] lazy val leaves = vertices.filter (v =>
+      edges.forall { case (_, v2, _) => v2 != v })
+
+  def dependsOn(right: Graph[S])
+  (implicit depDescriptor: S#DependencyDescriptor): Graph[S] =
+    dependsOn(right, depDescriptor)
 
   def dependsOn(right: (Graph[S], S#DependencyDescriptor)): Graph[S] = {
     val (rightGraph, depDescriptor) = right
     val leftGraph = this
     val newEdges: Set[Dependency] = for {
-      v1 <- leftGraph.leaves
-      v2 <- rightGraph.roots
+      v1 <- leftGraph.roots
+      v2 <- rightGraph.leaves
     } yield (v1, v2, depDescriptor)
     new Graph[S] {
       val vertices = leftGraph.vertices ++ rightGraph.vertices
@@ -54,15 +53,14 @@ trait Graph[S <: Scheduling] {
   }
 }
 
-case class Job[S <: Scheduling](name: String) extends Graph[S] {
+case class Job[S <: Scheduling](name: String, scheduling: S) extends Graph[S] {
   val vertices = Set(this)
   val edges = Set.empty[Dependency]
 }
 
 /* Ping-pong stuff */
 
-object LangoustinePP {
-
+object LangoustinePPServer {
   val routes: PartialService = {
     case GET at "/" =>
       Redirect("/ping")
@@ -70,9 +68,6 @@ object LangoustinePP {
     case GET at "/ping" =>
       Ok("pong!")
   }
-}
-
-object LangoustinePPServer {
 
   def main(args: Array[String]): Unit = {
     val httpPort = args.lift(0).map(_.toInt).getOrElse(8888)
@@ -81,7 +76,7 @@ object LangoustinePPServer {
       onError = { e =>
         e.printStackTrace()
         InternalServerError("LOL.")
-      })(LangoustinePP.routes)
+      })(routes)
     println(s"Listening on http://localhost:$httpPort")
   }
 }
