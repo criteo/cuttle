@@ -11,10 +11,9 @@ module.exports = {
   },
   output: {
     path: path.resolve(__dirname, 'target/scala-2.11/classes/public'),
-    filename: 'app.js',
-    publicPath: '/public/'
+    filename: 'app.js'
   },
-  devtool: 'cheap-module-eval-source-map',
+  devtool: 'sourcemap',
   module: {
     rules: [
       {

@@ -1,10 +1,8 @@
 // @flow
 
-import React from 'react';
-import { connect } from 'react-redux';
-import injectSheet from 'react-jss';
-import classNames from 'classnames';
-import _ from 'lodash';
+import React from "react";
+import { connect } from "react-redux";
+import injectSheet from "react-jss";
 
 type Props = {};
 
@@ -20,7 +18,7 @@ class AppMenu extends React.Component {
         </ul>
         <div>User</div>
       </nav>
-    )
+    );
   }
 }
 

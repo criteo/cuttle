@@ -1,9 +1,8 @@
 // @flow
 
-import * as Actions from './actions';
-import _ from 'lodash';
+import * as Actions from "./actions";
 
-export type Page =  {id: string, name: string};
+export type Page = { id: string, name: string };
 
 export type State = {
   page: Page,
@@ -11,22 +10,25 @@ export type State = {
 };
 
 export const initialState: State = {
-  page: {name: 'start', id: 'start'}
+  page: { name: "INIT", id: "INIT" }
 };
 
 // -- Reducers
 
-export const reducers = (currentState: State, action: Actions.Action): State => {
-  switch(action.type) {
-    case 'INIT': {
+export const reducers = (
+  currentState: State,
+  action: Actions.Action
+): State => {
+  switch (action.type) {
+    case "INIT": {
       return {
         ...currentState,
-        page: {id: 'init', name: 'init'}
-      }
+        page: { id: "INIT", name: "INIT" }
+      };
     }
 
     default:
-      console.log('Unhandled action %o', action);
+      console.log("Unhandled action %o", action);
       return currentState;
   }
 };
