@@ -1,7 +1,8 @@
 let config = loadJson('dev.config.json');
 
 let sbt = startSbt({
-    watch: ['build.sbt']
+  sh: 'sbt -DdevMode=true',
+  watch: ['build.sbt']
 });
 
 let compile = sbt.run({
