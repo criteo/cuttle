@@ -10,7 +10,8 @@ mainClass in(Compile, run) := Some("com.criteo.langoustinepp.LangoustinePP")
 libraryDependencies ++= Seq(
   "com.criteo.lolhttp" %% "lolhttp" % "0.1.0",
   "com.criteo.lolhttp" %% "loljson" % "0.1.0",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "org.scalacheck" %% "scalacheck" % "1.13.2" % "provided"
 )
 
 resolvers += "Nexus" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty/"
