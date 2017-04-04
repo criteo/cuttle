@@ -9,7 +9,6 @@
     "babel-preset-react": "^6.23.0",
     "babel-preset-stage-0": "^6.22.0",
     "css-loader": "^0.26.1",
-    "devloop": "^0.1.10",
     "empty": "^0.10.1",
     "eslint": "^3.18.0",
     "eslint-config-prettier": "^1.5.0",
@@ -18,8 +17,6 @@
     "eslint-plugin-prettier": "^2.0.1",
     "eslint-plugin-promise": "^3.5.0",
     "eslint-plugin-react": "^6.10.3",
-    "express": "^4.14.1",
-    "express-history-api-fallback": "^2.1.0",
     "favicons-webpack-plugin": "^0.0.7",
     "file-loader": "^0.10.0",
     "flow-bin": "^0.39.0",
@@ -29,10 +26,9 @@
     "less-loader": "^2.2.3",
     "prettier": "^0.22.0",
     "prettier-eslint": "^4.3.2",
-    "standard": "^9.0.2",
     "style-loader": "^0.13.1",
     "webpack": "^2.2.1",
-    "webpack-dev-server": "^2.4.2"
+    "devloop": "^0.1.10"
   },
   "dependencies": {
     "history": "^4.6.1",

@@ -1,3 +1,6 @@
+if(!require('fs').existsSync('dev.config.json')) {
+  throw new Error(`Missing dev.config.json file in your project, please check the README.`);
+}
 let config = loadJson('dev.config.json');
 
 let sbt = startSbt({
@@ -7,30 +10,39 @@ let sbt = startSbt({
 
 let compile = sbt.run({
     command: 'compile',
-    watch: ['src/**/*.scala']
+    watch: ['**/*.scala']
 });
 
 let packageDependencies = sbt.run({
-    command: 'assemblyPackageDependency'
+    command: 'examples/assemblyPackageDependency'
 });
 
 let yarn = run({
   sh: 'yarn install',
   watch: 'package.json'
-}).dependsOn(packageDependencies);
+});
 
 let front = webpack({
   watch: [
     'webpack.config.js',
-    'src/main/javascript/**/*.js',
-    'src/main/html/**/*.html',
-    'src/main/style/**/*.*'
+    'core/src/main/javascript/**/*.*',
+    'core/src/main/html/**/*.*',
+    'core/src/main/style/**/*.*'
   ]
 }).dependsOn(yarn);
 
+let classpath = [
+  'examples/target/scala-2.11/langoustine-assembly-dev-SNAPSHOT-deps.jar',
+  'core/target/scala-2.11/classes',
+  'timeserie/target/scala-2.11/classes',
+  'examples/target/scala-2.11/classes'
+];
+
+let example = config.example || 'HelloWorld';
+
 let server = runServer({
   httpPort,
-  sh: `java -cp target/scala-2.11/langoustinepp-assembly-0.1.0-deps.jar:target/scala-2.11/classes com.criteo.langoustinepp.LangoustinePPServer ${httpPort}`,
+  sh: `java -cp ${classpath.join(':')} org.criteo.langoustine.examples.${example} ${httpPort}`,
   env: config.env
 }).dependsOn(compile, packageDependencies);
 

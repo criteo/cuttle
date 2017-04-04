@@ -1,43 +1,108 @@
-val devMode = Option(System.getProperty("devMode")).exists(_ == "true")
+val devMode = taskKey[Boolean]("Some build optimization are applied in devMode.")
 
-name := "langoustinepp"
-organization := "com.criteo"
-version := "0.1.0"
-scalaVersion := "2.12.1"
+lazy val commonSettings = Seq(
+  organization := "org.criteo.langoustine",
+  version := "dev-SNAPSHOT",
+  scalaVersion := "2.11.8",
+  scalacOptions ++= Seq(
+    "-deprecation",
+    "-encoding", "UTF-8",
+    "-feature",
+    "-unchecked",
+    "-Xlint",
+    "-Yno-adapted-args",
+    "-Ywarn-dead-code",
+    "-language:postfixOps",
+    "-Xfuture",
+    "-Ywarn-unused-import"
+  ),
+  devMode := Option(System.getProperty("devMode")).exists(_ == "true"),
 
-scalacOptions := Seq("-feature", "-deprecation")
+  // Maven config
+  resolvers += "Nexus" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty/",
+  publishTo := Some("Criteo thirdparty" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty"),
+  credentials += Credentials("Sonatype Nexus Repository Manager", "nexus.criteo.prod", System.getenv("MAVEN_USER"), System.getenv("MAVEN_PASSWORD")),
 
-mainClass in(Compile, run) := Some("com.criteo.langoustinepp.LangoustinePP")
+  // Useful to run flakey tests
+  commands += Command.single("repeat") { (state, arg) =>
+    arg :: s"repeat $arg" :: state
+  },
 
-libraryDependencies ++= Seq(
-  "org.criteo.lolhttp" %% "lolhttp" % "0.2.2",
-  "org.criteo.lolhttp" %% "loljson" % "0.2.2",
-  "org.scala-stm" %% "scala-stm" % "0.8",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-  "org.scalacheck" %% "scalacheck" % "1.13.4" % "provided",
-  "codes.reactive" %% "scala-time" % "0.4.1"
+  // Run an example in another JVM, and quit on key press
+  commands += Command.single("example") { (state, arg) =>
+    s"examples/test:runMain org.criteo.langoustine.examples.TestExample $arg" :: state
+  }
 )
 
-resolvers += "Nexus" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty/"
+lazy val continuum = {
+  ProjectRef(uri("git://github.com/danburkert/continuum.git#b2122f1980fb69eb0d047e47e9d7de730ccbd448"), "continuum")
+}
 
-resourceGenerators in Compile += Def.task {
-  if(devMode) Nil else {
-    def listFiles(dir: File): Seq[File] = {
-      IO.listFiles(dir).flatMap(f =>
-        if (f.isDirectory) listFiles(f)
-        else Seq(f)
-      )
-    }
-    val webpackOutputDir: File = (resourceManaged in Compile).value / "public"
-    val logger = new ProcessLogger {
-      override def error(s: =>String): Unit = ()
-      override def buffer[T](f: => T): T = f
-      override def info(s: => String): Unit = streams.value.log.info(s)
-    }
-    logger.info(s"Generating UI assets to $webpackOutputDir...")
-    assert("yarn install" ! logger == 0, "yarn failed")
-    logger.info("Running webpack...")
-    assert(s"./node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail" ! logger == 0, "webpack failed")
-    listFiles(webpackOutputDir)
-  }
-}.taskValue
+lazy val langoustine =
+  (project in file("core")).
+  settings(commonSettings: _*).
+  settings(
+    libraryDependencies ++= Seq(
+      "org.criteo.lolhttp" %% "lolhttp",
+      "org.criteo.lolhttp" %% "loljson"
+    ).map(_ % "0.2.2"),
+
+    libraryDependencies ++= Seq(
+      "org.scala-stm" %% "scala-stm" % "0.8",
+      "codes.reactive" %% "scala-time" % "0.4.1"
+    ),
+
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.0.1"
+    ).map(_ % "test"),
+
+    resourceGenerators in Compile += Def.task {
+      if(devMode.value) {
+        streams.value.log.warn(s"Skipping webpack resource generation.")
+        Nil
+      } else {
+        def listFiles(dir: File): Seq[File] = {
+          IO.listFiles(dir).flatMap(f =>
+            if (f.isDirectory) listFiles(f)
+            else Seq(f)
+          )
+        }
+        val webpackOutputDir: File = (resourceManaged in Compile).value / "public"
+        val logger = new ProcessLogger {
+          override def error(s: =>String): Unit = ()
+          override def buffer[T](f: => T): T = f
+          override def info(s: => String): Unit = streams.value.log.info(s)
+        }
+        logger.info(s"Generating UI assets to $webpackOutputDir...")
+        assert(s"yarn install" ! logger == 0, "yarn failed")
+        logger.info("Running webpack...")
+        assert(s"./node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail" ! logger == 0, "webpack failed")
+        listFiles(webpackOutputDir)
+      }
+    }.taskValue
+  ).
+  dependsOn(continuum)
+
+lazy val timeserie =
+  (project in file("timeserie")).
+  settings(commonSettings: _*).
+  settings(
+  ).
+  dependsOn(langoustine % "compile->compile;test->test")
+
+lazy val examples =
+  (project in file("examples")).
+  settings(commonSettings: _*).
+  settings(
+    fork in Test := true,
+    connectInput in Test := true
+  ).
+  dependsOn(langoustine, timeserie)
+
+lazy val root =
+  (project in file(".")).
+  settings(commonSettings: _*).
+  settings(
+    publishArtifact := false
+  ).
+  aggregate(langoustine, timeserie, examples)

@@ -6,11 +6,11 @@ let FlowStatusWebpackPlugin = require('flow-status-webpack-plugin');
 module.exports = {
   entry: {
     app: [
-      './src/main/javascript/index.js'
+      path.resolve(__dirname, 'core/src/main/javascript/index.js')
     ]
   },
   output: {
-    path: path.resolve(__dirname, 'target/scala-2.11/classes/public'),
+    path: path.resolve(__dirname, 'core/target/scala-2.11/classes/public'),
     filename: 'app.js'
   },
   devtool: 'sourcemap',
@@ -26,7 +26,7 @@ module.exports = {
                 plugins: []
             }
         }],
-        include: path.join(__dirname, 'src')
+        include: path.join(__dirname, 'core/src')
       },
       {
         test: /\.(less|css)/,
@@ -40,11 +40,11 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './src/main/html/index.html',
+      template: path.resolve(__dirname, 'core/src/main/html/index.html'),
       inject: 'body'
     }),
     new FaviconsWebpackPlugin({
-      logo: './src/main/style/images/favicon.png',
+      logo: path.resolve(__dirname, 'core/src/main/style/images/favicon.png'),
       icons: {
         android: false,
         appleIcon: false,
@@ -59,7 +59,7 @@ module.exports = {
       }
     }),
     new FlowStatusWebpackPlugin({
-      binaryPath: './node_modules/.bin/flow',
+      binaryPath: path.resolve(__dirname, 'node_modules/.bin/flow'),
       failOnError: true
     })
   ]
