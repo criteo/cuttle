@@ -1,11 +1,11 @@
-package org.criteo.langoustine.timeserie
+package org.criteo.langoustine.timeseries
 
 import org.criteo.langoustine._
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 import scala.concurrent._
-import scala.concurrent.duration.{Duration=> ScalaDuration}
+import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.stm._
 
 import java.time._
@@ -17,19 +17,18 @@ import continuum.bound._
 
 import scala.math.Ordering.Implicits._
 
-sealed trait TimeSeriesConfig {
-  def unit: ChronoUnit
-}
-case object Hourly extends TimeSeriesConfig {
-  val unit = HOURS
-}
-case class Daily(tz: ZoneId) extends TimeSeriesConfig {
-  val unit = WEEKS
-}
+sealed trait TimeSeriesGrid
+case object Hourly extends TimeSeriesGrid
+case class Daily(tz: ZoneId) extends TimeSeriesGrid
 
-case class TimeSeriesScheduling(config: TimeSeriesConfig) extends Scheduling {
-  type Context = (LocalDateTime, LocalDateTime)
-  type DependencyDescriptor = Duration
+case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime)
+
+case class TimeSeriesDependency(offset: Duration)
+
+case class TimeSeriesScheduling(grid: TimeSeriesGrid, start: LocalDateTime)
+extends Scheduling {
+  type Context = TimeSeriesContext
+  type DependencyDescriptor = TimeSeriesDependency
 }
 
 object TimeSeriesScheduling {
@@ -49,20 +48,20 @@ class TimeSeriesScheduler(val graph: Graph[TimeSeriesScheduling]) {
   val empty = IntervalSet.empty[LocalDateTime]
   val full = IntervalSet(Interval.full[LocalDateTime])
 
-  def intervalFromContext(context: (LocalDateTime, LocalDateTime))
+  def intervalFromContext(context: TimeSeriesContext)
   : Interval[LocalDateTime] =
-    Interval.closedOpen(context._1, context._2)
+    Interval.closedOpen(context.start, context.end)
 
   def run()(implicit executor: ExecutionContext) = {
     val launched = LocalDateTime.now().minus(1, SECONDS)
 
-    def addRuns(runs: Set[(TimeSeriesJob, TimeSeriesScheduling#Context, Future[Unit])])
+    def addRuns(runs: Set[(TimeSeriesJob, TimeSeriesContext, Future[Unit])])
     (implicit txn: InTxn) =
       runs.foreach { case (job, context, _) =>
         state.update(job, state.get(job).getOrElse(empty) + intervalFromContext(context))
       }
 
-    @tailrec def go(running: Set[(TimeSeriesJob, (LocalDateTime, LocalDateTime), Future[Unit])]): Unit = {
+    @tailrec def go(running: Set[(TimeSeriesJob, TimeSeriesContext, Future[Unit])]): Unit = {
       val (done, stillRunning) = running.partition (_._3.isCompleted)
       val doneAndRunning = atomic { implicit txn =>
         addRuns(done)
@@ -102,24 +101,26 @@ class TimeSeriesScheduler(val graph: Graph[TimeSeriesScheduling]) {
     (1L to periods).map { i =>
       def alignedNth(k: Long) = alignedStart.plus(k, unit)
         .withZoneSameInstant(utc).toLocalDateTime
-      (alignedNth(i-1), alignedNth(i))
+      TimeSeriesContext(alignedNth(i-1), alignedNth(i))
     }
   }
 
-  def next(state: State): List[(TimeSeriesJob, TimeSeriesScheduling#Context)] = {
-    val init = state.map { case (k, intervalSet) => (k, intervalSet.complement) }
+  def next(state: State): List[(TimeSeriesJob, TimeSeriesContext)] = {
+    val init = state.map { case (job, intervalSet) => (job, intervalSet.complement) }
     val ready = graph.edges.foldLeft(init)
-    { case (partial, (jobLeft, jobRight, offset)) =>
+    { case (partial, (jobLeft, jobRight, TimeSeriesDependency(offset))) =>
       partial + (jobLeft ->
         partial.getOrElse(jobLeft, full)
           .intersect(state.getOrElse(jobRight, empty).map(i => i.map(_.plus(offset)))))
+    }.map { case (job, intervalSet) =>
+      job -> intervalSet.intersect(Interval.atLeast(job.scheduling.start))
     }
     val res = ready.filterNot { case (job, _) => graph.roots.contains(job) }
       .map { case (job, intervalSet) =>
         val contexts = intervalSet.toList.flatMap { interval =>
-          val (unit, tz) = job.scheduling.config match {
-            case Hourly => (Hourly.unit, ZoneId.of("UTC"))
-            case Daily(tz) => (Daily(tz).unit, tz)
+          val (unit, tz) = job.scheduling.grid match {
+            case Hourly => (HOURS, ZoneId.of("UTC"))
+            case Daily(tz) => (DAYS, tz)
           }
           val Closed(start) = interval.lower.bound
           val Open(end) = interval.upper.bound

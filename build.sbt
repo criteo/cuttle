@@ -83,8 +83,8 @@ lazy val langoustine =
   ).
   dependsOn(continuum)
 
-lazy val timeserie =
-  (project in file("timeserie")).
+lazy val timeseries =
+  (project in file("timeseries")).
   settings(commonSettings: _*).
   settings(
   ).
@@ -97,7 +97,7 @@ lazy val examples =
     fork in Test := true,
     connectInput in Test := true
   ).
-  dependsOn(langoustine, timeserie)
+  dependsOn(langoustine, timeseries)
 
 lazy val root =
   (project in file(".")).
@@ -105,4 +105,4 @@ lazy val root =
   settings(
     publishArtifact := false
   ).
-  aggregate(langoustine, timeserie, examples)
+  aggregate(langoustine, timeseries, examples)
