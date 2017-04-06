@@ -2,15 +2,28 @@
 
 import * as Actions from "./actions";
 
-export type Page = { id: string, name: string };
+export type PageId =
+  | "monitoring"
+    | "execution"
+    | "execution_running"
+    | "execution_success"
+    | "execution_failed"
+    | "workflow"
+    | "calendar"
+    | "admin";
+
+export interface Page {
+  id: PageId,
+  label: string
+}
 
 export type State = {
-  page: Page,
+  page: PageId,
   globalError?: string
 };
 
 export const initialState: State = {
-  page: { name: "INIT", id: "INIT" }
+  page: "monitoring"
 };
 
 // -- Reducers
@@ -23,7 +36,14 @@ export const reducers = (
     case "INIT": {
       return {
         ...currentState,
-        page: { id: "INIT", name: "INIT" }
+        page: "monitoring"
+      };
+    }
+
+    case "NAVIGATE": {
+      return {
+        ...currentState,
+        page: action.pageId
       };
     }
 

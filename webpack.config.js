@@ -7,11 +7,14 @@ module.exports = {
   entry: {
     app: [
       path.resolve(__dirname, 'core/src/main/javascript/index.js')
+    ],
+    vendors: [
+      "webpack-material-design-icons"
     ]
   },
   output: {
     path: path.resolve(__dirname, 'core/target/scala-2.11/classes/public'),
-    filename: 'app.js'
+    filename: '[name].js'
   },
   devtool: 'sourcemap',
   module: {
@@ -19,22 +22,25 @@ module.exports = {
       {
         test: /\.jsx?$/,
         use: [{
-            loader: 'babel-loader',
-            options: {
-                cacheDirectory: true,
-                presets: ['react', 'es2015', 'stage-0'],
-                plugins: []
-            }
+          loader: 'babel-loader',
+          options: {
+            cacheDirectory: true,
+            presets: ['react', 'es2015', 'stage-0'],
+            plugins: []
+          }
         }],
-        include: path.join(__dirname, 'core/src')
+        include: path.join(__dirname, 'core/src'),
+        exclude: [
+          path.resolve(__dirname, 'core/node_modules/')
+        ]
       },
       {
         test: /\.(less|css)/,
         use: ['style-loader', 'css-loader', 'less-loader']
       },
       {
-        test: /\.(png|woff|woff2|eot|ttf|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: 'file-loader'
+        test: /\.(jpe?g|png|woff|woff2|eot|ttf|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: 'file-loader?name=[name].[ext]'
       }
     ]
   },

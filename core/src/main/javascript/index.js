@@ -10,11 +10,15 @@ import { render } from "react-dom";
 import ReduxThunk from "redux-thunk";
 import "../style/index.less";
 
-import App from "./layout/app";
+import App from "./layout/App";
 import { initialState, reducers } from "./state";
 
+import { navigToPage } from "./actions";
+
 const routes = {
-  "/": "INIT"
+  "/": () => navigToPage("monitoring"),
+  "/monitoring": () => navigToPage("monitoring"),
+  "/workflow": () => navigToPage("workflow")
 };
 
 const router = createRouter(routes, createHistory());
@@ -27,9 +31,11 @@ const store = createStore(
   )
 );
 
+store.dispatch(navigate(location.pathname, true));
+
 render(
   <Provider store={store}>
-    <App />
+    <App workflowName="Opera" environment="production" />
   </Provider>,
   document.getElementById("app")
 );

@@ -31,5 +31,9 @@
     "flowtype": {
       "onlyFilesWithFlowAnnotation": true
     }
+  },
+  "globals": {
+    "document": true,
+    "window": true
   }
 }
