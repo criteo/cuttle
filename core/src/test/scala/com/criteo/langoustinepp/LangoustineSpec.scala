@@ -3,13 +3,15 @@ package org.criteo.langoustine
 import org.scalatest.FunSuite
 
 case class TestDependencyDescriptor()
-
 object TestDependencyDescriptor {
   implicit val defDepDescr = TestDependencyDescriptor()
 }
+case class TestContext() extends Ordered[TestContext] {
+  def compare(that: TestContext) = 0
+}
 
 case class TestScheduling(config: Unit = ()) extends Scheduling {
-  type Context = Unit
+  type Context = TestContext
   type DependencyDescriptor = TestDependencyDescriptor
   type Config = Unit
 }

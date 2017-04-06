@@ -7,7 +7,7 @@ trait Scheduler[S <: Scheduling] {
 }
 
 trait Scheduling {
-  type Context
+  type Context <: Ordered[Context]
   type DependencyDescriptor
 }
 

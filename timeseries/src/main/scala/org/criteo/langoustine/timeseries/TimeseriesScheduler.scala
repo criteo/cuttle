@@ -21,7 +21,11 @@ sealed trait TimeSeriesGrid
 case object Hourly extends TimeSeriesGrid
 case class Daily(tz: ZoneId) extends TimeSeriesGrid
 
-case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime)
+case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime) extends Ordered[TimeSeriesContext] {
+  def compare(that: TimeSeriesContext) = {
+    if(this.start.isBefore(that.start)) -1 else if(that.start.isBefore(this.start)) 1 else 0
+  }
+}
 
 case class TimeSeriesDependency(offset: Duration)
 

@@ -1,6 +1,6 @@
 package org.criteo.langoustine
 
-import java.time.{ Duration, LocalDateTime }
+import java.time.{ LocalDateTime }
 import codes.reactive.scalatime._
 
 package object timeseries {
