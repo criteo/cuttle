@@ -50,7 +50,8 @@ lazy val langoustine =
     libraryDependencies ++= Seq(
       "org.scala-stm" %% "scala-stm" % "0.8",
       "org.scala-lang" % "scala-reflect" % "2.11.9",
-      "codes.reactive" %% "scala-time" % "0.4.1"
+      "codes.reactive" %% "scala-time" % "0.4.1",
+      "com.zaxxer" % "nuprocess" % "1.1.0"
     ),
 
     libraryDependencies ++= Seq(

@@ -3,14 +3,18 @@ package org.criteo.langoustine.timeseries
 import org.criteo.langoustine._
 
 import org.scalatest.FunSuite
+
 import java.time._
 import java.time.temporal.ChronoUnit._
+
+import scala.concurrent.{ Future }
+
 import continuum.{Interval, IntervalSet}
 
 class TimeSeriesSpec extends FunSuite {
   val scheduling = hourly(LocalDateTime.of(2017, 3, 25, 2, 0))
-  val job = (0 to 10).map(i => Job(i.toString, scheduling))
-  val scheduler = new TimeSeriesScheduler(job(1) dependsOn job(0))
+  val job = (0 to 10).map(i => Job(i.toString, scheduling)(_ => Future.successful(())))
+  val scheduler = new TimeSeriesScheduler(job(1) dependsOn job(0), Executor(Nil))
 
   import scheduler.dateTimeOrdering
 

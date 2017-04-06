@@ -1,6 +1,6 @@
 package org.criteo.langoustine
 
-import java.time.{ LocalDateTime, ZonedDateTime }
+import java.time.{ LocalDateTime, ZonedDateTime, ZoneId }
 
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox.Context
@@ -32,5 +32,6 @@ package object timeseries {
     TimeSeriesDependency(0.hours)
 
   def hourly(start: LocalDateTime) = TimeSeriesScheduling(grid = Hourly, start)
+  def daily(tz: String, start: LocalDateTime) = TimeSeriesScheduling(grid = Daily(ZoneId.of(tz)), start)
 
 }
