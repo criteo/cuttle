@@ -3,7 +3,7 @@ val devMode = taskKey[Boolean]("Some build optimization are applied in devMode."
 lazy val commonSettings = Seq(
   organization := "org.criteo.langoustine",
   version := "dev-SNAPSHOT",
-  scalaVersion := "2.11.8",
+  scalaVersion := "2.11.9",
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding", "UTF-8",
@@ -49,6 +49,7 @@ lazy val langoustine =
 
     libraryDependencies ++= Seq(
       "org.scala-stm" %% "scala-stm" % "0.8",
+      "org.scala-lang" % "scala-reflect" % "2.11.9",
       "codes.reactive" %% "scala-time" % "0.4.1"
     ),
 
