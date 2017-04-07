@@ -39,7 +39,7 @@ sealed trait Graph[S <: Scheduling] {
   }
 }
 
-case class Job[S <: Scheduling](id: String, scheduling: S)(val effect: Execution[S#Context] => Future[Unit]) extends Graph[S] {
+case class Job[S <: Scheduling](id: String, scheduling: S)(val effect: Execution[S] => Future[Unit]) extends Graph[S] {
   val vertices = Set(this)
   val edges = Set.empty[Dependency]
 }

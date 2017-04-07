@@ -41,8 +41,8 @@ let classpath = [
 let example = config.example || 'HelloWorld';
 
 let server = runServer({
-  httpPort,
-  sh: `java -cp ${classpath.join(':')} org.criteo.langoustine.examples.${example} ${httpPort}`,
+  httpOrt: 8888,
+  sh: `java -cp ${classpath.join(':')} org.criteo.langoustine.examples.${example}`,
   env: config.env
 }).dependsOn(compile, packageDependencies);
 

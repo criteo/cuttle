@@ -21,13 +21,9 @@ case object Hourly extends TimeSeriesGrid
 case class Daily(tz: ZoneId) extends TimeSeriesGrid
 private case object Continuous extends TimeSeriesGrid
 
-case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime) extends SchedulingContext {
-  def compare(that: SchedulingContext) = that match {
-    case TimeSeriesContext(thatStart, _) =>
-      if(this.start.isBefore(thatStart)) -1 else if(thatStart.isBefore(this.start)) 1 else 0
-    case _ =>
-      0
-  }
+case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime) extends SchedulingContext
+object TimeSeriesContext {
+  implicit val ordering: Ordering[TimeSeriesContext] = Ordering.fromLessThan((a,b) => a.start.isBefore(b.start))
 }
 
 case class TimeSeriesDependency(offset: Duration)
@@ -42,7 +38,7 @@ object TimeSeriesScheduling {
   implicit val scheduler = TimeSeriesScheduler
 }
 
-class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val executor: Executor) {
+class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val executor: Executor[TimeSeriesScheduling]) {
   implicit val dateTimeOrdering =
     Ordering.fromLessThan((t1: LocalDateTime, t2: LocalDateTime) => t1.isBefore(t2))
 
@@ -82,7 +78,7 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
       }
       val toRun = next(doneAndRunning + (timer -> IntervalSet(Interval.lessThan(LocalDateTime.now))))
       val newRunning = stillRunning ++ toRun.map { case (job, context) =>
-        (job, context, executor.run[TimeSeriesScheduling](job, context)) }
+        (job, context, executor.run(job, context)) }
       Future.firstCompletedOf(utils.Timeout(ScalaDuration.create(1, "s")) :: newRunning.map(_._3).toList).
         andThen { case _ => go(newRunning) }
     }
@@ -134,6 +130,6 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
 }
 
 object TimeSeriesScheduler extends Scheduler[TimeSeriesScheduling] {
-  def run(graph: Graph[TimeSeriesScheduling], executor: Executor) =
+  def run(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling]) =
     new TimeSeriesScheduler(graph, executor).run()
 }

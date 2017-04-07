@@ -21,9 +21,7 @@ object HelloWorld {
       """.exec()
     }
 
-    val workflow = world dependsOn hello
-
-    Langoustine.run(workflow, httpPort = args.lift(0).map(_.toInt).getOrElse(8888))
+    Langoustine(world dependsOn hello).run()
   }
 
 }

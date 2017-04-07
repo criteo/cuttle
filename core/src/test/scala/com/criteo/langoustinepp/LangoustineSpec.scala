@@ -8,9 +8,7 @@ case class TestDependencyDescriptor()
 object TestDependencyDescriptor {
   implicit val defDepDescr = TestDependencyDescriptor()
 }
-case class TestContext() extends SchedulingContext {
-  def compare(that: SchedulingContext) = 0
-}
+case class TestContext() extends SchedulingContext
 
 case class TestScheduling(config: Unit = ()) extends Scheduling {
   type Context = TestContext

@@ -28,34 +28,34 @@ trait ExecutionStreams {
   def println(str: CharSequence): Unit
 }
 
-case class Execution[+C <: SchedulingContext](
+case class Execution[S <: Scheduling](
   id: String,
-  context: C,
+  context: S#Context,
   streams: ExecutionStreams,
-  executionFrameworks: Seq[ExecutionFramework]
+  platforms: Seq[ExecutionPlatform[S]]
 )
 
-trait ExecutionFramework
+trait ExecutionPlatform[S <: Scheduling]
 
-object ExecutionFramework {
-  implicit def fromExecution(implicit e: Execution[_]): Seq[ExecutionFramework] = e.executionFrameworks
-  def lookup[E: ClassTag](implicit availableFrameworks: Seq[ExecutionFramework]): Option[E] = {
-    availableFrameworks.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
+object ExecutionPlatform {
+  implicit def fromExecution[S <: Scheduling](implicit e: Execution[S]): Seq[ExecutionPlatform[S]] = e.platforms
+  def lookup[E: ClassTag](implicit platforms: Seq[ExecutionPlatform[_]]): Option[E] = {
+    platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
   }
 }
 
-case class Executor(availableFrameworks: Seq[ExecutionFramework]) {
-  def run[S <: Scheduling](job: Job[S], context: S#Context): Future[Unit] = {
+case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]]) {
+  def run(job: Job[S], context: S#Context): Future[Unit] = {
     val nextExecutionId = utils.randomUUID
     val logFile = File.createTempFile("langoustine", nextExecutionId)
     val os = new BufferedOutputStream(new FileOutputStream(logFile))
-    val execution = Execution[S#Context](
+    val execution = Execution(
       id = nextExecutionId,
       context = context,
       streams = new ExecutionStreams {
-        def println(str: CharSequence) = os.write(s"@$nextExecutionId $str\n".getBytes("utf-8"))
+        def println(str: CharSequence) = os.write(s"$str\n".getBytes("utf-8"))
       },
-      executionFrameworks = availableFrameworks
+      platforms = platforms
     )
     job.effect(execution).andThen { case _ =>
       os.close()
