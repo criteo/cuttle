@@ -68,15 +68,14 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
 
     def go(running: Set[(TimeSeriesJob, TimeSeriesContext, Future[Unit])]): Unit = {
       val (done, stillRunning) = running.partition (_._3.isCompleted)
-      val doneAndRunning = atomic { implicit txn =>
+      val stateSnapshot = atomic { implicit txn =>
         addRuns(done)
-        val runningIntervals = stillRunning.groupBy(_._1)
-          .map { case (job, runs) => job -> runs.map(x => intervalFromContext(x._2)) }
-        state.snapshot.map { case (job, is) =>
-          job -> runningIntervals.getOrElse(job, List.empty).foldLeft(is)(_ + _)
-        }
+        state.snapshot
       }
-      val toRun = next(doneAndRunning + (timer -> IntervalSet(Interval.lessThan(LocalDateTime.now))))
+      val toRun = next(
+        stateSnapshot + (timer -> IntervalSet(Interval.lessThan(LocalDateTime.now))),
+        stillRunning.map { case (job, context, _) => (job, context) }
+      )
       val newRunning = stillRunning ++ toRun.map { case (job, context) =>
         (job, context, executor.run(job, context)) }
       Future.firstCompletedOf(utils.Timeout(ScalaDuration.create(1, "s")) :: newRunning.map(_._3).toList).
@@ -101,13 +100,19 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
     }
   }
 
-  def next(state: State): List[(TimeSeriesJob, TimeSeriesContext)] = {
-    val init = state.map { case (job, intervalSet) => (job, intervalSet.complement) }
-    val ready = graph.edges.foldLeft(init)
+  def next(state: State, running: Set[(TimeSeriesJob, TimeSeriesContext)])
+  : List[(TimeSeriesJob, TimeSeriesContext)] = {
+    val runningIntervals = running.groupBy(_._1)
+      .map { case (job, runs) => job -> runs.map(x => intervalFromContext(x._2)) }
+    val domain = state.map { case (job, is) =>
+      job -> runningIntervals.getOrElse(job, List.empty).foldLeft(is)(_ + _)
+    }.map { case (job, intervalSet) => job -> intervalSet.complement }
+    val ready = graph.edges.foldLeft(domain)
     { case (partial, (jobLeft, jobRight, TimeSeriesDependency(offset))) =>
       partial + (jobLeft ->
-        partial.getOrElse(jobLeft, full)
-          .intersect(state.getOrElse(jobRight, empty).map(i => i.map(_.plus(offset)))))
+        partial(jobLeft)
+          .intersect(state(jobRight))
+          .map(i => i.map(_.plus(offset))))
     }.map { case (job, intervalSet) =>
       job -> intervalSet.intersect(Interval.atLeast(job.scheduling.start))
     }
