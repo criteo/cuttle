@@ -9,12 +9,12 @@ let sbt = startSbt({
 });
 
 let compile = sbt.run({
-    command: 'compile',
-    watch: ['**/*.scala']
+  command: 'compile',
+  watch: ['**/*.scala']
 });
 
-let packageDependencies = sbt.run({
-    command: 'examples/assemblyPackageDependency'
+let generateClasspath = sbt.run({
+  command: 'examples/writeClasspath'
 });
 
 let yarn = run({
@@ -31,19 +31,10 @@ let front = webpack({
   ]
 }).dependsOn(yarn);
 
-let classpath = [
-  'examples/target/scala-2.11/langoustine-assembly-dev-SNAPSHOT-deps.jar',
-  'core/target/scala-2.11/classes',
-  'timeserie/target/scala-2.11/classes',
-  'examples/target/scala-2.11/classes'
-];
-
-let example = config.example || 'HelloWorld';
-
 let server = runServer({
-  httpOrt: 8888,
-  sh: `java -cp ${classpath.join(':')} org.criteo.langoustine.examples.${example}`,
-  env: config.env
-}).dependsOn(compile, packageDependencies);
+  httpPort: 8888,
+  sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.examples` org.criteo.langoustine.examples.HelloWorld',
+  env: config.env || {}
+}).dependsOn(compile, generateClasspath);
 
 proxy(server, 8080).dependsOn(front);

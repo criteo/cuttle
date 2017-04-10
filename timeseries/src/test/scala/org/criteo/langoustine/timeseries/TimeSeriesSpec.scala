@@ -14,7 +14,7 @@ import continuum.{Interval, IntervalSet}
 class TimeSeriesSpec extends FunSuite {
   val scheduling = hourly(LocalDateTime.of(2017, 3, 25, 2, 0))
   val job = (0 to 10).map(i => Job(i.toString, scheduling)(_ => Future.successful(())))
-  val scheduler = new TimeSeriesScheduler(job(1), Executor(Nil))
+  val scheduler = TimeSeriesScheduler()
 
   import scheduler.dateTimeOrdering
 
@@ -43,10 +43,9 @@ class TimeSeriesSpec extends FunSuite {
     val t = LocalDateTime.of(2017, 3, 25, 0, 0)
     val ts = (0 to 100).map(i => t.plus(i, HOURS))
     val state = Map(
-      scheduler.timer -> IntervalSet(Interval.closedOpen(ts(1), ts(5))),
       job(1) -> IntervalSet.empty[LocalDateTime]
     )
-    val result = scheduler.next(state, Set.empty)
+    val result = scheduler.next(job(1), state, Set.empty, IntervalSet(Interval.closedOpen(ts(1), ts(5))))
     assert(result ==
       (2 to 4).map { i => (job(1), TimeSeriesContext(ts(i), ts(i+1))) }
     )

@@ -1,4 +1,5 @@
-val devMode = taskKey[Boolean]("Some build optimization are applied in devMode.")
+val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
+val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
 lazy val commonSettings = Seq(
   organization := "org.criteo.langoustine",
@@ -16,7 +17,14 @@ lazy val commonSettings = Seq(
     "-Xfuture",
     "-Ywarn-unused-import"
   ),
-  devMode := Option(System.getProperty("devMode")).exists(_ == "true"),
+  devMode := Option(System.getProperty("devMode")).isDefined,
+  writeClasspath := {
+    val f = file(s"/tmp/classpath_${organization.value}.${name.value}")
+    val classpath = (fullClasspath in Runtime).value
+    IO.write(f, classpath.map(_.data).mkString(":"))
+    streams.value.log.info(f.getAbsolutePath)
+    f
+  },
 
   // Maven config
   resolvers += "Nexus" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty/",

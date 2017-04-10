@@ -19,7 +19,7 @@ class Langoustine[S <: Scheduling](
       onError = { e =>
         e.printStackTrace()
         InternalServerError("LOL.")
-      })(App.routes)
+      })(App(scheduler, executor).routes)
     println(s"Listening on http://localhost:$httpPort")
     scheduler.run(workflow, executor)
   }

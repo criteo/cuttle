@@ -35,10 +35,10 @@ extends Scheduling {
 }
 
 object TimeSeriesScheduling {
-  implicit val scheduler = TimeSeriesScheduler
+  implicit def scheduler = TimeSeriesScheduler()
 }
 
-class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val executor: Executor[TimeSeriesScheduling]) {
+case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with TimeSeriesApp {
   implicit val dateTimeOrdering =
     Ordering.fromLessThan((t1: LocalDateTime, t2: LocalDateTime) => t1.isBefore(t2))
 
@@ -48,18 +48,21 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
   val UTC = ZoneId.of("UTC")
   val empty = IntervalSet.empty[LocalDateTime]
   val full = IntervalSet(Interval.full[LocalDateTime])
-
-  val timer = Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ => ???)
-  val graph = userGraph dependsOn timer
-
-  val state = TMap[TimeSeriesJob, IntervalSet[LocalDateTime]](
-    graph.vertices.map(_ -> IntervalSet.empty[LocalDateTime]).toSeq:_*
-  )
+  val timer = Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ => sys.error("panic!"))
+  val state = TMap.empty[TimeSeriesJob, IntervalSet[LocalDateTime]]
 
   def intervalFromContext(context: TimeSeriesContext): Interval[LocalDateTime] =
     Interval.closedOpen(context.start, context.end)
 
-  def run() = {
+  def run(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling]) = {
+    atomic { implicit txn =>
+      graph.vertices.foreach { job =>
+        if(!state.contains(job)) {
+          state += (job -> IntervalSet.empty[LocalDateTime])
+        }
+      }
+    }
+
     def addRuns(runs: Set[(TimeSeriesJob, TimeSeriesContext, Future[Unit])])
     (implicit txn: InTxn) =
       runs.foreach { case (job, context, _) =>
@@ -73,8 +76,10 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
         state.snapshot
       }
       val toRun = next(
-        stateSnapshot + (timer -> IntervalSet(Interval.lessThan(LocalDateTime.now))),
-        stillRunning.map { case (job, context, _) => (job, context) }
+        graph,
+        stateSnapshot,
+        stillRunning.map { case (job, context, _) => (job, context) },
+        IntervalSet(Interval.lessThan(LocalDateTime.now))
       )
       val newRunning = stillRunning ++ toRun.map { case (job, context) =>
         (job, context, executor.run(job, context)) }
@@ -100,8 +105,10 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
     }
   }
 
-  def next(state: State, running: Set[(TimeSeriesJob, TimeSeriesContext)])
+  def next(graph0: Graph[TimeSeriesScheduling], state0: State, running: Set[(TimeSeriesJob, TimeSeriesContext)], timerInterval: IntervalSet[LocalDateTime])
   : List[(TimeSeriesJob, TimeSeriesContext)] = {
+    val graph = graph0 dependsOn timer
+    val state = state0 + (timer -> timerInterval)
     val runningIntervals = running.groupBy(_._1)
       .map { case (job, runs) => job -> runs.map(x => intervalFromContext(x._2)) }
     val domain = state.map { case (job, is) =>
@@ -132,9 +139,4 @@ class TimeSeriesScheduler(val userGraph: Graph[TimeSeriesScheduling], val execut
       }
     res.toList.flatMap { case (job, l) => l.map (i => (job, i)) }
   }
-}
-
-object TimeSeriesScheduler extends Scheduler[TimeSeriesScheduling] {
-  def run(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling]) =
-    new TimeSeriesScheduler(graph, executor).run()
 }
