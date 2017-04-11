@@ -1,11 +1,11 @@
 package org.criteo.langoustine
 
-import java.io.{ File, FileOutputStream, BufferedOutputStream }
-import java.time.{ LocalDateTime, ZonedDateTime }
-import java.time.format.DateTimeFormatter.{ ISO_INSTANT }
+import java.io.{BufferedOutputStream, File, FileOutputStream}
+import java.time.{LocalDateTime, ZonedDateTime}
+import java.time.format.DateTimeFormatter.{ISO_INSTANT}
 
-import scala.concurrent.{ Future }
-import scala.reflect.{ classTag, ClassTag }
+import scala.concurrent.{Future}
+import scala.reflect.{classTag, ClassTag}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class ExecutionLog(
@@ -39,9 +39,8 @@ trait ExecutionPlatform[S <: Scheduling]
 
 object ExecutionPlatform {
   implicit def fromExecution[S <: Scheduling](implicit e: Execution[S]): Seq[ExecutionPlatform[S]] = e.platforms
-  def lookup[E: ClassTag](implicit platforms: Seq[ExecutionPlatform[_]]): Option[E] = {
+  def lookup[E: ClassTag](implicit platforms: Seq[ExecutionPlatform[_]]): Option[E] =
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
-  }
 }
 
 case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]]) {
@@ -57,9 +56,10 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]]) {
       },
       platforms = platforms
     )
-    job.effect(execution).andThen { case _ =>
-      os.close()
-      logFile.delete()
+    job.effect(execution).andThen {
+      case _ =>
+        os.close()
+        logFile.delete()
     }
   }
 }

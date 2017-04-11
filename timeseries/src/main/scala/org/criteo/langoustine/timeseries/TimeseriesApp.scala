@@ -2,8 +2,7 @@ package org.criteo.langoustine.timeseries
 
 import lol.http._
 
-trait TimeSeriesApp {
-  self: TimeSeriesScheduler =>
+trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
   override lazy val routes: PartialService = {
     case GET at "/timeseries" =>

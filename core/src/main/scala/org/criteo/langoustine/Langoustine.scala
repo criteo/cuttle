@@ -14,19 +14,17 @@ class Langoustine[S <: Scheduling](
     httpPort: Int = 8888
   ) = {
     val executor = Executor[S](platforms)
-    Server.listen(
-      port = httpPort,
-      onError = { e =>
-        e.printStackTrace()
-        InternalServerError("LOL.")
-      })(App(scheduler, executor).routes)
+    Server.listen(port = httpPort, onError = { e =>
+      e.printStackTrace()
+      InternalServerError("LOL.")
+    })(App(scheduler, executor).routes)
     println(s"Listening on http://localhost:$httpPort")
     scheduler.run(workflow, executor)
   }
 }
 
 object Langoustine {
-  def apply[S <: Scheduling](workflow: Graph[S])(implicit scheduler: Scheduler[S], ordering: Ordering[S#Context]): Langoustine[S] = {
+  def apply[S <: Scheduling](workflow: Graph[S])(implicit scheduler: Scheduler[S],
+                                                 ordering: Ordering[S#Context]): Langoustine[S] =
     new Langoustine(workflow, scheduler, ordering)
-  }
 }

@@ -4,9 +4,10 @@ object TestExample {
 
   def main(args: Array[String]): Unit = {
     val example = args.headOption.getOrElse(sys.error("Please specify the example to run as argument"))
-    val forked = new ProcessBuilder(
-      "java", "-cp",
-      System.getProperty("java.class.path"), s"org.criteo.langoustine.examples.$example").inheritIO.start()
+    val forked = new ProcessBuilder("java",
+                                    "-cp",
+                                    System.getProperty("java.class.path"),
+                                    s"org.criteo.langoustine.examples.$example").inheritIO.start()
 
     new Thread() {
       override def run: Unit = {

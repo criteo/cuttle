@@ -1,6 +1,6 @@
 package org.criteo.langoustine
 
-import scala.concurrent.{ Future }
+import scala.concurrent.{Future}
 
 sealed trait Graph[S <: Scheduling] {
   type Dependency = (Job[S], Job[S], S#DependencyDescriptor)
@@ -16,13 +16,10 @@ sealed trait Graph[S <: Scheduling] {
     }
   }
 
-  private[langoustine] lazy val roots = vertices.filter (v =>
-      edges.forall { case (v1, _, _) => v1 != v })
-  private[langoustine] lazy val leaves = vertices.filter (v =>
-      edges.forall { case (_, v2, _) => v2 != v })
+  private[langoustine] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _) => v1 != v })
+  private[langoustine] lazy val leaves = vertices.filter(v => edges.forall { case (_, v2, _) => v2 != v })
 
-  def dependsOn(right: Graph[S])
-  (implicit depDescriptor: S#DependencyDescriptor): Graph[S] =
+  def dependsOn(right: Graph[S])(implicit depDescriptor: S#DependencyDescriptor): Graph[S] =
     dependsOn((right, depDescriptor))
 
   def dependsOn(right: (Graph[S], S#DependencyDescriptor)): Graph[S] = {

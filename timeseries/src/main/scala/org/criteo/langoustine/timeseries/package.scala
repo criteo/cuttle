@@ -1,6 +1,6 @@
 package org.criteo.langoustine
 
-import java.time.{ LocalDateTime, ZonedDateTime, ZoneId }
+import java.time.{LocalDateTime, ZoneId, ZonedDateTime}
 
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox.Context
@@ -16,10 +16,11 @@ package object timeseries {
   def safeLiteralDate(c: Context)(args: c.Expr[Any]*): c.Expr[LocalDateTime] = {
     import c.universe._
     c.prefix.tree match {
-      case Apply(_, List(Apply(_, Literal(Constant(dateString: String)):: Nil))) =>
+      case Apply(_, List(Apply(_, Literal(Constant(dateString: String)) :: Nil))) =>
         scala.util.Try(ZonedDateTime.parse(dateString)) match {
           case scala.util.Success(_) =>
-            c.Expr(q"""java.time.ZonedDateTime.parse($dateString).withZoneSameInstant(java.time.ZoneId.of("UTC")).toLocalDateTime""")
+            c.Expr(
+              q"""java.time.ZonedDateTime.parse($dateString).withZoneSameInstant(java.time.ZoneId.of("UTC")).toLocalDateTime""")
           case scala.util.Failure(_) =>
             c.abort(c.enclosingPosition, s"Invalid date literal `$dateString'")
         }

@@ -1,10 +1,10 @@
 package org.criteo.langoustine
 
-import scala.concurrent.{ Future, Promise }
-import scala.concurrent.duration.{ Duration }
+import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration.{Duration}
 
-import java.util.{ UUID }
-import java.util.concurrent.{ Executors, TimeUnit }
+import java.util.{UUID}
+import java.util.concurrent.{Executors, TimeUnit}
 
 package object utils {
 
