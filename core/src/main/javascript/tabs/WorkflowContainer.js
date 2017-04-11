@@ -4,6 +4,9 @@ import React from "react";
 import { connect } from "react-redux";
 import injectSheet from "react-jss";
 
+import UserBar from "../components/UserBar";
+import Select from "react-select";
+
 type Props = {
   classes: any
 };
@@ -15,6 +18,7 @@ class WorkflowContainer extends React.Component {
     const { classes } = this.props;
     return (
       <div className={classes.main}>
+        <UserBar />
         <h1>Workflow Definition</h1>
       </div>
     );
@@ -23,7 +27,8 @@ class WorkflowContainer extends React.Component {
 
 let styles = {
   main: {
-    backgroundColor: "#ECF1F5"
+    backgroundColor: "#ECF1F5",
+    height: "100vh"
   }
 };
 

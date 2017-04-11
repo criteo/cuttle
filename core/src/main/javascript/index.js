@@ -8,9 +8,10 @@ import { Provider } from "react-redux";
 import { createRouter, navigate } from "redux-url";
 import { render } from "react-dom";
 import ReduxThunk from "redux-thunk";
+
 import "../style/index.less";
 
-import App from "./layout/App";
+import App from "./App";
 import { initialState, reducers } from "./state";
 
 import { navigToPage } from "./actions";

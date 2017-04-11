@@ -30,13 +30,13 @@ const styles = {
   main: {
     display: "flex",
     width: "90%",
-    height: "2em",
-    lineHeight: "2em",
+    height: "3em",
+    lineHeight: "3em",
     backgroundColor: "#2B3142",
     color: "#FFF",
     fontFamily: "Arial",
     alignItems: "center",
-    padding: "5%"
+    padding: "0.5em 5%"
   },
   icon: {
     marginLeft: "0.5em",

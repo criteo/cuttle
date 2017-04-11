@@ -5,13 +5,13 @@ import { connect } from "react-redux";
 import { navigate } from "redux-url";
 import injectSheet from "react-jss";
 
-import RightPane from "./RightPane";
-import LeftPane from "./leftpane/LeftPane";
-import MenuHeader from "./leftpane/MenuHeader";
-import Menu from "./leftpane/Menu";
-import type { PageId } from "../state";
+import RightPane from "./components/RightPane";
+import LeftPane from "./components/LeftPane";
+import MenuHeader from "./components/menu/MenuHeader";
+import Menu from "./components/menu/Menu";
+import type { PageId } from "./state";
 
-import WorkflowContainer from "../tabs/WorkflowContainer";
+import WorkflowContainer from "./tabs/WorkflowContainer";
 
 type Props = {
   activeTab: PageId,
