@@ -22,19 +22,33 @@ class TimeSeriesSpec extends FunSuite {
     val result = scheduler.split(LocalDateTime.of(2017, 3, 26, 0, 15),
                                  LocalDateTime.of(2017, 3, 26, 3, 0),
                                  ZoneId.of("Europe/Paris"),
-                                 HOURS)
+                                 HOURS,
+                                 1)
     val midnight = LocalDateTime.of(2017, 3, 26, 0, 0)
     assert(
       result.toList == List(1, 2).map(i => TimeSeriesContext(midnight.plus(i, HOURS), midnight.plus(i + 1, HOURS))))
   }
   test("split on days") {
-    val result = scheduler
-      .split(LocalDateTime.of(2017, 3, 25, 1, 0), LocalDateTime.of(2017, 3, 28, 0, 0), ZoneId.of("Europe/Paris"), DAYS)
+    val result = scheduler.split(LocalDateTime.of(2017, 3, 25, 1, 0),
+                                 LocalDateTime.of(2017, 3, 28, 0, 0),
+                                 ZoneId.of("Europe/Paris"),
+                                 DAYS,
+                                 1)
     val midnightParis = LocalDateTime.of(2017, 3, 25, 23, 0)
     assert(
       result.toList == List(
         TimeSeriesContext(midnightParis, midnightParis.plus(23, HOURS)),
         TimeSeriesContext(midnightParis.plus(23, HOURS), midnightParis.plus(23 + 24, HOURS))
+      ))
+  }
+  test("split with maxPeriods") {
+    val midnight = LocalDateTime.of(2017, 1, 1, 0, 0)
+    val result = scheduler.split(midnight, midnight.plus(5, HOURS), ZoneId.of("UTC"), HOURS, 2)
+    assert(
+      result.toList == List(
+        TimeSeriesContext(midnight, midnight.plus(2, HOURS)),
+        TimeSeriesContext(midnight.plus(2, HOURS), midnight.plus(4, HOURS)),
+        TimeSeriesContext(midnight.plus(4, HOURS), midnight.plus(5, HOURS))
       ))
   }
   test("next") {

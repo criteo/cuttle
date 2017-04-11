@@ -28,7 +28,7 @@ object TimeSeriesContext {
 
 case class TimeSeriesDependency(offset: Duration)
 
-case class TimeSeriesScheduling(grid: TimeSeriesGrid, start: LocalDateTime) extends Scheduling {
+case class TimeSeriesScheduling(grid: TimeSeriesGrid, start: LocalDateTime, maxPeriods: Int = 1) extends Scheduling {
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
 }
@@ -92,7 +92,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     go(Set.empty)
   }
 
-  def split(start: LocalDateTime, end: LocalDateTime, tz: ZoneId, unit: ChronoUnit) = {
+  def split(start: LocalDateTime, end: LocalDateTime, tz: ZoneId, unit: ChronoUnit, maxPeriods: Int) = {
     val List(zonedStart, zonedEnd) = List(start, end).map { t =>
       t.atZone(UTC).withZoneSameInstant(tz)
     }
@@ -102,13 +102,13 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
       else truncatedStart.plus(1, unit)
     val alignedEnd = zonedEnd.truncatedTo(unit)
     val periods = alignedStart.until(alignedEnd, unit)
-    (1L to periods).map { i =>
+    (0L to (periods - 1)).grouped(maxPeriods).map { l =>
       def alignedNth(k: Long) =
         alignedStart
           .plus(k, unit)
           .withZoneSameInstant(UTC)
           .toLocalDateTime
-      TimeSeriesContext(alignedNth(i - 1), alignedNth(i))
+      TimeSeriesContext(alignedNth(l.head), alignedNth(l.last + 1))
     }
   }
 
@@ -151,7 +151,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
             }
             val Closed(start) = interval.lower.bound
             val Open(end) = interval.upper.bound
-            split(start, end, tz, unit)
+            split(start, end, tz, unit, job.scheduling.maxPeriods)
           }
           job -> contexts
       }
