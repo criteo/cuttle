@@ -47,6 +47,16 @@ lazy val continuum = {
   ProjectRef(uri("git://github.com/danburkert/continuum.git#b2122f1980fb69eb0d047e47e9d7de730ccbd448"), "continuum")
 }
 
+lazy val localpostgres = {
+  (project in file("localpostgres"))
+    .settings(commonSettings: _*)
+    .settings(
+      libraryDependencies ++= Seq(
+        "ru.yandex.qatools.embed" % "postgresql-embedded" % "1.23"
+      )
+    )
+}
+
 lazy val langoustine =
   (project in file("core"))
     .settings(commonSettings: _*)
@@ -61,6 +71,10 @@ lazy val langoustine =
         "codes.reactive" %% "scala-time" % "0.4.1",
         "com.zaxxer" % "nuprocess" % "1.1.0"
       ),
+      libraryDependencies ++= Seq(
+        "org.tpolecat" %% "doobie-core-cats",
+        "org.tpolecat" %% "doobie-postgres-cats"
+      ).map(_ % "0.4.1"),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1"
       ).map(_ % "test"),
@@ -89,7 +103,7 @@ lazy val langoustine =
         }
       }.taskValue
     )
-    .dependsOn(continuum)
+    .dependsOn(continuum, localpostgres % "test->test")
 
 lazy val timeseries =
   (project in file("timeseries"))
@@ -113,4 +127,4 @@ lazy val root =
     .settings(
       publishArtifact := false
     )
-    .aggregate(langoustine, timeseries, examples)
+    .aggregate(langoustine, timeseries, examples, localpostgres)

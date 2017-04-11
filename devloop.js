@@ -1,8 +1,3 @@
-if(!require('fs').existsSync('dev.config.json')) {
-  throw new Error(`Missing dev.config.json file in your project, please check the README.`);
-}
-let config = loadJson('dev.config.json');
-
 let sbt = startSbt({
   sh: 'sbt -DdevMode=true',
   watch: ['build.sbt']
@@ -14,8 +9,15 @@ let compile = sbt.run({
 });
 
 let generateClasspath = sbt.run({
-  command: 'examples/writeClasspath'
+  name: 'classpaths',
+  command: 'writeClasspath'
 });
+
+let database = runServer({
+  name: 'postgres',
+  httpPort: 5488,
+  sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.localpostgres` org.criteo.langoustine.localpostgres.LocalPostgres',
+}).dependsOn(generateClasspath)
 
 let yarn = run({
   sh: 'yarn install',
@@ -34,7 +36,13 @@ let front = webpack({
 let server = runServer({
   httpPort: 8888,
   sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.examples` org.criteo.langoustine.examples.HelloWorld',
-  env: config.env || {}
-}).dependsOn(compile, generateClasspath);
+  env: {
+    POSTGRES_HOST: 'localhost',
+    POSTGRES_PORT: '5488',
+    POSTGRES_DATABASE: 'langoustine',
+    POSTGRES_USER: 'root',
+    POSTGRES_PASSWORD: 'secret'
+  }
+}).dependsOn(compile, generateClasspath, database);
 
 proxy(server, 8080).dependsOn(front);

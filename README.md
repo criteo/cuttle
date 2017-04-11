@@ -11,14 +11,6 @@ is the example class name.
 To work on the web application:
 
 - Install **yarn** (https://yarnpkg.com/en/).
-- Create a `dev.config.json` file in your project root:
-  ```
-    {
-      "env": {
-      },
-      "example": "HelloWorld"
-    }
-  ```
 - Run, `yarn install` and `yarn start`.
 
 ## scalafmt
