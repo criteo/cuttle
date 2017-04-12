@@ -12,8 +12,8 @@ case class App[S <: Scheduling](workflow: Graph[S], scheduler: Scheduler[S], exe
           <h1>Successful executions</h1>
           <ul>
           ${successfulExecutions.map { e =>
-            html"<li>$e</li>"
-          }}
+          html"<li>$e</li>"
+        }}
           </ul>
         """
       )

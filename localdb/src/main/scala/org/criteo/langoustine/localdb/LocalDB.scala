@@ -8,10 +8,7 @@ import com.wix.mysql.config.Charset._
 object LocalDB {
   def main(args: Array[String]): Unit = {
     val config = {
-      MysqldConfig.aMysqldConfig(v5_7_latest).
-        withCharset(UTF8).
-        withPort(3388).
-        build()
+      MysqldConfig.aMysqldConfig(v5_7_latest).withCharset(UTF8).withPort(3388).build()
     }
     val mysqld = EmbeddedMysql.anEmbeddedMysql(config).addSchema("langoustine_dev").start()
     println("if needed you can connect to this running db using:")

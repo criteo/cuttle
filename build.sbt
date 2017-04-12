@@ -14,8 +14,8 @@ lazy val commonSettings = Seq(
     "-Xlint",
     "-Yno-adapted-args",
     "-Ywarn-dead-code",
-    "-language:postfixOps",
     "-Xfuture",
+    "-Ywarn-unused",
     "-Ywarn-unused-import"
   ),
   devMode := Option(System.getProperty("devMode")).isDefined,
