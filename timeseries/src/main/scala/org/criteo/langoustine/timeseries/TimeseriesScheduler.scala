@@ -69,7 +69,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
   type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
 
   private val timer =
-    Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
+    Job("timer", None, None, Set(), TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
       sys.error("panic!"))
 
   private val _state = TMap.empty[TimeSeriesJob, IntervalSet[LocalDateTime]]
