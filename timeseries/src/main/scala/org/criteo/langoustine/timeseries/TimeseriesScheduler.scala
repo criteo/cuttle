@@ -7,6 +7,8 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 
+import io.circe._
+
 import java.time._
 import java.time.temporal.ChronoUnit._
 import java.time.temporal._
@@ -24,6 +26,11 @@ private case object Continuous extends TimeSeriesGrid
 
 case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime) extends SchedulingContext {
   import TimeSeriesUtils._
+
+  def toJson = Json.obj(
+    "start" -> Json.fromLong(start.toEpochSecond(ZoneOffset.of("Z"))),
+    "end" -> Json.fromLong(end.toEpochSecond(ZoneOffset.of("Z")))
+  )
 
   def toInterval: Interval[LocalDateTime] = Interval.closedOpen(start, end)
 }

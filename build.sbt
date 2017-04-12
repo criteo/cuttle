@@ -63,7 +63,8 @@ lazy val langoustine =
     .settings(
       libraryDependencies ++= Seq(
         "org.criteo.lolhttp" %% "lolhttp",
-        "org.criteo.lolhttp" %% "loljson"
+        "org.criteo.lolhttp" %% "loljson",
+        "org.criteo.lolhttp" %% "lolhtml"
       ).map(_ % "0.2.2"),
       libraryDependencies ++= Seq(
         "org.scala-stm" %% "scala-stm" % "0.8",

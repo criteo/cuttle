@@ -4,11 +4,15 @@ import scala.concurrent.{Future}
 
 import org.scalatest.{FunSuite}
 
+import io.circe.Json
+
 case class TestDependencyDescriptor()
 object TestDependencyDescriptor {
   implicit val defDepDescr = TestDependencyDescriptor()
 }
-case class TestContext() extends SchedulingContext
+case class TestContext() extends SchedulingContext {
+  val toJson = Json.Null
+}
 
 case class TestScheduling(config: Unit = ()) extends Scheduling {
   type Context = TestContext

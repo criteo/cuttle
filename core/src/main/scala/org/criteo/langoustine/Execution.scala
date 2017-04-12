@@ -8,12 +8,16 @@ import scala.concurrent.{Future}
 import scala.reflect.{classTag, ClassTag}
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import doobie.imports._
+
+import io.circe._
+
 case class ExecutionLog(
-  executionId: String,
-  context: String,
-  contextId: String,
-  start: LocalDateTime,
-  end: LocalDateTime,
+  id: String,
+  job: String,
+  startTime: LocalDateTime,
+  endTime: LocalDateTime,
+  context: Json,
   success: Boolean
 )
 
@@ -43,7 +47,8 @@ object ExecutionPlatform {
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
-case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]]) {
+case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queries: Queries, xa: XA) {
+
   def run(job: Job[S], context: S#Context): Future[Unit] = {
     val nextExecutionId = utils.randomUUID
     val logFile = File.createTempFile("langoustine", nextExecutionId)
@@ -56,10 +61,26 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]]) {
       },
       platforms = platforms
     )
+    val startTime = LocalDateTime.now()
     job.effect(execution).andThen {
-      case _ =>
+      case result =>
         os.close()
         logFile.delete()
+        queries
+          .logExecution(
+            ExecutionLog(
+              nextExecutionId,
+              job.id,
+              startTime,
+              LocalDateTime.now(),
+              context.toJson,
+              result.isSuccess
+            ))
+          .transact(xa)
+          .unsafePerformIO
     }
   }
+
+  def getExecutionLog(success: Boolean): List[ExecutionLog] =
+    queries.getExecutionLog(success).transact(xa).unsafePerformIO
 }
