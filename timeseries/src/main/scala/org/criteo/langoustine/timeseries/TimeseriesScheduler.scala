@@ -14,14 +14,20 @@ import java.time.temporal._
 import continuum.{Interval, IntervalSet}
 import continuum.bound._
 
-import scala.math.Ordering.Implicits._
-
 sealed trait TimeSeriesGrid
+
 case object Hourly extends TimeSeriesGrid
+
 case class Daily(tz: ZoneId) extends TimeSeriesGrid
+
 private case object Continuous extends TimeSeriesGrid
 
-case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime) extends SchedulingContext
+case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime) extends SchedulingContext {
+  import TimeSeriesUtils._
+
+  def toInterval: Interval[LocalDateTime] = Interval.closedOpen(start, end)
+}
+
 object TimeSeriesContext {
   implicit val ordering: Ordering[TimeSeriesContext] = Ordering.fromLessThan((a, b) => a.start.isBefore(b.start))
 }
@@ -38,42 +44,41 @@ object TimeSeriesScheduling {
 }
 
 case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with TimeSeriesApp {
-  implicit val dateTimeOrdering =
-    Ordering.fromLessThan((t1: LocalDateTime, t2: LocalDateTime) => t1.isBefore(t2))
+  import TimeSeriesUtils._
 
   type TimeSeriesJob = Job[TimeSeriesScheduling]
   type State = Map[Job[TimeSeriesScheduling], IntervalSet[LocalDateTime]]
+  type Executable = (TimeSeriesJob, TimeSeriesContext)
+  type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
 
-  val UTC = ZoneId.of("UTC")
-  val empty = IntervalSet.empty[LocalDateTime]
-  val full = IntervalSet(Interval.full[LocalDateTime])
-  val timer = Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
-    sys.error("panic!"))
-  val state = TMap.empty[TimeSeriesJob, IntervalSet[LocalDateTime]]
+  private val timer =
+    Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
+      sys.error("panic!"))
 
-  def intervalFromContext(context: TimeSeriesContext): Interval[LocalDateTime] =
-    Interval.closedOpen(context.start, context.end)
+  private val _state = TMap.empty[TimeSeriesJob, IntervalSet[LocalDateTime]]
 
-  def run(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling]) = {
+  def state: Map[TimeSeriesJob, IntervalSet[LocalDateTime]] = _state.snapshot
+
+  def run(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling]): Unit = {
     atomic { implicit txn =>
       graph.vertices.foreach { job =>
-        if (!state.contains(job)) {
-          state += (job -> IntervalSet.empty[LocalDateTime])
+        if (!_state.contains(job)) {
+          _state += (job -> IntervalSet.empty[LocalDateTime])
         }
       }
     }
 
-    def addRuns(runs: Set[(TimeSeriesJob, TimeSeriesContext, Future[Unit])])(implicit txn: InTxn) =
+    def addRuns(runs: Set[Run])(implicit txn: InTxn) =
       runs.foreach {
         case (job, context, _) =>
-          state.update(job, state.get(job).getOrElse(empty) + intervalFromContext(context))
+          _state.update(job, _state.get(job).getOrElse(emptyIntervalSet) + context.toInterval)
       }
 
-    def go(running: Set[(TimeSeriesJob, TimeSeriesContext, Future[Unit])]): Unit = {
+    def go(running: Set[Run]): Unit = {
       val (done, stillRunning) = running.partition(_._3.isCompleted)
       val stateSnapshot = atomic { implicit txn =>
         addRuns(done)
-        state.snapshot
+        _state.snapshot
       }
       val toRun = next(
         graph,
@@ -89,25 +94,36 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         case _ => go(newRunning)
       }
     }
+
     go(Set.empty)
   }
 
-  def split(start: LocalDateTime, end: LocalDateTime, tz: ZoneId, unit: ChronoUnit, maxPeriods: Int) = {
+  def split(start: LocalDateTime,
+            end: LocalDateTime,
+            tz: ZoneId,
+            unit: ChronoUnit,
+            maxPeriods: Int): Iterator[TimeSeriesContext] = {
     val List(zonedStart, zonedEnd) = List(start, end).map { t =>
       t.atZone(UTC).withZoneSameInstant(tz)
     }
+
     val truncatedStart = zonedStart.truncatedTo(unit)
     val alignedStart =
-      if (truncatedStart == zonedStart) zonedStart
-      else truncatedStart.plus(1, unit)
+      if (truncatedStart == zonedStart)
+        zonedStart
+      else
+        truncatedStart.plus(1, unit)
+
     val alignedEnd = zonedEnd.truncatedTo(unit)
     val periods = alignedStart.until(alignedEnd, unit)
+
     (0L to (periods - 1)).grouped(maxPeriods).map { l =>
       def alignedNth(k: Long) =
         alignedStart
           .plus(k, unit)
           .withZoneSameInstant(UTC)
           .toLocalDateTime
+
       TimeSeriesContext(alignedNth(l.head), alignedNth(l.last + 1))
     }
   }
@@ -115,18 +131,18 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
   def next(graph0: Graph[TimeSeriesScheduling],
            state0: State,
            running: Set[(TimeSeriesJob, TimeSeriesContext)],
-           timerInterval: IntervalSet[LocalDateTime]): List[(TimeSeriesJob, TimeSeriesContext)] = {
+           timerInterval: IntervalSet[LocalDateTime]): List[Executable] = {
     val graph = graph0 dependsOn timer
     val state = state0 + (timer -> timerInterval)
+
     val runningIntervals = running
       .groupBy(_._1)
-      .map { case (job, runs) => job -> runs.map(x => intervalFromContext(x._2)) }
+      .map { case (job, runs) => job -> runs.map(x => x._2.toInterval) }
+
     val domain = state
-      .map {
-        case (job, is) =>
-          job -> runningIntervals.getOrElse(job, List.empty).foldLeft(is)(_ + _)
-      }
-      .map { case (job, intervalSet) => job -> intervalSet.complement }
+      .map { case (job, is) => job -> runningIntervals.getOrElse(job, List.empty).foldLeft(is)(_ + _) }
+      .map { case (job, is) => job -> is.complement }
+
     val ready = graph.edges
       .foldLeft(domain) {
         case (partial, (jobLeft, jobRight, TimeSeriesDependency(offset))) =>
@@ -139,6 +155,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         case (job, intervalSet) =>
           job -> intervalSet.intersect(Interval.atLeast(job.scheduling.start))
       }
+
     val res = ready
       .filterNot { case (job, _) => job == timer }
       .map {
@@ -146,7 +163,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
           val contexts = intervalSet.toList.flatMap { interval =>
             val (unit, tz) = job.scheduling.grid match {
               case Hourly => (HOURS, UTC)
-              case Daily(tz) => (DAYS, tz)
+              case Daily(_tz) => (DAYS, _tz)
               case Continuous => sys.error("panic!")
             }
             val Closed(start) = interval.lower.bound
@@ -155,6 +172,16 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
           }
           job -> contexts
       }
+
     res.toList.flatMap { case (job, l) => l.map(i => (job, i)) }
   }
+}
+
+object TimeSeriesUtils {
+  val UTC: ZoneId = ZoneId.of("UTC")
+
+  val emptyIntervalSet: IntervalSet[LocalDateTime] = IntervalSet.empty[LocalDateTime]
+
+  implicit val dateTimeOrdering: Ordering[LocalDateTime] =
+    Ordering.fromLessThan((t1: LocalDateTime, t2: LocalDateTime) => t1.isBefore(t2))
 }

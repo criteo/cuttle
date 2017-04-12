@@ -16,7 +16,7 @@ class TimeSeriesSpec extends FunSuite {
   val job = (0 to 10).map(i => Job(i.toString, scheduling)(_ => Future.successful(())))
   val scheduler = TimeSeriesScheduler()
 
-  import scheduler.dateTimeOrdering
+  import TimeSeriesUtils.dateTimeOrdering
 
   test("split on hours") {
     val result = scheduler.split(LocalDateTime.of(2017, 3, 26, 0, 15),
