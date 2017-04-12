@@ -73,6 +73,7 @@ lazy val langoustine =
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core-cats",
+        "org.tpolecat" %% "doobie-hikari-cats",
         "org.tpolecat" %% "doobie-postgres-cats"
       ).map(_ % "0.4.1"),
       libraryDependencies ++= Seq(

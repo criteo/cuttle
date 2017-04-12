@@ -1,10 +1,13 @@
 package org.criteo.langoustine
 
 import doobie.imports._
+import doobie.hikari.imports._
+
 import scala.util.{Try}
 
 trait Database {
   def run[A](statements: ConnectionIO[A]): A
+  def shutdown(): Unit
 }
 
 case class DatabaseConfig(host: String, port: Int, database: String, user: String, password: String)
@@ -12,13 +15,20 @@ case class DatabaseConfig(host: String, port: Int, database: String, user: Strin
 object Database {
 
   def connect(c: DatabaseConfig): Database = new Database {
-    val xa = DriverManagerTransactor[IOLite](
-      "org.postgresql.Driver",
-      s"jdbc:postgresql://${c.host}:${c.port}/${c.database}",
-      c.user,
-      c.password
-    )
+    val xa = (for {
+      hikari <- HikariTransactor[IOLite](
+        "org.postgresql.Driver",
+        s"jdbc:postgresql://${c.host}:${c.port}/${c.database}",
+        c.user,
+        c.password
+      )
+      _ <- hikari.configure { datasource =>
+        IOLite.primitive( /* Configure datasource if needed */ ())
+      }
+    } yield hikari).unsafePerformIO
+
     def run[A](statements: ConnectionIO[A]) = statements.transact(xa).unsafePerformIO
+    def shutdown() = xa.shutdown.unsafePerformIO
   }
 
   def configFromEnv: DatabaseConfig = {

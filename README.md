@@ -1,6 +1,6 @@
 # Langoustine, the good parts
 
-To work on th Scala API, run sbt using `sbt -DdevMode=true` (the devMode
+To work on th Scala API, run sbt using `sbt -DdevMode` (the devMode
 option allows to skip webpack execution to speed up execution). You can
 use `~compile` or `~test` on the root project or focus on a specific
 project using `~timeseries/test`.
