@@ -8,8 +8,6 @@ import cats.implicits._
 import io.circe._
 import io.circe.parser._
 
-import org.postgresql.util._
-
 import scala.util._
 
 import java.time._
@@ -23,39 +21,32 @@ object Database {
     x => new java.sql.Timestamp(x.toInstant(ZoneOffset.of("Z")).toEpochMilli)
   )
 
-  implicit val JsonMeta: Meta[Json] = {
-    Meta
-      .other[PGobject]("json")
-      .nxmap[Json](
-        x => parse(x.getValue).fold(e => throw e, identity),
-        x => {
-          val o = new PGobject
-          o.setType("json")
-          o.setValue(x.noSpaces)
-          o
-        }
-      )
-  }
+  implicit val JsonMeta: Meta[Json] = Meta[String].nxmap(
+    x => parse(x).fold(e => throw e, identity),
+    x => x.noSpaces
+  )
 
   val schemaEvolutions = List(
     sql"""
       CREATE TABLE executions (
-        id          VARCHAR NOT NULL UNIQUE,
-        job         VARCHAR NOT NULL,
-        start_time  TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-        end_time    TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-        context     JSONB NOT NULL,
-        success     BOOLEAN NOT NULL
+        id          CHAR(36) NOT NULL,
+        job         VARCHAR(255) NOT NULL,
+        start_time  DATETIME NOT NULL,
+        end_time    DATETIME NOT NULL,
+        context     JSON NOT NULL,
+        success     BOOLEAN NOT NULL,
+        UNIQUE      (id)
       )
-    """.update
+    """
   )
 
   private val doSchemaUpdates =
     (for {
       _ <- sql"""
         CREATE TABLE IF NOT EXISTS schema_evolutions (
-          schema_version SMALLINT NOT NULL,
-          schema_update  TIMESTAMP WITHOUT TIME ZONE NOT NULL
+          schema_version  SMALLINT NOT NULL,
+          schema_update   DATETIME NOT NULL,
+          UNIQUE          (schema_version)
         )
       """.update.run
 
@@ -63,7 +54,7 @@ object Database {
         SELECT MAX(schema_version) FROM schema_evolutions
       """.query[Option[Int]].unique.map(_.getOrElse(0))
 
-      _ <- schemaEvolutions.drop(currentSchemaVersion).zipWithIndex.foldLeft(NoUpdate) {
+      _ <- schemaEvolutions.map(_.update).drop(currentSchemaVersion).zipWithIndex.foldLeft(NoUpdate) {
         case (evolutions, (evolution, i)) =>
           evolutions *> evolution.run *> sql"""
             INSERT INTO schema_evolutions (schema_version, schema_update)
@@ -75,8 +66,8 @@ object Database {
   def connect(c: DatabaseConfig): XA = {
     val xa = (for {
       hikari <- HikariTransactor[IOLite](
-        "org.postgresql.Driver",
-        s"jdbc:postgresql://${c.host}:${c.port}/${c.database}",
+        "com.mysql.cj.jdbc.Driver",
+        s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false",
         c.user,
         c.password
       )
@@ -92,11 +83,11 @@ object Database {
     def env(variable: String, default: Option[String] = None) =
       Option(System.getenv(variable)).orElse(default).getOrElse(sys.error(s"Missing env ${'$' + variable}"))
     DatabaseConfig(
-      env("POSTGRES_HOST", Some("localhost")),
-      Try(env("POSTGRES_PORT", Some("5432")).toInt).getOrElse(5432),
-      env("POSTGRES_DATABASE"),
-      env("POSTGRES_USER"),
-      env("POSTGRES_PASSWORD")
+      env("MYSQL_HOST", Some("localhost")),
+      Try(env("MYSQL_PORT", Some("3306")).toInt).getOrElse(3306),
+      env("MYSQL_DATABASE"),
+      env("MYSQL_USER"),
+      env("MYSQL_PASSWORD")
     )
   }
 }

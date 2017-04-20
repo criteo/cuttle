@@ -14,9 +14,9 @@ let generateClasspath = sbt.run({
 });
 
 let database = runServer({
-  name: 'postgres',
-  httpPort: 5488,
-  sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.localpostgres` org.criteo.langoustine.localpostgres.LocalPostgres',
+  name: 'mysqld',
+  httpPort: 3388,
+  sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.localdb` org.criteo.langoustine.localdb.LocalDB',
 }).dependsOn(generateClasspath)
 
 let yarn = run({
@@ -37,11 +37,11 @@ let server = runServer({
   httpPort: 8888,
   sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.examples` org.criteo.langoustine.examples.HelloWorld',
   env: {
-    POSTGRES_HOST: 'localhost',
-    POSTGRES_PORT: '5488',
-    POSTGRES_DATABASE: 'langoustine',
-    POSTGRES_USER: 'root',
-    POSTGRES_PASSWORD: 'secret'
+    MYSQL_HOST: 'localhost',
+    MYSQL_PORT: '3388',
+    MYSQL_DATABASE: 'langoustine_dev',
+    MYSQL_USER: 'root',
+    MYSQL_PASSWORD: ''
   }
 }).dependsOn(compile, generateClasspath, database);
 
