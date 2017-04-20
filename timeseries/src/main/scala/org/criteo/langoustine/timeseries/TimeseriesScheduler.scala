@@ -1,5 +1,6 @@
 package org.criteo.langoustine.timeseries
 
+import Internal._
 import org.criteo.langoustine._
 
 import scala.concurrent._
@@ -8,6 +9,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 
 import io.circe._
+import io.circe.generic.semiauto._
+
+import doobie.imports._
 
 import java.time._
 import java.time.temporal.ChronoUnit._
@@ -24,7 +28,16 @@ case class Daily(tz: ZoneId) extends TimeSeriesGrid
 
 private case object Continuous extends TimeSeriesGrid
 
-case class Backfill(start: LocalDateTime, end: LocalDateTime, jobs: Set[Job[TimeSeriesScheduling]], priority: Int)
+case class Backfill(id: Int,
+                    start: LocalDateTime,
+                    end: LocalDateTime,
+                    jobs: Set[Job[TimeSeriesScheduling]],
+                    priority: Int)
+object Backfill {
+  implicit val encoder: Encoder[Backfill] = deriveEncoder[Backfill]
+  implicit def decoder(implicit jobs: Set[Job[TimeSeriesScheduling]]) =
+    deriveDecoder[Backfill]
+}
 
 case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime, backfill: Option[Backfill] = None)
     extends SchedulingContext {
@@ -63,14 +76,12 @@ object TimeSeriesScheduling {
 case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with TimeSeriesApp {
   import TimeSeriesUtils._
 
-  type TimeSeriesJob = Job[TimeSeriesScheduling]
-  type State = Map[Job[TimeSeriesScheduling], IntervalSet[LocalDateTime]]
-  type Executable = (TimeSeriesJob, TimeSeriesContext)
-  type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
-
   private val timer =
-    Job("timer", None, None, Set(), TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
-      sys.error("panic!"))
+    Job("timer",
+        None,
+        None,
+        Set(),
+        TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ => sys.error("panic!"))
 
   private val _state = TMap.empty[TimeSeriesJob, IntervalSet[LocalDateTime]]
   private val _backfills = TMap.empty[Backfill, State]
@@ -79,7 +90,21 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     (_state.snapshot, _backfills.snapshot)
   }
 
-  def run(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling]): Unit = {
+  def run(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling], xa: XA): Unit = {
+    Database.doSchemaUpdates.transact(xa).unsafePerformIO
+
+    Database
+      .deserialize(graph.vertices)
+      .transact(xa)
+      .unsafePerformIO
+      .foreach {
+        case (state, backfillState) =>
+          atomic { implicit txn =>
+            _state ++= state
+            _backfills ++= backfillState
+          }
+      }
+
     atomic { implicit txn =>
       graph.vertices.foreach { job =>
         if (!_state.contains(job)) {
@@ -107,6 +132,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         _backfills.retain { case (_, state) => !state.forall(_._2.isEmpty) }
         (_state.snapshot, _backfills.snapshot)
       }
+
+      if (done.nonEmpty)
+        Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
+
       val toRun = next(
         graph,
         stateSnapshot,
@@ -226,6 +255,11 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
 }
 
 object TimeSeriesUtils {
+  type TimeSeriesJob = Job[TimeSeriesScheduling]
+  type State = Map[Job[TimeSeriesScheduling], IntervalSet[LocalDateTime]]
+  type Executable = (TimeSeriesJob, TimeSeriesContext)
+  type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
+
   val UTC: ZoneId = ZoneId.of("UTC")
 
   val emptyIntervalSet: IntervalSet[LocalDateTime] = IntervalSet.empty[LocalDateTime]

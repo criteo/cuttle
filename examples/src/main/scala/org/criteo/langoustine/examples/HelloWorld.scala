@@ -9,7 +9,7 @@ object HelloWorld {
     val start = date"2017-04-06T00:00Z"
 
     val tagPolite = Tag("Polite", Some("Jobs that greet you politely"))
-    val tagBigFilter = Tag(name="BigFilter")
+    val tagBigFilter = Tag(name = "BigFilter")
 
     val hello = Job("0", Some("Hello"), Some("The Hello Job"), Set(tagPolite), hourly(start)) { implicit e =>
       sh"""

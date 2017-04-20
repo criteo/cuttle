@@ -3,8 +3,8 @@ package org.criteo.langoustine
 import scala.concurrent.{Future}
 
 /*
-* The representation of the workflow to be scheduled
-* */
+ * The representation of the workflow to be scheduled
+ * */
 sealed trait Graph[S <: Scheduling] {
   type Dependency = (Job[S], Job[S], S#DependencyDescriptor)
 
@@ -40,11 +40,16 @@ sealed trait Graph[S <: Scheduling] {
 }
 
 /*
-* A tag is used to annotate a job.
-* */
+ * A tag is used to annotate a job.
+ * */
 case class Tag(name: String, description: Option[String] = None, color: Option[String] = None)
 
-case class Job[S <: Scheduling](id: String, name: Option[String] = None, description: Option[String] = None, tags: Set[Tag] = Set.empty[Tag], scheduling: S)(val effect: Execution[S] => Future[Unit]) extends Graph[S] {
+case class Job[S <: Scheduling](id: String,
+                                name: Option[String] = None,
+                                description: Option[String] = None,
+                                tags: Set[Tag] = Set.empty[Tag],
+                                scheduling: S)(val effect: Execution[S] => Future[Unit])
+    extends Graph[S] {
   val vertices = Set(this)
   val edges = Set.empty[Dependency]
 }

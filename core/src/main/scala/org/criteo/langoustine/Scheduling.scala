@@ -4,7 +4,7 @@ import lol.http.PartialService
 import io.circe.Json
 
 trait Scheduler[S <: Scheduling] {
-  def run(graph: Graph[S], executor: Executor[S]): Unit
+  def run(graph: Graph[S], executor: Executor[S], xa: XA): Unit
   def routes: PartialService = PartialFunction.empty
 }
 

@@ -66,6 +66,8 @@ lazy val langoustine =
         "org.criteo.lolhttp" %% "loljson",
         "org.criteo.lolhttp" %% "lolhtml"
       ).map(_ % "0.2.2"),
+      libraryDependencies ++= Seq("core", "generic", "parser")
+        .map(module => "io.circe" %% s"circe-${module}" % "0.7.0"),
       libraryDependencies ++= Seq(
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % "2.11.9",

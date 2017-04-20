@@ -6,15 +6,14 @@ import io.circe.syntax._
 
 object Api {
   implicit val projectEncoder = new Encoder[Project] {
-    override def apply(project: Project): Json = {
+    override def apply(project: Project): Json =
       Map[String, Json](
         "name" -> project.name.asJson,
         "description" -> project.description.asJson
       ).asJson
-    }
   }
 
-  implicit def graphEncoder[S <: Scheduling] = {
+  implicit def graphEncoder[S <: Scheduling] =
     new Encoder[Graph[S]] {
       override def apply(workflow: Graph[S]): Json = {
         val jobs: Json = workflow.vertices.map { v =>
@@ -42,5 +41,4 @@ object Api {
         ).asJson
       }
     }
-  }
 }

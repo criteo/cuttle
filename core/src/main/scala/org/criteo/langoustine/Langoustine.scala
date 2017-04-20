@@ -22,14 +22,13 @@ class Langoustine[S <: Scheduling](
       InternalServerError("LOL")
     })(App(project, workflow, scheduler, executor).routes)
     println(s"Listening on http://localhost:$httpPort")
-    scheduler.run(workflow, executor)
+    scheduler.run(workflow, executor, database)
   }
 }
 
 object Langoustine {
-  def apply[S <: Scheduling](name: String, description: Option[String] = None)(workflow: Graph[S])(
-    implicit scheduler: Scheduler[S],
-    ordering: Ordering[S#Context]): Langoustine[S] =
+  def apply[S <: Scheduling](name: String, description: Option[String] = None)(
+    workflow: Graph[S])(implicit scheduler: Scheduler[S], ordering: Ordering[S#Context]): Langoustine[S] =
     new Langoustine(Project(name, description), workflow, scheduler, ordering, new Queries {})
 }
 
