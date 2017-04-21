@@ -36,7 +36,7 @@ store.dispatch(navigate(location.pathname, true));
 
 render(
   <Provider store={store}>
-    <App workflowName="Opera" environment="production" />
+    <App />
   </Provider>,
   document.getElementById("app")
 );

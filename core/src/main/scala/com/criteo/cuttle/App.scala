@@ -1,25 +1,14 @@
 package com.criteo.cuttle
 
-import lol.html._
 import lol.json._
 import lol.http._
 import io.circe.syntax._
 import Api._
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler: Scheduler[S], executor: Executor[S]) {
   private val main: PartialService = {
-    case GET at "/" =>
-      val successfulExecutions = executor.getExecutionLog(true)
-      Ok(
-        html"""
-          <h1>Successful executions</h1>
-          <ul>
-          ${successfulExecutions.map { e =>
-          html"<li>$e</li>"
-        }}
-          </ul>
-        """
-      )
 
     case POST at url"/api/pause/$id" =>
       executor.pauseJob(workflow.vertices.find(_.id == id).get)
@@ -34,11 +23,19 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
 
     case GET at "/api/workflow_definition" =>
       Ok(workflow.asJson)
+
+    case GET at url"/public/$file" =>
+      ClasspathResource(s"/public/$file").fold(NotFound)(r => Ok(r))
+
+    case req => {
+      if (req.url.startsWith("/api"))
+        NotFound("Api endpoint not found")
+      else
+        Ok(ClasspathResource(s"/public/index.html"))
+    }
   }
 
-  private val notFound: PartialService = {
-    case _ =>
-      NotFound("Page not found")
-  }
-  lazy val routes = main.orElse(scheduler.routes).orElse(notFound)
+  lazy val routes = main.orElse(scheduler.routes)
 }
+
+

@@ -31,7 +31,7 @@ let front = webpack({
     'core/src/main/html/**/*.*',
     'core/src/main/style/**/*.*'
   ]
-}).dependsOn(yarn);
+}).dependsOn(yarn, compile);
 
 let server = runServer({
   httpPort: 8888,

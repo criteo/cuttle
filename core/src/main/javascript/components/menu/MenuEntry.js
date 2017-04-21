@@ -3,6 +3,9 @@
 import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
+import { navigate } from "redux-url";
+import { connect } from "react-redux";
+//import {}
 import type { BadgeType } from "../../components/generic/Badge";
 import { Badge } from "../../components/generic/Badge";
 import Icon from "../../components/generic/Icon";
@@ -17,7 +20,8 @@ type Props = {
   badges: BadgeType[],
   classes: any,
   className: any,
-  activeClassName: any
+  activeClassName: any,
+  navTo: any
 };
 
 const MenuEntry = (
@@ -30,7 +34,8 @@ const MenuEntry = (
     link,
     subEntries,
     badges,
-    active
+    active,
+    navTo
   }: Props
 ) => (
   <div className={classes.menuentry}>
@@ -41,7 +46,7 @@ const MenuEntry = (
         active && classes.active,
         active && activeClassName
       )}
-      href={link}
+      onClick={() => navTo(link)}
     >
       <Icon iconName={iconName} className={classes.icon} />
       <span className={classes.label}>{label}</span>
@@ -89,4 +94,6 @@ const styles = {
     fontVariant: "small-caps"
   }
 };
-export default injectSheet(styles)(MenuEntry);
+export default connect(() => ({}), dispatch => ({
+  navTo: link => dispatch(navigate(link))
+}))(injectSheet(styles)(MenuEntry));

@@ -10,6 +10,7 @@ import LeftPane from "./components/LeftPane";
 import MenuHeader from "./components/menu/MenuHeader";
 import Menu from "./components/menu/Menu";
 import type { PageId } from "./state";
+import * as Actions from "./actions";
 
 import WorkflowContainer from "./tabs/WorkflowContainer";
 
@@ -17,17 +18,27 @@ type Props = {
   activeTab: PageId,
   workflowName: string,
   environment: string,
+  loadProjectData: any,
   classes: any
 };
 
 class App extends React.Component {
   props: Props;
 
+  constructor(props: Props) {
+    super(props);
+    this.props.loadProjectData();
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    
+  }
+  
   render() {
     const {
       classes,
-      workflowName,
-      environment,
+      workflowName = "",
+      environment = "",
       activeTab
     } = this.props;
     return (
@@ -59,8 +70,14 @@ let styles = {
   }
 };
 
-const mapStateToProps = ({ page }) => ({ activeTab: page });
-const mapDispatchToProps = () => ({});
+const mapStateToProps = ({ page, project={} }) => ({
+  activeTab: page,
+  workflowName: project.name,
+  environment: project.environment
+});
+const mapDispatchToProps = dispatch => ({
+  loadProjectData: () => Actions.loadProjectData(dispatch)
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(
   injectSheet(styles)(App)
