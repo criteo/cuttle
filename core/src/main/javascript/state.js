@@ -1,6 +1,6 @@
 // @flow
 
-import * as Actions from "./actions";
+import type { Action } from "./actions";
 
 export type PageId =
   | "monitoring"
@@ -30,7 +30,7 @@ export const initialState: State = {
 
 export const reducers = (
   currentState: State,
-  action: Actions.Action
+  action: Action
 ): State => {
   switch (action.type) {
     case "INIT": {
@@ -47,6 +47,36 @@ export const reducers = (
       };
     }
 
+    case "LOAD_PROJECT_DATA": {
+      switch(action.status) {
+        case 'success':
+          return {
+            ...currentState,
+            project: action.data
+          }
+        default:
+          return {
+            ...currentState,
+            globalError: action.globalErrorMessage
+          }
+      }
+    }
+
+    case "LOAD_WORKFLOW_DATA": {
+      switch(action.status) {
+        case 'success':
+          return {
+            ...currentState,
+            workflow: action.data
+          }
+        default:
+          return {
+            ...currentState,
+            globalError: action.globalErrorMessage
+          }
+      }
+    }
+      
     default:
       console.log("Unhandled action %o", action);
       return currentState;

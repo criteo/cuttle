@@ -2,40 +2,36 @@
 
 import React from "react";
 import { connect } from "react-redux";
-import injectSheet from "react-jss";
 
-import UserBar from "../components/UserBar";
-import Select from "react-select";
+import WorkflowComponent from "../components/tabs/Workflow";
+import type { Workflow } from "../datamodel/workflow";
+import * as Actions from "../actions";
 
 type Props = {
-  classes: any
+  workflow: Workflow,
+  loadWorkflowData: () => void
 };
 
 class WorkflowContainer extends React.Component {
   props: Props;
 
+  constructor(props: Props) {
+    super(props);
+    this.props.loadWorkflowData();
+  }
+
   render() {
-    const { classes } = this.props;
-    return (
-      <div className={classes.main}>
-        <UserBar />
-        <h1>Workflow Definition</h1>
-      </div>
-    );
+    const { workflow } = this.props;
+    return workflow
+      ? <WorkflowComponent workflow={workflow} />
+      : <div />;
   }
 }
 
-let styles = {
-  main: {
-    backgroundColor: "#ECF1F5",
-    height: "100vh"
-  }
-};
+const mapStateToProps = ({ workflow }) => ({ workflow });
 
-const mapStateToProps = () => ({});
+const mapDispatchToProps = dispatch => ({
+  loadWorkflowData: () => Actions.loadWorkflowData(dispatch)
+});
 
-const mapDispatchToProps = () => ({});
-
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(WorkflowContainer)
-);
+export default connect(mapStateToProps, mapDispatchToProps)(WorkflowContainer);
