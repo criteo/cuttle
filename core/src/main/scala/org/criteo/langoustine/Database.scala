@@ -30,13 +30,16 @@ object Database {
     sql"""
       CREATE TABLE executions (
         id          CHAR(36) NOT NULL,
-        job         VARCHAR(255) NOT NULL,
+        job         VARCHAR(1000) NOT NULL,
         start_time  DATETIME NOT NULL,
         end_time    DATETIME NOT NULL,
         context     JSON NOT NULL,
         success     BOOLEAN NOT NULL,
-        UNIQUE      (id)
-      )
+        PRIMARY KEY (id)
+      ) ENGINE = INNODB;
+
+      CREATE INDEX execution_by_job ON executions (job);
+      CREATE INDEX execution_by_start_time ON executions (start_time);
     """
   )
 
@@ -46,8 +49,8 @@ object Database {
         CREATE TABLE IF NOT EXISTS schema_evolutions (
           schema_version  SMALLINT NOT NULL,
           schema_update   DATETIME NOT NULL,
-          UNIQUE          (schema_version)
-        )
+          PRIMARY KEY     (schema_version)
+        ) ENGINE = INNODB
       """.update.run
 
       currentSchemaVersion <- sql"""
@@ -67,7 +70,7 @@ object Database {
     val xa = (for {
       hikari <- HikariTransactor[IOLite](
         "com.mysql.cj.jdbc.Driver",
-        s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false",
+        s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
         c.user,
         c.password
       )
