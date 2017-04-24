@@ -19,6 +19,7 @@ type Props = {
   workflowName: string,
   environment: string,
   loadProjectData: any,
+  isLoadingProject: boolean,
   classes: any
 };
 
@@ -27,19 +28,17 @@ class App extends React.Component {
 
   constructor(props: Props) {
     super(props);
-    this.props.loadProjectData();
+    if (!this.props.isLoadedProject && !this.props.isLoadingProject)
+      this.props.loadProjectData();
   }
 
-  componentWillReceiveProps(nextProps: Props) {
-    
-  }
-  
   render() {
     const {
       classes,
-      workflowName = "",
-      environment = "",
-      activeTab
+      activeTab,
+      environment,
+      workflowName,
+      isLoadingProject = true
     } = this.props;
     return (
       <div className={classes.main}>
@@ -47,7 +46,11 @@ class App extends React.Component {
           {(activeTab === "workflow" && <WorkflowContainer />) || <div />}
         </RightPane>
         <LeftPane className={classes.leftpane}>
-          <MenuHeader environment={environment} workflowName={workflowName} />
+          <MenuHeader
+            environment={environment}
+            workflowName={workflowName}
+            isLoading={isLoadingProject}
+          />
           <Menu activeTab={activeTab} />
         </LeftPane>
       </div>
@@ -70,10 +73,12 @@ let styles = {
   }
 };
 
-const mapStateToProps = ({ page, project={} }) => ({
+const mapStateToProps = ({ page, project = {} }) => ({
   activeTab: page,
-  workflowName: project.name,
-  environment: project.environment
+  isLoadedProject: !!project.data,
+  isLoadingProject: project.isLoading,
+  workflowName: project.data && project.data.name,
+  environment: "env"
 });
 const mapDispatchToProps = dispatch => ({
   loadProjectData: () => Actions.loadProjectData(dispatch)

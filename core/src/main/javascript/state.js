@@ -52,12 +52,26 @@ export const reducers = (
         case 'success':
           return {
             ...currentState,
-            project: action.data
+            project: {
+              data: action.data,
+              isLoading: false
+            }
+          }
+        case 'pending':
+          return {
+            ...currentState,
+            project: {
+              isLoading: true
+            }
           }
         default:
           return {
             ...currentState,
-            globalError: action.globalErrorMessage
+            globalError: action.globalErrorMessage,
+            project: {
+              name: ".",
+              isLoading: false
+            }
           }
       }
     }
@@ -67,12 +81,25 @@ export const reducers = (
         case 'success':
           return {
             ...currentState,
-            workflow: action.data
+            workflow: {
+              data: action.data,
+              isLoading: false
+            }
+          }
+        case 'pending':
+          return {
+            ...currentState,
+            workflow: {
+              isLoading: true
+            }
           }
         default:
           return {
             ...currentState,
-            globalError: action.globalErrorMessage
+            globalError: action.globalErrorMessage,
+            workflow: {
+              isLoading: false
+            }
           }
       }
     }

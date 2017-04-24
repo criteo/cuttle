@@ -3,7 +3,7 @@ import type { PageId } from "./state";
 import type Project from "./datamodel/project";
 import type { Workflow } from "./datamodel/workflow";
 
-type Status = "success" | "error";
+type Status = "success" | "pending" | "error";
 type Dispatch = (action: Action) => void;
 
 export type Action = INIT | NAVIGATE | LOAD_PROJECT_DATA;
@@ -26,7 +26,11 @@ type LOAD_PROJECT_DATA = {
   data?: Project
 };
 
-export const loadProjectData = (dispatch: Dispatch) =>
+export const loadProjectData = (dispatch: Dispatch) => {
+  dispatch({
+    type: "LOAD_PROJECT_DATA",
+    status: "pending"
+  });
   fetch("/api/project_definition").then(
     response => {
       response.json().then(
@@ -51,6 +55,7 @@ export const loadProjectData = (dispatch: Dispatch) =>
         globalErrorMessage: "Cannot load Project definition data"
       })
   );
+}
 
 type LOAD_WORKFLOW_DATA = {
   type: "LOAD_WORKFLOW_DATA",
@@ -59,7 +64,11 @@ type LOAD_WORKFLOW_DATA = {
   data?: Workflow
 };
 
-export const loadWorkflowData = (dispatch: Dispatch) =>
+export const loadWorkflowData = (dispatch: Dispatch) => {
+  dispatch({
+    type: "LOAD_WORKFLOW_DATA",
+    status: "pending"
+  });
   fetch("/api/workflow_definition").then(
     response => {
       response.json().then(
@@ -84,3 +93,4 @@ export const loadWorkflowData = (dispatch: Dispatch) =>
         globalErrorMessage: "Cannot load Workflow definition data"
       })
   );
+}

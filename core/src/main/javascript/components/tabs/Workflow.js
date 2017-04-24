@@ -6,20 +6,22 @@ import map from "lodash/map";
 
 import UserBar from "../UserBar";
 import Dagger from "../dumb/Dagger";
+import Spinner from "../generic/Spinner";
 
 import type { Node, Edge } from "../../d3/dagger/dataAPI/genericGraph";
 import type { Workflow, Tag, Job, Dependency } from "../../datamodel/workflow";
 
 type Props = {
   classes: any,
-  workflow: Workflow
+  workflow: Workflow,
+  isLoadingWorkflow: boolean
 };
 
 class WorkflowComponent extends React.Component {
   props: Props;
 
   render() {
-    const { classes, workflow } = this.props;
+    const { classes, workflow = {}, isLoadingWorkflow } = this.props;
     const nodes: Node[] = map(workflow.jobs, (j: Job, i) => ({
       ...j,
       order: i,
@@ -35,11 +37,14 @@ class WorkflowComponent extends React.Component {
     return (
       <div className={classes.main}>
         <UserBar />
-        <Dagger
-          nodes={nodes}
-          edges={edges}
-          tags={tags}
-        />
+        {isLoadingWorkflow || nodes.length == 0
+          ? <Spinner dark />
+          : <Dagger
+              nodes={nodes}
+              edges={edges}
+              tags={tags}
+            />
+        }
       </div>
     );
   }

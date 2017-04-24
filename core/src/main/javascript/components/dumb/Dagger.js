@@ -2,7 +2,6 @@
 
 import injectSheet from "react-jss";
 import React from "react";
-import constant from "lodash/constant";
 
 import { Graph } from "../../d3/dagger/dataAPI/genericGraph";
 import type { Node, Edge } from "../../d3/dagger/dataAPI/genericGraph";
@@ -16,6 +15,7 @@ import * as d3 from "d3";
 type Props = {
   width?: number,
   height?: number,
+  currentNodeId: string,
   nodes: Node[],
   edges: Edge[],
   tags: Tag[]
@@ -30,39 +30,44 @@ class DaggerComponent extends React.Component {
     super(props);
   }
 
-  shouldComponentUpdate = constant(false);
+  shouldComponentUpdate(nextProps: Props) {
+    return nextProps.nodes.length !== this.props.nodes.length ||
+      nextProps.edges.length !== this.props.edges.length ||
+      nextProps.tags.length !== this.props.tags.length;
+  }
 
-  render = () => (
-    <div id="navigator-container">
-      <svg width="100%" height="850px">
-        <defs>
-          <filter id="blur" x="-20%" y="-20%" width="200%" height="200%">
-            <feOffset result="offOut" in="SourceGraphic" />
-            <feColorMatrix
-              result="matrixOut"
-              in="offOut"
-              type="matrix"
-              values="0.7 0 0 0 0 0 0.7 0 0 0 0 0 0.7 0 0 0 0 0 1 0"
-            />
-            <feGaussianBlur result="blurOut" in="matrixOut" stdDeviation="3" />
-            <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
-          </filter>
-        </defs>
-        <g
-          id="allNodesContainer"
-          ref={element => this.nodesContainer = element}
+  render() {
+    return (
+      <div id="navigator-container">
+        <svg width="100%" height="850px">
+          <defs>
+            <filter id="blur" x="-20%" y="-20%" width="200%" height="200%">
+              <feOffset result="offOut" in="SourceGraphic" />
+              <feColorMatrix
+                result="matrixOut"
+                in="offOut"
+                type="matrix"
+                values="0.7 0 0 0 0 0 0.7 0 0 0 0 0 0.7 0 0 0 0 0 1 0"
+              />
+              <feGaussianBlur result="blurOut" in="matrixOut" stdDeviation="3" />
+              <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
+            </filter>
+          </defs>
+          <g
+            id="allNodesContainer"
+            ref={element => this.nodesContainer = element}
+          />
+          <g
+            id="allEdgesContainer"
+            ref={element => this.edgesContainer = element}
+          />
+        </svg>
+        <div
+          id="minimap-container"
+          ref={element => this.minimapContainer = element}
         />
-        <g
-          id="allEdgesContainer"
-          ref={element => this.edgesContainer = element}
-        />
-      </svg>
-      <div
-        id="minimap-container"
-        ref={element => this.minimapContainer = element}
-      />
-    </div>
-  );
+      </div>);
+  }
 
   componentDidMount() {
     const { nodes, edges, tags } = this.props;
