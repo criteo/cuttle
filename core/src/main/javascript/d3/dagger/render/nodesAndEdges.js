@@ -1,5 +1,6 @@
 import {nodeKind, edgeKind} from '../layout/symbolic/annotatedGraph';
 import * as d3 from 'd3';
+import forEach from "lodash/forEach";
 import {interpolatePath} from 'd3-interpolate-path';
 
 const transitionDuration = 500;
@@ -83,10 +84,10 @@ export const transitionEdge = (edge, {x1, y1, x2, y2, kind, id, source, target},
     .attr("d", arrowHead(0, 0, newPath.end.x, newPath.end.y, 10, 5))
     .style("opacity", lineOpacity)
 
-    path.attrTween("d", (d, i, nodes) => {
-      const prev = d3.select(nodes[i]).attr("d");
-      return interpolatePath(prev, newPath.path)
-    });
+  path.attrTween("d", (d, i, nodes) => {
+    const prev = d3.select(nodes[i]).attr("d");
+    return interpolatePath(prev, newPath.path)
+  });
   return transition;
 }
 
@@ -123,11 +124,11 @@ export const drawEdge = (domContainer, {x1, y1, x2, y2, kind, id, source, target
 
   const path = edge
     .append("path").classed("lineBody", true)
-      .attr("fill", "none")
-      .style("stroke", lineColor)
-      .style("stroke-width", 1)
-      .style("opacity", lineOpacity)
-      .attr("d", newPath.path);
+    .attr("fill", "none")
+    .style("stroke", lineColor)
+    .style("stroke-width", 1)
+    .style("opacity", lineOpacity)
+    .attr("d", newPath.path);
 
   return edge;
 };
@@ -143,7 +144,18 @@ const computeNewWidth = (label: string, stringLengthReference: number, pixelWidt
   return [maxUsableWidth, labelToDisplay];
 };
 
-export const drawNode = (domContainer, {x, y, width, height, id, order, name, yPosition, kind}) => {
+const tagBulletVerticalOffset = ({
+  numberOfTags,
+  spaceBetweenBullets = 4,
+  bulletSize = 10,
+  height
+}) => {
+  const bandSize = (numberOfTags - 1) * (bulletSize + spaceBetweenBullets) + bulletSize;
+  const startOffset = 6;
+  return tagIndex => startOffset + tagIndex * (bulletSize + spaceBetweenBullets);
+};
+
+export const drawNode = (domContainer, {x, y, width, height, id, order, tags, name, yPosition, kind}, allTags) => {
   const node = domContainer
     .append("g").attr("id", id).attr("class", "oneNode");
 
@@ -152,26 +164,38 @@ export const drawNode = (domContainer, {x, y, width, height, id, order, name, yP
   
   node
     .append("rect")
-      .attr("width", newWidth.toFixed(2))
-      .attr("height", height)
-      .style("fill", "#E1EFFA")
-      .attr("rx", 4).attr("ry", 4)
-      .style("stroke", "#909AB9")
-      .style("stroke-width", 0.5)
-      .attr("filter", "url(#blur)");
+    .attr("width", newWidth.toFixed(2))
+    .attr("height", height)
+    .style("fill", "#E1EFFA")
+    .attr("rx", 4).attr("ry", 4)
+    .style("stroke", "#909AB9")
+    .style("stroke-width", 0.5)
+    .attr("filter", "url(#blur)");
 
   node
     .append("text")
-      .attr("x", (newWidth/2).toFixed(2))
-      .attr("y", height/2)
-      .style("fill", "black")
-      .style("font-family", "Arial")
-      .style("font-weight", "bold")
-      .style("alignment-baseline", "middle")
-      .style("pointer-events", "none")
-      .style("text-anchor", "middle")
-      .style("font-size", "14px")
-        .text(nameToDisplay);
+    .attr("x", (newWidth/2).toFixed(2))
+    .attr("y", height/2)
+    .style("fill", "black")
+    .style("font-family", "Arial")
+    .style("font-weight", "bold")
+    .style("alignment-baseline", "middle")
+    .style("pointer-events", "none")
+    .style("text-anchor", "middle")
+    .style("font-size", "14px")
+    .text(nameToDisplay);
+
+  
+
+  const bulletOffsetComputer = tagBulletVerticalOffset({numberOfTags: tags.length, height});
+  forEach(tags, (name, i) => {
+    node.append("rect")
+      .attr("width", 10)
+      .attr("height", 10)
+      .attr("rx", 3).attr("ry", 3)
+      .style("fill", allTags[name] || "#AAA")
+      .attr("x", 6).attr("y", bulletOffsetComputer(i))
+  }); 
 
   node.attr("transform", adjustNodePosition(kind, width, newWidth, height, x, y));
 

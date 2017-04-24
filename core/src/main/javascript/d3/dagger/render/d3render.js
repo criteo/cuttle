@@ -38,12 +38,12 @@ const computeStartEndDisconnectedLayout = (node, previousNode, allLayouts, minim
 }
 
 // Transition from one layout to another
-export const transitionAction: TransitionAction = ({allEdgesContainer, allNodesContainer}) => minimap =>
+export const transitionAction: TransitionAction = ({allEdgesContainer, allNodesContainer, tags}) => minimap =>
 ({layout, annotatedGraph, node, next, back, history, allLayouts, pathFrom, pathTo, previousNode}) => {
   if (node.length == 0)
     return Promise.resolve("nothing");
 
-  const resolvedTransition = transitionAction({allEdgesContainer, allNodesContainer})(minimap);
+  const resolvedTransition = transitionAction({allEdgesContainer, allNodesContainer, tags})(minimap);
   const currentNodesDom = allNodesContainer.selectAll("g.oneNode").data(annotatedGraph[0].nodes, d => d.id);
   const currentEdgesDom = allEdgesContainer.selectAll("g.oneEdge").data(annotatedGraph[0].edges, d => d.id);
 
@@ -70,7 +70,7 @@ export const transitionAction: TransitionAction = ({allEdgesContainer, allNodesC
   const exitLayout = node.length >= 2 ? mergeLayouts(..._.dropRight(layout).reverse()) : disconnectedExitLayout;
 
   const updatePromise = update(currentNodesDom, currentEdgesDom, layout[0], onClick);
-  const enterPromise = enter(currentNodesDom.enter(), currentEdgesDom.enter(), enterLayout, layout[0], onClick);
+  const enterPromise = enter(currentNodesDom.enter(), currentEdgesDom.enter(), enterLayout, layout[0], onClick, tags);
   const exitPromise = exit(currentNodesDom.exit(), currentEdgesDom.exit(), exitLayout);
 
   return Promise.all([
@@ -85,7 +85,7 @@ export const transitionAction: TransitionAction = ({allEdgesContainer, allNodesC
 //
 //
 
-export const enter = (nodesSelection, edgesSelection, previousLayout, currentLayout, onClick) => {
+export const enter = (nodesSelection, edgesSelection, previousLayout, currentLayout, onClick, tags) => {
 
   const promises = [];
 
@@ -94,7 +94,7 @@ export const enter = (nodesSelection, edgesSelection, previousLayout, currentLay
     .each((d, i, nodes) =>
       promises.push(
         new Promise(resolve => {
-          const node = drawNode(d3.select(nodes[i]), previousLayout.nodes[d.id]);
+          const node = drawNode(d3.select(nodes[i]), previousLayout.nodes[d.id], tags);
           node.on("click", () => onClick(d.id));
           transitionNode(node, currentLayout.nodes[d.id])
           .on("end", () => resolve("enter nodes done"));
