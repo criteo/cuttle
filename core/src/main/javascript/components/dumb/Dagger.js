@@ -2,6 +2,7 @@
 
 import injectSheet from "react-jss";
 import React from "react";
+import reduce from "lodash/reduce";
 
 import { Graph } from "../../d3/dagger/dataAPI/genericGraph";
 import type { Node, Edge } from "../../d3/dagger/dataAPI/genericGraph";
@@ -75,6 +76,7 @@ class DaggerComponent extends React.Component {
     const dagger = buildDagger(overallGraph, {
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
+      tags: reduce(tags, (acc, current) => ({ ...acc, [current.name]: current.color }), {}),
       minimap: {
         container: this.minimapContainer,
         setup: minimap => {
