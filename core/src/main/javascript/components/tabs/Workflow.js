@@ -36,7 +36,6 @@ class WorkflowComponent extends React.Component {
     const tags: Tag[] = workflow.tags;
     return (
       <div className={classes.main}>
-        <UserBar />
         {isLoadingWorkflow || nodes.length == 0
           ? <Spinner dark />
           : <Dagger

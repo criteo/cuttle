@@ -1,6 +1,11 @@
 // @flow
 
 import type { Action } from "./actions";
+import type { Workflow } from "./datamodel/workflow";
+import type Project from "./datamodel/project";
+
+import includes from "lodash/includes";
+import without from "lodash/without";
 
 export type PageId =
   | "monitoring"
@@ -19,11 +24,19 @@ export interface Page {
 
 export type State = {
   page: PageId,
+  workflow: Workflow,
+  project: Project,
+  selectedJobs: string[],
+  userbarOpen: boolean,
   globalError?: string
 };
 
 export const initialState: State = {
-  page: "monitoring"
+  page: "monitoring",
+  project: {},
+  workflow: {},
+  userbarOpen: false,
+  selectedJobs: []
 };
 
 // -- Reducers
@@ -102,6 +115,29 @@ export const reducers = (
             }
           }
       }
+    }
+
+    case "SELECT_JOB": {
+      return {
+        ...currentState,
+        selectedJobs: includes(currentState.selectedJobs, action.jobId)
+          ? [...currentState.selectedJobs]
+          : [action.jobId, ...currentState.selectedJobs]
+      };
+    }
+
+    case "DESELECT_JOB": {
+      return {
+        ...currentState,
+        selectedJobs: without(currentState.selectedJobs, action.jobId)
+      };
+    }
+
+    case "TOGGLE_USERBAR": {
+      return {
+        ...currentState,
+        userbarOpen: !currentState.userbarOpen
+      };
     }
       
     default:

@@ -30,7 +30,8 @@ const SpinnerComponent = ({ classes, className, dark }: Props) => {
 
 const styles = {
   spinner: {
-    margin: "100px auto",
+    display: "flex",
+    margin: "auto",
     width: "50px",
     height: "40px",
     textAlign: "center",
