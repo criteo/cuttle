@@ -20,6 +20,15 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
           </ul>
         """
       )
+
+    case POST at url"/api/pause/$id" =>
+      executor.pauseJob(workflow.vertices.find(_.id == id).get)
+      Ok("paused")
+
+    case POST at url"/api/unpause/$id" =>
+      executor.unpauseJob(workflow.vertices.find(_.id == id).get)
+      Ok("unpaused")
+
     case GET at "/api/project_definition" =>
       Ok(project.asJson)
 

@@ -61,7 +61,7 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "lolhtml"
       ).map(_ % "0.3.2"),
       libraryDependencies ++= Seq("core", "generic", "parser")
-        .map(module => "io.circe" %% s"circe-${module}" % "0.7.0"),
+        .map(module => "io.circe" %% s"circe-${module}" % "0.7.1"),
       libraryDependencies ++= Seq(
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % "2.11.9",
