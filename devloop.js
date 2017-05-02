@@ -1,5 +1,5 @@
 let sbt = startSbt({
-  sh: 'sbt -DdevMode=true',
+  sh: 'sbt -DdevMode',
   watch: ['build.sbt']
 });
 
@@ -16,7 +16,7 @@ let generateClasspath = sbt.run({
 let database = runServer({
   name: 'mysqld',
   httpPort: 3388,
-  sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.localdb` org.criteo.langoustine.localdb.LocalDB',
+  sh: 'java -cp `cat /tmp/classpath_com.criteo.cuttle.localdb` com.criteo.cuttle.localdb.LocalDB',
 }).dependsOn(generateClasspath)
 
 let yarn = run({
@@ -35,11 +35,11 @@ let front = webpack({
 
 let server = runServer({
   httpPort: 8888,
-  sh: 'java -cp `cat /tmp/classpath_org.criteo.langoustine.examples` org.criteo.langoustine.examples.HelloWorld',
+  sh: 'java -cp `cat /tmp/classpath_com.criteo.cuttle.examples` com.criteo.cuttle.examples.HelloWorld',
   env: {
     MYSQL_HOST: 'localhost',
     MYSQL_PORT: '3388',
-    MYSQL_DATABASE: 'langoustine_dev',
+    MYSQL_DATABASE: 'cuttle_dev',
     MYSQL_USER: 'root',
     MYSQL_PASSWORD: ''
   }

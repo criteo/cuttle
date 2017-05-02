@@ -2,8 +2,8 @@ val devMode = settingKey[Boolean]("Some build optimization are applied in devMod
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
 lazy val commonSettings = Seq(
-  organization := "org.criteo.langoustine",
-  version := "dev-SNAPSHOT",
+  organization := "com.criteo.cuttle",
+  version := "0.1.0",
   scalaVersion := "2.11.9",
   scalacOptions ++= Seq(
     "-deprecation",
@@ -27,19 +27,13 @@ lazy val commonSettings = Seq(
     f
   },
   // Maven config
-  resolvers += "Nexus" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty/",
-  publishTo := Some("Criteo thirdparty" at "http://nexus.criteo.prod/content/repositories/criteo.thirdparty"),
-  credentials += Credentials("Sonatype Nexus Repository Manager",
-                             "nexus.criteo.prod",
-                             System.getenv("MAVEN_USER"),
-                             System.getenv("MAVEN_PASSWORD")),
   // Useful to run flakey tests
   commands += Command.single("repeat") { (state, arg) =>
     arg :: s"repeat $arg" :: state
   },
   // Run an example in another JVM, and quit on key press
   commands += Command.single("example") { (state, arg) =>
-    s"examples/test:runMain org.criteo.langoustine.examples.TestExample $arg" :: state
+    s"examples/test:runMain com.criteo.cuttle.examples.TestExample $arg" :: state
   }
 )
 
@@ -57,15 +51,15 @@ lazy val localdb = {
     )
 }
 
-lazy val langoustine =
+lazy val cuttle =
   (project in file("core"))
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
-        "org.criteo.lolhttp" %% "lolhttp",
-        "org.criteo.lolhttp" %% "loljson",
-        "org.criteo.lolhttp" %% "lolhtml"
-      ).map(_ % "0.2.2"),
+        "com.criteo.lolhttp" %% "lolhttp",
+        "com.criteo.lolhttp" %% "loljson",
+        "com.criteo.lolhttp" %% "lolhtml"
+      ).map(_ % "0.3.2"),
       libraryDependencies ++= Seq("core", "generic", "parser")
         .map(module => "io.circe" %% s"circe-${module}" % "0.7.0"),
       libraryDependencies ++= Seq(
@@ -96,7 +90,7 @@ lazy val langoustine =
                 else Seq(f))
           val webpackOutputDir: File = (resourceManaged in Compile).value / "public"
           val logger = new ProcessLogger {
-            override def error(s: => String): Unit = ()
+            override def error(s: => String): Unit = streams.value.log.info(s"ERR, $s")
             override def buffer[T](f: => T): T = f
             override def info(s: => String): Unit = streams.value.log.info(s)
           }
@@ -107,7 +101,8 @@ lazy val langoustine =
                  "webpack failed")
           listFiles(webpackOutputDir)
         }
-      }.taskValue
+      }.taskValue,
+      cleanFiles += (file(".") / "node_modules")
     )
     .dependsOn(continuum, localdb % "test->test")
 
@@ -116,7 +111,7 @@ lazy val timeseries =
     .settings(commonSettings: _*)
     .settings(
       )
-    .dependsOn(langoustine % "compile->compile;test->test")
+    .dependsOn(cuttle % "compile->compile;test->test")
 
 lazy val examples =
   (project in file("examples"))
@@ -125,7 +120,7 @@ lazy val examples =
       fork in Test := true,
       connectInput in Test := true
     )
-    .dependsOn(langoustine, timeseries)
+    .dependsOn(cuttle, timeseries)
 
 lazy val root =
   (project in file("."))
@@ -133,4 +128,4 @@ lazy val root =
     .settings(
       publishArtifact := false
     )
-    .aggregate(langoustine, timeseries, examples, localdb)
+    .aggregate(cuttle, timeseries, examples, localdb)

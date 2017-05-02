@@ -1,4 +1,8 @@
-# Langoustine, the good parts
+# Cuttle
+
+![Build status](https://api.travis-ci.org/criteo/cuttle.svg?branch=master)
+
+## Development
 
 To work on the Scala API, run sbt using `sbt -DdevMode` (the devMode
 option allows to skip webpack execution to speed up execution). You can
@@ -15,13 +19,13 @@ To work on the web application:
 
 [1] https://yarnpkg.com/en/
 
-## Local DB
+### Local DB
 
 To run the embedded MySQL on Linux you will need ncurses 5. If your
 distribution is already using ncurses 6 you can probably install a
 compatibility package (e.g. ncurses5-compat-libs on Archlinux)
 
-## scalafmt
+### scalafmt
 
 We use scalafmt to enforce style.  The minimal config is found in the
 .scalafmt.conf file (you probably won't make any friends if you change
