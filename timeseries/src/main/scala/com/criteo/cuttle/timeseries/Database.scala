@@ -55,7 +55,7 @@ object Database {
     } yield ()
   }
 
-  def deserialize(implicit jobs: Set[Job[TimeSeriesScheduling]]): ConnectionIO[Option[(State, Map[Backfill, State])]] = {
+  def deserialize(implicit jobs: Set[Job[TimeSeriesScheduling]]): ConnectionIO[Option[(State, Set[Backfill])]] = {
     implicit def intervalSetDecoder[A: Ordering](implicit decoder: Decoder[A]): Decoder[IntervalSet[A]] = {
       implicit val intervalDecoder: Decoder[Interval[A]] =
         Decoder.decodeTuple2[A, A].map(x => Interval.closedOpen(x._1, x._2))
@@ -63,16 +63,14 @@ object Database {
     }
     implicit def jobKeyDecoder[A <: Scheduling](implicit js: Set[Job[A]]): KeyDecoder[Job[A]] =
       KeyDecoder.decodeKeyString.map(id => js.find(_.id == id).get)
-    implicit val backfillStateDecoder: Decoder[Map[Backfill, State]] =
-      Decoder.decodeList[(Backfill, State)].map(Map(_: _*))
     OptionT {
       sql"SELECT state FROM timeseries_state ORDER BY date DESC LIMIT 1"
         .query[Json]
         .option
-    }.map(_.as[(State, Map[Backfill, State])].right.get).value
+    }.map(_.as[(State, Set[Backfill])].right.get).value
   }
 
-  def serialize(state: State, backfillState: Map[Backfill, State]) = {
+  def serialize(state: State, backfills: Set[Backfill]) = {
     val now = LocalDateTime.now()
     implicit def intervalSetEncoder[A](implicit encoder: Encoder[A]): Encoder[IntervalSet[A]] = {
       implicit val intervalEncoder: Encoder[Interval[A]] =
@@ -85,9 +83,7 @@ object Database {
     }
     implicit def jobKeyEncoder[A <: Scheduling]: KeyEncoder[Job[A]] =
       KeyEncoder.encodeKeyString.contramap(_.id)
-    implicit val backfillStateEncoder: Encoder[Map[Backfill, State]] =
-      Encoder.encodeList[(Backfill, State)].contramap(_.toList)
-    val stateJson = (state, backfillState).asJson
+    val stateJson = (state, backfills).asJson
     sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
   }
 }

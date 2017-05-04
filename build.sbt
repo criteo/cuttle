@@ -65,6 +65,8 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % "2.11.9",
+        "org.typelevel" %% "cats" % "0.9.0",
+        "org.typelevel" %% "algebra" % "0.7.0",
         "codes.reactive" %% "scala-time" % "0.4.1",
         "com.zaxxer" % "nuprocess" % "1.1.0"
       ),
