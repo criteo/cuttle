@@ -14,7 +14,8 @@ module.exports = {
   },
   output: {
     path: path.resolve(__dirname, 'core/target/scala-2.11/classes/public'),
-    filename: '[name].js'
+    filename: '[name].js',
+    publicPath: "public/"
   },
   devtool: 'sourcemap',
   module: {

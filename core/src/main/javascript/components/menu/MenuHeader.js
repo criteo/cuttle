@@ -5,26 +5,30 @@ import classNames from "classnames";
 import React from "react";
 import { Badge, BadgeKindToken } from "../../components/generic/Badge";
 import Icon from "../../components/generic/Icon";
+import Spinner from "../../components/generic/Spinner";
 
 type Props = {
-  icon: string,
+  isLoading: boolean,
   workflowName: string,
   environment: string,
   classes: any,
   className: any
 };
 
-const MenuHeader = ({ classes, className, environment, workflowName }: Props) => (
-  <div className={classNames(classes.main, className)}>
-    <Icon className={classes.icon} iconName="rowing" />
-    <span className={classes.workflowName}>{workflowName}</span>
-    <Badge
-      label={environment}
-      kind={BadgeKindToken.header}
-      className={classes.badge}
-    />
-  </div>
-);
+const MenuHeader = ({ classes, className, environment, workflowName, isLoading }: Props) =>
+  isLoading
+    ? <div className={classNames(classes.main, className)}>
+        <Spinner />
+      </div>
+    : <div className={classNames(classes.main, className)}>
+        <Icon className={classes.icon} iconName="rowing" />
+        <span className={classes.workflowName}>{workflowName}</span>
+        <Badge
+          label={environment}
+          kind={BadgeKindToken.header}
+          className={classes.badge}
+        />
+      </div>;
 
 const styles = {
   main: {
@@ -52,4 +56,5 @@ const styles = {
     fontVariant: "small-caps"
   }
 };
+
 export default injectSheet(styles)(MenuHeader);
