@@ -40,6 +40,11 @@ object Database {
 
       CREATE INDEX execution_by_job ON executions (job);
       CREATE INDEX execution_by_start_time ON executions (start_time);
+
+      CREATE TABLE paused_jobs (
+        id          VARCHAR(1000) NOT NULL,
+        PRIMARY KEY (id)
+      ) ENGINE = INNODB;
     """
   )
 
@@ -106,7 +111,21 @@ trait Queries {
 
   def getExecutionLog(success: Boolean): ConnectionIO[List[ExecutionLog]] =
     sql"""
-      SELECT * FROM executions WHERE success = $success
+      SELECT * FROM executions WHERE success = $success ORDER BY end_time
     """.query[ExecutionLog].list
 
+  def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
+    sql"""
+      DELETE FROM paused_jobs WHERE id = ${job.id}
+    """.update.run
+
+  def pauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
+    unpauseJob(job) *> sql"""
+      INSERT INTO paused_jobs VALUES (${job.id});
+    """.update.run
+
+  def getPausedJobIds: ConnectionIO[Set[String]] =
+    sql"SELECT id FROM paused_jobs"
+      .query[String]
+      .to[Set]
 }

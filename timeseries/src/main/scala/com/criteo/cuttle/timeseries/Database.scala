@@ -26,7 +26,7 @@ object Database {
       CREATE TABLE timeseries_state (
         state       JSON NOT NULL,
         date        DATETIME NOT NULL
-      );
+      ) ENGINE = INNODB;
 
       CREATE INDEX state_by_date ON timeseries_state (date);
     """.update
@@ -38,7 +38,7 @@ object Database {
         CREATE TABLE IF NOT EXISTS timeseries (
           schema_version  SMALLINT NOT NULL,
           schema_update   DATETIME NOT NULL
-        );
+        ) ENGINE = INNODB;
       """.update.run
 
       currentSchemaVersion <- sql"""
