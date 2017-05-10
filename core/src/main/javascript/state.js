@@ -2,7 +2,9 @@
 
 import type { Action } from "./actions";
 import type { Workflow } from "./datamodel/workflow";
+import { prepareWorkflow } from "./datamodel/workflow";
 import type Project from "./datamodel/project";
+import type { Userbar } from "./datamodel/userbar";
 
 import includes from "lodash/includes";
 import without from "lodash/without";
@@ -22,21 +24,29 @@ export interface Page {
   label: string
 }
 
+type LoadingStructure<T> = {
+  isLoading: boolean,
+  data?: T
+};
+
 export type State = {
   page: PageId,
-  workflow: Workflow,
-  project: Project,
-  selectedJobs: string[],
-  userbarOpen: boolean,
+  workflow: LoadingStructure<Workflow>,
+  project: LoadingStructure<Project>,
+  userbar: Userbar,
   globalError?: string
 };
 
 export const initialState: State = {
   page: "monitoring",
-  project: {},
-  workflow: {},
-  userbarOpen: false,
-  selectedJobs: []
+  project: { isLoading: false },
+  workflow: { isLoading: false },
+  userbar: {
+    open: false,
+    selectedJobs: [],
+    jobSearchInput: "",
+    selectedTags: []
+  }
 };
 
 // -- Reducers
@@ -62,7 +72,7 @@ export const reducers = (
 
     case "LOAD_PROJECT_DATA": {
       switch(action.status) {
-        case 'success':
+        case "success":
           return {
             ...currentState,
             project: {
@@ -70,7 +80,7 @@ export const reducers = (
               isLoading: false
             }
           }
-        case 'pending':
+        case "pending":
           return {
             ...currentState,
             project: {
@@ -82,7 +92,7 @@ export const reducers = (
             ...currentState,
             globalError: action.globalErrorMessage,
             project: {
-              name: ".",
+              data: { name: "." },
               isLoading: false
             }
           }
@@ -91,15 +101,15 @@ export const reducers = (
 
     case "LOAD_WORKFLOW_DATA": {
       switch(action.status) {
-        case 'success':
+        case "success":
           return {
             ...currentState,
             workflow: {
-              data: action.data,
+              data: prepareWorkflow(action.data),
               isLoading: false
             }
           }
-        case 'pending':
+        case "pending":
           return {
             ...currentState,
             workflow: {
@@ -118,25 +128,102 @@ export const reducers = (
     }
 
     case "SELECT_JOB": {
+      const currentSelectedJobs = currentState.userbar.selectedJobs;
       return {
         ...currentState,
-        selectedJobs: includes(currentState.selectedJobs, action.jobId)
-          ? [...currentState.selectedJobs]
-          : [action.jobId, ...currentState.selectedJobs]
+        userbar: {
+          ...currentState.userbar,
+          selectedJobs: includes(currentSelectedJobs, action.jobId)
+            ? [...currentSelectedJobs]
+            : [...currentSelectedJobs, action.jobId]
+        }
       };
     }
 
     case "DESELECT_JOB": {
       return {
         ...currentState,
-        selectedJobs: without(currentState.selectedJobs, action.jobId)
+        userbar: {
+          ...currentState.userbar,
+          selectedJobs: without(currentState.userbar.selectedJobs, action.jobId)
+        }
       };
     }
 
     case "TOGGLE_USERBAR": {
       return {
         ...currentState,
-        userbarOpen: !currentState.userbarOpen
+        userbar: {
+          ...currentState.userbar,
+          open: !currentState.userbar.open
+        }
+      };
+    }
+
+    case "OPEN_USERBAR": {
+      return {
+        ...currentState,
+        userbar: {
+          ...currentState.userbar,
+          open: true
+        }
+      };
+    }
+
+    case "CLOSE_USERBAR": {
+      return {
+        ...currentState,
+        userbar: {
+          ...currentState.userbar,
+          open: false
+        }
+      };
+    }
+      
+    case "CHANGE_JOBSEARCH_INPUT": {
+      return {
+        ...currentState,
+        userbar: {
+          ...currentState.userbar,
+          jobSearchInput: action.inputText
+        }
+      };
+    }
+
+    case "SELECT_FILTERTAG": {
+      const currentSelectedTags = currentState.userbar.selectedTags;
+      return {
+        ...currentState,
+        userbar: {
+          ...currentState.userbar,
+          selectedTags: includes(currentSelectedTags, action.tagName)
+            ? [...currentSelectedTags]
+            : [...currentSelectedTags, action.tagName]
+        }
+      };
+    }
+
+    case "DESELECT_FILTERTAG": {
+      const currentSelectedTags = currentState.userbar.selectedTags;
+      return {
+        ...currentState,
+        userbar: {
+          ...currentState.userbar,
+          selectedTags: without(currentSelectedTags, action.tagName)
+        }
+      };
+    }
+
+    case "TOGGLE_FILTERTAG": {
+      const currentSelectedTags = currentState.userbar.selectedTags;
+      return {
+        ...currentState,
+        userbar: {
+          ...currentState.userbar,
+          selectedTags: includes(currentSelectedTags, action.tagName)
+            ? without(currentSelectedTags, action.tagName)
+            : [action.tagName, ...currentSelectedTags]
+        }
       };
     }
       
