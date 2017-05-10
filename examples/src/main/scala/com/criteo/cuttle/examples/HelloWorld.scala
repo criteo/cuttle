@@ -6,7 +6,7 @@ import timeseries._
 object HelloWorld {
 
   def main(args: Array[String]): Unit = {
-    val start = date"2017-04-06T00:00Z"
+    val start = date"2017-05-10T00:00Z"
     val tagPolite = Tag("Polite", Some("Jobs that greet you politely"), Some("#27ae60"))
     val tagPure = Tag("Pure", Some("Jobs with no side effects"), Some("#3498db"))
     val tagLRCheck = Tag("LRCheck", Some("Jobs that check last runs"), Some("#95a5a6"))
