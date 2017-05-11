@@ -134,7 +134,8 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
       }
 
     def go(running: Set[Run]): Unit = {
-      val (done, stillRunning) = running.partition(_._3.isCompleted)
+      val (completed, stillRunning) = running.partition(_._3.isCompleted)
+      val done = completed.filter(_._3.value.get.isSuccess)
       val (stateSnapshot, backfillSnapshot) = atomic { implicit txn =>
         addRuns(done)
         _backfills.retain { bf =>
