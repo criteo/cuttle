@@ -21,6 +21,15 @@ object Database {
     x => new java.sql.Timestamp(x.toInstant(ZoneOffset.of("Z")).toEpochMilli)
   )
 
+  implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
+    x => if(x != null && x) ExecutionSuccessful else ExecutionFailed,
+    x => x match {
+      case ExecutionSuccessful => true
+      case ExecutionFailed => false
+      case x => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
+    }
+  )
+
   implicit val JsonMeta: Meta[Json] = Meta[String].nxmap(
     x => parse(x).fold(e => throw e, identity),
     x => x.noSpaces
@@ -106,12 +115,12 @@ trait Queries {
   def logExecution(e: ExecutionLog): ConnectionIO[Int] =
     sql"""
       INSERT INTO executions (id, job, start_time, end_time, context, success) VALUES
-      (${e.id}, ${e.job}, ${e.startTime}, ${e.endTime}, ${e.context}, ${e.success})
+      (${e.id}, ${e.job}, ${e.startTime}, ${e.endTime}, ${e.context}, ${e.status})
     """.update.run
 
-  def getExecutionLog(success: Boolean): ConnectionIO[List[ExecutionLog]] =
+  def getExecutionLog: ConnectionIO[List[ExecutionLog]] =
     sql"""
-      SELECT * FROM executions WHERE success = $success ORDER BY end_time
+      SELECT * FROM executions ORDER BY end_time
     """.query[ExecutionLog].list
 
   def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =

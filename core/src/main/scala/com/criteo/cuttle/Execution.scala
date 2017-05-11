@@ -1,26 +1,34 @@
 package com.criteo.cuttle
 
-import java.io.{BufferedOutputStream, File, FileOutputStream}
 import java.time.{LocalDateTime, ZonedDateTime}
 import java.time.format.DateTimeFormatter.{ISO_INSTANT}
 
+import scala.util.{Success,Failure}
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.reflect.{classTag, ClassTag}
 
+import lol.http.{ PartialService }
+
 import doobie.imports._
 
 import io.circe._
+
+sealed trait ExecutionStatus
+case object ExecutionSuccessful extends ExecutionStatus
+case object ExecutionFailed extends ExecutionStatus
+case object ExecutionRunning extends ExecutionStatus
+case object ExecutionPaused extends ExecutionStatus
 
 case class ExecutionLog(
   id: String,
   job: String,
   startTime: LocalDateTime,
-  endTime: LocalDateTime,
+  endTime: Option[LocalDateTime],
   context: Json,
-  success: Boolean
+  status: ExecutionStatus
 )
 
 trait ExecutionStreams {
@@ -34,14 +42,41 @@ trait ExecutionStreams {
   def println(str: CharSequence): Unit
 }
 
+object ExecutionCancelled extends RuntimeException("Execution cancelled.")
+
 case class Execution[S <: Scheduling](
   id: String,
+  job: Job[S],
   context: S#Context,
+  startTime: LocalDateTime,
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform[S]]
-)
+) {
+  private[cuttle] val cancelSignal = Promise[Unit]
+  def isCancelled = cancelSignal.isCompleted
+  def cancelled = cancelSignal.future
+  def onCancelled(thunk: () => Unit) = cancelled.andThen {
+    case Success(_) => thunk()
+    case Failure(_) =>
+  }
+  def cancel(): Boolean = cancelSignal.trySuccess(())
 
-trait ExecutionPlatform[S <: Scheduling]
+  private[cuttle] def toExecutionLog(status: ExecutionStatus) =
+    ExecutionLog(
+      id,
+      job.id,
+      startTime,
+      None,
+      context.toJson,
+      status
+    )
+}
+
+case class SubmittedExecution[S <: Scheduling](execution: Execution[S], result: Future[Unit])
+
+trait ExecutionPlatform[S <: Scheduling] {
+  def routes: PartialService = PartialFunction.empty
+}
 
 object ExecutionPlatform {
   implicit def fromExecution[S <: Scheduling](implicit e: Execution[S]): Seq[ExecutionPlatform[S]] = e.platforms
@@ -51,10 +86,33 @@ object ExecutionPlatform {
 
 case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queries: Queries, xa: XA) {
 
-  val pausedExecutions = TMap.empty[String, Map[S#Context, Promise[Unit]]]
+  private val pausedState = {
+    val byId = TMap.empty[String, Map[Execution[S], Promise[Unit]]]
+    val pausedIds = queries.getPausedJobIds.transact(xa).unsafePerformIO
+    byId.single ++= pausedIds.map((_, Map.empty[Execution[S], Promise[Unit]]))
+    byId
+  }
 
-  val pausedIds = queries.getPausedJobIds.transact(xa).unsafePerformIO
-  pausedExecutions.single ++= pausedIds.map((_, Map.empty[S#Context, Promise[Unit]]))
+  private val runningState = TSet.empty[Execution[S]]
+
+  def runningExecutions: Seq[ExecutionLog] =
+    runningState.single.snapshot.toSeq.map { execution =>
+      execution.toExecutionLog(ExecutionRunning)
+    }
+
+  def pausedExecutions: Seq[ExecutionLog] =
+    pausedState.single.values.flatMap(_.keys).toSeq.map { execution =>
+      execution.toExecutionLog(ExecutionPaused)
+    }
+
+  def pausedJobs: Seq[String] =
+    pausedState.single.keys.toSeq
+
+  def archivedExecutions: Seq[ExecutionLog] =
+    queries.getExecutionLog.transact(xa).unsafePerformIO
+
+  def cancelExecution(executionId: String): Unit =
+    runningState.single.find(_.id == executionId).foreach(_.cancel())
 
   def unpauseJob(job: Job[S]): Unit = {
     val executions = atomic { implicit txn =>
@@ -64,13 +122,13 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
           true
         }
       })
-      val excs = pausedExecutions.get(job.id)
-      pausedExecutions -= job.id
+      val excs = pausedState.get(job.id)
+      pausedState -= job.id
       excs
     }
     executions.toList.flatMap(_.toList).foreach {
-      case (context, promise) =>
-        promise.completeWith(run(job, context))
+      case (execution, promise) =>
+        promise.completeWith(run0(execution))
     }
   }
 
@@ -82,55 +140,54 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
           true
         }
       })
-      pausedExecutions += (job.id -> Map.empty)
+      pausedState += (job.id -> Map.empty)
+      runningState.filter(_.job == job).foreach(_.cancel())
     }
 
-  def run(job: Job[S], context: S#Context): Future[Unit] = {
-    val maybePausedExecution: Option[Future[Unit]] = atomic { implicit txn =>
-      for {
-        executions <- pausedExecutions.get(job.id)
-      } yield {
-        def newPromise() = {
-          val promise = Promise[Unit]()
-          pausedExecutions.update(job.id, executions + (context -> promise))
-          promise
-        }
-        executions.getOrElse(context, newPromise()).future
-      }
-    }
-    maybePausedExecution.getOrElse {
-      val nextExecutionId = utils.randomUUID
-      val logFile = File.createTempFile("cuttle", nextExecutionId)
-      val os = new BufferedOutputStream(new FileOutputStream(logFile))
-      val execution = Execution(
-        id = nextExecutionId,
-        context = context,
-        streams = new ExecutionStreams {
-          def println(str: CharSequence) = os.write(s"$str\n".getBytes("utf-8"))
-        },
-        platforms = platforms
-      )
-      val startTime = LocalDateTime.now()
-      job.effect(execution).andThen {
-        case result =>
-          os.close()
-          logFile.delete()
-          queries
-            .logExecution(
-              ExecutionLog(
-                nextExecutionId,
-                job.id,
-                startTime,
-                LocalDateTime.now(),
-                context.toJson,
-                result.isSuccess
-              ))
-            .transact(xa)
-            .unsafePerformIO
-      }
+  private def run0(execution: Execution[S]): Future[Unit] = {
+    atomic { implicit tx => runningState += execution }
+    execution.job.effect(execution).andThen {
+      case result =>
+        atomic { implicit tx => runningState -= execution }
+        queries
+          .logExecution(
+            execution.
+              toExecutionLog(if(result.isSuccess) ExecutionSuccessful else ExecutionFailed).
+              copy(endTime = Some(LocalDateTime.now()))
+          )
+          .transact(xa)
+          .unsafePerformIO
     }
   }
 
-  def getExecutionLog(success: Boolean): List[ExecutionLog] =
-    queries.getExecutionLog(success).transact(xa).unsafePerformIO
+  def run(job: Job[S], context: S#Context): SubmittedExecution[S] = {
+    val nextExecutionId = utils.randomUUID
+    val execution = Execution(
+      id = nextExecutionId,
+      job = job,
+      context = context,
+      startTime = LocalDateTime.now(),
+      streams = new ExecutionStreams {
+        def println(str: CharSequence) = System.out.println(s"@$nextExecutionId - $str")
+      },
+      platforms = platforms
+    )
+
+    val maybePausedExecution: Option[Future[Unit]] = atomic { implicit txn =>
+      for {
+        executions <- pausedState.get(job.id)
+      } yield {
+        val promise = Promise[Unit]()
+        pausedState.update(job.id, executions + (execution -> promise))
+        execution.onCancelled { () =>
+          promise.tryFailure(ExecutionCancelled)
+          val executions = pausedState.get(job.id).getOrElse(Map.empty).filterKeys(_ == execution)
+          pausedState.update(job.id, executions)
+        }
+        promise.future
+      }
+    }
+
+    SubmittedExecution(execution, maybePausedExecution.getOrElse(run0(execution)))
+  }
 }
