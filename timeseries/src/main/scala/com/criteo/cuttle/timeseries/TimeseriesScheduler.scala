@@ -48,8 +48,8 @@ case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime, backfill:
   import TimeSeriesUtils._
 
   def toJson = Json.obj(
-    "start" -> Json.fromLong(start.toEpochSecond(ZoneOffset.of("Z"))),
-    "end" -> Json.fromLong(end.toEpochSecond(ZoneOffset.of("Z")))
+    "start" -> Json.fromString(start.toString),
+    "end" -> Json.fromString(end.toString)
   )
 
   def toInterval: Interval[LocalDateTime] = Interval.closedOpen(start, end)
@@ -152,11 +152,11 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         stateSnapshot,
         backfillSnapshot,
         stillRunning.map { case (job, context, _) => (job, context) },
-        IntervalSet(Interval.lessThan(LocalDateTime.parse("2017-05-06T01:00")))
+        IntervalSet(Interval.lessThan(LocalDateTime.now()))
       )
       val newRunning = stillRunning ++ toRun.map {
         case (job, context) =>
-          (job, context, executor.run(job, context))
+          (job, context, executor.run(job, context).result)
       }
       Future.firstCompletedOf(utils.Timeout(ScalaDuration.create(1, "s")) :: newRunning.map(_._3).toList).andThen {
         case _ => go(newRunning)

@@ -4,24 +4,26 @@ import java.nio.{ByteBuffer}
 
 import com.zaxxer.nuprocess._
 
+import java.util.UUID
+
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.stm.{atomic, Ref}
 import scala.collection.{SortedSet}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrdering: Ordering[S#Context])
-    extends ExecutionPlatform[S] {
-  private val running = Ref(Set.empty[Execution[S]])
-  private val waiting = Ref(
-    SortedSet.empty[(Execution[S], () => Future[Unit], Promise[Unit])](Ordering.by(_._1.context)))
+    extends ExecutionPlatform[S] with LocalPlatformApp[S] {
+  private[cuttle] val running = Ref(Set.empty[(LocalProcess, Execution[S])])
+  private[cuttle] val waiting = Ref(
+    SortedSet.empty[(LocalProcess, Execution[S], () => Future[Unit], Promise[Unit])](Ordering.by(_._2.context)))
 
   private def runNext(): Unit = {
     val maybeToRun = atomic { implicit txn =>
       if (running().size < 1) {
         val maybeNext = waiting().headOption
         maybeNext.foreach {
-          case x @ (e, _, _) =>
-            running() = running() + (e)
+          case x @ (l, e, _, _) =>
+            running() = running() + (l -> e)
             waiting() = waiting() - x
         }
         maybeNext
@@ -31,7 +33,7 @@ case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrderin
     }
 
     maybeToRun.foreach {
-      case x @ (e, f, p) =>
+      case x @ (l, e, f, p) =>
         val fEffect = try { f() } catch {
           case t: Throwable =>
             Future.failed(t)
@@ -40,21 +42,29 @@ case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrderin
         fEffect.andThen {
           case _ =>
             atomic { implicit txn =>
-              running() = running() - e
+              running() = running() - (l -> e)
             }
             runNext()
         }
     }
   }
 
-  private[cuttle] def runInPool(e: Execution[S])(f: () => Future[Unit]): Future[Unit] = {
+  private[cuttle] def runInPool(l: LocalProcess, e: Execution[S])(f: () => Future[Unit]): Future[Unit] = {
     val p = Promise[Unit]()
+    val entry = (l, e, f, p)
     atomic { implicit txn =>
-      waiting() = waiting() + ((e, f, p))
+      waiting() = waiting() + entry
     }
+    e.onCancelled(() => {
+      atomic { implicit txn =>
+        waiting() = waiting() - entry
+      }
+      p.tryFailure(ExecutionCancelled)
+    })
     runNext()
     p.future
   }
+
 }
 
 object LocalPlatform {
@@ -63,7 +73,36 @@ object LocalPlatform {
   }
 }
 
+trait LocalPlatformApp[S <: Scheduling] { self: LocalPlatform[S] =>
+
+  import lol.http._
+  import lol.json._
+
+  import io.circe._
+  import io.circe.syntax._
+
+  import JsonApi._
+
+  implicit val encoder = new Encoder[(LocalProcess, Execution[S])] {
+    override def apply(x: (LocalProcess, Execution[S])) = x match {
+      case (process, execution) =>
+        Json.obj(
+          "id" -> process.id.asJson,
+          "command" -> process.toString.asJson,
+          "execution" -> execution.toExecutionLog(ExecutionRunning).asJson
+        )
+    }
+  }
+
+  override lazy val routes: PartialService = {
+    case GET at url"/api/local/tasks/running" =>
+      Ok(this.running.single.get.toSeq.asJson)
+  }
+}
+
 class LocalProcess(private val process: NuProcessBuilder) {
+  val id = UUID.randomUUID().toString
+
   def exec[S <: Scheduling]()(implicit execution: Execution[S]): Future[Unit] = {
     val streams = execution.streams
     streams.debug(s"Waiting available resources to fork:")
@@ -73,7 +112,7 @@ class LocalProcess(private val process: NuProcessBuilder) {
     ExecutionPlatform
       .lookup[LocalPlatform[S]]
       .getOrElse(sys.error("No local execution platform configured"))
-      .runInPool(execution) { () =>
+      .runInPool(this, execution) { () =>
         streams.debug("Running")
         val result = Promise[Unit]()
         val handler = new NuAbstractProcessHandler() {
@@ -96,7 +135,10 @@ class LocalProcess(private val process: NuProcessBuilder) {
             }
         }
         process.setProcessListener(handler)
-        process.start()
+        val fork = process.start()
+        execution.onCancelled(() => {
+          fork.destroy(true)
+        })
         result.future
       }
   }
