@@ -85,6 +85,14 @@ class App extends React.Component {
         className={classes.main}
         onClick={closeUserbar}
       >
+        <LeftPane className={classes.leftpane}>
+          <MenuHeader
+            environment={environment}
+            workflowName={workflowName}
+            isLoading={isLoadingProject}
+          />
+          <Menu activeTab={activeTab} />
+        </LeftPane>
         <RightPane className={classes.rightpane}>
           <UserBar
             className={classes.userBar}
@@ -99,14 +107,6 @@ class App extends React.Component {
             />) ||
             <div />}
         </RightPane>
-        <LeftPane className={classes.leftpane}>
-          <MenuHeader
-            environment={environment}
-            workflowName={workflowName}
-            isLoading={isLoadingProject}
-          />
-          <Menu activeTab={activeTab} />
-        </LeftPane>
       </div>
     );
   }
@@ -114,21 +114,23 @@ class App extends React.Component {
 
 let styles = {
   leftpane: {
-    position: "fixed",
-    width: "20vw",
-    maxWidth: "300px"
+    width: "300px",
+    display: "flex",
+    flexDirection: "column"
   },
   rightpane: {
-    paddingLeft: "20vw",
-    width: "80vw",
-    position: "absolute"
+    display: "flex",
+    flexGrow: 1,
+    alignItems: "stretch",
+    flexDirection: "column"
   },
   userBar: {
-    width: "80vw",
-    position: "absolute"
+    zIndex: 2
   },
   main: {
-    backgroundColor: "#ECF1F5"
+    backgroundColor: "#ECF1F5",
+    display: "flex",
+    alignItems: "stretch"
   }
 };
 

@@ -53,8 +53,8 @@ export const transitionAction: TransitionAction = ({allEdgesContainer, allNodesC
   // const backButton = d3.select("#navigateBack");
   // backButton.on("click", () => history().length > 0 ? back(1, resolvedTransition): null);
 
-  //minimap.nodes().off("click");
-  //minimap.nodes().on("click", onClickMinimap);
+  minimap.nodes().off("click");
+  minimap.nodes().on("click", onClickMinimap);
 
   const minimapEnterPromise = minimapTools.enter(currentNodesDom.enter(), currentEdgesDom.enter(), minimap);
   const minimapUpdatePromise = minimapTools.update(currentNodesDom, currentEdgesDom, minimap);

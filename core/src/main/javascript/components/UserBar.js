@@ -170,7 +170,9 @@ class Userbar extends React.Component {
         { userbarOpen &&
           (isLoading
             ? <Spinner dark key="spinner-userbar" />
-            : <JobFilterForm
+            :
+            <div className={classes.filterForm}>
+              <JobFilterForm
                 key="job-filter-form"
                 displayedJobsList={displayedJobsList}
                 allTags={allTags}
@@ -179,7 +181,8 @@ class Userbar extends React.Component {
                 selectFilterTag={selectFilterTag}
                 deselectFilterTag={deselectFilterTag}
                 toggleFilterTag={toggleFilterTag}
-              />)
+              />
+            </div>)
         }
       </div>
     );
@@ -188,11 +191,9 @@ class Userbar extends React.Component {
 
 const styles = {
   bar: {
-    position: "absolute",
     backgroundColor: "#FFF",
     color: "#BECBD6",
     boxShadow: "0px 1px 5px 0px #BECBD6",
-    width: "100%",
     transition: "all 0.3s",
     "&:hover, &.active": {
       boxShadow: "0px 1px 5px 0px #36ABD6"
@@ -200,7 +201,6 @@ const styles = {
     "& ul": {listStyleType: "none", margin: 0, padding: 0}
   },
   selectors: {
-    position: "relative",
     display: "flex",
     alignItems: "center",
     minHeight: "4em",
@@ -208,7 +208,7 @@ const styles = {
       marginLeft: "0.5em"
     },
     "& .searchBox": {
-      flexGrow: 1,
+      flex: 1,
       margin: "auto",
       marginLeft: "0.5em"
     },
@@ -227,6 +227,10 @@ const styles = {
   },
   filterTextInput: {
     border: "none"
+  },
+  filterForm: {
+    position: "absolute",
+    backgroundColor: "#FFF"
   },
   closeIcon: {
     color: "#2F3647",
