@@ -154,10 +154,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         stillRunning.map { case (job, context, _) => (job, context) },
         IntervalSet(Interval.lessThan(LocalDateTime.now()))
       )
-      val newRunning = stillRunning ++ toRun.map {
-        case (job, context) =>
-          (job, context, executor.run(job, context).result)
+      val newRunning = stillRunning ++ executor.runAll(toRun).map { submitted =>
+        (submitted.execution.job, submitted.execution.context, submitted.result)
       }
+
       Future.firstCompletedOf(utils.Timeout(ScalaDuration.create(1, "s")) :: newRunning.map(_._3).toList).andThen {
         case _ => go(newRunning)
       }

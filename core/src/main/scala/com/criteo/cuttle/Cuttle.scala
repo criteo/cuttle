@@ -16,7 +16,7 @@ class Cuttle[S <: Scheduling](
     databaseConfig: DatabaseConfig = Database.configFromEnv
   ) = {
     val database = Database.connect(databaseConfig)
-    val executor = Executor[S](platforms, queries, database)
+    val executor = Executor[S](platforms, queries, database)(ordering)
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError("LOL")

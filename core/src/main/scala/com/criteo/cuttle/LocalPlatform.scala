@@ -15,7 +15,7 @@ case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrderin
     extends ExecutionPlatform[S] with LocalPlatformApp[S] {
   private[cuttle] val running = Ref(Set.empty[(LocalProcess, Execution[S])])
   private[cuttle] val waiting = Ref(
-    SortedSet.empty[(LocalProcess, Execution[S], () => Future[Unit], Promise[Unit])](Ordering.by(_._2.context)))
+    SortedSet.empty[(LocalProcess, Execution[S], () => Future[Unit], Promise[Unit])](Ordering.by(x => (x._2.context, x._2.job.id))))
 
   private def runNext(): Unit = {
     val maybeToRun = atomic { implicit txn =>
@@ -97,6 +97,8 @@ trait LocalPlatformApp[S <: Scheduling] { self: LocalPlatform[S] =>
   override lazy val routes: PartialService = {
     case GET at url"/api/local/tasks/running" =>
       Ok(this.running.single.get.toSeq.asJson)
+    case GET at url"/api/local/tasks/waiting" =>
+      Ok(this.waiting.single.get.toSeq.map(x => (x._1, x._2)).asJson)
   }
 }
 
@@ -131,7 +133,7 @@ class LocalProcess(private val process: NuProcessBuilder) {
               case 0 =>
                 result.success(())
               case n =>
-                result.failure(new Exception(s"Status code $n"))
+                result.failure(new Exception(s"Process exited with code $n"))
             }
         }
         process.setProcessListener(handler)
