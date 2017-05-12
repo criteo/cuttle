@@ -29,6 +29,7 @@ object HelloWorld {
           sh"""
         echo "${e.context} -> Hello";
         sleep 3
+        ${if (e.context.start.isBefore(date"2017-05-10T01:00Z")) "oops" else ""}
       """.exec()
       }
 

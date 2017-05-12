@@ -4,6 +4,7 @@ import lol.json._
 import lol.http._
 import JsonApi._
 
+import io.circe._
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,6 +17,16 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
 
     case GET at url"/api/executions/paused" =>
       Ok(executor.pausedExecutions.asJson)
+
+    case GET at url"/api/executions/failing" =>
+      Ok(executor.failingExecutions.map {
+        case (execution, failingJob, launchDate) =>
+          Json.obj(
+            "execution" -> execution.asJson,
+            "plannedLaunchDate" -> launchDate.asJson,
+            "previouslyFailedExecutions" -> failingJob.failedExecutions.map(_.asJson).asJson
+          )
+      }.asJson)
 
     case GET at url"/api/executions/archived" =>
       Ok(executor.archivedExecutions.asJson)
