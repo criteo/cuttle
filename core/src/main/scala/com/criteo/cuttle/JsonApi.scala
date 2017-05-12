@@ -3,7 +3,7 @@ package com.criteo.cuttle
 import io.circe._
 import io.circe.syntax._
 
-import java.time.{ LocalDateTime }
+import java.time.{LocalDateTime}
 
 object JsonApi {
   implicit val projectEncoder = new Encoder[Project] {
@@ -47,12 +47,14 @@ object JsonApi {
 
   implicit def jobEncoder[S <: Scheduling] = new Encoder[Job[S]] {
     override def apply(job: Job[S]) =
-      Json.obj(
-        "id" -> job.id.asJson,
-        "name" -> job.name.asJson,
-        "description" -> job.description.asJson,
-        "tags" -> job.tags.map(_.name).asJson
-      ).asJson
+      Json
+        .obj(
+          "id" -> job.id.asJson,
+          "name" -> job.name.asJson,
+          "description" -> job.description.asJson,
+          "tags" -> job.tags.map(_.name).asJson
+        )
+        .asJson
   }
 
   implicit def graphEncoder[S <: Scheduling] =
@@ -60,11 +62,12 @@ object JsonApi {
       override def apply(workflow: Graph[S]) = {
         val jobs = workflow.vertices.asJson
         val tags = workflow.vertices.flatMap(_.tags).asJson
-        val dependencies = workflow.edges.map { case (to, from, _) =>
-          Json.obj(
-            "from" -> from.id.asJson,
-            "to" -> to.id.asJson
-          )
+        val dependencies = workflow.edges.map {
+          case (to, from, _) =>
+            Json.obj(
+              "from" -> from.id.asJson,
+              "to" -> to.id.asJson
+            )
         }.asJson
         Json.obj(
           "jobs" -> jobs,

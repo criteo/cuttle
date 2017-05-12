@@ -57,7 +57,10 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
       Ok(ClasspathResource(s"/public/index.html"))
   }
 
-  val routes = api.orElse(scheduler.routes).orElse {
-    executor.platforms.foldLeft(PartialFunction.empty:PartialService) { case (s, p) => s.orElse(p.routes) }
-  }.orElse(webapp)
+  val routes = api
+    .orElse(scheduler.routes)
+    .orElse {
+      executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
+    }
+    .orElse(webapp)
 }
