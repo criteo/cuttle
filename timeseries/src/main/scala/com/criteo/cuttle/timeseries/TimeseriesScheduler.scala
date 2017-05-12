@@ -144,15 +144,16 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         (_state(), _backfills.snapshot)
       }
 
-      if (done.nonEmpty)
+      if (completed.nonEmpty)
         Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
 
+      val now = ZonedDateTime.now(ZoneId.of("UTC")).toLocalDateTime
       val toRun = next(
         graph,
         stateSnapshot,
         backfillSnapshot,
         stillRunning.map { case (job, context, _) => (job, context) },
-        IntervalSet(Interval.lessThan(LocalDateTime.now()))
+        IntervalSet(Interval.lessThan(now))
       )
       val newRunning = stillRunning ++ executor.runAll(toRun).map { submitted =>
         (submitted.execution.job, submitted.execution.context, submitted.result)
@@ -212,15 +213,12 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         .toMap
     }
 
-    val dependencies = StateD {
+    val dependencies =
       (for {
         (child, parent, TimeSeriesDependency(offset)) <- graph.edges
         is <- state.get(parent).toList
-        interval <- is
-      } yield (child -> interval.map(_.plus(offset))))
-        .groupBy(_._1)
-        .mapValues(x => IntervalSet(x.toList.map(_._2): _*))
-    }
+      } yield StateD(Map(child -> is.map(itvl => itvl.map(_.plus(offset)))), IntervalSet(Interval.full)))
+        .reduce(and(_, _))
 
     val jobDomain = StateD(graph.vertices.map(job => job -> IntervalSet(Interval.atLeast(job.scheduling.start))).toMap)
 

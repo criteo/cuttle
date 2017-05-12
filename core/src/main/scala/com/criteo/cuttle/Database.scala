@@ -22,11 +22,12 @@ object Database {
   )
 
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
-    x => if(x != null && x) ExecutionSuccessful else ExecutionFailed,
-    x => x match {
-      case ExecutionSuccessful => true
-      case ExecutionFailed => false
-      case x => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
+    x => if (x != null && x) ExecutionSuccessful else ExecutionFailed,
+    x =>
+      x match {
+        case ExecutionSuccessful => true
+        case ExecutionFailed => false
+        case x => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
     }
   )
 

@@ -30,22 +30,26 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
   override lazy val routes: PartialService = {
     case GET at "/api/timeseries" =>
       val (intervals, backfills) = state
-      Ok(Json.obj(
-        "jobs" -> Json.obj(
-          intervals.toSeq.map { case (job, intervals) =>
-            job.id -> Json.fromValues(intervals.map(_.asJson))
-          }.sortBy(_._1):_*
-        ),
-        "backfills" -> Json.fromValues(backfills.toSeq.sortBy(_.id).map { backfill =>
-          Json.obj(
-            "id" -> backfill.id.asJson,
-            "start" -> backfill.start.asJson,
-            "end" -> backfill.end.asJson,
-            "jobs" -> Json.fromValues(backfill.jobs.map(_.id.asJson)),
-            "priority" -> backfill.priority.asJson
-          )
-        })
-      ))
+      Ok(
+        Json.obj(
+          "jobs" -> Json.obj(
+            intervals.toSeq
+              .map {
+                case (job, intervals) =>
+                  job.id -> Json.fromValues(intervals.map(_.asJson))
+              }
+              .sortBy(_._1): _*
+          ),
+          "backfills" -> Json.fromValues(backfills.toSeq.sortBy(_.id).map { backfill =>
+            Json.obj(
+              "id" -> backfill.id.asJson,
+              "start" -> backfill.start.asJson,
+              "end" -> backfill.end.asJson,
+              "jobs" -> Json.fromValues(backfill.jobs.map(_.id.asJson)),
+              "priority" -> backfill.priority.asJson
+            )
+          })
+        ))
 
     case POST at url"/api/timeseries/backfill?job=$id&startDate=$start&endDate=$end&priority=$priority" =>
       val job = this.state._1.keySet.find(_.id == id).get
@@ -53,8 +57,9 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
       val endDate = LocalDateTime.parse(end)
       val backfillId = UUID.randomUUID().toString
       backfillJob(backfillId, job, startDate, endDate, priority.toInt)
-      Ok(Json.obj(
-        "id" -> backfillId.asJson
-      ))
+      Ok(
+        Json.obj(
+          "id" -> backfillId.asJson
+        ))
   }
 }

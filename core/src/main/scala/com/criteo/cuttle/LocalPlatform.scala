@@ -12,10 +12,12 @@ import scala.collection.{SortedSet}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrdering: Ordering[S#Context])
-    extends ExecutionPlatform[S] with LocalPlatformApp[S] {
+    extends ExecutionPlatform[S]
+    with LocalPlatformApp[S] {
   private[cuttle] val running = Ref(Set.empty[(LocalProcess, Execution[S])])
   private[cuttle] val waiting = Ref(
-    SortedSet.empty[(LocalProcess, Execution[S], () => Future[Unit], Promise[Unit])](Ordering.by(x => (x._2.context, x._2.job.id))))
+    SortedSet.empty[(LocalProcess, Execution[S], () => Future[Unit], Promise[Unit])](Ordering.by(x =>
+      (x._2.context, x._2.job.id))))
 
   private def runNext(): Unit = {
     val maybeToRun = atomic { implicit txn =>
