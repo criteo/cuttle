@@ -32,6 +32,7 @@ object JsonApi {
           case ExecutionFailed => "failed"
           case ExecutionRunning => "running"
           case ExecutionPaused => "paused"
+          case ExecutionThrottled => "throttled"
         }).asJson
       )
   }
