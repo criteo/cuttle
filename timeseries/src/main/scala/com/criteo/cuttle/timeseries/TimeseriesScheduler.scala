@@ -81,11 +81,8 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
   import TimeSeriesUtils._
 
   private val timer =
-    Job("timer",
-        None,
-        None,
-        Set(),
-        TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ => sys.error("panic!"))
+    Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
+      sys.error("panic!"))
 
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalSet[LocalDateTime]])
   private val _backfills = TSet.empty[Backfill]

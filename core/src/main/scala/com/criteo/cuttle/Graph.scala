@@ -45,10 +45,10 @@ sealed trait Graph[S <: Scheduling] {
 case class Tag(name: String, description: Option[String] = None, color: Option[String] = None)
 
 case class Job[S <: Scheduling](id: String,
+                                scheduling: S,
                                 name: Option[String] = None,
                                 description: Option[String] = None,
-                                tags: Set[Tag] = Set.empty[Tag],
-                                scheduling: S)(val effect: Execution[S] => Future[Unit])
+                                tags: Set[Tag] = Set.empty[Tag])(val effect: Execution[S] => Future[Unit])
     extends Graph[S] {
   val vertices = Set(this)
   val edges = Set.empty[Dependency]
