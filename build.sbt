@@ -122,7 +122,7 @@ lazy val examples =
       fork in Test := true,
       connectInput in Test := true
     )
-    .dependsOn(cuttle, timeseries)
+    .dependsOn(cuttle, timeseries, localdb)
 
 lazy val root =
   (project in file("."))

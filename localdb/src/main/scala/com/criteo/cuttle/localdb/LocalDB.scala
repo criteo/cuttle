@@ -11,6 +11,7 @@ object LocalDB {
       MysqldConfig.aMysqldConfig(v5_7_latest).withCharset(UTF8).withPort(3388).build()
     }
     val mysqld = EmbeddedMysql.anEmbeddedMysql(config).addSchema("cuttle_dev").start()
+    println("started!")
     println("if needed you can connect to this running db using:")
     println("> mysql -u root -h 127.0.0.1 -P 3388 cuttle_dev")
     println("press [Ctrl+D] to stop...")
