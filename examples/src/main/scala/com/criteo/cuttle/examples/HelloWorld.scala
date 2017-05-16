@@ -26,8 +26,12 @@ object HelloWorld {
     val hello2 =
       Job("hello2", hourly(start)) { implicit e =>
         sh"""
-          echo "Hello 2"
-          sleep 2
+          echo "Looping for 20 seconds..."
+          for i in {1..20}; do
+            date
+            sleep 1
+          done
+          echo "Ok"
         """.exec()
       }
 
