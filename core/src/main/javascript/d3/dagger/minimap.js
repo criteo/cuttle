@@ -10,10 +10,10 @@ cytoscapedagre(cytoscape, dagre);
 
 export const draw = (graphData, minimapContainer) => {
   const minimap = cytoscape({
-		//container: minimapContainer,
+		container: minimapContainer,
 		layout: {
             name: 'dagre',
-    				nodeSep: 3,
+    				nodeSep: 30,
             rankSep: 300,
             rankDir: 'LR'
           },
@@ -23,9 +23,6 @@ export const draw = (graphData, minimapContainer) => {
 							style: {
 								'background-color': '#90A4AE',
                 shape: "rectangle",
-                rx: 2.5,
-                ry: 2.5,
-                padding: 0,
                 width: 120,
                 height: 60
 							}
@@ -34,7 +31,6 @@ export const draw = (graphData, minimapContainer) => {
 							selector: 'edge',
 							style: {
 								'width': 0.8,
-								'curve-style': 'segments',
 								'line-color': '#777',
 							}
 						}
@@ -61,7 +57,7 @@ const activeNodeStyle = {
 	'background-color': "#42A5F5",
 	'shadow-blur': 80,
 	'shadow-opacity': 1,
-	'shadow-color': "#42A5F5"
+	'shadow-color': "#42A5F5",
 };
 const activeLineStyle = {
 	'line-color': "#42A5F5",

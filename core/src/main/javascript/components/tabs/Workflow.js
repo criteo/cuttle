@@ -2,9 +2,9 @@
 
 import React from "react";
 import injectSheet from "react-jss";
+
 import map from "lodash/map";
 
-import UserBar from "../UserBar";
 import Dagger from "../dumb/Dagger";
 import Spinner from "../generic/Spinner";
 
@@ -52,7 +52,9 @@ class WorkflowComponent extends React.Component {
 const styles = {
   main: {
     backgroundColor: "#ECF1F5",
-    height: "100vh"
+    flex: 1,
+    display: "flex",
+    flexDirection: "column"
   }
 };
 

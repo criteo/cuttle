@@ -2655,6 +2655,10 @@ function-bind@^1.0.2, function-bind@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/function-bind/-/function-bind-1.1.0.tgz#16176714c801798e4e8f2cf7f7529467bb4a5771"
 
+fuse.js@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/fuse.js/-/fuse.js-3.0.0.tgz#7b6c0b177f6ffc6421e4f229843b3f70a21b1ac5"
+
 gauge@~2.7.1:
   version "2.7.3"
   resolved "https://registry.yarnpkg.com/gauge/-/gauge-2.7.3.tgz#1c23855f962f17b3ad3d0dc7443f304542edfe09"

@@ -145,13 +145,11 @@ const computeNewWidth = (label: string, stringLengthReference: number, pixelWidt
 };
 
 const tagBulletVerticalOffset = ({
-  numberOfTags,
-  spaceBetweenBullets = 4,
-  bulletSize = 10,
   height
 }) => {
-  const bandSize = (numberOfTags - 1) * (bulletSize + spaceBetweenBullets) + bulletSize;
-  const startOffset = 6;
+  const bulletSize = height/5;
+  const spaceBetweenBullets = bulletSize/2;
+  const startOffset = spaceBetweenBullets;
   return tagIndex => startOffset + tagIndex * (bulletSize + spaceBetweenBullets);
 };
 
@@ -187,7 +185,7 @@ export const drawNode = (domContainer, {x, y, width, height, id, order, tags, na
 
   
 
-  const bulletOffsetComputer = tagBulletVerticalOffset({numberOfTags: tags.length, height});
+  const bulletOffsetComputer = tagBulletVerticalOffset({ height });
   forEach(tags, (name, i) => {
     node.append("rect")
       .attr("width", 10)

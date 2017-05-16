@@ -3,10 +3,25 @@ import type { PageId } from "./state";
 import type Project from "./datamodel/project";
 import type { Workflow } from "./datamodel/workflow";
 
-type Status = "success" | "pending" | "error";
+type StatusSuccess = "success";
+type StatusWaiting = "pending" | "error";
+type Status = StatusSuccess | StatusWaiting;
 type Dispatch = (action: Action) => void;
 
-export type Action = INIT | NAVIGATE | LOAD_PROJECT_DATA | LOAD_WORKFLOW_DATA | SELECT_JOB | DESELECT_JOB | TOGGLE_USERBAR;
+export type Action =
+  | INIT
+    | NAVIGATE
+    | LOAD_PROJECT_DATA
+    | LOAD_WORKFLOW_DATA
+    | SELECT_JOB
+    | DESELECT_JOB
+    | TOGGLE_USERBAR
+    | OPEN_USERBAR
+    | CLOSE_USERBAR
+    | CHANGE_JOBSEARCH_INPUT
+    | SELECT_FILTERTAG
+    | DESELECT_FILTERTAG
+    | TOGGLE_FILTERTAG;
 
 // Actions
 type INIT = { type: "INIT" };
@@ -19,14 +34,20 @@ export const navigToPage = (pageId: PageId): NAVIGATE => ({
   pageId
 });
 
-type LOAD_PROJECT_DATA = {
-  type: "LOAD_PROJECT_DATA",
-  status?: Status,
+type LOAD_ACTION<DATA_TYPE, ACTION_FLAG> = {
+  type: ACTION_FLAG,
+  status: StatusSuccess,
   globalErrorMessage?: string,
-  data?: Project
+  data: DATA_TYPE
+} | {
+  type: ACTION_FLAG,
+  status: StatusWaiting,
+  globalErrorMessage?: string
 };
 
-export const loadProjectData = (dispatch: Dispatch) => {
+type LOAD_PROJECT_DATA = LOAD_ACTION<Project, "LOAD_PROJECT_DATA">;
+
+export const loadProjectData = (dispatch: Dispatch) => () => {
   dispatch({
     type: "LOAD_PROJECT_DATA",
     status: "pending"
@@ -57,14 +78,9 @@ export const loadProjectData = (dispatch: Dispatch) => {
   );
 };
 
-type LOAD_WORKFLOW_DATA = {
-  type: "LOAD_WORKFLOW_DATA",
-  status?: Status,
-  globalErrorMessage?: string,
-  data?: Workflow
-};
+type LOAD_WORKFLOW_DATA = LOAD_ACTION<Workflow, "LOAD_WORKFLOW_DATA">;
 
-export const loadWorkflowData = (dispatch: Dispatch) => {
+export const loadWorkflowData = (dispatch: Dispatch) => () => {
   dispatch({
     type: "LOAD_WORKFLOW_DATA",
     status: "pending"
@@ -95,6 +111,8 @@ export const loadWorkflowData = (dispatch: Dispatch) => {
   );
 };
 
+// Jobs selection
+
 type SELECT_JOB = {
   type: "SELECT_JOB",
   jobId: string
@@ -119,11 +137,81 @@ export const deselectJob = (dispatch: Dispatch) =>
       jobId: id
     });
 
+// Userbar
+
 type TOGGLE_USERBAR = {
   type: "TOGGLE_USERBAR"
 };
 
-export const toggleUserbar = (dispatch: Dispatch) =>
+export const toggleUserbar = (dispatch: Dispatch) => () =>
   dispatch({
     type: "TOGGLE_USERBAR"
   });
+
+type CLOSE_USERBAR = {
+  type: "CLOSE_USERBAR"
+};
+
+export const closeUserbar = (dispatch: Dispatch) => () =>
+  dispatch({
+    type: "CLOSE_USERBAR"
+  });
+
+type OPEN_USERBAR = {
+  type: "OPEN_USERBAR"
+};
+
+export const openUserbar = (dispatch: Dispatch) => () =>
+  dispatch({
+    type: "OPEN_USERBAR"
+  });
+
+// Job filtering
+
+type CHANGE_JOBSEARCH_INPUT = {
+  type: "CHANGE_JOBSEARCH_INPUT",
+  inputText: string
+};
+
+export const changeJobSearchInput = (dispatch: Dispatch) =>
+  (text: string) =>
+    dispatch({
+      type: "CHANGE_JOBSEARCH_INPUT",
+      inputText: text
+    });
+
+type SELECT_FILTERTAG = {
+  type: "SELECT_FILTERTAG",
+  tagName: string
+};
+
+export const selectFilterTag = (dispatch: Dispatch) =>
+  (tagName: string) =>
+    dispatch({
+      type: "SELECT_FILTERTAG",
+      tagName
+    });
+
+type DESELECT_FILTERTAG = {
+  type: "DESELECT_FILTERTAG",
+  tagName: string
+};
+
+export const deselectFilterTag = (dispatch: Dispatch) =>
+  (tagName: string) =>
+    dispatch({
+      type: "SELECT_FILTERTAG",
+      tagName
+    });
+
+type TOGGLE_FILTERTAG = {
+  type: "TOGGLE_FILTERTAG",
+  tagName: string
+};
+
+export const toggleFilterTag = (dispatch: Dispatch) =>
+  (tagName: string) =>
+    dispatch({
+      type: "TOGGLE_FILTERTAG",
+      tagName
+    });

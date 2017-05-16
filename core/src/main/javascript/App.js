@@ -11,10 +11,8 @@ import Menu from "./components/menu/Menu";
 import type { PageId } from "./state";
 import * as Actions from "./actions";
 
-import Spinner from "./components/generic/Spinner";
 import Workflow from "./components/tabs/Workflow";
 import UserBar from "./components/UserBar";
-import JobFilterForm from "./components/JobFilterForm";
 
 import reduce from "lodash/reduce";
 
@@ -23,15 +21,17 @@ type Props = {
   workflowName: string,
   environment: string,
   workflow: Workflow,
-  loadProjectData: () => void,
+  
   isLoadedProject: boolean,
   isLoadingProject: boolean,
+  loadProjectData: () => void,
+  
   isLoadingWorkflow: boolean,
   isWorkflowLoaded: boolean,
   loadWorkflowData: () => void,
-  selectJob: () => void,
-  deselectJob: () => void,
-  selectedJobs: string[],
+
+  closeUserbar: () => void,
+  
   classes: any
 };
 
@@ -45,7 +45,7 @@ class App extends React.Component {
     if (!this.props.isWorkflowLoaded && !this.props.isLoadingWorkflow)
       this.props.loadWorkflowData();
   }
-
+  
   render() {
     const {
       classes,
@@ -55,43 +55,36 @@ class App extends React.Component {
       workflow,
       isLoadingWorkflow = true,
       isLoadingProject = true,
-      selectJob,
-      deselectJob,
-      selectedJobs
+      closeUserbar
     } = this.props;
 
-    const allJobs = !isLoadingWorkflow && reduce(workflow.jobs, (acc, cur) => ({
-      ...acc,
-      [cur.id]: cur
-    }), {});
+    const workflowAvailable = !isLoadingWorkflow && workflow;
 
-    const allTags = !isLoadingWorkflow && reduce(workflow.tags, (acc, cur) => ({
-      ...acc,
-      [cur.name]: cur
-    }), {});
+    const allJobs = workflowAvailable &&
+      reduce(
+        workflow.jobs,
+        (acc, cur) => ({
+          ...acc,
+          [cur.id]: cur
+        }),
+        {}
+      ) || {};
+
+    const allTags = workflowAvailable &&
+      reduce(
+        workflow.tags,
+        (acc, cur) => ({
+          ...acc,
+          [cur.name]: cur
+        }),
+        {}
+      ) || {};
 
     return (
-      <div className={classes.main}>
-        <RightPane className={classes.rightpane}>
-          <UserBar className={classes.userBar} selectedJobs={selectedJobs} allJobs={allJobs}>
-            {isLoadingWorkflow
-              ? <Spinner dark key="spinner-userbar" />
-              : <JobFilterForm
-                  key="job-filter-form"
-                  allJobs={allJobs}
-                  allTags={allTags}
-                  selectJob={selectJob}
-                  deselectJob={deselectJob}
-                  selectedJobs={selectedJobs}
-                />}
-          </UserBar>
-          {(activeTab === "workflow" &&
-            <Workflow
-              workflow={workflow}
-              isLoadingWorkflow={isLoadingWorkflow}
-            />) ||
-            <div />}
-        </RightPane>
+      <div
+        className={classes.main}
+        onClick={closeUserbar}
+      >
         <LeftPane className={classes.leftpane}>
           <MenuHeader
             environment={environment}
@@ -100,6 +93,20 @@ class App extends React.Component {
           />
           <Menu activeTab={activeTab} />
         </LeftPane>
+        <RightPane className={classes.rightpane}>
+          <UserBar
+            className={classes.userBar}
+            allTags={allTags}
+            allJobs={allJobs}
+            isLoading={isLoadingWorkflow}
+          />
+          {(activeTab === "workflow" &&
+            <Workflow
+              workflow={workflow}
+              isLoadingWorkflow={isLoadingWorkflow}
+            />) ||
+            <div />}
+        </RightPane>
       </div>
     );
   }
@@ -107,25 +114,27 @@ class App extends React.Component {
 
 let styles = {
   leftpane: {
-    position: "fixed",
-    width: "20vw",
-    maxWidth: "300px"
+    width: "300px",
+    display: "flex",
+    flexDirection: "column"
   },
   rightpane: {
-    paddingLeft: "20vw",
-    width: "80vw",
-    position: "absolute"
+    display: "flex",
+    flexGrow: 1,
+    alignItems: "stretch",
+    flexDirection: "column"
   },
   userBar: {
-    width: "80vw",
-    position: "absolute"
+    zIndex: 2
   },
   main: {
-    backgroundColor: "#ECF1F5"
+    backgroundColor: "#ECF1F5",
+    display: "flex",
+    alignItems: "stretch"
   }
 };
 
-const mapStateToProps = ({ page, project = {}, workflow = {}, selectedJobs }) => ({
+const mapStateToProps = ({ page, project, workflow }) => ({
   activeTab: page,
   isLoadedProject: !!project.data,
   isLoadingProject: project.isLoading,
@@ -133,14 +142,14 @@ const mapStateToProps = ({ page, project = {}, workflow = {}, selectedJobs }) =>
   environment: "env",
   isLoadingWorkflow: workflow.isLoading,
   isWorkflowLoaded: !!workflow.data,
-  workflow: workflow.data,
-  selectedJobs: selectedJobs
+  workflow: workflow.data
 });
+
 const mapDispatchToProps = dispatch => ({
-  loadProjectData: () => Actions.loadProjectData(dispatch),
-  loadWorkflowData: () => Actions.loadWorkflowData(dispatch),
-  selectJob: Actions.selectJob(dispatch),
-  deselectJob: Actions.deselectJob(dispatch)
+  loadProjectData: Actions.loadProjectData(dispatch),
+  loadWorkflowData: Actions.loadWorkflowData(dispatch),
+  
+  closeUserbar: Actions.closeUserbar(dispatch)
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(

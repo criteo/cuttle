@@ -7,16 +7,20 @@ import React from "react";
 type Props = {
   iconName: string,
   classes: any,
-  className: any
+  className: any,
+  onClick: () => void,
+  color: string
 };
 
-const IconComponent = ({ classes, className, iconName }: Props) => {
-  return (
-    <i className={classNames(classes.icon, "material-icons", className)}>
-      {iconName}
-    </i>
-  );
-};
+const IconComponent = ({ classes, className, iconName, color, onClick }: Props) => (
+  <i
+    className={classNames(classes.icon, "material-icons", className)}
+    style={{ color }}
+    onClick={ onClick }
+  >
+    {iconName}
+  </i>
+);
 
 const styles = {
   materialIcons: {
