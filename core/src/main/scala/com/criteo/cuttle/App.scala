@@ -35,6 +35,23 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
       executor.cancelExecution(id)
       Ok
 
+    case request @ GET at url"/api/executions/$id/streams" =>
+      lazy val flush = fs2.Stream.chunk(fs2.Chunk.bytes((" " * 5 * 1024).getBytes))
+      lazy val pre = fs2.Stream("<pre>".getBytes: _*)
+      lazy val logs = executor.openStreams(id)
+      Ok(
+        if (request.queryString.exists(_ == "html"))
+          Content(
+            stream = flush ++ pre ++ logs,
+            headers = Map(h"Content-Type" -> h"text/html")
+          )
+        else
+          Content(
+            stream = logs,
+            headers = Map(h"Content-Type" -> h"text/plain")
+          )
+      )
+
     case GET at url"/api/jobs/paused" =>
       Ok(executor.pausedJobs.asJson)
 

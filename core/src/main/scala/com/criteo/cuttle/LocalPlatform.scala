@@ -4,7 +4,7 @@ import java.nio.{ByteBuffer}
 
 import com.zaxxer.nuprocess._
 
-import java.util.UUID
+import java.util.{UUID}
 
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.stm.{atomic, Ref}
@@ -21,7 +21,7 @@ case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrderin
 
   private def runNext(): Unit = {
     val maybeToRun = atomic { implicit txn =>
-      if (running().size < 1) {
+      if (running().size < maxTasks) {
         val maybeNext = waiting().headOption
         maybeNext.foreach {
           case x @ (l, e, _, _) =>
@@ -109,7 +109,7 @@ class LocalProcess(private val process: NuProcessBuilder) {
 
   def exec[S <: Scheduling]()(implicit execution: Execution[S]): Future[Unit] = {
     val streams = execution.streams
-    streams.debug(s"Waiting available resources to fork:")
+    streams.debug(s"Forking:")
     streams.debug(this.toString)
     streams.debug("...")
 
@@ -117,7 +117,6 @@ class LocalProcess(private val process: NuProcessBuilder) {
       .lookup[LocalPlatform[S]]
       .getOrElse(sys.error("No local execution platform configured"))
       .runInPool(this, execution) { () =>
-        streams.debug("Running")
         val result = Promise[Unit]()
         val handler = new NuAbstractProcessHandler() {
           override def onStdout(buffer: ByteBuffer, closed: Boolean) = {
@@ -140,6 +139,7 @@ class LocalProcess(private val process: NuProcessBuilder) {
         }
         process.setProcessListener(handler)
         val fork = process.start()
+        streams.debug(s"Forked with PID ${fork.getPID}")
         execution.onCancelled(() => {
           fork.destroy(true)
         })

@@ -1,8 +1,8 @@
 package com.criteo.cuttle
 
+import java.io.{PrintWriter, StringWriter}
 import java.util.{Timer, TimerTask}
-import java.time.{Duration, LocalDateTime, ZoneId, ZonedDateTime}
-import java.time.format.DateTimeFormatter.{ISO_INSTANT}
+import java.time.{Duration, LocalDateTime, ZoneId}
 
 import scala.util.{Failure, Success}
 import scala.concurrent.{Future, Promise}
@@ -45,17 +45,6 @@ case class ExecutionLog(
   context: Json,
   status: ExecutionStatus
 )
-
-trait ExecutionStreams {
-  def info(str: CharSequence) = this.println("INFO ", str)
-  def error(str: CharSequence) = this.println("ERROR", str)
-  def debug(str: CharSequence) = this.println("DEBUG", str)
-  private def println(tag: String, str: CharSequence): Unit = {
-    val time = ZonedDateTime.now().format(ISO_INSTANT)
-    str.toString.split("\n").foreach(l => this.println(s"$time $tag - $l"))
-  }
-  def println(str: CharSequence): Unit
-}
 
 object ExecutionCancelled extends RuntimeException("Execution cancelled")
 
@@ -148,11 +137,13 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
 
   def cancelExecution(executionId: String): Unit = {
     val toCancel = atomic { implicit tx =>
-      (runningState.keys ++ pausedState.values.flatMap(_.keys) ++ throttledState.keys).
-        find(_.id == executionId)
+      (runningState.keys ++ pausedState.values.flatMap(_.keys) ++ throttledState.keys).find(_.id == executionId)
     }
     toCancel.foreach(_.cancel())
   }
+
+  def openStreams(executionId: String): fs2.Stream[fs2.Task, Byte] =
+    ExecutionStreams.getStreams(executionId, queries, xa)
 
   def unpauseJob(job: Job[S]): Unit = {
     val executionsToResume = atomic { implicit tx =>
@@ -193,22 +184,25 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
       runningState.filterKeys(_.job == job).keys ++ throttledState.filterKeys(_.job == job).keys
     }
     executionsToCancel.toList.sortBy(_.context).reverse.foreach { execution =>
-      execution.streams.debug(s"Job ${job.id} has been paused.")
+      execution.streams.debug(s"Job ${job.id} has been paused")
       execution.cancel()
     }
   }
 
   private def unsafeDoRun(execution: Execution[S], promise: Promise[Unit]): Unit = {
-    execution.streams.debug(s"Starting execution.")
+    execution.streams.debug(s"Running now")
     promise.completeWith(
       execution.job
         .effect(execution)
         .andThen {
           case Success(()) =>
-            execution.streams.debug(s"Execution successful.")
+            execution.streams.debug(s"Execution successful")
             recentFailures.single -= (execution.job -> execution.context)
           case Failure(e) =>
-            execution.streams.debug(s"Execution failed with message: ${e.getMessage}.")
+            val stacktrace = new StringWriter()
+            e.printStackTrace(new PrintWriter(stacktrace))
+            execution.streams.error(s"Execution failed:")
+            execution.streams.error(stacktrace.toString)
             atomic {
               implicit tx =>
                 recentFailures.retain {
@@ -225,6 +219,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
         }
         .andThen {
           case result =>
+            ExecutionStreams.archive(execution.id, queries, xa)
             atomic { implicit tx =>
               runningState -= execution
             }
@@ -278,7 +273,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
               context = context,
               startTime = LocalDateTime.now(),
               streams = new ExecutionStreams {
-                def println(str: CharSequence) = System.out.println(s"@$nextExecutionId - $str")
+                def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
               },
               platforms = platforms
             )
@@ -305,12 +300,13 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
     existingOrNew.fold(
       identity, {
         case (execution, promise, whatToDo) =>
-          execution.streams.debug(s"Execution ${execution.id}, will run for ${execution.context}")
+          execution.streams.debug(s"Execution: ${execution.id}")
+          execution.streams.debug(s"Context: ${execution.context.toJson}")
           whatToDo match {
             case ToRunNow =>
               unsafeDoRun(execution, promise)
             case Paused =>
-              execution.streams.debug(s"Delayed because job ${execution.job.id} is paused.")
+              execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
               execution.onCancelled { () =>
                 val cancelNow = atomic { implicit tx =>
                   val isStillPaused = pausedState.get(job.id).getOrElse(Map.empty).contains(execution)
@@ -325,7 +321,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
                 if (cancelNow) promise.tryFailure(ExecutionCancelled)
               }
             case Throttled(launchDate) =>
-              execution.streams.debug(s"Throttled because previous execution failed. Delayed until ${launchDate}.")
+              execution.streams.debug(s"Throttled until ${launchDate} because previous execution failed")
               val timerTask = new TimerTask {
                 def run = {
                   val runNow = atomic { implicit tx =>
