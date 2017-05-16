@@ -8,6 +8,7 @@ class Cuttle[S <: Scheduling](
   workflow: Graph[S],
   scheduler: Scheduler[S],
   ordering: Ordering[S#Context],
+  retryStrategy: RetryStrategy[S],
   queries: Queries
 ) {
   def run(
@@ -16,7 +17,7 @@ class Cuttle[S <: Scheduling](
     databaseConfig: DatabaseConfig = Database.configFromEnv
   ) = {
     val database = Database.connect(databaseConfig)
-    val executor = Executor[S](platforms, queries, database)(ordering)
+    val executor = Executor[S](platforms, queries, database)(retryStrategy, ordering)
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError("LOL")
@@ -27,9 +28,11 @@ class Cuttle[S <: Scheduling](
 }
 
 object Cuttle {
-  def apply[S <: Scheduling](name: String, description: Option[String] = None)(
-    workflow: Graph[S])(implicit scheduler: Scheduler[S], ordering: Ordering[S#Context]): Cuttle[S] =
-    new Cuttle(Project(name, description), workflow, scheduler, ordering, new Queries {})
+  def apply[S <: Scheduling](name: String, description: Option[String] = None)(workflow: Graph[S])(
+    implicit scheduler: Scheduler[S],
+    retryStrategy: RetryStrategy[S],
+    ordering: Ordering[S#Context]): Cuttle[S] =
+    new Cuttle(Project(name, description), workflow, scheduler, ordering, retryStrategy, new Queries {})
 }
 
 case class Project(name: String, description: Option[String] = None)

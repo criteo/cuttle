@@ -23,7 +23,7 @@ case class TestScheduling(config: Unit = ()) extends Scheduling {
 class LangoustinePPSpec extends FunSuite {
   test("Graph building") {
     val jobs =
-      (0 to 3).map(i => Job(i.toString, None, None, Set(), TestScheduling())(_ => Future.successful(())))
+      (0 to 3).map(i => Job(i.toString, TestScheduling())(_ => Future.successful(())))
     val graph = (jobs(1) and jobs(2)) dependsOn jobs(0) dependsOn jobs(3)
     assert(graph.vertices.size == 4)
     assert(graph.edges.size == 3)

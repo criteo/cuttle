@@ -13,7 +13,7 @@ import continuum.{Interval, IntervalSet}
 
 class TimeSeriesSpec extends FunSuite {
   val scheduling = hourly(LocalDateTime.of(2017, 3, 25, 2, 0))
-  val job = (0 to 10).map(i => Job(i.toString, None, None, Set(), scheduling)(_ => Future.successful(())))
+  val job = (0 to 10).map(i => Job(i.toString, scheduling)(_ => Future.successful(())))
   val scheduler = TimeSeriesScheduler()
 
   import TimeSeriesUtils.dateTimeOrdering

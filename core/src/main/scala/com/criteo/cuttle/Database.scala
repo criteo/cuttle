@@ -55,6 +55,11 @@ object Database {
         id          VARCHAR(1000) NOT NULL,
         PRIMARY KEY (id)
       ) ENGINE = INNODB;
+
+      CREATE TABLE executions_streams (
+        id          CHAR(36) NOT NULL,
+        streams     TEXT
+      ) ENGINE = INNODB;
     """
   )
 
@@ -138,4 +143,15 @@ trait Queries {
     sql"SELECT id FROM paused_jobs"
       .query[String]
       .to[Set]
+
+  def archiveStreams(id: String, streams: String): ConnectionIO[Int] =
+    sql"""
+      INSERT INTO executions_streams (id, streams) VALUES
+      (${id}, ${streams})
+    """.update.run
+
+  def archivedStreams(id: String): ConnectionIO[Option[String]] =
+    sql"SELECT streams FROM executions_streams WHERE id = ${id}"
+      .query[String]
+      .option
 }

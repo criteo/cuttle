@@ -59,7 +59,7 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "lolhttp",
         "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml"
-      ).map(_ % "0.3.2"),
+      ).map(_ % "0.4.0"),
       libraryDependencies ++= Seq("core", "generic", "parser")
         .map(module => "io.circe" %% s"circe-${module}" % "0.7.1"),
       libraryDependencies ++= Seq(
@@ -122,7 +122,7 @@ lazy val examples =
       fork in Test := true,
       connectInput in Test := true
     )
-    .dependsOn(cuttle, timeseries)
+    .dependsOn(cuttle, timeseries, localdb)
 
 lazy val root =
   (project in file("."))
