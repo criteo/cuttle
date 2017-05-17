@@ -5,10 +5,10 @@ import injectSheet from "react-jss";
 
 import map from "lodash/map";
 
-import Dagger from "../dumb/Dagger";
+import Dagger from "../../graph/Dagger";
 
-import type { Node, Edge } from "../../d3/dagger/dataAPI/genericGraph";
-import type { Workflow, Tag, Job, Dependency } from "../../datamodel/workflow";
+import type { Node, Edge } from "../../graph/dagger/dataAPI/genericGraph";
+import type { Workflow, Tag, Job, Dependency } from "../../datamodel";
 
 type Props = {
   classes: any,

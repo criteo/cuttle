@@ -4,12 +4,12 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 import { connect } from "react-redux";
-import type { Job, Tag } from "../datamodel/workflow";
-import * as Actions from "../actions";
+import type { Job, Tag } from "../../datamodel";
+import * as Actions from "../../actions";
 
 import Fuse from "fuse.js";
 
-import SearchBox from "./generic/SearchBox";
+import SearchBox from "../generic/SearchBox";
 import JobFilterForm from "./JobFilterForm";
 import CloseIcon from "react-icons/lib/md/close";
 

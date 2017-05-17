@@ -3,7 +3,7 @@
 import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
-import { Badge, BadgeKindToken } from "../../components/generic/Badge";
+import { Badge, BadgeKindToken } from "../generic/Badge";
 import AppIcon from "react-icons/lib/md/fiber-smart-record";
 
 type Props = {

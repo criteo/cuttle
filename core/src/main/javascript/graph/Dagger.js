@@ -4,12 +4,12 @@ import injectSheet from "react-jss";
 import React from "react";
 import reduce from "lodash/reduce";
 
-import { Graph } from "../../d3/dagger/dataAPI/genericGraph";
-import type { Node, Edge } from "../../d3/dagger/dataAPI/genericGraph";
-import type { Tag } from "../../datamodel/workflow";
+import { Graph } from "./dagger/dataAPI/genericGraph";
+import type { Node, Edge } from "./dagger/dataAPI/genericGraph";
+import type { Tag } from "../datamodel";
 
-import { transitionAction } from "../../d3/dagger/render/d3render";
-import { buildDagger } from "../../d3/dagger/dagger";
+import { transitionAction } from "./dagger/render/d3render";
+import { buildDagger } from "./dagger/dagger";
 
 type Props = {
   classes: any,

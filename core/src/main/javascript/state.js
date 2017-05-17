@@ -1,11 +1,13 @@
 // @flow
 
 import type { Action } from "./actions";
-import type { Workflow } from "./datamodel/workflow";
-import { prepareWorkflow } from "./datamodel/workflow";
-import type Project from "./datamodel/project";
-import type { Statistics } from "./datamodel/statistics";
-import type { Userbar } from "./datamodel/userbar";
+import type {
+  Project,
+  Workflow,
+  prepareWorkflow,
+  Statistics,
+  Userbar
+} from "./datamodel";
 
 import includes from "lodash/includes";
 import without from "lodash/without";

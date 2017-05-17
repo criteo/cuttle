@@ -6,8 +6,8 @@ import React from "react";
 import { navigate } from "redux-url";
 import { connect } from "react-redux";
 
-import type { BadgeType } from "../../components/generic/Badge";
-import { Badge } from "../../components/generic/Badge";
+import type { BadgeType } from "../generic/Badge";
+import { Badge } from "../generic/Badge";
 import map from "lodash/map";
 
 type Props = {
