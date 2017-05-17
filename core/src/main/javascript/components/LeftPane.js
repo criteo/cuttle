@@ -23,7 +23,8 @@ const styles = {
     backgroundColor: "#2F3647",
     color: "#758390",
     fontFamily: "Arial",
-    height: "100vh"
+    height: "100vh",
+    zIndex: 100
   }
 };
 export default injectSheet(styles)(LeftPane);

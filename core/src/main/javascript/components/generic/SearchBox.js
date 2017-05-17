@@ -4,7 +4,7 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 
-import Icon from "../generic/Icon";
+import SearchIcon from "react-icons/lib/md/search";
 
 type Props = {
   classes: any,
@@ -18,10 +18,19 @@ type Props = {
 };
 
 const SearchBox = (
-  { classes, className, placeholder, onChange, defaultValue, autoFocus, icon = false, onKeyDown }: Props
+  {
+    classes,
+    className,
+    placeholder,
+    onChange,
+    defaultValue,
+    autoFocus,
+    icon = false,
+    onKeyDown
+  }: Props
 ) => (
   <div className={classNames(classes.searchBox, className)}>
-    { icon && <Icon iconName="search" /> }
+    {icon && <SearchIcon />}
     <input
       type="text"
       className="inputText"

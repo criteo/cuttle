@@ -6,6 +6,7 @@ import React from "react";
 
 import type { PageId } from "../../state";
 import MenuEntry from "./MenuEntry";
+import WorkflowIcon from "react-icons/lib/md/device-hub";
 
 type Props = {
   activeTab: PageId,
@@ -16,16 +17,10 @@ type Props = {
 const Menu = ({ classes, className, activeTab }: Props) => (
   <nav className={classNames(classes.main, className)}>
     <MenuEntry
-      active={activeTab === "monitoring"}
-      label="Monitoring"
-      link="/monitoring"
-      iconName="dashboard"
-    />
-    <MenuEntry
       active={activeTab === "workflow"}
       label="Workflow"
       link="/workflow"
-      iconName="send"
+      icon={<WorkflowIcon style={{ transform: "rotate(90deg)" }} />}
     />
   </nav>
 );

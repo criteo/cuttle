@@ -41,8 +41,15 @@ class DaggerComponent extends React.Component {
     const { classes } = this.props;
     return (
       <div className={classes.main}>
-        <div className={classes.navigatorContainer} ref={ el => this.navigatorContainer = el}>
-          <svg width="100%" height="100%" ref={ el => this.svgNavigatorContainer = el}>
+        <div
+          className={classes.navigatorContainer}
+          ref={el => this.navigatorContainer = el}
+        >
+          <svg
+            width="100%"
+            height="100%"
+            ref={el => this.svgNavigatorContainer = el}
+          >
             <defs>
               <filter id="blur" x="-20%" y="-20%" width="200%" height="200%">
                 <feOffset result="offOut" in="SourceGraphic" />
@@ -52,7 +59,11 @@ class DaggerComponent extends React.Component {
                   type="matrix"
                   values="0.7 0 0 0 0 0 0.7 0 0 0 0 0 0.7 0 0 0 0 0 1 0"
                 />
-                <feGaussianBlur result="blurOut" in="matrixOut" stdDeviation="3" />
+                <feGaussianBlur
+                  result="blurOut"
+                  in="matrixOut"
+                  stdDeviation="3"
+                />
                 <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
               </filter>
             </defs>
@@ -66,7 +77,7 @@ class DaggerComponent extends React.Component {
             />
           </svg>
         </div>
-        <div className={classes.nodeDescription}/>
+        <div className={classes.nodeDescription} />
         <div
           className={classes.minimapContainer}
           ref={element => this.minimapContainer = element}
@@ -83,10 +94,15 @@ class DaggerComponent extends React.Component {
     this.svgNavigatorContainer.setAttribute("width", width);
     this.svgNavigatorContainer.setAttribute("height", height);
     this.dagger = buildDagger(overallGraph, {
-      width, height,
+      width,
+      height,
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
-      tags: reduce(tags, (acc, current) => ({ ...acc, [current.name]: current.color }), {}),
+      tags: reduce(
+        tags,
+        (acc, current) => ({ ...acc, [current.name]: current.color }),
+        {}
+      ),
       minimap: {
         container: this.minimapContainer,
         setup: minimap => {

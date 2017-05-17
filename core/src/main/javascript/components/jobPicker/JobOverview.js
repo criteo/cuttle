@@ -27,13 +27,15 @@ type Props = {
 const kindofNodeTitle = (kind: NodeKind) =>
   kind === "root" ? "Root node" : kind === "leaf" ? "Leaf node" : "Middle node";
 
-const JobOverview = ({ classes, className, id, name, kind, tags, description, active }: Props) => {
+const JobOverview = (
+  { classes, className, id, name, kind, tags, description, active }: Props
+) => {
   return (
     <div className={classNames(classes.job, className)}>
-      
+
       <div className="jobBody">
         <div className="nodeKind" title={kindofNodeTitle(kind)}>
-          <NodeIcon kind={kind}/>
+          <NodeIcon kind={kind} />
         </div>
         <div className="name">
           {name || id}
@@ -44,13 +46,10 @@ const JobOverview = ({ classes, className, id, name, kind, tags, description, ac
       </div>
       <ul className={classes.jobTags}>
         {map(tags, tag => (
-           <li
-             key={"tag" + tag.name}
-             className={classes.jobTag}
-           >
-             <TagBullet name={tag.name} color={tag.color}/>
-           </li>
-         )) }
+          <li key={"tag" + tag.name} className={classes.jobTag}>
+            <TagBullet name={tag.name} color={tag.color} />
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -78,8 +77,7 @@ const styles = {
       }
     }
   },
-  jobTags: {
-  },
+  jobTags: {},
   jobTag: {
     width: "1.5em",
     display: "inline-flex"

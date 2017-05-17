@@ -4,31 +4,28 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 import { Badge, BadgeKindToken } from "../../components/generic/Badge";
-import Icon from "../../components/generic/Icon";
-import Spinner from "../../components/generic/Spinner";
+import AppIcon from "react-icons/lib/md/fiber-smart-record";
 
 type Props = {
-  isLoading: boolean,
-  workflowName: string,
+  projectName: string,
   environment: string,
   classes: any,
   className: any
 };
 
-const MenuHeader = ({ classes, className, environment, workflowName, isLoading }: Props) =>
-  isLoading
-    ? <div className={classNames(classes.main, className)}>
-        <Spinner />
-      </div>
-    : <div className={classNames(classes.main, className)}>
-        <Icon className={classes.icon} iconName="rowing" />
-        <span className={classes.workflowName}>{workflowName}</span>
-        <Badge
-          label={environment}
-          kind={BadgeKindToken.header}
-          className={classes.badge}
-        />
-      </div>;
+const MenuHeader = (
+  { classes, className, environment, projectName }: Props
+) => (
+  <div className={classNames(classes.main, className)}>
+    <AppIcon className={classes.icon} />
+    <span className={classes.projectName}>{projectName}</span>
+    <Badge
+      label={environment}
+      kind={BadgeKindToken.header}
+      className={classes.badge}
+    />
+  </div>
+);
 
 const styles = {
   main: {
@@ -43,10 +40,11 @@ const styles = {
     padding: "0.5em 5%"
   },
   icon: {
-    marginLeft: "0.5em",
-    marginRight: "1em"
+    marginRight: ".5em",
+    fontSize: "1.4em",
+    color: "#fc1246"
   },
-  workflowName: {
+  projectName: {
     fontWeight: "bold",
     fontSize: "1.2em"
   },

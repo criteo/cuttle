@@ -7,9 +7,6 @@ module.exports = {
   entry: {
     app: [
       path.resolve(__dirname, 'core/src/main/javascript/index.js')
-    ],
-    vendors: [
-      "webpack-material-design-icons"
     ]
   },
   output: {

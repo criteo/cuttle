@@ -28,9 +28,8 @@ class JobFilterForm extends React.Component {
 
   constructor(props: Props) {
     super(props);
-    
   }
-  
+
   render() {
     const {
       classes,
@@ -44,39 +43,40 @@ class JobFilterForm extends React.Component {
 
     //handleKeyPress(head(jobsListDisplayed), selectJob)
     return (
-      <div className={classNames(className, classes.container)}>    
+      <div className={classNames(className, classes.container)}>
         <div className={classes.filterForm}>
           <div className="filterBar">
             <ul className="tagsList">
               {map(allTags, tag => (
-                 <li key={"tag" + tag.name}>
-                   <TagBullet
-                     name={tag.name}
-                     color={tag.color}
-                     onClick={() => toggleFilterTag(tag.name)}
-                     active={includes(selectedTags, tag.name)}
-                     verbose />
-                 </li>
-               ))}
+                <li key={"tag" + tag.name}>
+                  <TagBullet
+                    name={tag.name}
+                    color={tag.color}
+                    onClick={() => toggleFilterTag(tag.name)}
+                    active={includes(selectedTags, tag.name)}
+                    verbose
+                  />
+                </li>
+              ))}
             </ul>
           </div>
         </div>
         <ul className={classes.jobsList}>
           {map(displayedJobsList, job => (
-             <li
-               key={"job" + job.id}
-               className="job"
-               onClick={e => (e.stopPropagation(), selectJob(job.id))}
-             >
-               <JobOverview
-                 id={job.id}
-                 name={job.name}
-                 kind={job.kind}
-                 description={job.description}
-                 tags={map(job.tags, tagId => allTags[tagId])}
-               />
-             </li>
-           ))}
+            <li
+              key={"job" + job.id}
+              className="job"
+              onClick={e => (e.stopPropagation(), selectJob(job.id))}
+            >
+              <JobOverview
+                id={job.id}
+                name={job.name}
+                kind={job.kind}
+                description={job.description}
+                tags={map(job.tags, tagId => allTags[tagId])}
+              />
+            </li>
+          ))}
         </ul>
       </div>
     );
@@ -89,7 +89,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     borderTop: "#ECF1F5 1px solid",
-    "& ul": {listStyleType: "none", margin: 0, padding: 0}
+    "& ul": { listStyleType: "none", margin: 0, padding: 0 }
   },
 
   jobsList: {

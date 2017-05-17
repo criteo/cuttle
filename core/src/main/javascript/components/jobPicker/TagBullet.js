@@ -5,7 +5,7 @@ import classNames from "classnames";
 import React from "react";
 import noop from "lodash/noop";
 
-import Icon from "../generic/Icon";
+import LabelIcon from "react-icons/lib/md/label";
 
 type Props = {
   classes: any,
@@ -17,14 +17,21 @@ type Props = {
   onClick: () => void
 };
 
-const TagBullet = ({ classes, className, name, color, active, verbose, onClick }: Props) => {
+const TagBullet = (
+  { classes, className, name, color, active, verbose, onClick }: Props
+) => {
   return (
     <div
-      className={classNames(classes.main, className, active && "active", onClick && "clickable")}
+      className={classNames(
+        classes.main,
+        className,
+        active && "active",
+        onClick && "clickable"
+      )}
       onClick={onClick ? e => (e.stopPropagation(), onClick()) : noop}
       title={name}
     >
-      <Icon iconName="label" color={color} />
+      <LabelIcon style={{ color: color }} />
       {verbose && <span className="tagName">{name}</span>}
     </div>
   );
