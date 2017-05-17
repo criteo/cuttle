@@ -20,7 +20,7 @@ class Cuttle[S <: Scheduling](
     val executor = Executor[S](platforms, queries, database)(retryStrategy, ordering)
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
-      InternalServerError("LOL")
+      InternalServerError(e.getMessage)
     })(App(project, workflow, scheduler, executor).routes)
     println(s"Listening on http://localhost:$httpPort")
     scheduler.run(workflow, executor, database)

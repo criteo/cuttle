@@ -60,10 +60,13 @@ const styles = {
     color: "#FFF",
     fontFamily: "Arial",
     fontWeight: "bold",
-    lineHeight: "normal",
+    lineHeight: "1.15em",
     fontSize: "0.75em",
-    borderRadius: "0.25em",
-    padding: "0.2em 0.5em"
+    borderRadius: "2px",
+    padding: "0 0.5em",
+    paddingBottom: "1px",
+    position: "relative",
+    top: "-1px"
   }
 };
 export const Badge = injectSheet(styles)(BadgeComponent);

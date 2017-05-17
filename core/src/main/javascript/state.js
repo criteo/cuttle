@@ -9,57 +9,43 @@ import type { Userbar } from "./datamodel/userbar";
 import includes from "lodash/includes";
 import without from "lodash/without";
 
-export type PageId =
-  | "monitoring"
-    | "execution"
-    | "execution_running"
-    | "execution_success"
-    | "execution_failed"
-    | "workflow"
-    | "calendar"
-    | "admin";
+export type PageId = "workflow";
 
-export interface Page {
+export type Page = {
   id: PageId,
   label: string
-}
-
-type LoadingStructure<T> = {
-  isLoading: boolean,
-  data?: T
 };
 
 export type State = {
   page: PageId,
-  workflow: LoadingStructure<Workflow>,
-  project: LoadingStructure<Project>,
+  workflow: ?Workflow,
+  project: ?Project,
   userbar: Userbar,
+  isLoading: boolean,
   globalError?: string
 };
 
 export const initialState: State = {
-  page: "monitoring",
-  project: { isLoading: false },
-  workflow: { isLoading: false },
+  page: "workflow",
+  project: null,
+  workflow: null,
   userbar: {
     open: false,
     selectedJobs: [],
     jobSearchInput: "",
     selectedTags: []
-  }
+  },
+  isLoading: true
 };
 
 // -- Reducers
 
-export const reducers = (
-  currentState: State,
-  action: Action
-): State => {
+export const reducers = (currentState: State, action: Action): State => {
   switch (action.type) {
     case "INIT": {
       return {
         ...currentState,
-        page: "monitoring"
+        page: "workflow"
       };
     }
 
@@ -70,60 +56,28 @@ export const reducers = (
       };
     }
 
-    case "LOAD_PROJECT_DATA": {
-      switch(action.status) {
+    case "LOAD_APP_DATA": {
+      switch (action.status) {
         case "success":
+          let [project, workflow] = action.data;
           return {
             ...currentState,
-            project: {
-              data: action.data,
-              isLoading: false
-            }
-          }
+            project: project,
+            workflow: workflow,
+            isLoading: false
+          };
         case "pending":
           return {
             ...currentState,
-            project: {
-              isLoading: true
-            }
-          }
+            isLoading: true
+          };
+        case "error":
+          return {
+            ...currentState,
+            globalError: action.globalErrorMessage
+          };
         default:
-          return {
-            ...currentState,
-            globalError: action.globalErrorMessage,
-            project: {
-              data: { name: "." },
-              isLoading: false
-            }
-          }
-      }
-    }
-
-    case "LOAD_WORKFLOW_DATA": {
-      switch(action.status) {
-        case "success":
-          return {
-            ...currentState,
-            workflow: {
-              data: prepareWorkflow(action.data),
-              isLoading: false
-            }
-          }
-        case "pending":
-          return {
-            ...currentState,
-            workflow: {
-              isLoading: true
-            }
-          }
-        default:
-          return {
-            ...currentState,
-            globalError: action.globalErrorMessage,
-            workflow: {
-              isLoading: false
-            }
-          }
+          return currentState;
       }
     }
 
@@ -179,7 +133,7 @@ export const reducers = (
         }
       };
     }
-      
+
     case "CHANGE_JOBSEARCH_INPUT": {
       return {
         ...currentState,
@@ -226,7 +180,7 @@ export const reducers = (
         }
       };
     }
-      
+
     default:
       console.log("Unhandled action %o", action);
       return currentState;

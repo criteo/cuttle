@@ -7,6 +7,7 @@ import injectSheet from "react-jss";
 import RightPane from "./components/RightPane";
 import LeftPane from "./components/LeftPane";
 import MenuHeader from "./components/menu/MenuHeader";
+import Spinner from "./components/generic/Spinner";
 import Menu from "./components/menu/Menu";
 import type { PageId } from "./state";
 import * as Actions from "./actions";
@@ -18,20 +19,12 @@ import reduce from "lodash/reduce";
 
 type Props = {
   activeTab: PageId,
-  workflowName: string,
+  projectName: string,
   environment: string,
   workflow: Workflow,
-  
-  isLoadedProject: boolean,
-  isLoadingProject: boolean,
-  loadProjectData: () => void,
-  
-  isLoadingWorkflow: boolean,
-  isWorkflowLoaded: boolean,
-  loadWorkflowData: () => void,
-
+  isLoading: boolean,
+  loadAppData: () => void,
   closeUserbar: () => void,
-  
   classes: any
 };
 
@@ -40,75 +33,62 @@ class App extends React.Component {
 
   constructor(props: Props) {
     super(props);
-    if (!this.props.isLoadedProject && !this.props.isLoadingProject)
-      this.props.loadProjectData();
-    if (!this.props.isWorkflowLoaded && !this.props.isLoadingWorkflow)
-      this.props.loadWorkflowData();
   }
-  
+
+  componentDidMount() {
+    this.props.loadAppData();
+  }
+
   render() {
     const {
       classes,
       activeTab,
       environment,
-      workflowName,
+      projectName,
       workflow,
-      isLoadingWorkflow = true,
-      isLoadingProject = true,
+      isLoading,
       closeUserbar
     } = this.props;
 
-    const workflowAvailable = !isLoadingWorkflow && workflow;
-
-    const allJobs = workflowAvailable &&
-      reduce(
+    if (isLoading) {
+      return <Spinner className={classes.loader} />;
+    } else {
+      const allJobs = reduce(
         workflow.jobs,
         (acc, cur) => ({
           ...acc,
           [cur.id]: cur
         }),
         {}
-      ) || {};
+      );
 
-    const allTags = workflowAvailable &&
-      reduce(
+      const allTags = reduce(
         workflow.tags,
         (acc, cur) => ({
           ...acc,
           [cur.name]: cur
         }),
         {}
-      ) || {};
+      );
 
-    return (
-      <div
-        className={classes.main}
-        onClick={closeUserbar}
-      >
-        <LeftPane className={classes.leftpane}>
-          <MenuHeader
-            environment={environment}
-            workflowName={workflowName}
-            isLoading={isLoadingProject}
-          />
-          <Menu activeTab={activeTab} />
-        </LeftPane>
-        <RightPane className={classes.rightpane}>
-          <UserBar
-            className={classes.userBar}
-            allTags={allTags}
-            allJobs={allJobs}
-            isLoading={isLoadingWorkflow}
-          />
-          {(activeTab === "workflow" &&
-            <Workflow
-              workflow={workflow}
-              isLoadingWorkflow={isLoadingWorkflow}
-            />) ||
-            <div />}
-        </RightPane>
-      </div>
-    );
+      return (
+        <div className={classes.main} onClick={closeUserbar}>
+          <LeftPane className={classes.leftpane}>
+            <MenuHeader environment={environment} projectName={projectName} />
+            <Menu activeTab={activeTab} />
+          </LeftPane>
+          <RightPane className={classes.rightpane}>
+            <UserBar
+              className={classes.userBar}
+              allTags={allTags}
+              allJobs={allJobs}
+            />
+            {(activeTab === "workflow" && <Workflow workflow={workflow} />) ||
+              <div />}
+          </RightPane>
+        </div>
+      );
+    }
   }
 }
 
@@ -131,25 +111,23 @@ let styles = {
     backgroundColor: "#ECF1F5",
     display: "flex",
     alignItems: "stretch"
+  },
+  loader: {
+    padding: "25px"
   }
 };
 
-const mapStateToProps = ({ page, project, workflow }) => ({
+const mapStateToProps = ({ page, project, workflow, isLoading }) => ({
   activeTab: page,
-  isLoadedProject: !!project.data,
-  isLoadingProject: project.isLoading,
-  workflowName: project.data && project.data.name,
-  environment: "env",
-  isLoadingWorkflow: workflow.isLoading,
-  isWorkflowLoaded: !!workflow.data,
-  workflow: workflow.data
+  projectName: project && project.name,
+  environment: "production",
+  workflow,
+  isLoading
 });
 
 const mapDispatchToProps = dispatch => ({
-  loadProjectData: Actions.loadProjectData(dispatch),
-  loadWorkflowData: Actions.loadWorkflowData(dispatch),
-  
-  closeUserbar: Actions.closeUserbar(dispatch)
+  closeUserbar: Actions.closeUserbar(dispatch),
+  loadAppData: Actions.loadAppData(dispatch)
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(

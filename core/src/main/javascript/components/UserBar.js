@@ -9,10 +9,9 @@ import * as Actions from "../actions";
 
 import Fuse from "fuse.js";
 
-import Icon from "./generic/Icon";
 import SearchBox from "./generic/SearchBox";
 import JobFilterForm from "./JobFilterForm";
-import Spinner from "./generic/Spinner";
+import CloseIcon from "react-icons/lib/md/close";
 
 import map from "lodash/map";
 import head from "lodash/head";
@@ -32,14 +31,10 @@ const fuseSearchSetup = allJobs => {
     distance: 100,
     maxPatternLength: 32,
     minMatchCharLength: 1,
-    keys: [
-      "id",
-      "name",
-      "description"
-    ]
+    keys: ["id", "name", "description"]
   };
   return new Fuse(allJobs, options);
-}
+};
 
 type Props = {
   classes: any,
@@ -50,30 +45,33 @@ type Props = {
 
   openUserbar: () => void,
   userbarOpen: boolean,
-  
+
   jobSearchInput: string,
   selectedTags: Tag[],
   changeJobSearchInput: () => void,
   selectFilterTag: () => void,
   deselectFilterTag: () => void,
   toggleFilterTag: () => void,
-  
-  isLoading: boolean,
-  
+
   allTags: { [string]: Tag },
   allJobs: { [string]: Job }
 };
 
-const handleKeyPress = (selectedJobs, jobsList, jobSearchInput, deselectJob, selectJob) =>
+const handleKeyPress = (
+  selectedJobs,
+  jobsList,
+  jobSearchInput,
+  deselectJob,
+  selectJob
+) =>
   e => {
-    switch(e.key) {
+    switch (e.key) {
       case "Backspace":
         if (!jobSearchInput && selectedJobs.length > 0)
           deselectJob(last(selectedJobs).id);
         break;
       case "Enter":
-        if (jobsList.length > 0)
-          selectJob(head(jobsList).id);
+        if (jobsList.length > 0) selectJob(head(jobsList).id);
         break;
     }
   };
@@ -81,7 +79,7 @@ const handleKeyPress = (selectedJobs, jobsList, jobSearchInput, deselectJob, sel
 class Userbar extends React.Component {
   props: Props;
   fuzzySearch: Fuse;
-  
+
   constructor(props: Props) {
     super(props);
     this.fuzzySearch = fuseSearchSetup(values(props.allJobs));
@@ -103,14 +101,13 @@ class Userbar extends React.Component {
     // If a tag is selected at least, we filter (multiple tags selected reduce the selection)
     return selectedTags.length > 0
       ? filter(
-        prefiltered,
-        j => intersection(j.tags, selectedTags).length == selectedTags.length
-      )
+          prefiltered,
+          j => intersection(j.tags, selectedTags).length == selectedTags.length
+        )
       : prefiltered;
   }
-  
-  render(){
-    
+
+  render() {
     const {
       classes,
       className,
@@ -118,7 +115,7 @@ class Userbar extends React.Component {
       userbarOpen,
       openUserbar,
       selectedTags,
-      
+
       deselectJob,
       selectJob,
       allTags,
@@ -128,15 +125,17 @@ class Userbar extends React.Component {
       deselectFilterTag,
       toggleFilterTag,
       jobSearchInput,
-      changeJobSearchInput,
-      
-      isLoading
+      changeJobSearchInput
     }: Props = this.props;
 
-    const filteredJobsList = this.filteredJobsList(jobSearchInput, selectedTags);
-    const displayedJobsList = reject(filteredJobsList, j => includes(selectedJobs, j.id))
+    const filteredJobsList = this.filteredJobsList(
+      jobSearchInput,
+      selectedTags
+    );
+    const displayedJobsList = reject(filteredJobsList, j =>
+      includes(selectedJobs, j.id));
     const selectedJobsList = map(selectedJobs, jobId => allJobs[jobId]);
-    
+
     return (
       <div
         className={classNames(className, classes.bar)}
@@ -144,46 +143,43 @@ class Userbar extends React.Component {
       >
         <ul className={classes.selectors}>
           {map(selectedJobsList, job => (
-             <li
-               key={"job" + job.id}
-               className={classes.jobBullet}
-             >
-               {job.name}
-               <Icon
-                 className={classes.closeIcon}
-                 iconName="close"
-                 onClick={e => (e.stopPropagation(), deselectJob(job.id))}
-               />
-             </li>
-           )
-           )}
-        <li className="searchBox" key="searchBox">
-          <SearchBox
-            autoFocus={userbarOpen}
-            defaultValue={jobSearchInput}
-            onChange={e => changeJobSearchInput(e.target.value)}
-            onKeyDown={handleKeyPress(selectedJobsList, values(displayedJobsList), jobSearchInput, deselectJob, selectJob)}
-            placeholder="Pick a job..."
-          />
-        </li>
-        </ul>
-        { userbarOpen &&
-          (isLoading
-            ? <Spinner dark key="spinner-userbar" />
-            :
-            <div className={classes.filterForm}>
-              <JobFilterForm
-                key="job-filter-form"
-                displayedJobsList={displayedJobsList}
-                allTags={allTags}
-                selectJob={selectJob}
-                selectedTags={selectedTags}
-                selectFilterTag={selectFilterTag}
-                deselectFilterTag={deselectFilterTag}
-                toggleFilterTag={toggleFilterTag}
+            <li key={"job" + job.id} className={classes.jobBullet}>
+              {job.name}
+              <CloseIcon
+                className={classes.closeIcon}
+                onClick={e => (e.stopPropagation(), deselectJob(job.id))}
               />
-            </div>)
-        }
+            </li>
+          ))}
+          <li className="searchBox" key="searchBox">
+            <SearchBox
+              autoFocus={userbarOpen}
+              defaultValue={jobSearchInput}
+              onChange={e => changeJobSearchInput(e.target.value)}
+              onKeyDown={handleKeyPress(
+                selectedJobsList,
+                values(displayedJobsList),
+                jobSearchInput,
+                deselectJob,
+                selectJob
+              )}
+              placeholder="Pick a job..."
+            />
+          </li>
+        </ul>
+        {userbarOpen &&
+          <div className={classes.filterForm}>
+            <JobFilterForm
+              key="job-filter-form"
+              displayedJobsList={displayedJobsList}
+              allTags={allTags}
+              selectJob={selectJob}
+              selectedTags={selectedTags}
+              selectFilterTag={selectFilterTag}
+              deselectFilterTag={deselectFilterTag}
+              toggleFilterTag={toggleFilterTag}
+            />
+          </div>}
       </div>
     );
   }
@@ -198,7 +194,7 @@ const styles = {
     "&:hover, &.active": {
       boxShadow: "0px 1px 5px 0px #36ABD6"
     },
-    "& ul": {listStyleType: "none", margin: 0, padding: 0}
+    "& ul": { listStyleType: "none", margin: 0, padding: 0 }
   },
   selectors: {
     display: "flex",
@@ -211,7 +207,7 @@ const styles = {
       flex: 1,
       margin: "auto",
       marginLeft: "0.5em"
-    },
+    }
   },
   jobBullet: {
     color: "#2F3647",
@@ -251,11 +247,11 @@ const mapStateToProps = ({ userbar }) => ({
 const mapDispatchToProps = dispatch => ({
   selectJob: Actions.selectJob(dispatch),
   deselectJob: Actions.deselectJob(dispatch),
-  
+
   toggleUserbar: Actions.toggleUserbar(dispatch),
   openUserbar: Actions.openUserbar(dispatch),
   closeUserbar: Actions.closeUserbar(dispatch),
-  
+
   changeJobSearchInput: Actions.changeJobSearchInput(dispatch),
   selectFilterTag: Actions.selectFilterTag(dispatch),
   deselectFilterTag: Actions.deselectFilterTag(dispatch),

@@ -10,18 +10,17 @@ type Dispatch = (action: Action) => void;
 
 export type Action =
   | INIT
-    | NAVIGATE
-    | LOAD_PROJECT_DATA
-    | LOAD_WORKFLOW_DATA
-    | SELECT_JOB
-    | DESELECT_JOB
-    | TOGGLE_USERBAR
-    | OPEN_USERBAR
-    | CLOSE_USERBAR
-    | CHANGE_JOBSEARCH_INPUT
-    | SELECT_FILTERTAG
-    | DESELECT_FILTERTAG
-    | TOGGLE_FILTERTAG;
+  | NAVIGATE
+  | LOAD_APP_DATA
+  | SELECT_JOB
+  | DESELECT_JOB
+  | TOGGLE_USERBAR
+  | OPEN_USERBAR
+  | CLOSE_USERBAR
+  | CHANGE_JOBSEARCH_INPUT
+  | SELECT_FILTERTAG
+  | DESELECT_FILTERTAG
+  | TOGGLE_FILTERTAG;
 
 // Actions
 type INIT = { type: "INIT" };
@@ -34,82 +33,47 @@ export const navigToPage = (pageId: PageId): NAVIGATE => ({
   pageId
 });
 
-type LOAD_ACTION<DATA_TYPE, ACTION_FLAG> = {
-  type: ACTION_FLAG,
-  status: StatusSuccess,
-  globalErrorMessage?: string,
-  data: DATA_TYPE
-} | {
-  type: ACTION_FLAG,
-  status: StatusWaiting,
-  globalErrorMessage?: string
-};
+type LOAD_ACTION<DATA_TYPE, ACTION_FLAG> =
+  | {
+      type: ACTION_FLAG,
+      status: StatusSuccess,
+      globalErrorMessage?: string,
+      data: DATA_TYPE
+    }
+  | {
+      type: ACTION_FLAG,
+      status: StatusWaiting,
+      globalErrorMessage?: string
+    };
 
-type LOAD_PROJECT_DATA = LOAD_ACTION<Project, "LOAD_PROJECT_DATA">;
+type LOAD_APP_DATA = LOAD_ACTION<[Project, Workflow], "LOAD_APP_DATA">;
 
-export const loadProjectData = (dispatch: Dispatch) => () => {
-  dispatch({
-    type: "LOAD_PROJECT_DATA",
-    status: "pending"
-  });
-  fetch("/api/project_definition").then(
-    response => {
-      response.json().then(
-        (project_definition: Project) =>
+export const loadAppData = (dispatch: Dispatch) =>
+  () => {
+    dispatch({
+      type: "LOAD_APP_DATA",
+      status: "pending"
+    });
+    Promise.all([
+      fetch("/api/project_definition"),
+      fetch("/api/workflow_definition")
+    ]).then(responses => {
+      Promise.all(responses.map(r => r.json())).then(
+        ([project: Project, workflow: Workflow]) =>
           dispatch({
-            type: "LOAD_PROJECT_DATA",
+            type: "LOAD_APP_DATA",
             status: "success",
-            data: project_definition
+            data: [project, workflow]
           }),
         () =>
           dispatch({
-            type: "LOAD_PROJECT_DATA",
+            type: "LOAD_APP_DATA",
             status: "error",
             globalErrorMessage: "Cannot parse Project definition data"
           })
       );
-    },
-    () =>
-      dispatch({
-        type: "LOAD_PROJECT_DATA",
-        status: "error",
-        globalErrorMessage: "Cannot load Project definition data"
-      })
-  );
-};
-
-type LOAD_WORKFLOW_DATA = LOAD_ACTION<Workflow, "LOAD_WORKFLOW_DATA">;
-
-export const loadWorkflowData = (dispatch: Dispatch) => () => {
-  dispatch({
-    type: "LOAD_WORKFLOW_DATA",
-    status: "pending"
-  });
-  fetch("/api/workflow_definition").then(
-    response => {
-      response.json().then(
-        (workflow_definition: Workflow) =>
-          dispatch({
-            type: "LOAD_WORKFLOW_DATA",
-            status: "success",
-            data: workflow_definition
-          }),
-        () =>
-          dispatch({
-            type: "LOAD_WORKFLOW_DATA",
-            status: "error",
-            globalErrorMessage: "Cannot parse Workflow definition data"
-          })
-      );
-    },
-    () =>
-      dispatch({
-        type: "LOAD_WORKFLOW_DATA",
-        status: "error",
-        globalErrorMessage: "Cannot load Workflow definition data"
-      })
-  );
-};
+    });
+  };
 
 // Jobs selection
 
@@ -143,28 +107,31 @@ type TOGGLE_USERBAR = {
   type: "TOGGLE_USERBAR"
 };
 
-export const toggleUserbar = (dispatch: Dispatch) => () =>
-  dispatch({
-    type: "TOGGLE_USERBAR"
-  });
+export const toggleUserbar = (dispatch: Dispatch) =>
+  () =>
+    dispatch({
+      type: "TOGGLE_USERBAR"
+    });
 
 type CLOSE_USERBAR = {
   type: "CLOSE_USERBAR"
 };
 
-export const closeUserbar = (dispatch: Dispatch) => () =>
-  dispatch({
-    type: "CLOSE_USERBAR"
-  });
+export const closeUserbar = (dispatch: Dispatch) =>
+  () =>
+    dispatch({
+      type: "CLOSE_USERBAR"
+    });
 
 type OPEN_USERBAR = {
   type: "OPEN_USERBAR"
 };
 
-export const openUserbar = (dispatch: Dispatch) => () =>
-  dispatch({
-    type: "OPEN_USERBAR"
-  });
+export const openUserbar = (dispatch: Dispatch) =>
+  () =>
+    dispatch({
+      type: "OPEN_USERBAR"
+    });
 
 // Job filtering
 

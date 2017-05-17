@@ -17,8 +17,7 @@ import { initialState, reducers } from "./state";
 import { navigToPage } from "./actions";
 
 const routes = {
-  "/": () => navigToPage("monitoring"),
-  "/monitoring": () => navigToPage("monitoring"),
+  "/": () => navigToPage("workflow"),
   "/workflow": () => navigToPage("workflow")
 };
 
