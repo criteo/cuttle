@@ -9,7 +9,12 @@ import type { Userbar } from "./datamodel/userbar";
 import includes from "lodash/includes";
 import without from "lodash/without";
 
-export type PageId = "workflow";
+export type PageId =
+  | "workflow"
+  | "executions/running"
+  | "executions/stuck"
+  | "executions/paused"
+  | "executions/finished";
 
 export type Page = {
   id: PageId,

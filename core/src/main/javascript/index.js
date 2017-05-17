@@ -17,7 +17,11 @@ import { initialState, reducers } from "./state";
 import { navigToPage } from "./actions";
 
 const routes = {
-  "/": () => navigToPage("workflow"),
+  "/": () => navigToPage("executions/running"),
+  "/executions/running": () => navigToPage("executions/running"),
+  "/executions/stuck": () => navigToPage("executions/stuck"),
+  "/executions/finished": () => navigToPage("executions/finished"),
+  "/executions/paused": () => navigToPage("executions/paused"),
   "/workflow": () => navigToPage("workflow")
 };
 
