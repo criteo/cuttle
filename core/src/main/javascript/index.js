@@ -13,6 +13,8 @@ import "../style/index.less";
 
 import App from "./App";
 import { initialState, reducers } from "./state";
+import * as Actions from "./actions";
+import type { Statistics } from "./datamodel/statistics";
 
 import { navigToPage } from "./actions";
 
@@ -36,6 +38,16 @@ const store = createStore(
 );
 
 store.dispatch(navigate(location.pathname, true));
+store.dispatch(Actions.loadAppData());
+
+// $FlowFixMe
+new EventSource("/api/statistics").onmessage = e => {
+  let statistics: Statistics = JSON.parse(e.data);
+  store.dispatch({
+    type: "UPDATE_STATISTICS",
+    statistics
+  });
+};
 
 render(
   <Provider store={store}>

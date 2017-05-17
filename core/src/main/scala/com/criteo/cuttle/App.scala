@@ -7,11 +7,39 @@ import JsonApi._
 import io.circe._
 import io.circe.syntax._
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler: Scheduler[S], executor: Executor[S]) {
 
+  private implicit val S = fs2.Strategy.fromExecutionContext(global)
+  private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
+  private def sse[A](thunk: () => A, encode: A => Json) = {
+    val throttle = fs2.Stream.eval(fs2.Task.schedule((), 1 second))
+    def chunk(str: String) = fs2.Stream.chunk(fs2.Chunk.bytes(str.getBytes("utf8")))
+    def next(previous: Option[A] = None): fs2.Stream[fs2.Task, Json] =
+      Option(thunk())
+        .filterNot(_ == previous.getOrElse(()))
+        .map(a => fs2.Stream(encode(a)) ++ throttle.flatMap(_ => next(Some(a))))
+        .getOrElse(throttle.flatMap(_ => next(previous)))
+    val sseEncodedStream = next().flatMap(json => chunk("data: ") ++ chunk(json.noSpaces) ++ chunk("\n\n"))
+    Ok(Content(sseEncodedStream, Map(h"Content-Type" -> h"text/event-stream")))
+  }
+
   val api: PartialService = {
+
+    case GET at url"/api/statistics" =>
+      sse[(Int, Int, Int)](
+        () => (executor.runningExecutions.size, executor.pausedExecutions.size, executor.failingExecutions.size), {
+          case (running, paused, failing) =>
+            Json.obj(
+              "running" -> running.asJson,
+              "paused" -> paused.asJson,
+              "failing" -> failing.asJson
+            )
+        }
+      )
+
     case GET at url"/api/executions/running" =>
       Ok(executor.runningExecutions.asJson)
 

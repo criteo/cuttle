@@ -48,8 +48,8 @@ type LOAD_ACTION<DATA_TYPE, ACTION_FLAG> =
 
 type LOAD_APP_DATA = LOAD_ACTION<[Project, Workflow], "LOAD_APP_DATA">;
 
-export const loadAppData = (dispatch: Dispatch) =>
-  () => {
+export const loadAppData = () =>
+  (dispatch: Dispatch) => {
     dispatch({
       type: "LOAD_APP_DATA",
       status: "pending"

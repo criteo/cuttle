@@ -14,6 +14,7 @@ import * as Actions from "./actions";
 
 import Workflow from "./components/tabs/Workflow";
 import UserBar from "./components/UserBar";
+import type { Statistics } from "./datamodel/statistics";
 
 import reduce from "lodash/reduce";
 
@@ -22,8 +23,8 @@ type Props = {
   projectName: string,
   environment: string,
   workflow: Workflow,
+  statistics: Statistics,
   isLoading: boolean,
-  loadAppData: () => void,
   closeUserbar: () => void,
   classes: any
 };
@@ -35,10 +36,6 @@ class App extends React.Component {
     super(props);
   }
 
-  componentDidMount() {
-    this.props.loadAppData();
-  }
-
   render() {
     const {
       classes,
@@ -47,7 +44,8 @@ class App extends React.Component {
       projectName,
       workflow,
       isLoading,
-      closeUserbar
+      closeUserbar,
+      statistics
     } = this.props;
 
     if (isLoading) {
@@ -75,7 +73,7 @@ class App extends React.Component {
         <div className={classes.main} onClick={closeUserbar}>
           <LeftPane className={classes.leftpane}>
             <MenuHeader environment={environment} projectName={projectName} />
-            <Menu activeTab={activeTab} />
+            <Menu activeTab={activeTab} statistics={statistics} />
           </LeftPane>
           <RightPane className={classes.rightpane}>
             <UserBar
@@ -117,17 +115,19 @@ let styles = {
   }
 };
 
-const mapStateToProps = ({ page, project, workflow, isLoading }) => ({
+const mapStateToProps = (
+  { page, project, workflow, isLoading, statistics }
+) => ({
   activeTab: page,
   projectName: project && project.name,
   environment: "production",
   workflow,
-  isLoading
+  isLoading,
+  statistics
 });
 
 const mapDispatchToProps = dispatch => ({
-  closeUserbar: Actions.closeUserbar(dispatch),
-  loadAppData: Actions.loadAppData(dispatch)
+  closeUserbar: Actions.closeUserbar(dispatch)
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(

@@ -49,9 +49,7 @@ const styles = {
     fontSize: "1.2em"
   },
   badge: {
-    margin: "auto 0em auto auto",
-    fontSize: "1em",
-    fontVariant: "small-caps"
+    margin: "auto 0em auto auto"
   }
 };
 

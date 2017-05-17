@@ -4,6 +4,7 @@ import type { Action } from "./actions";
 import type { Workflow } from "./datamodel/workflow";
 import { prepareWorkflow } from "./datamodel/workflow";
 import type Project from "./datamodel/project";
+import type { Statistics } from "./datamodel/statistics";
 import type { Userbar } from "./datamodel/userbar";
 
 import includes from "lodash/includes";
@@ -25,6 +26,7 @@ export type State = {
   page: PageId,
   workflow: ?Workflow,
   project: ?Project,
+  statistics: Statistics,
   userbar: Userbar,
   isLoading: boolean,
   globalError?: string
@@ -34,6 +36,11 @@ export const initialState: State = {
   page: "workflow",
   project: null,
   workflow: null,
+  statistics: {
+    running: 0,
+    paused: 0,
+    failing: 0
+  },
   userbar: {
     open: false,
     selectedJobs: [],
@@ -58,6 +65,13 @@ export const reducers = (currentState: State, action: Action): State => {
       return {
         ...currentState,
         page: action.pageId
+      };
+    }
+
+    case "UPDATE_STATISTICS": {
+      return {
+        ...currentState,
+        statistics: action.statistics
       };
     }
 
