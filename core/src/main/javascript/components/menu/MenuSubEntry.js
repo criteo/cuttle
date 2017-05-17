@@ -4,34 +4,52 @@ import injectSheet from "react-jss";
 import React from "react";
 import MenuEntry from "./MenuEntry";
 
+import DotIcon from "react-icons/lib/go/primitive-dot";
+
 type Props = {
   badges: string[],
+  active: boolean,
   label: string,
-  onClick: () => void,
+  link: string,
   classes: any,
   className: any
 };
 
-const MenuSubEntry = ({ classes, label, badges, onClick }: Props) => (
+const MenuSubEntry = ({ active, classes, label, badges, link }: Props) => (
   <MenuEntry
-    label={label}
+    active={active}
+    label={<span className={classes.label}>{label}</span>}
     badges={badges}
     content={null}
-    iconName="keyboard_arrow_right"
+    icon={
+      <DotIcon
+        className={classes.dot}
+        style={{ color: active ? "#2eacd7" : "#ffffff" }}
+      />
+    }
     className={classes.main}
     activeClassName={classes.active}
-    onClick={onClick}
+    link={link}
   />
 );
 
 const styles = {
   main: {
-    height: "1.5em",
-    lineHeight: "1.5em",
-    backgroundColor: "#2A2F3D"
+    height: "1em",
+    lineHeight: "1em",
+    backgroundColor: "#2A2F3D",
+    "&:hover": {
+      backgroundColor: "#363D4F"
+    }
   },
   active: {
     backgroundColor: "#363D4F"
+  },
+  dot: {
+    transform: "scale(.5) translateX(-4px)"
+  },
+  label: {
+    fontSize: "85%"
   }
 };
 
