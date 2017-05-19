@@ -4,17 +4,15 @@ import React from "react";
 import { connect } from "react-redux";
 import injectSheet from "react-jss";
 
-import RightPane from "./components/RightPane";
-import LeftPane from "./components/LeftPane";
-import MenuHeader from "./components/menu/MenuHeader";
-import Spinner from "./components/generic/Spinner";
-import Menu from "./components/menu/Menu";
+import MenuHeader from "./app/menu/MenuHeader";
+import Spinner from "./app/generic/Spinner";
+import Menu from "./app/menu/Menu";
 import type { PageId } from "./state";
 import * as Actions from "./actions";
 
-import Workflow from "./components/tabs/Workflow";
-import UserBar from "./components/UserBar";
-import type { Statistics } from "./datamodel/statistics";
+import Workflow from "./app/tabs/Workflow";
+import UserBar from "./app/filter/UserBar";
+import type { Statistics } from "./datamodel";
 
 import reduce from "lodash/reduce";
 
@@ -71,11 +69,11 @@ class App extends React.Component {
 
       return (
         <div className={classes.main} onClick={closeUserbar}>
-          <LeftPane className={classes.leftpane}>
+          <section className={classes.leftpane}>
             <MenuHeader environment={environment} projectName={projectName} />
             <Menu activeTab={activeTab} statistics={statistics} />
-          </LeftPane>
-          <RightPane className={classes.rightpane}>
+          </section>
+          <section className={classes.rightpane}>
             <UserBar
               className={classes.userBar}
               allTags={allTags}
@@ -83,7 +81,7 @@ class App extends React.Component {
             />
             {(activeTab === "workflow" && <Workflow workflow={workflow} />) ||
               <div />}
-          </RightPane>
+          </section>
         </div>
       );
     }
@@ -94,13 +92,21 @@ let styles = {
   leftpane: {
     width: "300px",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    backgroundColor: "#2F3647",
+    color: "#758390",
+    fontFamily: "Arial",
+    height: "100vh",
+    zIndex: 100
   },
   rightpane: {
     display: "flex",
     flexGrow: 1,
     alignItems: "stretch",
-    flexDirection: "column"
+    flexDirection: "column",
+    backgroundColor: "#ECF1F5",
+    color: "#3D4454",
+    fontFamily: "Arial"
   },
   userBar: {
     zIndex: 2

@@ -6,7 +6,7 @@ import React from "react";
 
 import NodeIcon from "../../shapes/NodeIcon";
 import TagBullet from "./TagBullet";
-import type { Tag, NodeKind } from "../../datamodel/workflow";
+import type { Tag, NodeKind } from "../../datamodel";
 
 import map from "lodash/map";
 

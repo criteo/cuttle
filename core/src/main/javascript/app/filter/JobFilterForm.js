@@ -7,9 +7,9 @@ import React from "react";
 import map from "lodash/map";
 import includes from "lodash/includes";
 
-import type { Job, Tag } from "../datamodel/workflow";
-import TagBullet from "./jobPicker/TagBullet";
-import JobOverview from "./jobPicker/JobOverview";
+import type { Job, Tag } from "../../datamodel";
+import TagBullet from "./TagBullet";
+import JobOverview from "./JobOverview";
 
 type Props = {
   classes: any,

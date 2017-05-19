@@ -1,7 +1,7 @@
 // @flow
 
 import React from "react";
-import type { NodeKind } from "../datamodel/workflow";
+import type { NodeKind } from "../datamodel";
 
 type Props = {
   kind?: NodeKind

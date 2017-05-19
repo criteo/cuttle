@@ -9,7 +9,7 @@ import MenuEntry from "./MenuEntry";
 import MenuSubEntry from "./MenuSubEntry";
 import LogIcon from "react-icons/lib/md/playlist-play";
 import WorkflowIcon from "react-icons/lib/md/device-hub";
-import type { Statistics } from "../../datamodel/statistics";
+import type { Statistics } from "../../datamodel";
 
 type Props = {
   activeTab: PageId,

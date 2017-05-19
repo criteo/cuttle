@@ -1,7 +1,6 @@
 // @flow
 import type { PageId } from "./state";
-import type Project from "./datamodel/project";
-import type { Workflow } from "./datamodel/workflow";
+import type { Project, Workflow, Statistics } from "./datamodel";
 
 type StatusSuccess = "success";
 type StatusWaiting = "pending" | "error";
@@ -47,41 +46,50 @@ type LOAD_ACTION<DATA_TYPE, ACTION_FLAG> =
     };
 
 type LOAD_APP_DATA = LOAD_ACTION<[Project, Workflow], "LOAD_APP_DATA">;
-
 export const loadAppData = () =>
   (dispatch: Dispatch) => {
-    dispatch({
-      type: "LOAD_APP_DATA",
-      status: "pending"
-    });
+    dispatch(
+      ({
+        type: "LOAD_APP_DATA",
+        status: "pending"
+      }: LOAD_APP_DATA)
+    );
     Promise.all([
       fetch("/api/project_definition"),
       fetch("/api/workflow_definition")
     ]).then(responses => {
       Promise.all(responses.map(r => r.json())).then(
         ([project: Project, workflow: Workflow]) =>
-          dispatch({
-            type: "LOAD_APP_DATA",
-            status: "success",
-            data: [project, workflow]
-          }),
+          dispatch(
+            ({
+              type: "LOAD_APP_DATA",
+              status: "success",
+              data: [project, workflow]
+            }: LOAD_APP_DATA)
+          ),
         () =>
-          dispatch({
-            type: "LOAD_APP_DATA",
-            status: "error",
-            globalErrorMessage: "Cannot parse Project definition data"
-          })
+          dispatch(
+            ({
+              type: "LOAD_APP_DATA",
+              status: "error",
+              globalErrorMessage: "Cannot parse Project definition data"
+            }: LOAD_APP_DATA)
+          )
       );
     });
   };
 
+type UPDATE_STATISTICS = { type: "UPDATE_STATISTICS", statistics: Statistics };
+export const updateStatistics = (
+  statistics: Statistics
+): UPDATE_STATISTICS => ({
+  type: "UPDATE_STATISTICS",
+  statistics
+});
+
 // Jobs selection
 
-type SELECT_JOB = {
-  type: "SELECT_JOB",
-  jobId: string
-};
-
+type SELECT_JOB = { type: "SELECT_JOB", jobId: string };
 export const selectJob = (dispatch: Dispatch) =>
   (id: string) =>
     dispatch({
@@ -89,11 +97,7 @@ export const selectJob = (dispatch: Dispatch) =>
       jobId: id
     });
 
-type DESELECT_JOB = {
-  type: "DESELECT_JOB",
-  jobId: string
-};
-
+type DESELECT_JOB = { type: "DESELECT_JOB", jobId: string };
 export const deselectJob = (dispatch: Dispatch) =>
   (id: string) =>
     dispatch({
@@ -103,30 +107,21 @@ export const deselectJob = (dispatch: Dispatch) =>
 
 // Userbar
 
-type TOGGLE_USERBAR = {
-  type: "TOGGLE_USERBAR"
-};
-
+type TOGGLE_USERBAR = { type: "TOGGLE_USERBAR" };
 export const toggleUserbar = (dispatch: Dispatch) =>
   () =>
     dispatch({
       type: "TOGGLE_USERBAR"
     });
 
-type CLOSE_USERBAR = {
-  type: "CLOSE_USERBAR"
-};
-
+type CLOSE_USERBAR = { type: "CLOSE_USERBAR" };
 export const closeUserbar = (dispatch: Dispatch) =>
   () =>
     dispatch({
       type: "CLOSE_USERBAR"
     });
 
-type OPEN_USERBAR = {
-  type: "OPEN_USERBAR"
-};
-
+type OPEN_USERBAR = { type: "OPEN_USERBAR" };
 export const openUserbar = (dispatch: Dispatch) =>
   () =>
     dispatch({
@@ -139,7 +134,6 @@ type CHANGE_JOBSEARCH_INPUT = {
   type: "CHANGE_JOBSEARCH_INPUT",
   inputText: string
 };
-
 export const changeJobSearchInput = (dispatch: Dispatch) =>
   (text: string) =>
     dispatch({
@@ -147,11 +141,7 @@ export const changeJobSearchInput = (dispatch: Dispatch) =>
       inputText: text
     });
 
-type SELECT_FILTERTAG = {
-  type: "SELECT_FILTERTAG",
-  tagName: string
-};
-
+type SELECT_FILTERTAG = { type: "SELECT_FILTERTAG", tagName: string };
 export const selectFilterTag = (dispatch: Dispatch) =>
   (tagName: string) =>
     dispatch({
@@ -159,11 +149,7 @@ export const selectFilterTag = (dispatch: Dispatch) =>
       tagName
     });
 
-type DESELECT_FILTERTAG = {
-  type: "DESELECT_FILTERTAG",
-  tagName: string
-};
-
+type DESELECT_FILTERTAG = { type: "DESELECT_FILTERTAG", tagName: string };
 export const deselectFilterTag = (dispatch: Dispatch) =>
   (tagName: string) =>
     dispatch({
@@ -171,11 +157,7 @@ export const deselectFilterTag = (dispatch: Dispatch) =>
       tagName
     });
 
-type TOGGLE_FILTERTAG = {
-  type: "TOGGLE_FILTERTAG",
-  tagName: string
-};
-
+type TOGGLE_FILTERTAG = { type: "TOGGLE_FILTERTAG", tagName: string };
 export const toggleFilterTag = (dispatch: Dispatch) =>
   (tagName: string) =>
     dispatch({

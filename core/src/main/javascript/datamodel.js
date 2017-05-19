@@ -2,6 +2,21 @@
 import map from "lodash/map";
 import some from "lodash/some";
 
+export type Project = { name: string, description: string };
+
+export type Statistics = {
+  running: number,
+  paused: number,
+  failing: number
+};
+
+export type Userbar = {
+  selectedJobs: string[],
+  jobSearchInput: string,
+  selectedTags: string[],
+  open: boolean
+};
+
 export type Dependency = { from: string, to: string };
 
 export type Tag = { name: string, description: string };

@@ -14,7 +14,7 @@ import "../style/index.less";
 import App from "./App";
 import { initialState, reducers } from "./state";
 import * as Actions from "./actions";
-import type { Statistics } from "./datamodel/statistics";
+import type { Statistics } from "./datamodel";
 
 import { navigToPage } from "./actions";
 
@@ -41,12 +41,8 @@ store.dispatch(navigate(location.pathname, true));
 store.dispatch(Actions.loadAppData());
 
 // $FlowFixMe
-new EventSource("/api/statistics").onmessage = e => {
-  let statistics: Statistics = JSON.parse(e.data);
-  store.dispatch({
-    type: "UPDATE_STATISTICS",
-    statistics
-  });
+new EventSource("/api/statistics?stream").onmessage = e => {
+  store.dispatch(Actions.updateStatistics(JSON.parse(e.data)));
 };
 
 render(
