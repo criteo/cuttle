@@ -36,7 +36,7 @@ const colors = (kind: BadgeKind): string => {
       return "#EFA252";
     case BadgeKindToken.initialized:
     default:
-      return "#A6B5C1";
+      return "#4c515f";
 
   }
 };
@@ -54,19 +54,17 @@ const BadgeComponent = ({ classes, className, kind, label }: Props) => {
 
 const styles = {
   main: {
-    display: "flex",
-    alignItems: "center",
+    display: "inline-box",
     backgroundColor: "#2B3142",
     color: "#FFF",
     fontFamily: "Arial",
-    fontWeight: "bold",
-    lineHeight: "1.15em",
-    fontSize: "0.75em",
+    fontWeight: "normal",
+    textTransform: "uppercase",
+    lineHeight: "1.5em",
+    fontSize: ".7em",
     borderRadius: "2px",
-    padding: "0 0.5em",
-    paddingBottom: "1px",
-    position: "relative",
-    top: "-1px"
+    padding: "0 .5em",
+    maxHeight: "1.5em"
   }
 };
 export const Badge = injectSheet(styles)(BadgeComponent);

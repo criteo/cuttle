@@ -32,7 +32,7 @@ const MenuEntry = (
     label,
     link,
     subEntries,
-    badges,
+    badges = [],
     active,
     navTo
   }: Props
@@ -49,14 +49,24 @@ const MenuEntry = (
     >
       <span className={classes.icon}>{icon}</span>
       <span className={classes.label}>{label}</span>
-      {map(badges, (b: BadgeType) => (
-        <Badge label={b.label} kind={b.kind} className={classes.badge} />
-      ))}
+      <div className={classes.badges}>
+        {badges
+          .filter(x => x)
+          .map((b: BadgeType, i) => (
+            <Badge
+              key={i}
+              label={b.label}
+              kind={b.kind}
+              className={classes.badge}
+            />
+          ))}
+      </div>
 
     </a>
     {active
       ? <div className={classes.content}>
-          {subEntries && subEntries.map((e,key) => React.cloneElement(e, {key}))}
+          {subEntries &&
+            subEntries.map((e, key) => React.cloneElement(e, { key }))}
         </div>
       : null}
   </div>
@@ -89,9 +99,12 @@ const styles = {
     fontSize: "1.4em"
   },
   label: {},
+  badges: {
+    textAlign: "right",
+    margin: "auto 0em auto auto"
+  },
   badge: {
-    margin: "auto 0em auto auto",
-    fontVariant: "small-caps"
+    marginLeft: "5px"
   }
 };
 export default connect(
