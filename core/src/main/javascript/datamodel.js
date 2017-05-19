@@ -4,6 +4,26 @@ import some from "lodash/some";
 
 export type Project = { name: string, description: string };
 
+export type ExecutionStatus = "running" | "throttled";
+
+export type ExecutionLog = {
+  id: string,
+  job: string,
+  startTime: string,
+  endTime: ?string,
+  context: any,
+  status: ExecutionStatus,
+  failing?: {
+    failedExecutions: Array<ExecutionLog>,
+    nextRetry: ?string
+  }
+};
+
+export type Paginated<A> = {
+  total: number,
+  data: Array<A>
+};
+
 export type Statistics = {
   running: number,
   paused: number,
@@ -31,7 +51,12 @@ export type Job = {
   kind?: NodeKind
 };
 
-export type Workflow = { jobs: Job[], dependencies: Dependency[], tags: Tag[] };
+export type Workflow = {
+  jobs: Job[],
+  dependencies: Dependency[],
+  tags: Tag[],
+  getJob: (id: string) => ?Job
+};
 
 // We enrich the workflow with information in this method
 // (if a job is root in the graph, or a leaf etc.)
@@ -42,5 +67,8 @@ export const prepareWorkflow = (w: Workflow): Workflow => ({
     kind: some(w.dependencies, { to: j.id })
       ? some(w.dependencies, { from: j.id }) ? "common" : "leaf"
       : "root"
-  }))
+  })),
+  getJob(id: string) {
+    return this.jobs.find(job => job.id == id);
+  }
 });

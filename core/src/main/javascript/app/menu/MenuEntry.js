@@ -6,8 +6,8 @@ import React from "react";
 import { navigate } from "redux-url";
 import { connect } from "react-redux";
 
-import type { BadgeType } from "../generic/Badge";
-import { Badge } from "../generic/Badge";
+import type { BadgeType } from "../components/Badge";
+import { Badge } from "../components/Badge";
 import map from "lodash/map";
 
 type Props = {
@@ -101,7 +101,8 @@ const styles = {
   label: {},
   badges: {
     textAlign: "right",
-    margin: "auto 0em auto auto"
+    margin: "auto 0em auto auto",
+    transform: "translateY(-2px)"
   },
   badge: {
     marginLeft: "5px"

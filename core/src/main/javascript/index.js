@@ -15,12 +15,13 @@ import App from "./App";
 import { initialState, reducers } from "./state";
 import * as Actions from "./actions";
 import type { Statistics } from "./datamodel";
+import { listenEvents } from "./Utils";
 
 import { navigToPage } from "./actions";
 
 const routes = {
-  "/": () => navigToPage("executions/running"),
-  "/executions/running": () => navigToPage("executions/running"),
+  "/": () => navigToPage("executions/started"),
+  "/executions/started": () => navigToPage("executions/started"),
   "/executions/stuck": () => navigToPage("executions/stuck"),
   "/executions/finished": () => navigToPage("executions/finished"),
   "/executions/paused": () => navigToPage("executions/paused"),
@@ -41,11 +42,8 @@ const store = createStore(
 
 store.dispatch(navigate(location.pathname, true));
 store.dispatch(Actions.loadAppData());
-
-// $FlowFixMe
-new EventSource("/api/statistics?stream").onmessage = e => {
-  store.dispatch(Actions.updateStatistics(JSON.parse(e.data)));
-};
+listenEvents("/api/statistics?stream=true", stats =>
+  store.dispatch(Actions.updateStatistics(stats)));
 
 render(
   <Provider store={store}>

@@ -128,13 +128,39 @@ trait Queries {
         """.update.run
     } yield result
 
-  def getExecutionLog(contextQuery: Fragment): ConnectionIO[List[ExecutionLog]] =
+  def getExecutionLogSize: ConnectionIO[Int] =
+    sql"""
+      SELECT COUNT(*) FROM executions
+    """.query[Int].unique
+
+  def getExecutionLog(contextQuery: Fragment,
+                      sort: String,
+                      asc: Boolean,
+                      offset: Int,
+                      limit: Int): ConnectionIO[List[ExecutionLog]] = {
+    val orderBy = (sort, asc) match {
+      case ("context", true) => sql"ORDER BY context_id ASC"
+      case ("context", false) => sql"ORDER BY context_id DESC"
+      case ("job", true) => sql"ORDER BY job ASC"
+      case ("job", false) => sql"ORDER BY job DESC"
+      case ("status", true) => sql"ORDER BY success ASC"
+      case ("status", false) => sql"ORDER BY success DESC"
+      case ("startTime", true) => sql"ORDER BY start_time ASC"
+      case ("startTime", false) => sql"ORDER BY start_time DESC"
+      case (_, true) => sql"ORDER BY end_time ASC"
+      case _ => sql"ORDER BY end_time DESC"
+    }
     (sql"""
       SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
       FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
-      ON executions.context_id = contexts.id
-      ORDER BY start_time
-    """).query[ExecutionLog].list
+      ON executions.context_id = contexts.id """ ++ orderBy ++ sql""" LIMIT $limit OFFSET $offset""")
+      .query[(String, String, LocalDateTime, Option[LocalDateTime], Json, ExecutionStatus)]
+      .list
+      .map(_.map {
+        case (id, job, startTime, endTime, context, status) =>
+          ExecutionLog(id, job, startTime, endTime, context, status)
+      })
+  }
 
   def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
     sql"""

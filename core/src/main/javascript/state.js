@@ -1,20 +1,15 @@
 // @flow
 
 import type { Action } from "./actions";
-import type {
-  Project,
-  Workflow,
-  prepareWorkflow,
-  Statistics,
-  Userbar
-} from "./datamodel";
+import type { Project, Workflow, Statistics, Userbar } from "./datamodel";
 
+import { prepareWorkflow } from "./datamodel";
 import includes from "lodash/includes";
 import without from "lodash/without";
 
 export type PageId =
   | "workflow"
-  | "executions/running"
+  | "executions/started"
   | "executions/stuck"
   | "executions/paused"
   | "executions/finished"
@@ -86,7 +81,7 @@ export const reducers = (currentState: State, action: Action): State => {
           return {
             ...currentState,
             project: project,
-            workflow: workflow,
+            workflow: prepareWorkflow(workflow),
             isLoading: false
           };
         case "pending":

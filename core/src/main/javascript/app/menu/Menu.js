@@ -24,21 +24,28 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
     <MenuEntry
       active={activeTab.indexOf("executions/") === 0}
       label="Execution log"
-      link="/executions/running"
+      link="/executions/started"
       icon={<LogIcon />}
       badges={
         activeTab.indexOf("executions/") === 0
           ? []
           : [
               statistics.running && { label: statistics.running, kind: "info" },
-              statistics.failing && { label: statistics.failing, kind: "fail" }
+              statistics.failing && {
+                label: statistics.failing,
+                kind: "error"
+              },
+              statistics.paused && {
+                label: statistics.paused,
+                kind: "warning"
+              }
             ]
       }
       subEntries={[
         <MenuSubEntry
-          active={activeTab === "executions/running"}
-          label="Running"
-          link="/executions/running"
+          active={activeTab === "executions/started"}
+          label="Started"
+          link="/executions/started"
           badges={[
             statistics.running && { label: statistics.running, kind: "info" }
           ]}
@@ -48,7 +55,7 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
           label="Stuck"
           link="/executions/stuck"
           badges={[
-            statistics.failing && { label: statistics.failing, kind: "fail" }
+            statistics.failing && { label: statistics.failing, kind: "error" }
           ]}
         />,
         <MenuSubEntry
@@ -60,7 +67,7 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
           active={activeTab === "executions/paused"}
           label="Paused"
           link="/executions/paused"
-          badges={[statistics.paused && { label: statistics.paused }]}
+          badges={[statistics.paused && { label: statistics.paused, kind: "warning" }]}
         />
       ]}
     />
@@ -78,11 +85,7 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
       active={activeTab.indexOf("timeseries/") === 0}
       label="Time series"
       link="/timeseries/calendar"
-      icon={
-        <CalendarIcon
-          style={{ transform: "translateY(-3px)" }}
-        />
-      }
+      icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
       subEntries={[
         <MenuSubEntry
           active={activeTab === "timeseries/calendar"}
