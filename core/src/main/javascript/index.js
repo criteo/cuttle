@@ -24,7 +24,9 @@ const routes = {
   "/executions/stuck": () => navigToPage("executions/stuck"),
   "/executions/finished": () => navigToPage("executions/finished"),
   "/executions/paused": () => navigToPage("executions/paused"),
-  "/workflow": () => navigToPage("workflow")
+  "/workflow": () => navigToPage("workflow"),
+  "/timeseries/calendar": () => navigToPage("timeseries/calendar"),
+  "/timeseries/backfill": () => navigToPage("timeseries/backfill")
 };
 
 const router = createRouter(routes, createHistory());
