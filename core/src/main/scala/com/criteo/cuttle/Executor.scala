@@ -132,8 +132,8 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
   def pausedJobs: Seq[String] =
     pausedState.single.keys.toSeq
 
-  def archivedExecutions: Seq[ExecutionLog] =
-    queries.getExecutionLog.transact(xa).unsafePerformIO
+  def archivedExecutions(queryContexts: Fragment): Seq[ExecutionLog] =
+    queries.getExecutionLog(queryContexts).transact(xa).unsafePerformIO
 
   def cancelExecution(executionId: String): Unit = {
     val toCancel = atomic { implicit tx =>
@@ -227,7 +227,8 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
               .logExecution(
                 execution
                   .toExecutionLog(if (result.isSuccess) ExecutionSuccessful else ExecutionFailed)
-                  .copy(endTime = Some(LocalDateTime.now()))
+                  .copy(endTime = Some(LocalDateTime.now())),
+                execution.context.log
               )
               .transact(xa)
               .unsafePerformIO

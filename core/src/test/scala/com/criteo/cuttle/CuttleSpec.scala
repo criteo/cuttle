@@ -6,12 +6,17 @@ import org.scalatest.{FunSuite}
 
 import io.circe.Json
 
+import doobie.imports._
+
+import cats.Applicative
+
 case class TestDependencyDescriptor()
 object TestDependencyDescriptor {
   implicit val defDepDescr = TestDependencyDescriptor()
 }
 case class TestContext() extends SchedulingContext {
   val toJson = Json.Null
+  val log = Applicative[ConnectionIO].pure("id")
 }
 
 case class TestScheduling(config: Unit = ()) extends Scheduling {

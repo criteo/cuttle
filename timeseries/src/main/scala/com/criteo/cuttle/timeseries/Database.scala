@@ -5,8 +5,9 @@ import Internal._
 
 import java.time._
 
-import cats.implicits._
+import cats.Applicative
 import cats.data.OptionT
+import cats.implicits._
 
 import io.circe._
 import io.circe.syntax._
@@ -28,7 +29,16 @@ object Database {
         date        DATETIME NOT NULL
       ) ENGINE = INNODB;
 
-      CREATE INDEX state_by_date ON timeseries_state (date);
+      CREATE INDEX timeseries_state_by_date ON timeseries_state (date);
+
+      CREATE TABLE timeseries_contexts (
+        id          VARCHAR(1000) NOT NULL,
+        json        JSON NOT NULL,
+        ctx_range   LINESTRING NOT NULL,
+        PRIMARY KEY (id)
+      ) ENGINE = INNODB;
+
+      CREATE SPATIAL INDEX timeseries_contexts_by_range ON timeseries_contexts (ctx_range);
     """.update
   )
 
@@ -54,6 +64,31 @@ object Database {
       }
     } yield ()
   }
+
+  def sqlGetContextsBetween(start: Option[LocalDateTime], end: Option[LocalDateTime]): Fragment =
+    sql"""
+      SELECT id, json FROM timeseries_contexts
+      WHERE MBRIntersects(
+        ctx_range,
+        LineString(
+          Point(-1, ${start.map(_.toEpochSecond(ZoneOffset.UTC)).getOrElse(0L)}),
+          Point( 1, ${end.map(_.toEpochSecond(ZoneOffset.UTC)).getOrElse(Long.MaxValue)})
+        )
+      )
+    """
+
+  def serializeContext(context: TimeSeriesContext): ConnectionIO[String] =
+    sql"""
+      REPLACE INTO timeseries_contexts (id, json, ctx_range)
+      VALUES (
+        ${context.toString},
+        ${context.asJson},
+        LineString(
+          Point(-1, ${context.start.toEpochSecond(ZoneOffset.UTC)}),
+          Point( 1, ${context.end.toEpochSecond(ZoneOffset.UTC)})
+        )
+      )
+    """.update.run *> Applicative[ConnectionIO].pure(context.toString)
 
   def deserialize(implicit jobs: Set[Job[TimeSeriesScheduling]]): ConnectionIO[Option[(State, Set[Backfill])]] = {
     implicit def intervalSetDecoder[A: Ordering](implicit decoder: Decoder[A]): Decoder[IntervalSet[A]] = {
