@@ -3,7 +3,7 @@ package com.criteo.cuttle
 import io.circe._
 import io.circe.syntax._
 
-import java.time.{LocalDateTime}
+import java.time.{Instant}
 
 object JsonApi {
   implicit val projectEncoder = new Encoder[Project] {
@@ -14,8 +14,8 @@ object JsonApi {
       )
   }
 
-  implicit val localDateTimeEncoder = new Encoder[LocalDateTime] {
-    override def apply(date: LocalDateTime) =
+  implicit val InstantEncoder = new Encoder[Instant] {
+    override def apply(date: Instant) =
       date.toString.asJson
   }
 

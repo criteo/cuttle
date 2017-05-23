@@ -34,8 +34,8 @@ case class Daily(tz: ZoneId) extends TimeSeriesGrid
 private case object Continuous extends TimeSeriesGrid
 
 case class Backfill(id: String,
-                    start: LocalDateTime,
-                    end: LocalDateTime,
+                    start: Instant,
+                    end: Instant,
                     jobs: Set[Job[TimeSeriesScheduling]],
                     priority: Int)
 object Backfill {
@@ -44,7 +44,7 @@ object Backfill {
     deriveDecoder[Backfill]
 }
 
-case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime, backfill: Option[Backfill] = None)
+case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Backfill] = None)
     extends SchedulingContext {
   import TimeSeriesUtils._
 
@@ -52,7 +52,7 @@ case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime, backfill:
 
   def log: ConnectionIO[String] = Database.serializeContext(this)
 
-  def toInterval: Interval[LocalDateTime] = Interval.closedOpen(start, end)
+  def toInterval: Interval[Instant] = Interval.closedOpen(start, end)
 }
 
 object TimeSeriesContext {
@@ -70,7 +70,7 @@ object TimeSeriesContext {
 
 case class TimeSeriesDependency(offset: Duration)
 
-case class TimeSeriesScheduling(grid: TimeSeriesGrid, start: LocalDateTime, maxPeriods: Int = 1) extends Scheduling {
+case class TimeSeriesScheduling(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1) extends Scheduling {
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
 }
@@ -85,17 +85,17 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
   val allContexts = Database.sqlGetContextsBetween(None, None)
 
   private val timer =
-    Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
+    Job("timer", TimeSeriesScheduling(Continuous, Instant.ofEpochMilli(0)))(_ =>
       sys.error("panic!"))
 
-  private val _state = Ref(Map.empty[TimeSeriesJob, IntervalSet[LocalDateTime]])
+  private val _state = Ref(Map.empty[TimeSeriesJob, IntervalSet[Instant]])
   private val _backfills = TSet.empty[Backfill]
 
   def state: (State, Set[Backfill]) = atomic { implicit txn =>
     (_state(), _backfills.snapshot)
   }
 
-  def backfillJob(id: String, job: TimeSeriesJob, start: LocalDateTime, end: LocalDateTime, priority: Int) = atomic {
+  def backfillJob(id: String, job: TimeSeriesJob, start: Instant, end: Instant, priority: Int) = atomic {
     implicit txn =>
       val newBackfill = Backfill(id, start, end, Set(job), priority)
       _backfills += newBackfill
@@ -123,7 +123,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     atomic { implicit txn =>
       graph.vertices.foreach { job =>
         if (!_state().contains(job)) {
-          _state() = _state() + (job -> IntervalSet.empty[LocalDateTime])
+          _state() = _state() + (job -> IntervalSet.empty[Instant])
         }
       }
     }
@@ -148,7 +148,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
       if (completed.nonEmpty)
         Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
 
-      val now = ZonedDateTime.now(ZoneId.of("UTC")).toLocalDateTime
+      val now = Instant.now
       val toRun = next(
         graph,
         stateSnapshot,
@@ -168,8 +168,8 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     go(Set.empty)
   }
 
-  def split(start: LocalDateTime,
-            end: LocalDateTime,
+  def split(start: Instant,
+            end: Instant,
             tz: ZoneId,
             unit: ChronoUnit,
             maxPeriods: Int): Iterator[TimeSeriesContext] = {
@@ -192,7 +192,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         alignedStart
           .plus(k, unit)
           .withZoneSameInstant(UTC)
-          .toLocalDateTime
+          .toInstant
 
       TimeSeriesContext(alignedNth(l.head), alignedNth(l.last + 1))
     }
@@ -202,7 +202,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
            state0: State,
            backfills: Set[Backfill],
            running: Set[(TimeSeriesJob, TimeSeriesContext)],
-           timerInterval: IntervalSet[LocalDateTime]): List[Executable] = {
+           timerInterval: IntervalSet[Instant]): List[Executable] = {
     val graph = graph0 dependsOn timer
     val state = state0 + (timer -> timerInterval)
 
@@ -210,7 +210,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
       running
         .groupBy(_._1)
         .mapValues(_.map(x => x._2.toInterval)
-          .foldLeft(IntervalSet.empty[LocalDateTime])((is, interval) => is + interval))
+          .foldLeft(IntervalSet.empty[Instant])((is, interval) => is + interval))
         .toMap
     }
 
@@ -239,7 +239,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
           (Some(backfill): Option[Backfill]) -> st
       } + (None -> toRunNormally.defined)
 
-    val splitInterval = (job: TimeSeriesJob, interval: Interval[LocalDateTime]) => {
+    val splitInterval = (job: TimeSeriesJob, interval: Interval[Instant]) => {
       val (unit, tz) = job.scheduling.grid match {
         case Hourly => (HOURS, UTC)
         case Daily(_tz) => (DAYS, _tz)
@@ -261,14 +261,14 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
 
 object TimeSeriesUtils {
   type TimeSeriesJob = Job[TimeSeriesScheduling]
-  type State = Map[TimeSeriesJob, IntervalSet[LocalDateTime]]
+  type State = Map[TimeSeriesJob, IntervalSet[Instant]]
   type Executable = (TimeSeriesJob, TimeSeriesContext)
   type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
 
   val UTC: ZoneId = ZoneId.of("UTC")
 
-  val emptyIntervalSet: IntervalSet[LocalDateTime] = IntervalSet.empty[LocalDateTime]
+  val emptyIntervalSet: IntervalSet[Instant] = IntervalSet.empty[Instant]
 
-  implicit val dateTimeOrdering: Ordering[LocalDateTime] =
-    Ordering.fromLessThan((t1: LocalDateTime, t2: LocalDateTime) => t1.isBefore(t2))
+  implicit val dateTimeOrdering: Ordering[Instant] =
+    Ordering.fromLessThan((t1: Instant, t2: Instant) => t1.isBefore(t2))
 }

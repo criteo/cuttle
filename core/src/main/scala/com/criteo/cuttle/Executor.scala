@@ -2,7 +2,7 @@ package com.criteo.cuttle
 
 import java.io.{PrintWriter, StringWriter}
 import java.util.{Timer, TimerTask}
-import java.time.{Duration, LocalDateTime, ZoneId}
+import java.time.{Duration, Instant, ZoneId}
 
 import scala.util.{Failure, Success}
 import scala.concurrent.{Future, Promise}
@@ -38,16 +38,16 @@ case object ExecutionRunning extends ExecutionStatus
 case object ExecutionPaused extends ExecutionStatus
 case object ExecutionThrottled extends ExecutionStatus
 
-case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[LocalDateTime]) {
-  def isLastFailureAfter(date: LocalDateTime): Boolean =
+case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[Instant]) {
+  def isLastFailureAfter(date: Instant): Boolean =
     failedExecutions.headOption.flatMap(_.endTime).exists(_.isAfter(date))
 }
 
 case class ExecutionLog(
   id: String,
   job: String,
-  startTime: LocalDateTime,
-  endTime: Option[LocalDateTime],
+  startTime: Instant,
+  endTime: Option[Instant],
   context: Json,
   status: ExecutionStatus,
   failing: Option[FailingJob] = None
@@ -59,7 +59,7 @@ case class Execution[S <: Scheduling](
   id: String,
   job: Job[S],
   context: S#Context,
-  startTime: LocalDateTime,
+  startTime: Instant,
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform[S]]
 ) {
@@ -253,13 +253,13 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
                 recentFailures.retain {
                   case (_, (retryExecution, failingJob)) =>
                     retryExecution.isDefined || failingJob.isLastFailureAfter(
-                      LocalDateTime.now.minus(retryStrategy.retryWindow))
+                      Instant.now.minus(retryStrategy.retryWindow))
                 }
                 val failureKey = (execution.job, execution.context)
                 val failingJob = recentFailures.get(failureKey).map(_._2).getOrElse(FailingJob(Nil, None))
                 recentFailures += (failureKey -> (None -> failingJob.copy(failedExecutions = execution
                   .toExecutionLog(ExecutionFailed)
-                  .copy(endTime = Some(LocalDateTime.now)) :: failingJob.failedExecutions)))
+                  .copy(endTime = Some(Instant.now)) :: failingJob.failedExecutions)))
             }
         }
         .andThen {
@@ -272,7 +272,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
               .logExecution(
                 execution
                   .toExecutionLog(if (result.isSuccess) ExecutionSuccessful else ExecutionFailed)
-                  .copy(endTime = Some(LocalDateTime.now())),
+                  .copy(endTime = Some(Instant.now)),
                 execution.context.log
               )
               .transact(xa)
@@ -286,7 +286,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
     case object Paused extends NewExecution
-    case class Throttled(launchDate: LocalDateTime) extends NewExecution
+    case class Throttled(launchDate: Instant) extends NewExecution
 
     val existingOrNew: Either[SubmittedExecution[S], (Execution[S], Promise[Unit], NewExecution)] = atomic {
       implicit tx =>
@@ -317,7 +317,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
               id = nextExecutionId,
               job = job,
               context = context,
-              startTime = LocalDateTime.now(),
+              startTime = Instant.now(),
               streams = new ExecutionStreams {
                 def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
               },
