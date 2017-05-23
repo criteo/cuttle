@@ -29,17 +29,19 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
   val api: PartialService = {
 
     case request @ GET at url"/api/statistics" =>
-      def getStats() = (executor.runningExecutions.size, executor.pausedExecutions.size, executor.failingExecutions.size)
-      def asJson(stats: (Int,Int,Int)) = stats match { case (running, paused, failing) =>
-        Json.obj(
-          "running" -> running.asJson,
-          "paused" -> paused.asJson,
-          "failing" -> failing.asJson
-        )
+      def getStats() =
+        (executor.runningExecutions.size, executor.pausedExecutions.size, executor.failingExecutions.size)
+      def asJson(stats: (Int, Int, Int)) = stats match {
+        case (running, paused, failing) =>
+          Json.obj(
+            "running" -> running.asJson,
+            "paused" -> paused.asJson,
+            "failing" -> failing.asJson
+          )
       }
       request.queryString match {
         case Some("stream") =>
-          sse[(Int,Int,Int)](getStats, asJson)
+          sse[(Int, Int, Int)](getStats, asJson)
         case _ =>
           Ok(asJson(getStats()))
       }
@@ -66,7 +68,7 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
       }.asJson)
 
     case GET at url"/api/executions/archived" =>
-      Ok(executor.archivedExecutions.asJson)
+      Ok(executor.archivedExecutions(scheduler.allContexts).asJson)
 
     case POST at url"/api/executions/$id/cancel" =>
       executor.cancelExecution(id)

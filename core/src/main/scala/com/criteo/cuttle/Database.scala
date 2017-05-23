@@ -43,11 +43,12 @@ object Database {
         job         VARCHAR(1000) NOT NULL,
         start_time  DATETIME NOT NULL,
         end_time    DATETIME NOT NULL,
-        context     JSON NOT NULL,
+        context_id  VARCHAR(1000) NOT NULL,
         success     BOOLEAN NOT NULL,
         PRIMARY KEY (id)
       ) ENGINE = INNODB;
 
+      CREATE INDEX execution_by_context_id ON executions (context_id);
       CREATE INDEX execution_by_job ON executions (job);
       CREATE INDEX execution_by_start_time ON executions (start_time);
 
@@ -118,16 +119,22 @@ object Database {
 trait Queries {
   import Database._
 
-  def logExecution(e: ExecutionLog): ConnectionIO[Int] =
-    sql"""
-      INSERT INTO executions (id, job, start_time, end_time, context, success) VALUES
-      (${e.id}, ${e.job}, ${e.startTime}, ${e.endTime}, ${e.context}, ${e.status})
-    """.update.run
+  def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]): ConnectionIO[Int] =
+    for {
+      contextId <- logContext
+      result <- sql"""
+        INSERT INTO executions (id, job, start_time, end_time, success, context_id)
+        VALUES (${e.id}, ${e.job}, ${e.startTime}, ${e.endTime}, ${e.status}, ${contextId})
+        """.update.run
+    } yield result
 
-  def getExecutionLog: ConnectionIO[List[ExecutionLog]] =
-    sql"""
-      SELECT * FROM executions ORDER BY end_time
-    """.query[ExecutionLog].list
+  def getExecutionLog(contextQuery: Fragment): ConnectionIO[List[ExecutionLog]] =
+    (sql"""
+      SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
+      FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
+      ON executions.context_id = contexts.id
+      ORDER BY start_time
+    """).query[ExecutionLog].list
 
   def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
     sql"""

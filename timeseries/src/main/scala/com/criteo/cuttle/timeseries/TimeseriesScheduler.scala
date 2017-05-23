@@ -13,6 +13,7 @@ import cats.implicits._
 import algebra.lattice.Bool._
 
 import io.circe._
+import io.circe.syntax._
 import io.circe.generic.semiauto._
 
 import doobie.imports._
@@ -38,7 +39,7 @@ case class Backfill(id: String,
                     jobs: Set[Job[TimeSeriesScheduling]],
                     priority: Int)
 object Backfill {
-  implicit val encoder: Encoder[Backfill] = deriveEncoder[Backfill]
+  implicit val encoder: Encoder[Backfill] = deriveEncoder
   implicit def decoder(implicit jobs: Set[Job[TimeSeriesScheduling]]) =
     deriveDecoder[Backfill]
 }
@@ -47,16 +48,17 @@ case class TimeSeriesContext(start: LocalDateTime, end: LocalDateTime, backfill:
     extends SchedulingContext {
   import TimeSeriesUtils._
 
-  def toJson = Json.obj(
-    "start" -> Json.fromString(start.toString),
-    "end" -> Json.fromString(end.toString)
-  )
+  def toJson: Json = this.asJson
+
+  def log: ConnectionIO[String] = Database.serializeContext(this)
 
   def toInterval: Interval[LocalDateTime] = Interval.closedOpen(start, end)
 }
 
 object TimeSeriesContext {
   import TimeSeriesUtils._
+
+  implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
 
   implicit val ordering: Ordering[TimeSeriesContext] = {
     implicit val maybeBackfillOrdering: Ordering[Option[Backfill]] = {
@@ -79,6 +81,8 @@ object TimeSeriesScheduling {
 
 case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with TimeSeriesApp {
   import TimeSeriesUtils._
+
+  val allContexts = Database.sqlGetContextsBetween(None, None)
 
   private val timer =
     Job("timer", TimeSeriesScheduling(Continuous, LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)))(_ =>
