@@ -19,7 +19,7 @@ object JsonApi {
       date.toString.asJson
   }
 
-  implicit val executionLogEncoder = new Encoder[ExecutionLog] {
+  implicit lazy val executionLogEncoder: Encoder[ExecutionLog] = new Encoder[ExecutionLog] {
     override def apply(execution: ExecutionLog) =
       Json.obj(
         "id" -> execution.id.asJson,
@@ -33,7 +33,14 @@ object JsonApi {
           case ExecutionRunning => "running"
           case ExecutionPaused => "paused"
           case ExecutionThrottled => "throttled"
-        }).asJson
+        }).asJson,
+        "failing" -> execution.failing.map {
+          case FailingJob(failedExecutions, nextRetry) =>
+            Json.obj(
+              "failedExecutions" -> Json.fromValues(failedExecutions.map(_.asJson(executionLogEncoder))),
+              "nextRetry" -> nextRetry.asJson
+            )
+        }.asJson
       )
   }
 
@@ -51,7 +58,7 @@ object JsonApi {
       Json
         .obj(
           "id" -> job.id.asJson,
-          "name" -> job.name.asJson,
+          "name" -> job.name.getOrElse(job.id).asJson,
           "description" -> job.description.asJson,
           "tags" -> job.tags.map(_.name).asJson
         )

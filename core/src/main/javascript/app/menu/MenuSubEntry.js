@@ -49,7 +49,7 @@ const styles = {
     transform: "scale(.5) translateX(-4px)"
   },
   label: {
-    fontSize: "85%"
+    fontSize: ".9em"
   }
 };
 

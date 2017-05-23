@@ -7,6 +7,7 @@ import JsonApi._
 import io.circe._
 import io.circe.syntax._
 
+import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -15,23 +16,21 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
   private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
   private def sse[A](thunk: () => A, encode: A => Json) = {
-    val throttle = fs2.Stream.eval(fs2.Task.schedule((), 1 second))
-    def chunk(str: String) = fs2.Stream.chunk(fs2.Chunk.bytes(str.getBytes("utf8")))
-    def next(previous: Option[A] = None): fs2.Stream[fs2.Task, Json] =
+    val throttle = fs2.Stream.eval(fs2.Task.schedule((), 1.second))
+    def next(previous: Option[A] = None): fs2.Stream[fs2.Task, ServerSentEvents.Event[Json]] =
       Option(thunk())
         .filterNot(_ == previous.getOrElse(()))
-        .map(a => fs2.Stream(encode(a)) ++ throttle.flatMap(_ => next(Some(a))))
+        .map(a => fs2.Stream(ServerSentEvents.Event(encode(a))) ++ throttle.flatMap(_ => next(Some(a))))
         .getOrElse(throttle.flatMap(_ => next(previous)))
-    val sseEncodedStream = next().flatMap(json => chunk("data: ") ++ chunk(json.noSpaces) ++ chunk("\n\n"))
-    Ok(Content(sseEncodedStream, Map(h"Content-Type" -> h"text/event-stream")))
+    Ok(next())
   }
 
   val api: PartialService = {
 
-    case request @ GET at url"/api/statistics" =>
+    case GET at url"/api/statistics?stream=$stream" =>
       def getStats() =
-        (executor.runningExecutions.size, executor.pausedExecutions.size, executor.failingExecutions.size)
-      def asJson(stats: (Int, Int, Int)) = stats match {
+        (executor.runningExecutionsSize, executor.pausedExecutionsSize, executor.failingExecutionsSize)
+      def asJson(x: (Int, Int, Int)) = x match {
         case (running, paused, failing) =>
           Json.obj(
             "running" -> running.asJson,
@@ -39,36 +38,49 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
             "failing" -> failing.asJson
           )
       }
-      request.queryString match {
-        case Some("stream") =>
-          sse[(Int, Int, Int)](getStats, asJson)
+      stream match {
+        case "true" | "yes" =>
+          sse(getStats, asJson)
         case _ =>
           Ok(asJson(getStats()))
       }
 
-    case request @ GET at url"/api/executions/running" =>
-      request.queryString match {
-        case Some("stream") =>
-          sse[Seq[ExecutionLog]](() => executor.runningExecutions, _.asJson)
-        case _ =>
-          Ok(executor.runningExecutions.asJson)
+    case GET at url"/api/executions/$kind?limit=$l&offset=$o&stream=$stream&sort=$sort&order=$a" =>
+      val limit = Try(l.toInt).toOption.getOrElse(25)
+      val offset = Try(o.toInt).toOption.getOrElse(0)
+      val asc = (a.toLowerCase == "asc")
+      def getExecutions() = kind match {
+        case "started" =>
+          (executor.runningExecutionsSize, executor.runningExecutions(sort, asc, offset, limit))
+        case "stuck" =>
+          (executor.failingExecutionsSize, executor.failingExecutions(sort, asc, offset, limit))
+        case "paused" =>
+          (executor.pausedExecutionsSize, executor.pausedExecutions(sort, asc, offset, limit))
+        case "finished" =>
+          (executor.archivedExecutionsSize, executor.rawRunningExecutions)
       }
-
-    case GET at url"/api/executions/paused" =>
-      Ok(executor.pausedExecutions.asJson)
-
-    case GET at url"/api/executions/failing" =>
-      Ok(executor.failingExecutions.map {
-        case (execution, failingJob, launchDate) =>
+      def asJson(x: (Int, Seq[ExecutionLog])) = x match {
+        case (total, executions) =>
           Json.obj(
-            "execution" -> execution.asJson,
-            "plannedLaunchDate" -> launchDate.asJson,
-            "previouslyFailedExecutions" -> failingJob.failedExecutions.map(_.asJson).asJson
+            "total" -> total.asJson,
+            "offset" -> offset.asJson,
+            "limit" -> limit.asJson,
+            "sort" -> sort.asJson,
+            "asc" -> asc.asJson,
+            "data" -> (kind match {
+              case "finished" =>
+                executor.archivedExecutions(scheduler.allContexts, sort, asc, offset, limit).asJson
+              case _ =>
+                executions.asJson
+            })
           )
-      }.asJson)
-
-    case GET at url"/api/executions/archived" =>
-      Ok(executor.archivedExecutions(scheduler.allContexts).asJson)
+      }
+      stream match {
+        case "true" | "yes" =>
+          sse(getExecutions, asJson)
+        case _ =>
+          Ok(asJson(getExecutions()))
+      }
 
     case POST at url"/api/executions/$id/cancel" =>
       executor.cancelExecution(id)
@@ -94,15 +106,23 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
     case GET at url"/api/jobs/paused" =>
       Ok(executor.pausedJobs.asJson)
 
+    case POST at url"/api/jobs/all/pause" =>
+      executor.pauseJobs(workflow.vertices)
+      Ok
+
     case POST at url"/api/jobs/$id/pause" =>
       workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.pauseJob(job)
+        executor.pauseJobs(Set(job))
         Ok
       }
 
+    case POST at url"/api/jobs/all/unpause" =>
+      executor.unpauseJobs(workflow.vertices)
+      Ok
+
     case POST at url"/api/jobs/$id/unpause" =>
       workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.unpauseJob(job)
+        executor.unpauseJobs(Set(job))
         Ok
       }
 

@@ -5,47 +5,39 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 
+export type BadgeKind = "success" | "info" | "error" | "warning";
+
 type Props = {
   kind: BadgeKind,
   label: string,
   classes: any,
-  className: any
+  className: any,
+  width?: number
 };
-
-export const BadgeKindToken = {
-  success: "success",
-  fail: "fail",
-  info: "info",
-  initialized: "initialized",
-  header: "header"
-};
-
-export type BadgeKind = "success" | "fail" | "info" | "initialized" | "header";
 
 export type BadgeType = { kind: BadgeKind, label: string };
 
 const colors = (kind: BadgeKind): string => {
   switch (kind) {
-    case BadgeKindToken.success:
+    case "success":
       return "#66CB63";
-    case BadgeKindToken.fail:
-      return "#FA1E46";
-    case BadgeKindToken.info:
-      return "#36ABD6";
-    case BadgeKindToken.header:
-      return "#EFA252";
-    case BadgeKindToken.initialized:
+    case "error":
+      return "#E91E63";
+    case "info":
+      return "#00BCD4";
+    case "warning":
+      return "#ff9800";
     default:
       return "#4c515f";
 
   }
 };
 
-const BadgeComponent = ({ classes, className, kind, label }: Props) => {
+const BadgeComponent = ({ classes, className, kind, label, width }: Props) => {
   return (
     <span
       className={classNames(classes.main, className)}
-      style={{ backgroundColor: colors(kind) }}
+      style={{ backgroundColor: colors(kind), width: width || "auto" }}
     >
       {label}
     </span>
@@ -54,17 +46,19 @@ const BadgeComponent = ({ classes, className, kind, label }: Props) => {
 
 const styles = {
   main: {
-    display: "inline-box",
+    display: "inline-block",
     backgroundColor: "#2B3142",
     color: "#FFF",
     fontFamily: "Arial",
     fontWeight: "normal",
     textTransform: "uppercase",
-    lineHeight: "1.5em",
-    fontSize: ".7em",
+    lineHeight: "18px",
+    fontSize: "11px",
     borderRadius: "2px",
     padding: "0 .5em",
-    maxHeight: "1.5em"
+    maxHeight: "18px",
+    textAlign: "center",
+    cursor: "default"
   }
 };
 export const Badge = injectSheet(styles)(BadgeComponent);

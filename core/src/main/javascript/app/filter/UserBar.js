@@ -9,7 +9,7 @@ import * as Actions from "../../actions";
 
 import Fuse from "fuse.js";
 
-import SearchBox from "../generic/SearchBox";
+import SearchBox from "../components/SearchBox";
 import JobFilterForm from "./JobFilterForm";
 import CloseIcon from "react-icons/lib/md/close";
 

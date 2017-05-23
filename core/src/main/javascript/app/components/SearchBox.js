@@ -50,7 +50,6 @@ const styles = {
       verticalAlign: "middle"
     },
     "& input": {
-      marginLeft: "1em",
       verticalAlign: "middle",
       flexGrow: 1,
       borderRadius: 0,

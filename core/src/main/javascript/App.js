@@ -5,12 +5,16 @@ import { connect } from "react-redux";
 import injectSheet from "react-jss";
 
 import MenuHeader from "./app/menu/MenuHeader";
-import Spinner from "./app/generic/Spinner";
+import Spinner from "./app/components/Spinner";
 import Menu from "./app/menu/Menu";
 import type { PageId } from "./state";
 import * as Actions from "./actions";
 
 import Workflow from "./app/tabs/Workflow";
+import Started from "./app/tabs/Started";
+import Stuck from "./app/tabs/Stuck";
+import Paused from "./app/tabs/Paused";
+import Finished from "./app/tabs/Finished";
 import UserBar from "./app/filter/UserBar";
 import type { Statistics } from "./datamodel";
 
@@ -47,7 +51,11 @@ class App extends React.Component {
     } = this.props;
 
     if (isLoading) {
-      return <Spinner className={classes.loader} />;
+      return (
+        <div className={classes.loading}>
+          <Spinner />
+        </div>
+      );
     } else {
       const allJobs = reduce(
         workflow.jobs,
@@ -67,6 +75,23 @@ class App extends React.Component {
         {}
       );
 
+      const renderTab = () => {
+        switch (activeTab) {
+          case "workflow":
+            return <Workflow workflow={workflow} />;
+          case "executions/started":
+            return <Started />;
+          case "executions/stuck":
+            return <Stuck />;
+          case "executions/paused":
+            return <Paused />;
+          case "executions/finished":
+            return <Finished />;
+          default:
+            return null;
+        }
+      };
+
       return (
         <div className={classes.main} onClick={closeUserbar}>
           <section className={classes.leftpane}>
@@ -79,8 +104,7 @@ class App extends React.Component {
               allTags={allTags}
               allJobs={allJobs}
             />
-            {(activeTab === "workflow" && <Workflow workflow={workflow} />) ||
-              <div />}
+            {renderTab()}
           </section>
         </div>
       );
@@ -106,7 +130,8 @@ let styles = {
     flexDirection: "column",
     backgroundColor: "#ECF1F5",
     color: "#3D4454",
-    fontFamily: "Arial"
+    fontFamily: "Arial",
+    height: "100vh"
   },
   userBar: {
     zIndex: 2
@@ -116,8 +141,9 @@ let styles = {
     display: "flex",
     alignItems: "stretch"
   },
-  loader: {
-    padding: "25px"
+  loading: {
+    display: "flex",
+    height: "100vh"
   }
 };
 

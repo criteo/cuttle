@@ -19,7 +19,7 @@ object HelloWorld {
       Job("hello1", hourly(start)) { implicit e =>
         sh"""
           echo "Hello 1"
-          sleep 1
+          sleep 10
         """.exec()
       }
 
@@ -29,7 +29,7 @@ object HelloWorld {
           echo "Looping for 20 seconds..."
           for i in {1..20}; do
             date
-            sleep 1
+            sleep 10
           done
           echo "Ok"
         """.exec()
@@ -39,7 +39,7 @@ object HelloWorld {
       Job("hello3", hourly(start)) { implicit e =>
         sh"""
           echo "Hello 3"
-          sleep 3
+          sleep 30
         """.exec().map { _ =>
           // Artificially fail for the first hour of the computation period
           // if /tmp/hello3_success does not exist

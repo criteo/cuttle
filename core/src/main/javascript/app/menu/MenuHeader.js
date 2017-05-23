@@ -3,7 +3,7 @@
 import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
-import { Badge, BadgeKindToken } from "../generic/Badge";
+import { Badge } from "../components/Badge";
 import AppIcon from "react-icons/lib/md/fiber-smart-record";
 
 type Props = {
@@ -19,19 +19,14 @@ const MenuHeader = (
   <div className={classNames(classes.main, className)}>
     <AppIcon className={classes.icon} />
     <span className={classes.projectName}>{projectName}</span>
-    <Badge
-      label={environment}
-      kind={BadgeKindToken.header}
-      className={classes.badge}
-    />
+    <Badge label={environment} className={classes.badge} />
   </div>
 );
 
 const styles = {
   main: {
     display: "flex",
-    width: "90%",
-    height: "3em",
+    minHeight: "3em",
     lineHeight: "3em",
     backgroundColor: "#2B3142",
     color: "#FFF",
@@ -49,7 +44,8 @@ const styles = {
     fontSize: "1.2em"
   },
   badge: {
-    margin: "auto 0em auto auto"
+    margin: "auto 0em auto auto",
+    backgroundColor: "#FF5722 !important"
   }
 };
 

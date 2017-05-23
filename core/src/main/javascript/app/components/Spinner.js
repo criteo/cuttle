@@ -6,22 +6,19 @@ import React from "react";
 import times from "lodash/times";
 
 type Props = {
-  dark: boolean,
   classes: any,
   className: any
 };
 
+const items = 3;
+
 const SpinnerComponent = ({ classes, className, dark }: Props) => {
   return (
     <div className={classNames(classes.spinner, className)}>
-      {times(5, i => (
+      {times(items, i => (
         <div
           key={i}
-          className={classNames(
-            classes.rect,
-            classes["rect" + i],
-            dark ? classes.darkRect : classes.lightRect
-          )}
+          className={classNames(classes.item, classes["item" + i])}
         />
       ))}
     </div>
@@ -32,36 +29,30 @@ const styles = {
   spinner: {
     display: "flex",
     margin: "auto",
-    width: "50px",
-    height: "40px",
     textAlign: "center",
-    fontSize: "10px"
+    paddingBottom: "15%"
   },
-  rect: {
-    height: "100%",
+  item: {
+    height: "6px",
     width: "6px",
-    margin: "0px 1px",
+    borderRadius: "50%",
+    margin: "0px 2px",
     display: "inline-block",
-    animation: "animation 1.2s infinite ease-in-out"
-  },
-  darkRect: {
-    backgroundColor: "#333"
-  },
-  lightRect: {
-    backgroundColor: "#EEE"
+    animation: "animation 1.2s infinite ease-in-out",
+    backgroundColor: "#607e96"
   },
   "@keyframes animation": {
     "0%, 40%, 100%": {
-      transform: "scaleY(0.4)"
+      transform: "scale(0.5)"
     },
     "20%": {
-      transform: "scaleY(1.0)"
+      transform: "scale(1.1)"
     }
   }
 };
 
-times(5, i => {
-  styles["rect" + i] = {
+times(items, i => {
+  styles["item" + i] = {
     animationDelay: "-" + (1.3 - i * 0.1) + "s"
   };
 });
