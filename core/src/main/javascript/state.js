@@ -17,7 +17,9 @@ export type PageId =
   | "executions/running"
   | "executions/stuck"
   | "executions/paused"
-  | "executions/finished";
+  | "executions/finished"
+  | "timeseries/calendar"
+  | "timeseries/backfill";
 
 export type Page = {
   id: PageId,

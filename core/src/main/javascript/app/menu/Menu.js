@@ -9,6 +9,7 @@ import MenuEntry from "./MenuEntry";
 import MenuSubEntry from "./MenuSubEntry";
 import LogIcon from "react-icons/lib/md/playlist-play";
 import WorkflowIcon from "react-icons/lib/md/device-hub";
+import CalendarIcon from "react-icons/lib/md/date-range";
 import type { Statistics } from "../../datamodel";
 
 type Props = {
@@ -72,6 +73,28 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
           style={{ transform: "rotate(90deg) scale(.9) translateX(-1px)" }}
         />
       }
+    />
+    <MenuEntry
+      active={activeTab.indexOf("timeseries/") === 0}
+      label="Time series"
+      link="/timeseries/calendar"
+      icon={
+        <CalendarIcon
+          style={{ transform: "translateY(-3px)" }}
+        />
+      }
+      subEntries={[
+        <MenuSubEntry
+          active={activeTab === "timeseries/calendar"}
+          label="Calendar"
+          link="/timeseries/calendar"
+        />,
+        <MenuSubEntry
+          active={activeTab === "timeseries/backfill"}
+          label="Backfill"
+          link="/timeseries/backfill"
+        />
+      ]}
     />
   </nav>
 );
