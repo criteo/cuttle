@@ -59,6 +59,7 @@ object TimeSeriesContext {
   import TimeSeriesUtils._
 
   implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
+  implicit def decoder(implicit jobs: Set[Job[TimeSeriesScheduling]]): Decoder[TimeSeriesContext] = deriveDecoder
 
   implicit val ordering: Ordering[TimeSeriesContext] = {
     implicit val maybeBackfillOrdering: Ordering[Option[Backfill]] = {
@@ -172,19 +173,25 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
             end: LocalDateTime,
             tz: ZoneId,
             unit: ChronoUnit,
+            conservative: Boolean,
             maxPeriods: Int): Iterator[TimeSeriesContext] = {
     val List(zonedStart, zonedEnd) = List(start, end).map { t =>
       t.atZone(UTC).withZoneSameInstant(tz)
     }
 
-    val truncatedStart = zonedStart.truncatedTo(unit)
-    val alignedStart =
-      if (truncatedStart == zonedStart)
-        zonedStart
+    def findBound(t: ZonedDateTime, before: Boolean) = {
+      val truncated = t.truncatedTo(unit)
+      if (before)
+        truncated
+      else if (truncated == t)
+        t
       else
-        truncatedStart.plus(1, unit)
+        truncated.plus(1, unit)
+    }
 
-    val alignedEnd = zonedEnd.truncatedTo(unit)
+    val alignedStart = findBound(zonedStart, !conservative)
+    val alignedEnd = findBound(zonedEnd, conservative)
+
     val periods = alignedStart.until(alignedEnd, unit)
 
     (0L to (periods - 1)).grouped(maxPeriods).map { l =>
@@ -196,6 +203,18 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
 
       TimeSeriesContext(alignedNth(l.head), alignedNth(l.last + 1))
     }
+  }
+
+  def splitInterval(job: TimeSeriesJob, interval: Interval[LocalDateTime], mode: Boolean = true) = {
+    val (unit, tz) = job.scheduling.grid match {
+      case Hourly => (HOURS, UTC)
+      case Daily(_tz) => (DAYS, _tz)
+      case Continuous => sys.error("panic!")
+    }
+    val Closed(start) = interval.lower.bound
+    val Open(end) = interval.upper.bound
+    val maxPeriods = if (mode) job.scheduling.maxPeriods else 1
+    split(start, end, tz, unit, mode, maxPeriods)
   }
 
   def next(graph0: Graph[TimeSeriesScheduling],
@@ -238,17 +257,6 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         case (backfill, StateD(st, _)) =>
           (Some(backfill): Option[Backfill]) -> st
       } + (None -> toRunNormally.defined)
-
-    val splitInterval = (job: TimeSeriesJob, interval: Interval[LocalDateTime]) => {
-      val (unit, tz) = job.scheduling.grid match {
-        case Hourly => (HOURS, UTC)
-        case Daily(_tz) => (DAYS, _tz)
-        case Continuous => sys.error("panic!")
-      }
-      val Closed(start) = interval.lower.bound
-      val Open(end) = interval.upper.bound
-      split(start, end, tz, unit, job.scheduling.maxPeriods)
-    }
 
     for {
       (maybeBackfill, state) <- toRun.toList

@@ -133,6 +133,11 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
       .map(_.drop(offset).take(limit))
       .flatMap(_.map(_.toExecutionLog(ExecutionRunning)))
 
+  def rawPausedExecutions: Seq[ExecutionLog] =
+    (for {
+      m <- pausedState.single.values
+      execution <- m.keys
+    } yield execution.toExecutionLog(ExecutionPaused)).toSeq
   def pausedExecutionsSize: Int = pausedState.single.values.flatten.size
   def pausedExecutions(sort: String, asc: Boolean, offset: Int, limit: Int): Seq[ExecutionLog] =
     Seq(pausedState.single.values.flatMap(_.keys).toSeq)

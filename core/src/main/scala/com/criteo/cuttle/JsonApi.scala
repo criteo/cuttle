@@ -14,9 +14,17 @@ object JsonApi {
       )
   }
 
-  implicit val localDateTimeEncoder = new Encoder[LocalDateTime] {
-    override def apply(date: LocalDateTime) =
-      date.toString.asJson
+  implicit val localDateTimeEncoder = Encoder.encodeString.contramap[LocalDateTime](_.toString)
+
+  implicit val executionStatusEncoder = new Encoder[ExecutionStatus] {
+    def apply(status: ExecutionStatus) =
+      (status match {
+        case ExecutionSuccessful => "successful"
+        case ExecutionFailed => "failed"
+        case ExecutionRunning => "running"
+        case ExecutionPaused => "paused"
+        case ExecutionThrottled => "throttled"
+      }).asJson
   }
 
   implicit lazy val executionLogEncoder: Encoder[ExecutionLog] = new Encoder[ExecutionLog] {
@@ -27,13 +35,7 @@ object JsonApi {
         "startTime" -> execution.startTime.asJson,
         "endTime" -> execution.endTime.asJson,
         "context" -> execution.context,
-        "status" -> (execution.status match {
-          case ExecutionSuccessful => "successful"
-          case ExecutionFailed => "failed"
-          case ExecutionRunning => "running"
-          case ExecutionPaused => "paused"
-          case ExecutionThrottled => "throttled"
-        }).asJson,
+        "status" -> execution.status.asJson,
         "failing" -> execution.failing.map {
           case FailingJob(failedExecutions, nextRetry) =>
             Json.obj(
