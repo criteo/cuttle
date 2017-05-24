@@ -17,15 +17,19 @@ To work on the web application:
 - Install [**yarn**](https://yarnpkg.com/en/)
 - Run, `yarn install` and `yarn start`.
 
-### Local DB
+### Local Database
 
-To run the embedded MySQL on Linux you will need ncurses 5. If your
-distribution is already using ncurses 6 you can probably install a
-compatibility package (e.g. ncurses5-compat-libs on Archlinux)
+To run the embedded MySQL on Linux you will need:
+ - ncurses 5, if your distribution is already using ncurses 6 you can probably install a
+compatibility package (e.g. ncurses5-compat-libs on Archlinux).
+ - libaio1.so, if your distribution has not it installed by default (ex: Ubuntu):
+   ```
+   $> sudo apt install libaio1
+   ```
 
-### scalafmt
+### Scalafmt
 
-We use scalafmt to enforce style.  The minimal config is found in the
+We use Scalafmt to enforce style.  The minimal config is found in the
 .scalafmt.conf file (you probably won't make any friends if you change
 this).
 
