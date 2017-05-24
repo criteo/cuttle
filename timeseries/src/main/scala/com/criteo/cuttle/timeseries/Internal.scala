@@ -6,7 +6,7 @@ import io.circe._
 
 import cats.syntax.either._
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 object Internal {
 
@@ -15,11 +15,11 @@ object Internal {
   implicit def jobDecoder[A <: Scheduling](implicit jobs: Set[Job[A]]): Decoder[Job[A]] =
     Decoder.decodeString.map(id => jobs.find(_.id == id).get)
 
-  implicit val dateTimeEncoder: Encoder[LocalDateTime] =
+  implicit val dateTimeEncoder: Encoder[Instant] =
     Encoder.encodeString.contramap(_.toString)
-  implicit val dateTimeDecoder: Decoder[LocalDateTime] =
+  implicit val dateTimeDecoder: Decoder[Instant] =
     Decoder.decodeString.emap { s =>
-      Either.catchNonFatal(LocalDateTime.parse(s)).leftMap(s => "LocalDateTime")
+      Either.catchNonFatal(Instant.parse(s)).leftMap(s => "Instant")
     }
 
 }

@@ -16,9 +16,9 @@ case class DatabaseConfig(host: String, port: Int, database: String, user: Strin
 
 object Database {
 
-  implicit val DateTimeMeta: Meta[LocalDateTime] = Meta[java.sql.Timestamp].nxmap(
-    x => LocalDateTime.ofInstant(Instant.ofEpochMilli(x.getTime()), ZoneOffset.of("Z")),
-    x => new java.sql.Timestamp(x.toInstant(ZoneOffset.of("Z")).toEpochMilli)
+  implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].nxmap(
+    x => Instant.ofEpochMilli(x.getTime),
+    x => new java.sql.Timestamp(x.toEpochMilli)
   )
 
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
@@ -82,7 +82,7 @@ object Database {
         case (evolutions, (evolution, i)) =>
           evolutions *> evolution.run *> sql"""
             INSERT INTO schema_evolutions (schema_version, schema_update)
-            VALUES (${i + 1}, ${LocalDateTime.now()})
+            VALUES (${i + 1}, ${Instant.now()})
           """.update.run
       }
     } yield ())
@@ -154,7 +154,7 @@ trait Queries {
       SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
       FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
       ON executions.context_id = contexts.id """ ++ orderBy ++ sql""" LIMIT $limit OFFSET $offset""")
-      .query[(String, String, LocalDateTime, Option[LocalDateTime], Json, ExecutionStatus)]
+      .query[(String, String, Instant, Option[Instant], Json, ExecutionStatus)]
       .list
       .map(_.map {
         case (id, job, startTime, endTime, context, status) =>

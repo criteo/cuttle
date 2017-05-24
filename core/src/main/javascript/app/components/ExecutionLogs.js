@@ -199,7 +199,7 @@ class ExecutionLogs extends React.Component {
     let Context = ({ ctx }) => {
       // Need to be dynamically linked with the scehduler but for now let's
       // assume that it is a TimeseriesContext
-      let format = date => moment(date).format("MMM-DD HH:mm");
+      let format = date => moment(date).utc().format("MMM-DD HH:mm") + " UTC";
       return (
         <a href={`/timeries/calendar/${ctx.start}-${ctx.end}`}>
           <CalendarIcon

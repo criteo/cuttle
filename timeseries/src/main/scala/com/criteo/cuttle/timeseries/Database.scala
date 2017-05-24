@@ -59,20 +59,20 @@ object Database {
         case (evolutions, (evolution, i)) =>
           evolutions *> evolution.run *> sql"""
             INSERT INTO timeseries (schema_version, schema_update)
-            VALUES (${i + 1}, ${LocalDateTime.now()})
+            VALUES (${i + 1}, ${Instant.now()})
           """.update.run
       }
     } yield ()
   }
 
-  def sqlGetContextsBetween(start: Option[LocalDateTime], end: Option[LocalDateTime]): Fragment =
+  def sqlGetContextsBetween(start: Option[Instant], end: Option[Instant]): Fragment =
     sql"""
       SELECT id, json FROM timeseries_contexts
       WHERE MBRIntersects(
         ctx_range,
         LineString(
-          Point(-1, ${start.map(_.toEpochSecond(ZoneOffset.UTC)).getOrElse(0L)}),
-          Point( 1, ${end.map(_.toEpochSecond(ZoneOffset.UTC)).getOrElse(Long.MaxValue)})
+          Point(-1, ${start.map(_.getEpochSecond).getOrElse(0L)}),
+          Point( 1, ${end.map(_.getEpochSecond).getOrElse(Long.MaxValue)})
         )
       )
     """
@@ -84,8 +84,8 @@ object Database {
         ${context.toString},
         ${context.asJson},
         LineString(
-          Point(-1, ${context.start.toEpochSecond(ZoneOffset.UTC)}),
-          Point( 1, ${context.end.toEpochSecond(ZoneOffset.UTC)})
+          Point(-1, ${context.start.getEpochSecond}),
+          Point( 1, ${context.end.getEpochSecond})
         )
       )
     """.update.run *> Applicative[ConnectionIO].pure(context.toString)
@@ -106,7 +106,7 @@ object Database {
   }
 
   def serialize(state: State, backfills: Set[Backfill]) = {
-    val now = LocalDateTime.now()
+    val now = Instant.now()
     implicit def intervalSetEncoder[A](implicit encoder: Encoder[A]): Encoder[IntervalSet[A]] = {
       implicit val intervalEncoder: Encoder[Interval[A]] =
         Encoder.encodeTuple2[A, A].contramap { interval =>

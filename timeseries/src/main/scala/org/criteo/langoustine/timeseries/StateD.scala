@@ -4,14 +4,14 @@ import cats.kernel.Eq
 
 import algebra.lattice.Bool
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 import continuum.{Interval, IntervalSet}
 
 import TimeSeriesUtils._
 
-case class StateD(defined: Map[TimeSeriesJob, IntervalSet[LocalDateTime]],
-                  default: IntervalSet[LocalDateTime] = IntervalSet.empty) {
+case class StateD(defined: Map[TimeSeriesJob, IntervalSet[Instant]],
+                  default: IntervalSet[Instant] = IntervalSet.empty) {
   def get(job: TimeSeriesJob) = defined.getOrElse(job, default)
 }
 object StateD {

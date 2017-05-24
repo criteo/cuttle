@@ -9,15 +9,15 @@ import io.circe.syntax._
 import continuum._
 import continuum.bound._
 
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
   import com.criteo.cuttle.JsonApi._
 
-  implicit val intervalEncoder = new Encoder[Interval[LocalDateTime]] {
-    override def apply(interval: Interval[LocalDateTime]) = {
+  implicit val intervalEncoder = new Encoder[Interval[Instant]] {
+    override def apply(interval: Interval[Instant]) = {
       val Closed(start) = interval.lower.bound
       val Open(end) = interval.upper.bound
       Json.obj(
@@ -53,8 +53,8 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
     case POST at url"/api/timeseries/backfill?job=$id&startDate=$start&endDate=$end&priority=$priority" =>
       val job = this.state._1.keySet.find(_.id == id).get
-      val startDate = LocalDateTime.parse(start)
-      val endDate = LocalDateTime.parse(end)
+      val startDate = Instant.parse(start)
+      val endDate = Instant.parse(end)
       val backfillId = UUID.randomUUID().toString
       backfillJob(backfillId, job, startDate, endDate, priority.toInt)
       Ok(

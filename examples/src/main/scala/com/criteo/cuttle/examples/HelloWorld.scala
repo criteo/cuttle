@@ -2,10 +2,9 @@ package com.criteo.cuttle.examples
 
 import com.criteo.cuttle._
 import timeseries._
-
 import java.io._
+import java.time.ZoneOffset.UTC
 import java.time._
-import java.time.temporal._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -13,7 +12,7 @@ object HelloWorld {
 
   def main(args: Array[String]): Unit = {
     // Yesterday at 00:00 UTC
-    val start = LocalDateTime.now.minusDays(1).truncatedTo(ChronoUnit.DAYS)
+    val start: Instant = LocalDate.now.minusDays(1).atStartOfDay.toInstant(UTC)
 
     val hello1 =
       Job("hello1", hourly(start)) { implicit e =>
@@ -52,7 +51,7 @@ object HelloWorld {
         }
       }
 
-    val world = Job("world", daily("UTC", start)) { implicit e =>
+    val world = Job("world", daily(start, UTC)) { implicit e =>
       sh"""
         echo "World"
         sleep 1

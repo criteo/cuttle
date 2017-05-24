@@ -1,22 +1,20 @@
 package com.criteo.cuttle
 
-import java.io.{BufferedWriter, File, FileInputStream, FileOutputStream, OutputStreamWriter, PrintWriter}
-import java.nio.file.{Files}
-import java.time.{ZonedDateTime}
-import java.time.format.DateTimeFormatter.{ISO_INSTANT}
-
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.stm._
-
+import java.io._
+import java.nio.file.Files
+import java.time.Instant
 import doobie.imports._
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.stm._
 
 trait ExecutionStreams {
   def info(str: CharSequence) = this.writeln("INFO ", str)
   def error(str: CharSequence) = this.writeln("ERROR", str)
   def debug(str: CharSequence) = this.writeln("DEBUG", str)
   private def writeln(tag: String, str: CharSequence): Unit = {
-    val time = ZonedDateTime.now().format(ISO_INSTANT)
+    val time = Instant.now.toString
     str.toString.split("\n").foreach(l => this.writeln(s"$time $tag - $l"))
   }
   def writeln(str: CharSequence): Unit
