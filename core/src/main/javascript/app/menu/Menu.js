@@ -4,7 +4,7 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 
-import type { PageId } from "../../state";
+import type { Page } from "../../state";
 import MenuEntry from "./MenuEntry";
 import MenuSubEntry from "./MenuSubEntry";
 import LogIcon from "react-icons/lib/md/playlist-play";
@@ -13,21 +13,21 @@ import CalendarIcon from "react-icons/lib/md/date-range";
 import type { Statistics } from "../../datamodel";
 
 type Props = {
-  activeTab: PageId,
+  active: Page,
   statistics: Statistics,
   classes: any,
   className: any
 };
 
-const Menu = ({ classes, className, activeTab, statistics }: Props) => (
+const Menu = ({ classes, className, active, statistics }: Props) => (
   <nav className={classNames(classes.main, className)}>
     <MenuEntry
-      active={activeTab.indexOf("executions/") === 0}
+      active={active.id.indexOf("executions/") === 0}
       label="Execution log"
       link="/executions/started"
       icon={<LogIcon />}
       badges={
-        activeTab.indexOf("executions/") === 0
+        active.id.indexOf("executions/") === 0
           ? []
           : [
               statistics.running && { label: statistics.running, kind: "info" },
@@ -43,7 +43,7 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
       }
       subEntries={[
         <MenuSubEntry
-          active={activeTab === "executions/started"}
+          active={active.id === "executions/started"}
           label="Started"
           link="/executions/started"
           badges={[
@@ -51,7 +51,7 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
           ]}
         />,
         <MenuSubEntry
-          active={activeTab === "executions/stuck"}
+          active={active.id === "executions/stuck"}
           label="Stuck"
           link="/executions/stuck"
           badges={[
@@ -59,20 +59,22 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
           ]}
         />,
         <MenuSubEntry
-          active={activeTab === "executions/finished"}
+          active={active.id === "executions/finished"}
           label="Finished"
           link="/executions/finished"
         />,
         <MenuSubEntry
-          active={activeTab === "executions/paused"}
+          active={active.id === "executions/paused"}
           label="Paused"
           link="/executions/paused"
-          badges={[statistics.paused && { label: statistics.paused, kind: "warning" }]}
+          badges={[
+            statistics.paused && { label: statistics.paused, kind: "warning" }
+          ]}
         />
       ]}
     />
     <MenuEntry
-      active={activeTab === "workflow"}
+      active={active.id === "workflow"}
       label="Workflow"
       link="/workflow"
       icon={
@@ -82,20 +84,20 @@ const Menu = ({ classes, className, activeTab, statistics }: Props) => (
       }
     />
     <MenuEntry
-      active={activeTab.indexOf("timeseries/") === 0}
+      active={active.id.indexOf("timeseries/") === 0}
       label="Time series"
       link="/timeseries/calendar"
       icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
       subEntries={[
         <MenuSubEntry
-          active={activeTab === "timeseries/calendar"}
+          active={active.id === "timeseries/calendar"}
           label="Calendar"
           link="/timeseries/calendar"
         />,
         <MenuSubEntry
-          active={activeTab === "timeseries/backfill"}
-          label="Backfill"
-          link="/timeseries/backfill"
+          active={active.id === "timeseries/backfills"}
+          label="Backfills"
+          link="/timeseries/backfills"
         />
       ]}
     />

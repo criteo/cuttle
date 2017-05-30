@@ -33,11 +33,7 @@ case class Daily(tz: ZoneId) extends TimeSeriesGrid
 
 private case object Continuous extends TimeSeriesGrid
 
-case class Backfill(id: String,
-                    start: Instant,
-                    end: Instant,
-                    jobs: Set[Job[TimeSeriesScheduling]],
-                    priority: Int)
+case class Backfill(id: String, start: Instant, end: Instant, jobs: Set[Job[TimeSeriesScheduling]], priority: Int)
 object Backfill {
   implicit val encoder: Encoder[Backfill] = deriveEncoder
   implicit def decoder(implicit jobs: Set[Job[TimeSeriesScheduling]]) =
@@ -85,8 +81,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
   val allContexts = Database.sqlGetContextsBetween(None, None)
 
   private val timer =
-    Job("timer", TimeSeriesScheduling(Continuous, Instant.ofEpochMilli(0)))(_ =>
-      sys.error("panic!"))
+    Job("timer", TimeSeriesScheduling(Continuous, Instant.ofEpochMilli(0)))(_ => sys.error("panic!"))
 
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalSet[Instant]])
   private val _backfills = TSet.empty[Backfill]
@@ -168,11 +163,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     go(Set.empty)
   }
 
-  def split(start: Instant,
-            end: Instant,
-            tz: ZoneId,
-            unit: ChronoUnit,
-            maxPeriods: Int): Iterator[TimeSeriesContext] = {
+  def split(start: Instant, end: Instant, tz: ZoneId, unit: ChronoUnit, maxPeriods: Int): Iterator[TimeSeriesContext] = {
     val List(zonedStart, zonedEnd) = List(start, end).map { t =>
       t.atZone(UTC).withZoneSameInstant(tz)
     }

@@ -111,7 +111,6 @@ class LocalProcess(private val process: NuProcessBuilder) {
     val streams = execution.streams
     streams.debug(s"Forking:")
     streams.debug(this.toString)
-    streams.debug("...")
 
     ExecutionPlatform
       .lookup[LocalPlatform[S]]
@@ -139,7 +138,7 @@ class LocalProcess(private val process: NuProcessBuilder) {
         }
         process.setProcessListener(handler)
         val fork = process.start()
-        streams.debug(s"Forked with PID ${fork.getPID}")
+        streams.debug(s"... forked with PID ${fork.getPID}")
         execution.onCancelled(() => {
           fork.destroy(true)
         })

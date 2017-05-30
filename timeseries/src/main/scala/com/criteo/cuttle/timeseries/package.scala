@@ -19,8 +19,7 @@ package object timeseries {
       case Apply(_, List(Apply(_, Literal(Constant(dateString: String)) :: Nil))) =>
         scala.util.Try(Instant.parse(dateString)) match {
           case scala.util.Success(_) =>
-            c.Expr(
-              q"""java.time.Instant.parse($dateString)""")
+            c.Expr(q"""java.time.Instant.parse($dateString)""")
           case scala.util.Failure(_) =>
             c.abort(c.enclosingPosition, s"Invalid date literal `$dateString'")
         }

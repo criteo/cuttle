@@ -46,7 +46,7 @@ case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[In
 case class ExecutionLog(
   id: String,
   job: String,
-  startTime: Instant,
+  startTime: Option[Instant],
   endTime: Option[Instant],
   context: Json,
   status: ExecutionStatus,
@@ -59,7 +59,7 @@ case class Execution[S <: Scheduling](
   id: String,
   job: Job[S],
   context: S#Context,
-  startTime: Instant,
+  startTime: Option[Instant],
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform[S]]
 ) {
@@ -189,6 +189,20 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
     toCancel.foreach(_.cancel())
   }
 
+  def getExecution(queryContexts: Fragment, executionId: String): Option[ExecutionLog] =
+    atomic { implicit tx =>
+      val predicate = (e: Execution[S]) => e.id == executionId
+      pausedState.values
+        .map(_.keys)
+        .flatten
+        .find(predicate)
+        .map(_.toExecutionLog(ExecutionPaused))
+        .orElse(throttledState.keys
+          .find(predicate)
+          .map(e => e.toExecutionLog(ExecutionThrottled).copy(failing = throttledState.get(e).map(_._2))))
+        .orElse(runningState.keys.find(predicate).map(_.toExecutionLog(ExecutionRunning)))
+    }.orElse(queries.getExecutionById(queryContexts, executionId).transact(xa).unsafePerformIO)
+
   def openStreams(executionId: String): fs2.Stream[fs2.Task, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
@@ -202,11 +216,12 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
       })
       val executions = jobs.flatMap(job => pausedState.get(job.id).map(_.toSeq).getOrElse(Nil))
       jobs.foreach(job => pausedState -= job.id)
-      executions.foreach {
+      executions.map {
         case (execution, promise) =>
-          runningState += (execution -> promise.future)
+          val startedExecution = execution.copy(startTime = Some(Instant.now()))
+          runningState += (startedExecution -> promise.future)
+          (startedExecution -> promise)
       }
-      executions
     }
     executionsToResume.toList.sortBy(_._1.context).foreach {
       case (execution, promise) =>
@@ -234,8 +249,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
     }
   }
 
-  private def unsafeDoRun(execution: Execution[S], promise: Promise[Unit]): Unit = {
-    execution.streams.debug(s"Running now")
+  private def unsafeDoRun(execution: Execution[S], promise: Promise[Unit]): Unit =
     promise.completeWith(
       execution.job
         .effect(execution)
@@ -268,17 +282,18 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
             atomic { implicit tx =>
               runningState -= execution
             }
-            queries
-              .logExecution(
-                execution
-                  .toExecutionLog(if (result.isSuccess) ExecutionSuccessful else ExecutionFailed)
-                  .copy(endTime = Some(Instant.now)),
-                execution.context.log
-              )
-              .transact(xa)
-              .unsafePerformIO
+            if (execution.startTime.isDefined) {
+              queries
+                .logExecution(
+                  execution
+                    .toExecutionLog(if (result.isSuccess) ExecutionSuccessful else ExecutionFailed)
+                    .copy(endTime = Some(Instant.now)),
+                  execution.context.log
+                )
+                .transact(xa)
+                .unsafePerformIO
+            }
         })
-  }
 
   def runAll(all: Seq[(Job[S], S#Context)]): Seq[SubmittedExecution[S]] = all.sortBy(_._2).map((run _).tupled)
 
@@ -317,7 +332,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
               id = nextExecutionId,
               job = job,
               context = context,
-              startTime = Instant.now(),
+              startTime = None,
               streams = new ExecutionStreams {
                 def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
               },
@@ -337,8 +352,9 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
               throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
               (execution, promise, Throttled(launchDate))
             } else {
-              runningState += (execution -> promise.future)
-              (execution, promise, ToRunNow)
+              val startedExecution = execution.copy(startTime = Some(Instant.now()))
+              runningState += (startedExecution -> promise.future)
+              (startedExecution, promise, ToRunNow)
             }
           }
     }
@@ -367,7 +383,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
                 if (cancelNow) promise.tryFailure(ExecutionCancelled)
               }
             case Throttled(launchDate) =>
-              execution.streams.debug(s"Throttled until ${launchDate} because previous execution failed")
+              execution.streams.debug(s"Delayed until ${launchDate} because previous execution failed")
               val timerTask = new TimerTask {
                 def run = {
                   val runNow = atomic { implicit tx =>

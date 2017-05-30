@@ -3,9 +3,11 @@
 import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
+import { connect } from "react-redux";
 import Measure from "react-measure";
 import _ from "lodash";
 import moment from "moment";
+import { navigate } from "redux-url";
 
 import ReactPaginate from "react-paginate";
 import PrevIcon from "react-icons/lib/md/navigate-before";
@@ -13,18 +15,21 @@ import NextIcon from "react-icons/lib/md/navigate-next";
 import BreakIcon from "react-icons/lib/md/keyboard-control";
 import AscIcon from "react-icons/lib/md/keyboard-arrow-down";
 import DescIcon from "react-icons/lib/md/keyboard-arrow-up";
-import OpenIcon from "react-icons/lib/md/launch";
+import OpenIcon from "react-icons/lib/md/zoom-in";
 import CalendarIcon from "react-icons/lib/md/date-range";
+import PopoverMenu from "../components/PopoverMenu";
 
 import Spinner from "../components/Spinner";
 import Clock from "../components/Clock";
+import Link from "../components/Link";
 import { listenEvents } from "../../Utils";
 import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
 import { Badge } from "../components/Badge";
+import JobStatus from "../components/JobStatus";
 
 type Props = {
   classes: any,
-  className: string,
+  className?: string,
   workflow: Workflow,
   request: (
     page: number,
@@ -34,24 +39,24 @@ type Props = {
   columns: Array<| "job"
     | "context"
     | "startTime"
+    | "failed"
+    | "retry"
     | "endTime"
     | "status"
     | "detail">,
   label: string,
-  defaultSort: {
+  page: number,
+  sort: {
     column: string,
     order: "asc" | "desc"
-  }
+  },
+  open: (link: string) => void
 };
 
 type State = {
   data: ?Array<ExecutionLog>,
   page: number,
   total: number,
-  sort: {
-    column: string,
-    order: "asc" | "desc"
-  },
   rowsPerPage: number,
   query: ?string,
   eventSource: any
@@ -67,21 +72,21 @@ class ExecutionLogs extends React.Component {
     super(props);
     this.state = {
       data: null,
-      page: 0,
+      page: props.page - 1,
       total: -1,
-      sort: props.defaultSort,
       rowsPerPage: 25,
       query: null,
       eventSource: null
     };
     (this: any).adaptTableHeight = _.throttle(
       this.adaptTableHeight.bind(this),
-      1000
+      1000 // no more than one event per second
     );
   }
 
   componentDidUpdate() {
-    let { query, page, rowsPerPage, eventSource, sort } = this.state;
+    let { sort } = this.props;
+    let { query, page, rowsPerPage, eventSource } = this.state;
     let newQuery = this.props.request(page, rowsPerPage, sort);
     if (newQuery != query) {
       eventSource && eventSource.close();
@@ -98,6 +103,10 @@ class ExecutionLogs extends React.Component {
   componentWillUnmount() {
     let { eventSource } = this.state;
     eventSource && eventSource.close();
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    this.setState({ ...this.state, page: nextProps.page - 1 });
   }
 
   adaptTableHeight({ height }) {
@@ -119,37 +128,27 @@ class ExecutionLogs extends React.Component {
     });
   }
 
+  qs(page: number, sort: string, order: "asc" | "desc") {
+    return `?page=${page}&sort=${sort}&order=${order}`;
+  }
+
   changePage({ selected }) {
-    this.setState({
-      ...this.state,
-      page: selected
-    });
+    let { sort } = this.props;
+    this.props.open(this.qs(selected + 1, sort.column, sort.order), false);
   }
 
   sortBy(column: string) {
-    if (column == this.state.sort.column) {
-      this.setState({
-        ...this.state,
-        sort: {
-          column,
-          order: this.state.sort.order == "asc" ? "desc" : "asc"
-        },
-        page: 0
-      });
-    } else {
-      this.setState({
-        ...this.state,
-        sort: {
-          column,
-          order: "asc"
-        },
-        page: 0
-      });
+    let { sort } = this.props;
+    let order = "asc";
+    if (column == sort.column) {
+      order = sort.order == "asc" ? "desc" : "asc";
     }
+    this.props.open(this.qs(1, column, order), false);
   }
 
   render() {
-    let { data, page, rowsPerPage, total, sort } = this.state;
+    let { sort } = this.props;
+    let { data, page, rowsPerPage, total } = this.state;
     let { classes, workflow, label } = this.props;
 
     let jobName = (id: string) => {
@@ -319,7 +318,10 @@ class ExecutionLogs extends React.Component {
                       case "startTime":
                         return (
                           <td key="startTime">
-                            <Clock className={classes.time} time={startTime} />
+                            <Clock
+                              className={classes.time}
+                              time={startTime || ""}
+                            />
                           </td>
                         );
                       case "endTime":
@@ -341,40 +343,25 @@ class ExecutionLogs extends React.Component {
                           </td>
                         );
                       case "status":
-                        if (status == "running") {
-                          return (
-                            <td key="status">
-                              <Badge label="STARTED" kind="info" width={75} />
-                            </td>
-                          );
-                        } else if (
-                          status == "throttled" || status == "failed"
-                        ) {
-                          return (
-                            <td key="status">
-                              <Badge label="FAILED" kind="error" width={75} />
-                            </td>
-                          );
-                        } else if (status == "successful") {
-                          return (
-                            <td key="status">
-                              <Badge
-                                label="SUCCESS"
-                                kind="success"
-                                width={75}
-                              />
-                            </td>
-                          );
-                        }
+                        return (
+                          <td key="status">
+                            <Link
+                              className={classes.openIcon}
+                              href={`/executions/${id}`}
+                            >
+                              <JobStatus status={status} />
+                            </Link>
+                          </td>
+                        );
                       case "detail":
                         return (
                           <td key="detail">
-                            <a
+                            <Link
                               className={classes.openIcon}
                               href={`/executions/${id}`}
                             >
                               <OpenIcon />
-                            </a>
+                            </Link>
                           </td>
                         );
                     }
@@ -398,7 +385,9 @@ class ExecutionLogs extends React.Component {
         let pageCount = Math.ceil(total / rowsPerPage);
         return (
           <div className={classes.footer}>
-            {`${page * rowsPerPage + 1} to ${Math.min(total, page * rowsPerPage + rowsPerPage)} of ${total} ${label} executions`}
+            {
+              `${page * rowsPerPage + 1} to ${Math.min(total, page * rowsPerPage + rowsPerPage)} of ${total} ${label} executions`
+            }
             <ReactPaginate
               pageCount={pageCount}
               pageRangeDisplayed={3}
@@ -419,7 +408,7 @@ class ExecutionLogs extends React.Component {
     };
 
     return (
-      <div className={classes.container}>
+      <div className={classes.grid}>
         <Measure onMeasure={this.adaptTableHeight}>
           <div className={classes.data}><Table /></div>
         </Measure>
@@ -431,6 +420,24 @@ class ExecutionLogs extends React.Component {
 
 const styles = {
   container: {
+    padding: "1em",
+    flex: "1",
+    display: "flex",
+    flexDirection: "column",
+    position: "relative"
+  },
+  title: {
+    fontSize: "1.2em",
+    margin: "0 0 16px 0",
+    color: "#607e96",
+    fontWeight: "normal"
+  },
+  menu: {
+    position: "absolute",
+    top: "1em",
+    right: "1em"
+  },
+  grid: {
     flex: "1",
     display: "flex",
     flexDirection: "column"
@@ -453,6 +460,7 @@ const styles = {
       padding: "0",
       textAlign: "left",
       boxSizing: "border-box",
+      transition: "100ms",
       "&:hover": {
         background: "rgba(255, 215, 0, 0.1)"
       }
@@ -484,7 +492,7 @@ const styles = {
     color: "#85929c"
   },
   openIcon: {
-    fontSize: "16px",
+    fontSize: "22px",
     color: "#607e96",
     padding: "15px",
     margin: "-15px"
@@ -524,4 +532,112 @@ const styles = {
   }
 };
 
-export default injectSheet(styles)(ExecutionLogs);
+const mapStateToProps = ({ workflow, page }) => ({
+  workflow,
+  page: page.page || 1,
+  sort: page.sort,
+  order: page.order || "asc"
+});
+const mapDispatchToProps = dispatch => ({
+  open(href, replace) {
+    dispatch(navigate(href, replace));
+  }
+});
+
+export const Finished = connect(mapStateToProps, mapDispatchToProps)(
+  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+    return (
+      <div className={classes.container}>
+        <h1 className={classes.title}>Finished executions</h1>
+        <ExecutionLogs
+          classes={classes}
+          open={open}
+          page={page}
+          workflow={workflow}
+          columns={["job", "context", "endTime", "status", "detail"]}
+          request={(page, rowsPerPage, sort) =>
+            `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+          label="finished"
+          sort={{ column: sort || "endTime", order }}
+        />
+      </div>
+    );
+  })
+);
+
+export const Started = connect(mapStateToProps, mapDispatchToProps)(
+  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+    let pauseAll = () => fetch("/api/jobs/all/pause", { method: "POST" });
+    return (
+      <div className={classes.container}>
+        <h1 className={classes.title}>Started executions</h1>
+        <PopoverMenu
+          className={classes.menu}
+          items={[<span onClick={pauseAll}>Pause everything</span>]}
+        />
+        <ExecutionLogs
+          classes={classes}
+          open={open}
+          page={page}
+          workflow={workflow}
+          columns={["job", "context", "startTime", "status", "detail"]}
+          request={(page, rowsPerPage, sort) =>
+            `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+          label="started"
+          sort={{ column: sort || "context", order }}
+        />
+      </div>
+    );
+  })
+);
+
+export const Paused = connect(mapStateToProps, mapDispatchToProps)(
+  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+    let unpauseAll = () => fetch("/api/jobs/all/unpause", { method: "POST" });
+    return (
+      <div className={classes.container}>
+        <h1 className={classes.title}>Paused executions</h1>
+        <PopoverMenu
+          className={classes.menu}
+          items={[<span onClick={unpauseAll}>Resume everything</span>]}
+        />
+        <ExecutionLogs
+          classes={classes}
+          open={open}
+          page={page}
+          workflow={workflow}
+          columns={["job", "context", "status", "detail"]}
+          request={(page, rowsPerPage, sort) =>
+            `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+          label="paused"
+          sort={{ column: sort || "context", order }}
+        />
+      </div>
+    );
+  })
+);
+
+export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
+  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+    return (
+      <div className={classes.container}>
+        <h1 className={classes.title}>Stuck executions</h1>
+        <PopoverMenu
+          className={classes.menu}
+          items={[<span onClick={console.log}>Retry everything now</span>]}
+        />
+        <ExecutionLogs
+          classes={classes}
+          open={open}
+          page={page}
+          workflow={workflow}
+          columns={["job", "context", "failed", "retry", "status", "detail"]}
+          request={(page, rowsPerPage, sort) =>
+            `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+          label="stuck"
+          sort={{ column: sort || "failed", order }}
+        />
+      </div>
+    );
+  })
+);

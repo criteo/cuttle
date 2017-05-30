@@ -1,5 +1,5 @@
 // @flow
-import type { PageId } from "./state";
+import type { Page } from "./state";
 import type { Project, Workflow, Statistics } from "./datamodel";
 
 type StatusSuccess = "success";
@@ -8,8 +8,7 @@ type Status = StatusSuccess | StatusWaiting;
 type Dispatch = (action: Action) => void;
 
 export type Action =
-  | INIT
-  | NAVIGATE
+  | OPEN_PAGE
   | LOAD_APP_DATA
   | SELECT_JOB
   | DESELECT_JOB
@@ -21,15 +20,11 @@ export type Action =
   | DESELECT_FILTERTAG
   | TOGGLE_FILTERTAG;
 
-// Actions
-type INIT = { type: "INIT" };
-export const init = (): INIT => ({ type: "INIT" });
-
 // Action that should be dispatched by the "redux-url router"
-type NAVIGATE = { type: "NAVIGATE", pageId: PageId };
-export const navigToPage = (pageId: PageId): NAVIGATE => ({
-  type: "NAVIGATE",
-  pageId
+type OPEN_PAGE = { type: "OPEN_PAGE", page: Page };
+export const openPage = (page: Page): OPEN_PAGE => ({
+  type: "OPEN_PAGE",
+  page
 });
 
 type LOAD_ACTION<DATA_TYPE, ACTION_FLAG> =

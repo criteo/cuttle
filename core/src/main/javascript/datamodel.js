@@ -9,7 +9,7 @@ export type ExecutionStatus = "running" | "throttled";
 export type ExecutionLog = {
   id: string,
   job: string,
-  startTime: string,
+  startTime: ?string,
   endTime: ?string,
   context: any,
   status: ExecutionStatus,

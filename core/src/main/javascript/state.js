@@ -7,22 +7,39 @@ import { prepareWorkflow } from "./datamodel";
 import includes from "lodash/includes";
 import without from "lodash/without";
 
-export type PageId =
-  | "workflow"
-  | "executions/started"
-  | "executions/stuck"
-  | "executions/paused"
-  | "executions/finished"
-  | "timeseries/calendar"
-  | "timeseries/backfill";
-
-export type Page = {
-  id: PageId,
-  label: string
-};
+export type Page =
+  | { id: "" }
+  | { id: "workflow" }
+  | {
+      id: "executions/started",
+      page?: number,
+      sort?: string,
+      order?: "asc" | "desc"
+    }
+  | {
+      id: "executions/stuck",
+      page?: number,
+      sort?: string,
+      order?: "asc" | "desc"
+    }
+  | {
+      id: "executions/paused",
+      page?: number,
+      sort?: string,
+      order?: "asc" | "desc"
+    }
+  | {
+      id: "executions/finished",
+      page?: number,
+      sort?: string,
+      order?: "asc" | "desc"
+    }
+  | { id: "executions/detail", execution: string }
+  | { id: "timeseries/calendar" }
+  | { id: "timeseries/backfills" };
 
 export type State = {
-  page: PageId,
+  page: Page,
   workflow: ?Workflow,
   project: ?Project,
   statistics: Statistics,
@@ -32,7 +49,8 @@ export type State = {
 };
 
 export const initialState: State = {
-  page: "workflow",
+  isLoading: true,
+  page: { id: "" },
   project: null,
   workflow: null,
   statistics: {
@@ -45,25 +63,17 @@ export const initialState: State = {
     selectedJobs: [],
     jobSearchInput: "",
     selectedTags: []
-  },
-  isLoading: true
+  }
 };
 
 // -- Reducers
 
 export const reducers = (currentState: State, action: Action): State => {
   switch (action.type) {
-    case "INIT": {
+    case "OPEN_PAGE": {
       return {
         ...currentState,
-        page: "workflow"
-      };
-    }
-
-    case "NAVIGATE": {
-      return {
-        ...currentState,
-        page: action.pageId
+        page: action.page
       };
     }
 

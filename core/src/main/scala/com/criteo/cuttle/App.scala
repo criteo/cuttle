@@ -15,21 +15,21 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
 
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
   private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
-  private def sse[A](thunk: () => A, encode: A => Json) = {
+  private def sse[A](thunk: () => Option[A], encode: A => Json) = {
     val throttle = fs2.Stream.eval(fs2.Task.schedule((), 1.second))
     def next(previous: Option[A] = None): fs2.Stream[fs2.Task, ServerSentEvents.Event[Json]] =
-      Option(thunk())
+      thunk()
         .filterNot(_ == previous.getOrElse(()))
         .map(a => fs2.Stream(ServerSentEvents.Event(encode(a))) ++ throttle.flatMap(_ => next(Some(a))))
         .getOrElse(throttle.flatMap(_ => next(previous)))
-    Ok(next())
+    thunk().map(_ => Ok(next())).getOrElse(NotFound)
   }
 
   val api: PartialService = {
 
-    case GET at url"/api/statistics?stream=$stream" =>
+    case GET at url"/api/statistics?events=$events" =>
       def getStats() =
-        (executor.runningExecutionsSize, executor.pausedExecutionsSize, executor.failingExecutionsSize)
+        Some((executor.runningExecutionsSize, executor.pausedExecutionsSize, executor.failingExecutionsSize))
       def asJson(x: (Int, Int, Int)) = x match {
         case (running, paused, failing) =>
           Json.obj(
@@ -38,26 +38,28 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
             "failing" -> failing.asJson
           )
       }
-      stream match {
+      events match {
         case "true" | "yes" =>
           sse(getStats, asJson)
         case _ =>
-          Ok(asJson(getStats()))
+          Ok(asJson(getStats().get))
       }
 
-    case GET at url"/api/executions/$kind?limit=$l&offset=$o&stream=$stream&sort=$sort&order=$a" =>
+    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
       val asc = (a.toLowerCase == "asc")
       def getExecutions() = kind match {
         case "started" =>
-          (executor.runningExecutionsSize, executor.runningExecutions(sort, asc, offset, limit))
+          Some(executor.runningExecutionsSize -> executor.runningExecutions(sort, asc, offset, limit))
         case "stuck" =>
-          (executor.failingExecutionsSize, executor.failingExecutions(sort, asc, offset, limit))
+          Some(executor.failingExecutionsSize -> executor.failingExecutions(sort, asc, offset, limit))
         case "paused" =>
-          (executor.pausedExecutionsSize, executor.pausedExecutions(sort, asc, offset, limit))
+          Some(executor.pausedExecutionsSize -> executor.pausedExecutions(sort, asc, offset, limit))
         case "finished" =>
-          (executor.archivedExecutionsSize, executor.rawRunningExecutions)
+          Some(executor.archivedExecutionsSize -> executor.rawRunningExecutions)
+        case _ =>
+          None
       }
       def asJson(x: (Int, Seq[ExecutionLog])) = x match {
         case (total, executions) =>
@@ -75,33 +77,45 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
             })
           )
       }
-      stream match {
+      events match {
         case "true" | "yes" =>
           sse(getExecutions, asJson)
         case _ =>
-          Ok(asJson(getExecutions()))
+          getExecutions().map(e => Ok(asJson(e))).getOrElse(NotFound)
+      }
+
+    case GET at url"/api/executions/$id?events=$events" =>
+      def getExecution() = executor.getExecution(scheduler.allContexts, id)
+      events match {
+        case "true" | "yes" =>
+          sse(getExecution, (e: ExecutionLog) => e.asJson)
+        case _ =>
+          getExecution().map(e => Ok(e.asJson)).getOrElse(NotFound)
       }
 
     case POST at url"/api/executions/$id/cancel" =>
       executor.cancelExecution(id)
       Ok
 
-    case request @ GET at url"/api/executions/$id/streams" =>
-      lazy val flush = fs2.Stream.chunk(fs2.Chunk.bytes((" " * 5 * 1024).getBytes))
-      lazy val pre = fs2.Stream("<pre>".getBytes: _*)
-      lazy val logs = executor.openStreams(id)
-      Ok(
-        if (request.queryString.exists(_ == "html"))
-          Content(
-            stream = flush ++ pre ++ logs,
-            headers = Map(h"Content-Type" -> h"text/html")
+    case GET at url"/api/executions/$id/streams?events=$events" =>
+      lazy val streams = executor.openStreams(id)
+      events match {
+        case "true" | "yes" =>
+          Ok(
+            streams
+              .through(fs2.text.utf8Decode)
+              .through(fs2.text.lines)
+              .chunks
+              .map(chunk => ServerSentEvents.Event(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)))) ++
+              fs2.Stream(ServerSentEvents.Event("EOS".asJson))
           )
-        else
-          Content(
-            stream = logs,
-            headers = Map(h"Content-Type" -> h"text/plain")
-          )
-      )
+        case _ =>
+          Ok(
+            Content(
+              stream = streams,
+              headers = Map(h"Content-Type" -> h"text/plain")
+            ))
+      }
 
     case GET at url"/api/jobs/paused" =>
       Ok(executor.pausedJobs.asJson)

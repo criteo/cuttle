@@ -28,7 +28,7 @@ object HelloWorld {
           echo "Looping for 20 seconds..."
           for i in {1..20}; do
             date
-            sleep 10
+            sleep 1
           done
           echo "Ok"
         """.exec()
@@ -54,7 +54,7 @@ object HelloWorld {
     val world = Job("world", daily(start, UTC)) { implicit e =>
       sh"""
         echo "World"
-        sleep 1
+        sleep 60
       """.exec()
     }
 

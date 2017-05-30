@@ -7,21 +7,20 @@ import injectSheet from "react-jss";
 import MenuHeader from "./app/menu/MenuHeader";
 import Spinner from "./app/components/Spinner";
 import Menu from "./app/menu/Menu";
-import type { PageId } from "./state";
+import Link from "./app/components/Link";
+import type { Page } from "./state";
 import * as Actions from "./actions";
 
-import Workflow from "./app/tabs/Workflow";
-import Started from "./app/tabs/Started";
-import Stuck from "./app/tabs/Stuck";
-import Paused from "./app/tabs/Paused";
-import Finished from "./app/tabs/Finished";
+import Workflow from "./app/pages/Workflow";
+import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
+import Execution from "./app/pages/Execution";
 import UserBar from "./app/filter/UserBar";
 import type { Statistics } from "./datamodel";
 
 import reduce from "lodash/reduce";
 
 type Props = {
-  activeTab: PageId,
+  page: Page,
   projectName: string,
   environment: string,
   workflow: Workflow,
@@ -41,7 +40,7 @@ class App extends React.Component {
   render() {
     const {
       classes,
-      activeTab,
+      page,
       environment,
       projectName,
       workflow,
@@ -76,7 +75,7 @@ class App extends React.Component {
       );
 
       const renderTab = () => {
-        switch (activeTab) {
+        switch (page.id) {
           case "workflow":
             return <Workflow workflow={workflow} />;
           case "executions/started":
@@ -87,6 +86,16 @@ class App extends React.Component {
             return <Paused />;
           case "executions/finished":
             return <Finished />;
+          case "executions/detail":
+            return <Execution execution={page.execution} />;
+          case "timeseries/calendar":
+            return (
+              <div style={{ padding: "1em" }}>
+                <Link href="/executions/0c31e0c7-6401-4d9e-b34e-c22a553961bd">
+                  random execution
+                </Link>
+              </div>
+            );
           default:
             return null;
         }
@@ -96,7 +105,7 @@ class App extends React.Component {
         <div className={classes.main} onClick={closeUserbar}>
           <section className={classes.leftpane}>
             <MenuHeader environment={environment} projectName={projectName} />
-            <Menu activeTab={activeTab} statistics={statistics} />
+            <Menu active={page} statistics={statistics} />
           </section>
           <section className={classes.rightpane}>
             <UserBar
@@ -115,6 +124,7 @@ class App extends React.Component {
 let styles = {
   leftpane: {
     width: "300px",
+    minWidth: "300px",
     display: "flex",
     flexDirection: "column",
     backgroundColor: "#2F3647",
@@ -150,7 +160,7 @@ let styles = {
 const mapStateToProps = (
   { page, project, workflow, isLoading, statistics }
 ) => ({
-  activeTab: page,
+  page,
   projectName: project && project.name,
   environment: "production",
   workflow,

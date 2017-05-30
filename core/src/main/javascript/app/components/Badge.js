@@ -12,7 +12,8 @@ type Props = {
   label: string,
   classes: any,
   className: any,
-  width?: number
+  width?: number,
+  light?: boolean
 };
 
 export type BadgeType = { kind: BadgeKind, label: string };
@@ -33,11 +34,18 @@ const colors = (kind: BadgeKind): string => {
   }
 };
 
-const BadgeComponent = ({ classes, className, kind, label, width }: Props) => {
+const BadgeComponent = (
+  { classes, className, kind, label, width, light = false }: Props
+) => {
   return (
     <span
       className={classNames(classes.main, className)}
-      style={{ backgroundColor: colors(kind), width: width || "auto" }}
+      style={{
+        backgroundColor: light ? "transparent" : colors(kind),
+        width: width || "auto",
+        border: light ? `1px dashed ${colors(kind)}` : "none",
+        color: light ? colors(kind) : "white"
+      }}
     >
       {label}
     </span>
@@ -58,7 +66,7 @@ const styles = {
     padding: "0 .5em",
     maxHeight: "18px",
     textAlign: "center",
-    cursor: "default"
+    transform: "translateY(-1px)"
   }
 };
 export const Badge = injectSheet(styles)(BadgeComponent);
