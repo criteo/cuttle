@@ -35,6 +35,9 @@ class WorkflowComponent extends React.Component {
     return (
       <div className={classes.main}>
         <Dagger nodes={nodes} edges={edges} tags={tags} />
+        <div className={classes.nodeDescription} >
+          Test
+        </div>
       </div>
     );
   }
@@ -45,7 +48,11 @@ const styles = {
     backgroundColor: "#ECF1F5",
     flex: 1,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "row"
+  },
+  nodeDescription: {
+    backgroundColor: "#FFF",
+    flex: 1
   }
 };
 
