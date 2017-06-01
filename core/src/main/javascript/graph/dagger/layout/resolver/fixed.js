@@ -5,6 +5,7 @@ import {
   AnnotatedNode,
   nodeKind
 } from "../symbolic/annotatedGraph";
+
 import { GraphDimensions } from "../dimensions";
 import type { ResolvedGraphLayout, ResolvedEdge } from "./types";
 import { resolveEdgesForChildNode, resolveEdgesForParentNode } from "./edge";
