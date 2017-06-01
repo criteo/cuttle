@@ -4,8 +4,9 @@ import React from "react";
 import moment from "moment";
 
 type Props = {
-  className: string,
-  time: string
+  className?: string,
+  time: string,
+  humanize?: boolean
 };
 
 class Clock extends React.Component {
@@ -13,7 +14,10 @@ class Clock extends React.Component {
   timer: ?any;
 
   componentWillMount() {
-    this.timer = setInterval(() => this.forceUpdate(), 15 * 1000);
+    this.timer = setInterval(
+      () => this.forceUpdate(),
+      this.props.humanize ? 15 * 1000 : 1000
+    );
   }
 
   componentWillUnmount() {
@@ -21,8 +25,14 @@ class Clock extends React.Component {
   }
 
   render() {
-    let { className, time } = this.props;
-    return <span className={className}>{moment(time).fromNow()}</span>;
+    let { className, time, humanize = true } = this.props;
+    return (
+      <span className={className}>
+        {humanize
+          ? moment(time).fromNow()
+          : moment.utc(moment().diff(moment(time))).format("HH:mm:ss")}
+      </span>
+    );
   }
 }
 

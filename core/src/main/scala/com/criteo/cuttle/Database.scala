@@ -154,13 +154,25 @@ trait Queries {
       SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
       FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
       ON executions.context_id = contexts.id """ ++ orderBy ++ sql""" LIMIT $limit OFFSET $offset""")
-      .query[(String, String, Instant, Option[Instant], Json, ExecutionStatus)]
+      .query[(String, String, Instant, Instant, Json, ExecutionStatus)]
       .list
       .map(_.map {
         case (id, job, startTime, endTime, context, status) =>
-          ExecutionLog(id, job, startTime, endTime, context, status)
+          ExecutionLog(id, job, Some(startTime), Some(endTime), context, status)
       })
   }
+
+  def getExecutionById(contextQuery: Fragment, id: String): ConnectionIO[Option[ExecutionLog]] =
+    (sql"""
+      SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
+      FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
+      ON executions.context_id = contexts.id WHERE executions.id = $id""")
+      .query[(String, String, Instant, Instant, Json, ExecutionStatus)]
+      .option
+      .map(_.map {
+        case (id, job, startTime, endTime, context, status) =>
+          ExecutionLog(id, job, Some(startTime), Some(endTime), context, status)
+      })
 
   def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
     sql"""

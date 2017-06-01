@@ -10,8 +10,7 @@ import continuum.{Interval, IntervalSet}
 
 import TimeSeriesUtils._
 
-case class StateD(defined: Map[TimeSeriesJob, IntervalSet[Instant]],
-                  default: IntervalSet[Instant] = IntervalSet.empty) {
+case class StateD(defined: Map[TimeSeriesJob, IntervalSet[Instant]], default: IntervalSet[Instant] = IntervalSet.empty) {
   def get(job: TimeSeriesJob) = defined.getOrElse(job, default)
 }
 object StateD {

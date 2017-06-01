@@ -17,17 +17,23 @@ import * as Actions from "./actions";
 import type { Statistics } from "./datamodel";
 import { listenEvents } from "./Utils";
 
-import { navigToPage } from "./actions";
+import { openPage } from "./actions";
 
 const routes = {
-  "/": () => navigToPage("executions/started"),
-  "/executions/started": () => navigToPage("executions/started"),
-  "/executions/stuck": () => navigToPage("executions/stuck"),
-  "/executions/finished": () => navigToPage("executions/finished"),
-  "/executions/paused": () => navigToPage("executions/paused"),
-  "/workflow": () => navigToPage("workflow"),
-  "/timeseries/calendar": () => navigToPage("timeseries/calendar"),
-  "/timeseries/backfill": () => navigToPage("timeseries/backfill")
+  "/": () => openPage({ id: "executions/started" }),
+  "/executions/started": (_, { page, sort, order }) =>
+    openPage({ id: "executions/started", page, sort, order }),
+  "/executions/stuck": (_, { page, sort, order }) =>
+    openPage({ id: "executions/stuck", page, sort, order }),
+  "/executions/finished": (_, { page, sort, order }) =>
+    openPage({ id: "executions/finished", page, sort, order }),
+  "/executions/paused": (_, { page, sort, order }) =>
+    openPage({ id: "executions/paused", page, sort, order }),
+  "/executions/:id": ({ id }) =>
+    openPage({ id: "executions/detail", execution: id }),
+  "/workflow": () => openPage({ id: "workflow" }),
+  "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
+  "/timeseries/backfills": () => openPage({ id: "timeseries/backfills" })
 };
 
 const router = createRouter(routes, createHistory());
@@ -40,9 +46,9 @@ const store = createStore(
   )
 );
 
-store.dispatch(navigate(location.pathname, true));
+router.sync();
 store.dispatch(Actions.loadAppData());
-listenEvents("/api/statistics?stream=true", stats =>
+listenEvents("/api/statistics?events=true", stats =>
   store.dispatch(Actions.updateStatistics(stats)));
 
 render(
