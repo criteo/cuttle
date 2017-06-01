@@ -2,7 +2,9 @@
 
 import injectSheet from "react-jss";
 import React from "react";
+import ReactDOM from "react-dom";
 import reduce from "lodash/reduce";
+import forEach from "lodash/forEach";
 
 import { Graph } from "./dagger/dataAPI/genericGraph";
 import type { Node, Edge } from "./dagger/dataAPI/genericGraph";
@@ -19,13 +21,22 @@ type Props = {
   tags: Tag[]
 };
 
+const updateDaggerDimensions = (dagger: any, width: number, height: number) =>
+  dagger.updateDimensions(width, height);
+
+const cleanDOMContainer = domNode => {
+  domNode.childNodes.forEach(child => domNode.removeChild(child));
+};
+
 class DaggerComponent extends React.Component {
   minimapContainer: any;
   navigatorContainer: any;
   svgNavigatorContainer: any;
   edgesContainer: any;
   nodesContainer: any;
+
   dagger: any;
+  timeMachine: any;
 
   constructor(props: Props) {
     super(props);
@@ -79,7 +90,6 @@ class DaggerComponent extends React.Component {
             />
           </svg>
         </div>
-        <div className={classes.nodeDescription} />
         <div
           className={classes.minimapContainer}
           ref={element => (this.minimapContainer = element)}
@@ -89,7 +99,7 @@ class DaggerComponent extends React.Component {
   }
 
   componentDidMount() {
-    const { nodes, edges, tags } = this.props;
+    const { nodes, edges, tags, startNodeId } = this.props;
     const overallGraph: Graph = new Graph(nodes, edges);
     const width = this.navigatorContainer.clientWidth;
     const height = this.navigatorContainer.clientHeight;
@@ -98,6 +108,7 @@ class DaggerComponent extends React.Component {
     this.dagger = buildDagger(overallGraph, {
       width,
       height,
+      startNodeId,
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
       tags: reduce(
@@ -118,7 +129,28 @@ class DaggerComponent extends React.Component {
       }
     });
 
-    this.dagger.initRender(transitionAction);
+    this.timeMachine = this.dagger.initRender(transitionAction);
+
+    const resizeDagger = () => {
+      // Clean dom nodes holders
+      cleanDOMContainer(this.nodesContainer);
+      cleanDOMContainer(this.edgesContainer);
+      cleanDOMContainer(this.minimapContainer);
+      // Resize svg container
+      const width = this.navigatorContainer.clientWidth;
+      const height = this.navigatorContainer.clientHeight;
+      this.svgNavigatorContainer.setAttribute("width", width);
+      this.svgNavigatorContainer.setAttribute("height", height);
+      // Update layouts and rerender
+      this.dagger = updateDaggerDimensions(this.dagger, width, height);
+      this.timeMachine = this.dagger.initRender(transitionAction);
+    };
+
+    let doResize;
+    window.onresize = () => {
+      clearTimeout(doResize);
+      doResize = setTimeout(resizeDagger, 500);
+    };
   }
 }
 
@@ -128,25 +160,23 @@ const styles = {
     border: "0px",
     display: "flex",
     flexDirection: "column",
-    flex: 1,
-    alignItems: "stretch"
-  },
-  nodeDescription: {
-    backgroundColor: "#FFF",
-    flex: 1,
-    boxShadow: "0px 1px 5px 0px #BECBD6",
-    margin: "0 5em"
+    flex: 2,
+    alignItems: "stretch",
+    overflow: "hidden"
   },
   minimapContainer: {
     flex: 1,
-    marginTop: "2.5em",
-    margin: "5em",
-    padding: "2.5em",
-    backgroundColor: "#FFF",
-    boxShadow: "0px 1px 5px 0px #BECBD6"
+    margin: "1em",
+    backgroundColor: "#F5F8FA",
+    boxShadow: "0px 1px 5px 0px #BECBD6",
+    width: "50%",
+    minHeight: "300px",
+    alignSelf: "flex-end"
   },
   navigatorContainer: {
-    flex: 4
+    minWidth: "800px",
+    flex: 7,
+    overflow: "hidden"
   }
 };
 
