@@ -162,7 +162,8 @@ class Execution extends React.Component {
   }
 
   detectManualScroll() {
-    const manualScroll = this.scroller &&
+    const manualScroll =
+      this.scroller &&
       this.scroller.scrollHeight - this.scroller.offsetHeight !=
         this.scroller.scrollTop;
 
@@ -179,112 +180,112 @@ class Execution extends React.Component {
     return (
       <Window title="Execution detail">
         <CloseIcon className={classes.close} onClick={back} />
-          {data
-            ? [
-                <FancyTable key="properties">
-                  <dt key="id">Id:</dt>
-                  <dd key="id_">{data.id}</dd>
-                  <dt key="job">Job:</dt>
-                  <dd key="job_">{data.job}</dd>
-                  <dt key="status">Status:</dt>
-                  <dd key="status_"><JobStatus status={data.status} /></dd>
-                  {data.startTime
-                    ? [
-                        <dt key="startTime">Start time:</dt>,
-                        <dd key="startTime_">
-                          {moment(data.startTime)
-                            .utc()
-                            .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
-                        </dd>
-                      ]
-                    : null}
-                  {data.endTime
-                    ? [
-                        <dt key="endTime">End time:</dt>,
-                        <dd key="endTime_">
-                          {moment(data.endTime)
-                            .utc()
-                            .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
-                        </dd>
-                      ]
-                    : null}
-                  {data.startTime
-                    ? [
-                        <dt key="duration">Duration:</dt>,
-                        <dd key="duration_">
-                          {data.endTime
-                            ? moment
-                                .utc(
-                                  moment(data.endTime).diff(
-                                    moment(data.startTime)
-                                  )
+        {data
+          ? [
+              <FancyTable key="properties">
+                <dt key="id">Id:</dt>
+                <dd key="id_">{data.id}</dd>
+                <dt key="job">Job:</dt>
+                <dd key="job_">{data.job}</dd>
+                <dt key="status">Status:</dt>
+                <dd key="status_"><JobStatus status={data.status} /></dd>
+                {data.startTime
+                  ? [
+                      <dt key="startTime">Start time:</dt>,
+                      <dd key="startTime_">
+                        {moment(data.startTime)
+                          .utc()
+                          .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
+                      </dd>
+                    ]
+                  : null}
+                {data.endTime
+                  ? [
+                      <dt key="endTime">End time:</dt>,
+                      <dd key="endTime_">
+                        {moment(data.endTime)
+                          .utc()
+                          .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
+                      </dd>
+                    ]
+                  : null}
+                {data.startTime
+                  ? [
+                      <dt key="duration">Duration:</dt>,
+                      <dd key="duration_">
+                        {data.endTime
+                          ? moment
+                              .utc(
+                                moment(data.endTime).diff(
+                                  moment(data.startTime)
                                 )
-                                .format("HH:mm:ss")
-                            : <Clock time={data.startTime} humanize={false} />}
-                        </dd>
-                      ]
-                    : null}
-                  {data.failing
-                    ? [
-                        <dt key="failing">Failing:</dt>,
-                        <dd key="failing_">
-                          {`Failed ${data.failing.failedExecutions.length} times and will be retried`}
-                          {" "}
-                          <Clock time={data.failing.nextRetry || ""} />
-                          .&nbsp;
-                          <Link
-                            className={classes.failedLink}
-                            href={`/executions/${(data.failing: any).failedExecutions[(data.failing: any).failedExecutions.length - 1].id}`}
-                          >
-                            Check latest failed execution.
-                          </Link>
-                        </dd>
-                      ]
-                    : null}
-                </FancyTable>,
-                <div
-                  className={classNames(classes.streams, {
-                    [classes.fullscreen]: this.state.fullscreen
-                  })}
-                  key="streams"
+                              )
+                              .format("HH:mm:ss")
+                          : <Clock time={data.startTime} humanize={false} />}
+                      </dd>
+                    ]
+                  : null}
+                {data.failing
+                  ? [
+                      <dt key="failing">Failing:</dt>,
+                      <dd key="failing_">
+                        {`Failed ${data.failing.failedExecutions.length} times and will be retried`}
+                        {" "}
+                        <Clock time={data.failing.nextRetry || ""} />
+                        .&nbsp;
+                        <Link
+                          className={classes.failedLink}
+                          href={`/executions/${(data.failing: any).failedExecutions[(data.failing: any).failedExecutions.length - 1].id}`}
+                        >
+                          Check latest failed execution.
+                        </Link>
+                      </dd>
+                    ]
+                  : null}
+              </FancyTable>,
+              <div
+                className={classNames(classes.streams, {
+                  [classes.fullscreen]: this.state.fullscreen
+                })}
+                key="streams"
+              >
+                <ul
+                  ref={this.storeStreamRef.bind(this)}
+                  onScroll={this.detectManualScroll.bind(this)}
                 >
-                  <ul
-                    ref={this.storeStreamRef.bind(this)}
-                    onScroll={this.detectManualScroll.bind(this)}
-                  >
-                    {streams.map(({ timestamp, level, message }, i) => {
-                      return (
-                        <li key={i}>
-                          <span>{timestamp}</span>
-                          <p className={classes[level]}>{message}</p>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {this.state.fullscreen
-                    ? <ExitFullscreenIcon
-                        onClick={this.onClickFullscreen.bind(this, false)}
-                        className={classes.fullscreenButton}
-                      />
-                    : <FullscreenIcon
-                        onClick={this.onClickFullscreen.bind(this, true)}
-                        className={classes.fullscreenButton}
-                      />}
-                  <AutoScrollIcon
-                    onClick={this.onClickAutoScroll.bind(
-                      this,
-                      !this.state.autoScroll
-                    )}
-                    className={classNames(classes.autoScrollButton, {
-                      [classes.activeAutoScroll]: this.state.autoScroll
-                    })}
-                  />
-                </div>
-              ]
-            : error
-                ? <Error message={`execution ${execution} not found`} />
-                : <Spinner />}
-        </Window>
+                  {streams.map(({ timestamp, level, message }, i) => {
+                    return (
+                      <li key={i}>
+                        <span>{timestamp}</span>
+                        <p className={classes[level]}>{message}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {this.state.fullscreen
+                  ? <ExitFullscreenIcon
+                      onClick={this.onClickFullscreen.bind(this, false)}
+                      className={classes.fullscreenButton}
+                    />
+                  : <FullscreenIcon
+                      onClick={this.onClickFullscreen.bind(this, true)}
+                      className={classes.fullscreenButton}
+                    />}
+                <AutoScrollIcon
+                  onClick={this.onClickAutoScroll.bind(
+                    this,
+                    !this.state.autoScroll
+                  )}
+                  className={classNames(classes.autoScrollButton, {
+                    [classes.activeAutoScroll]: this.state.autoScroll
+                  })}
+                />
+              </div>
+            ]
+          : error
+              ? <Error message={`execution ${execution} not found`} />
+              : <Spinner />}
+      </Window>
     );
   }
 }
