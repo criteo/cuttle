@@ -38,7 +38,7 @@ const computeDijkstraPath = (minimap, start) => {
     _.compact(
       path
         .pathTo(minimap.getElementById(end))
-        .map(n => n.isNode() ? n.id() : null)
+        .map(n => (n.isNode() ? n.id() : null))
     );
 };
 
@@ -144,5 +144,5 @@ const backBuilder = (
   };
 };
 
-const historyBuilder = (history: string[]) =>
-  (relPos: number = 3): string[] => _.take(history, relPos);
+const historyBuilder = (history: string[]) => (relPos: number = 3): string[] =>
+  _.take(history, relPos);

@@ -23,20 +23,18 @@ type Props = {
   navTo: any
 };
 
-const MenuEntry = (
-  {
-    classes,
-    className,
-    activeClassName,
-    icon,
-    label,
-    link,
-    subEntries,
-    badges = [],
-    active,
-    navTo
-  }: Props
-) => (
+const MenuEntry = ({
+  classes,
+  className,
+  activeClassName,
+  icon,
+  label,
+  link,
+  subEntries,
+  badges = [],
+  active,
+  navTo
+}: Props) => (
   <div className={classes.menuentry}>
     <a
       className={classNames(

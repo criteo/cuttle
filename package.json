@@ -25,8 +25,8 @@
     "html-webpack-plugin": "^2.28.0",
     "less": "^2.7.2",
     "less-loader": "^2.2.3",
-    "prettier": "^0.22.0",
-    "prettier-eslint": "^4.3.2",
+    "prettier": "^1.3.1",
+    "prettier-eslint-cli": "^3.6.1",
     "style-loader": "^0.13.1",
     "webpack": "^2.2.1"
   },
@@ -62,7 +62,6 @@
   },
   "scripts": {
     "start": "./node_modules/devloop/bin/main.js",
-    "lint": "./node_modules/eslint/bin/eslint.js ./src/main/javascript/**.js",
-    "prettify": "node ./prettier.js"
+    "format": "./node_modules/prettier-eslint-cli/dist/index.js \"**/src/**/*.js\" -l info --write --bracket-spacing true"
   }
 }

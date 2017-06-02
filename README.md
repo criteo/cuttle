@@ -27,6 +27,10 @@ compatibility package (e.g. ncurses5-compat-libs on Archlinux).
    $> sudo apt install libaio1
    ```
 
+### Format Javascript
+
+Use `yarn format` to format the Javascript files.
+
 ### Scalafmt
 
 We use Scalafmt to enforce style.  The minimal config is found in the

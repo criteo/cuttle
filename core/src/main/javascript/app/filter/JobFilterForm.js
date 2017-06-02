@@ -15,10 +15,10 @@ type Props = {
   classes: any,
   className: any,
   allTags: { [string]: Tag },
-  selectJob: (string) => void,
-  selectFilterTag: (string) => void,
-  deselectFilterTag: (string) => void,
-  toggleFilterTag: (string) => void,
+  selectJob: string => void,
+  selectFilterTag: string => void,
+  deselectFilterTag: string => void,
+  toggleFilterTag: string => void,
   selectedTags: string[],
   displayedJobsList: Job[]
 };

@@ -32,9 +32,11 @@ class DaggerComponent extends React.Component {
   }
 
   shouldComponentUpdate(nextProps: Props) {
-    return nextProps.nodes.length !== this.props.nodes.length ||
+    return (
+      nextProps.nodes.length !== this.props.nodes.length ||
       nextProps.edges.length !== this.props.edges.length ||
-      nextProps.tags.length !== this.props.tags.length;
+      nextProps.tags.length !== this.props.tags.length
+    );
   }
 
   render() {
@@ -43,12 +45,12 @@ class DaggerComponent extends React.Component {
       <div className={classes.main}>
         <div
           className={classes.navigatorContainer}
-          ref={el => this.navigatorContainer = el}
+          ref={el => (this.navigatorContainer = el)}
         >
           <svg
             width="100%"
             height="100%"
-            ref={el => this.svgNavigatorContainer = el}
+            ref={el => (this.svgNavigatorContainer = el)}
           >
             <defs>
               <filter id="blur" x="-20%" y="-20%" width="200%" height="200%">
@@ -69,18 +71,18 @@ class DaggerComponent extends React.Component {
             </defs>
             <g
               id="allNodesContainer"
-              ref={element => this.nodesContainer = element}
+              ref={element => (this.nodesContainer = element)}
             />
             <g
               id="allEdgesContainer"
-              ref={element => this.edgesContainer = element}
+              ref={element => (this.edgesContainer = element)}
             />
           </svg>
         </div>
         <div className={classes.nodeDescription} />
         <div
           className={classes.minimapContainer}
-          ref={element => this.minimapContainer = element}
+          ref={element => (this.minimapContainer = element)}
         />
       </div>
     );

@@ -36,14 +36,17 @@ type Props = {
     rowsPerPage: number,
     sort: { column: string, order: "asc" | "desc" }
   ) => string,
-  columns: Array<| "job"
-    | "context"
-    | "startTime"
-    | "failed"
-    | "retry"
-    | "endTime"
-    | "status"
-    | "detail">,
+  columns: Array<
+
+      | "job"
+      | "context"
+      | "startTime"
+      | "failed"
+      | "retry"
+      | "endTime"
+      | "status"
+      | "detail"
+  >,
   label: string,
   page: number,
   sort: {
@@ -160,13 +163,15 @@ class ExecutionLogs extends React.Component {
       }
     };
 
-    let ColumnHeader = (
-      {
-        label,
-        width,
-        sortBy
-      }: { label?: string, width?: number, sortBy?: string }
-    ) => {
+    let ColumnHeader = ({
+      label,
+      width,
+      sortBy
+    }: {
+      label?: string,
+      width?: number,
+      sortBy?: string
+    }) => {
       if (sortBy) {
         let isSorted = sort.column == sortBy ? sort.order : null;
         return (
@@ -286,88 +291,83 @@ class ExecutionLogs extends React.Component {
               </tr>
             </thead>
             <tbody>
-              {data.map(({
-                id,
-                job,
-                startTime,
-                endTime,
-                status,
-                context,
-                failing
-              }) => (
-                <tr key={id}>
-                  {this.props.columns.map(column => {
-                    switch (column) {
-                      case "job":
-                        return (
-                          <td key="job">
-                            <a href={`/workflow/${job}`}>{jobName(job)}</a>
-                          </td>
-                        );
-                      case "context":
-                        return <td key="context"><Context ctx={context} /></td>;
-                      case "failed":
-                        let times = (failing &&
-                          failing.failedExecutions.length) ||
-                          0;
-                        if (times == 1) {
-                          return <td key="failed">Once</td>;
-                        } else if (times > 1) {
-                          return <td key="failed">{times} times</td>;
-                        }
-                      case "startTime":
-                        return (
-                          <td key="startTime">
-                            <Clock
-                              className={classes.time}
-                              time={startTime || ""}
-                            />
-                          </td>
-                        );
-                      case "endTime":
-                        return (
-                          <td key="endTime">
-                            <Clock
-                              className={classes.time}
-                              time={endTime || ""}
-                            />
-                          </td>
-                        );
-                      case "retry":
-                        return (
-                          <td key="retry">
-                            <Clock
-                              className={classes.time}
-                              time={(failing && failing.nextRetry) || ""}
-                            />
-                          </td>
-                        );
-                      case "status":
-                        return (
-                          <td key="status">
-                            <Link
-                              className={classes.openIcon}
-                              href={`/executions/${id}`}
-                            >
-                              <JobStatus status={status} />
-                            </Link>
-                          </td>
-                        );
-                      case "detail":
-                        return (
-                          <td key="detail">
-                            <Link
-                              className={classes.openIcon}
-                              href={`/executions/${id}`}
-                            >
-                              <OpenIcon />
-                            </Link>
-                          </td>
-                        );
-                    }
-                  })}
-                </tr>
-              ))}
+              {data.map(
+                ({ id, job, startTime, endTime, status, context, failing }) => (
+                  <tr key={id}>
+                    {this.props.columns.map(column => {
+                      switch (column) {
+                        case "job":
+                          return (
+                            <td key="job">
+                              <a href={`/workflow/${job}`}>{jobName(job)}</a>
+                            </td>
+                          );
+                        case "context":
+                          return (
+                            <td key="context"><Context ctx={context} /></td>
+                          );
+                        case "failed":
+                          let times =
+                            (failing && failing.failedExecutions.length) || 0;
+                          if (times == 1) {
+                            return <td key="failed">Once</td>;
+                          } else if (times > 1) {
+                            return <td key="failed">{times} times</td>;
+                          }
+                        case "startTime":
+                          return (
+                            <td key="startTime">
+                              <Clock
+                                className={classes.time}
+                                time={startTime || ""}
+                              />
+                            </td>
+                          );
+                        case "endTime":
+                          return (
+                            <td key="endTime">
+                              <Clock
+                                className={classes.time}
+                                time={endTime || ""}
+                              />
+                            </td>
+                          );
+                        case "retry":
+                          return (
+                            <td key="retry">
+                              <Clock
+                                className={classes.time}
+                                time={(failing && failing.nextRetry) || ""}
+                              />
+                            </td>
+                          );
+                        case "status":
+                          return (
+                            <td key="status">
+                              <Link
+                                className={classes.openIcon}
+                                href={`/executions/${id}`}
+                              >
+                                <JobStatus status={status} />
+                              </Link>
+                            </td>
+                          );
+                        case "detail":
+                          return (
+                            <td key="detail">
+                              <Link
+                                className={classes.openIcon}
+                                href={`/executions/${id}`}
+                              >
+                                <OpenIcon />
+                              </Link>
+                            </td>
+                          );
+                      }
+                    })}
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         );
@@ -385,9 +385,7 @@ class ExecutionLogs extends React.Component {
         let pageCount = Math.ceil(total / rowsPerPage);
         return (
           <div className={classes.footer}>
-            {
-              `${page * rowsPerPage + 1} to ${Math.min(total, page * rowsPerPage + rowsPerPage)} of ${total} ${label} executions`
-            }
+            {`${page * rowsPerPage + 1} to ${Math.min(total, page * rowsPerPage + rowsPerPage)} of ${total} ${label} executions`}
             <ReactPaginate
               pageCount={pageCount}
               pageRangeDisplayed={3}

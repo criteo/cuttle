@@ -14,9 +14,14 @@ type Props = {
   className: any
 };
 
-const SelectComponent = (
-  { classes, className, searchable, placeholder, onFocus, onBlur }: Props
-) => {
+const SelectComponent = ({
+  classes,
+  className,
+  searchable,
+  placeholder,
+  onFocus,
+  onBlur
+}: Props) => {
   return (
     <Select
       searchable={searchable}

@@ -238,17 +238,13 @@ class Execution extends React.Component {
                     ? [
                         <dt key="failing">Failing:</dt>,
                         <dd key="failing_">
-                          {
-                            `Failed ${data.failing.failedExecutions.length} times and will be retried`
-                          }
+                          {`Failed ${data.failing.failedExecutions.length} times and will be retried`}
                           {" "}
                           <Clock time={data.failing.nextRetry || ""} />
                           .&nbsp;
                           <Link
                             className={classes.failedLink}
-                            href={
-                              `/executions/${(data.failing: any).failedExecutions[(data.failing: any).failedExecutions.length - 1].id}`
-                            }
+                            href={`/executions/${(data.failing: any).failedExecutions[(data.failing: any).failedExecutions.length - 1].id}`}
                           >
                             Check latest failed execution.
                           </Link>

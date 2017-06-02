@@ -67,38 +67,35 @@ export const resolveBorderEdges = (
     "id"
   );
 
-  return allEdges.reduce(
-    (acc, current) => {
-      const sourcePresent = current.source in startPositions;
-      const targetPresent = current.target in startPositions;
+  return allEdges.reduce((acc, current) => {
+    const sourcePresent = current.source in startPositions;
+    const targetPresent = current.target in startPositions;
 
-      const sourceNode = sourcePresent ? current.source : current.target;
-      const targetNode = targetPresent ? current.target : current.source;
+    const sourceNode = sourcePresent ? current.source : current.target;
+    const targetNode = targetPresent ? current.target : current.source;
 
-      const kind = graphs[mainId].getEdgeKind(current.id);
+    const kind = graphs[mainId].getEdgeKind(current.id);
 
-      const sourceNodeStart = startPositions[sourceNode];
-      const targetNodeStart = startPositions[targetNode];
+    const sourceNodeStart = startPositions[sourceNode];
+    const targetNodeStart = startPositions[targetNode];
 
-      const sourceScale = bigScale(sourceNodeStart.height);
-      const targetScale = bigScale(targetNodeStart.height);
+    const sourceScale = bigScale(sourceNodeStart.height);
+    const targetScale = bigScale(targetNodeStart.height);
 
-      return {
-        ...acc,
-        [current.id]: {
-          x1: sourceNodeStart.x + sourceNodeStart.width / 2,
-          y1: sourceNodeStart.y -
-            sourceNodeStart.height / 2 +
-            sourceScale(targetNodeStart.y),
-          x2: targetNodeStart.x + targetNodeStart.width / 2,
-          y2: targetNodeStart.y -
-            targetNodeStart.height / 2 +
-            targetScale(sourceNodeStart.y),
-          ...current,
-          kind
-        }
-      };
-    },
-    {}
-  );
+    return {
+      ...acc,
+      [current.id]: {
+        x1: sourceNodeStart.x + sourceNodeStart.width / 2,
+        y1: sourceNodeStart.y -
+          sourceNodeStart.height / 2 +
+          sourceScale(targetNodeStart.y),
+        x2: targetNodeStart.x + targetNodeStart.width / 2,
+        y2: targetNodeStart.y -
+          targetNodeStart.height / 2 +
+          targetScale(sourceNodeStart.y),
+        ...current,
+        kind
+      }
+    };
+  }, {});
 };
