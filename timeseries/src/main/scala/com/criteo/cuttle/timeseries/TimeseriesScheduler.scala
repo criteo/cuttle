@@ -55,6 +55,7 @@ object TimeSeriesContext {
   import TimeSeriesUtils._
 
   implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
+  implicit def decoder(implicit jobs: Set[Job[TimeSeriesScheduling]]): Decoder[TimeSeriesContext] = deriveDecoder
 
   implicit val ordering: Ordering[TimeSeriesContext] = {
     implicit val maybeBackfillOrdering: Ordering[Option[Backfill]] = {
@@ -85,9 +86,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
 
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalSet[Instant]])
   private val _backfills = TSet.empty[Backfill]
+  private val _running = Ref(Map.empty[TimeSeriesJob, IntervalSet[Instant]])
 
-  def state: (State, Set[Backfill]) = atomic { implicit txn =>
-    (_state(), _backfills.snapshot)
+  def state: (State, State, Set[Backfill]) = atomic { implicit txn =>
+    (_state(), _running(), _backfills.snapshot)
   }
 
   def backfillJob(id: String, job: TimeSeriesJob, start: Instant, end: Instant, priority: Int) = atomic {
@@ -120,37 +122,46 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         if (!_state().contains(job)) {
           _state() = _state() + (job -> IntervalSet.empty[Instant])
         }
+        _running() = _running() + (job -> IntervalSet.empty[Instant])
       }
     }
 
     def addRuns(runs: Set[Run])(implicit txn: InTxn) =
       runs.foreach {
-        case (job, context, _) =>
-          _state() = _state() + (job -> (_state().apply(job) + context.toInterval))
+        case (job, context, future) =>
+          _running() = _running() + (job -> (_running().apply(job) - context.toInterval))
+          if (future.value.get.isSuccess) {
+            _state() = _state() + (job -> (_state().apply(job) + context.toInterval))
+          }
       }
 
     def go(running: Set[Run]): Unit = {
       val (completed, stillRunning) = running.partition(_._3.isCompleted)
-      val done = completed.filter(_._3.value.get.isSuccess)
-      val (stateSnapshot, backfillSnapshot) = atomic { implicit txn =>
-        addRuns(done)
+      val now = Instant.now
+      val (stateSnapshot, backfillSnapshot, toRun) = atomic { implicit txn =>
+        addRuns(completed)
         _backfills.retain { bf =>
           without(StateD(backfillDomain(bf)), StateD(_state())) =!= zero[StateD]
         }
-        (_state(), _backfills.snapshot)
+        val _toRun = next(
+          graph,
+          _state(),
+          _backfills.snapshot,
+          stillRunning.map { case (job, context, _) => (job, context) },
+          IntervalSet(Interval.lessThan(now))
+        )
+        val newRunning = (for {
+          (job, context) <- _toRun
+        } yield StateD(Map(job -> IntervalSet(context.toInterval))))
+          .fold(zero[StateD])(or)
+
+        _running() = or(StateD(_running()), newRunning).defined
+        (_state(), _backfills.snapshot, _toRun)
       }
 
-      if (completed.nonEmpty)
+      if (toRun.nonEmpty)
         Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
 
-      val now = Instant.now
-      val toRun = next(
-        graph,
-        stateSnapshot,
-        backfillSnapshot,
-        stillRunning.map { case (job, context, _) => (job, context) },
-        IntervalSet(Interval.lessThan(now))
-      )
       val newRunning = stillRunning ++ executor.runAll(toRun).map { submitted =>
         (submitted.execution.job, submitted.execution.context, submitted.result)
       }
@@ -163,19 +174,29 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     go(Set.empty)
   }
 
-  def split(start: Instant, end: Instant, tz: ZoneId, unit: ChronoUnit, maxPeriods: Int): Iterator[TimeSeriesContext] = {
+  def split(start: Instant,
+            end: Instant,
+            tz: ZoneId,
+            unit: ChronoUnit,
+            conservative: Boolean,
+            maxPeriods: Int): Iterator[TimeSeriesContext] = {
     val List(zonedStart, zonedEnd) = List(start, end).map { t =>
       t.atZone(UTC).withZoneSameInstant(tz)
     }
 
-    val truncatedStart = zonedStart.truncatedTo(unit)
-    val alignedStart =
-      if (truncatedStart == zonedStart)
-        zonedStart
+    def findBound(t: ZonedDateTime, before: Boolean) = {
+      val truncated = t.truncatedTo(unit)
+      if (before)
+        truncated
+      else if (truncated == t)
+        t
       else
-        truncatedStart.plus(1, unit)
+        truncated.plus(1, unit)
+    }
 
-    val alignedEnd = zonedEnd.truncatedTo(unit)
+    val alignedStart = findBound(zonedStart, !conservative)
+    val alignedEnd = findBound(zonedEnd, conservative)
+
     val periods = alignedStart.until(alignedEnd, unit)
 
     (0L to (periods - 1)).grouped(maxPeriods).map { l =>
@@ -187,6 +208,18 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
 
       TimeSeriesContext(alignedNth(l.head), alignedNth(l.last + 1))
     }
+  }
+
+  def splitInterval(job: TimeSeriesJob, interval: Interval[Instant], mode: Boolean = true) = {
+    val (unit, tz) = job.scheduling.grid match {
+      case Hourly => (HOURS, UTC)
+      case Daily(_tz) => (DAYS, _tz)
+      case Continuous => sys.error("panic!")
+    }
+    val Closed(start) = interval.lower.bound
+    val Open(end) = interval.upper.bound
+    val maxPeriods = if (mode) job.scheduling.maxPeriods else 1
+    split(start, end, tz, unit, mode, maxPeriods)
   }
 
   def next(graph0: Graph[TimeSeriesScheduling],
@@ -205,12 +238,13 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         .toMap
     }
 
-    val dependencies =
+    val _dependencies =
       (for {
-        (child, parent, TimeSeriesDependency(offset)) <- graph.edges
-        is <- state.get(parent).toList
+        (child, parent, TimeSeriesDependency(offset)) <- graph.edges.toList
+        is = state(parent)
       } yield StateD(Map(child -> is.map(itvl => itvl.map(_.plus(offset)))), IntervalSet(Interval.full)))
-        .reduce(and(_, _))
+
+    val dependencies = _dependencies.reduce(and(_, _))
 
     val jobDomain = StateD(graph.vertices.map(job => job -> IntervalSet(Interval.atLeast(job.scheduling.start))).toMap)
 
@@ -229,17 +263,6 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         case (backfill, StateD(st, _)) =>
           (Some(backfill): Option[Backfill]) -> st
       } + (None -> toRunNormally.defined)
-
-    val splitInterval = (job: TimeSeriesJob, interval: Interval[Instant]) => {
-      val (unit, tz) = job.scheduling.grid match {
-        case Hourly => (HOURS, UTC)
-        case Daily(_tz) => (DAYS, _tz)
-        case Continuous => sys.error("panic!")
-      }
-      val Closed(start) = interval.lower.bound
-      val Open(end) = interval.upper.bound
-      split(start, end, tz, unit, job.scheduling.maxPeriods)
-    }
 
     for {
       (maybeBackfill, state) <- toRun.toList

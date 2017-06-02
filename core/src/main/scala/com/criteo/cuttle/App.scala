@@ -159,7 +159,7 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
   }
 
   val routes = api
-    .orElse(scheduler.routes)
+    .orElse(scheduler.routes(workflow))
     .orElse {
       executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
     }
