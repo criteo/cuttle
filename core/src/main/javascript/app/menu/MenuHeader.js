@@ -13,9 +13,12 @@ type Props = {
   className: any
 };
 
-const MenuHeader = (
-  { classes, className, environment, projectName }: Props
-) => (
+const MenuHeader = ({
+  classes,
+  className,
+  environment,
+  projectName
+}: Props) => (
   <div className={classNames(classes.main, className)}>
     <AppIcon className={classes.icon} />
     <span className={classes.projectName}>{projectName}</span>

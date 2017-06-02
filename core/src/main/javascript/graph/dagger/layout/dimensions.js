@@ -42,9 +42,9 @@ export class GraphDimensions {
     const dimensions = this.nodeDimensions(nbElements);
     const verticalBand = dimensions.height * nbElements;
     const startVerticalOffset = (this.canva.height - verticalBand) / 2;
-    return startVerticalOffset +
-      order * dimensions.height +
-      dimensions.height / 2;
+    return (
+      startVerticalOffset + order * dimensions.height + dimensions.height / 2
+    );
   }
 
   static buildDefaultDimensions({ width = 1200, height = 850 }) {

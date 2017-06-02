@@ -30,13 +30,17 @@ const colors = (kind: BadgeKind): string => {
       return "#ff9800";
     default:
       return "#4c515f";
-
   }
 };
 
-const BadgeComponent = (
-  { classes, className, kind, label, width, light = false }: Props
-) => {
+const BadgeComponent = ({
+  classes,
+  className,
+  kind,
+  label,
+  width,
+  light = false
+}: Props) => {
   return (
     <span
       className={classNames(classes.main, className)}

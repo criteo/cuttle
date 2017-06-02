@@ -17,9 +17,15 @@ type Props = {
   onClick: () => void
 };
 
-const TagBullet = (
-  { classes, className, name, color, active, verbose, onClick }: Props
-) => {
+const TagBullet = ({
+  classes,
+  className,
+  name,
+  color,
+  active,
+  verbose,
+  onClick
+}: Props) => {
   return (
     <div
       className={classNames(

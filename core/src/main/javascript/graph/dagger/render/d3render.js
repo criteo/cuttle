@@ -15,11 +15,10 @@ export const minimapOnClickGenerator = (
   startNodeId,
   next,
   transitionAction
-) =>
-  event => {
-    const node = event.cyTarget;
-    return next(node.id(), transitionAction);
-  };
+) => event => {
+  const node = event.cyTarget;
+  return next(node.id(), transitionAction);
+};
 
 const mergeLayouts = (...layouts) => ({
   nodes: layouts.reduce((acc, current) => ({ ...acc, ...current.nodes }), {}),
@@ -62,115 +61,113 @@ const computeStartEndDisconnectedLayout = (
 };
 
 // Transition from one layout to another
-export const transitionAction: TransitionAction = (
-  { allEdgesContainer, allNodesContainer, tags }
-) =>
-  minimap =>
-    (
-      {
-        layout,
-        annotatedGraph,
-        node,
-        next,
-        back,
-        history,
-        allLayouts,
-        pathFrom,
-        pathTo,
-        previousNode
-      }
-    ) => {
-      if (node.length == 0) return Promise.resolve("nothing");
+export const transitionAction: TransitionAction = ({
+  allEdgesContainer,
+  allNodesContainer,
+  tags
+}) => minimap => ({
+  layout,
+  annotatedGraph,
+  node,
+  next,
+  back,
+  history,
+  allLayouts,
+  pathFrom,
+  pathTo,
+  previousNode
+}) => {
+  if (node.length == 0) return Promise.resolve("nothing");
 
-      const resolvedTransition = transitionAction({
-        allEdgesContainer,
-        allNodesContainer,
-        tags
-      })(minimap);
-      const currentNodesDom = allNodesContainer
-        .selectAll("g.oneNode")
-        .data(annotatedGraph[0].nodes, d => d.id);
-      const currentEdgesDom = allEdgesContainer
-        .selectAll("g.oneEdge")
-        .data(annotatedGraph[0].edges, d => d.id);
+  const resolvedTransition = transitionAction({
+    allEdgesContainer,
+    allNodesContainer,
+    tags
+  })(minimap);
+  const currentNodesDom = allNodesContainer
+    .selectAll("g.oneNode")
+    .data(annotatedGraph[0].nodes, d => d.id);
+  const currentEdgesDom = allEdgesContainer
+    .selectAll("g.oneEdge")
+    .data(annotatedGraph[0].edges, d => d.id);
 
-      const onClick = id => next(id, resolvedTransition);
-      const onClickMinimap = minimapOnClickGenerator(
-        minimap,
-        node[0],
-        next,
-        resolvedTransition
-      );
+  const onClick = id => next(id, resolvedTransition);
+  const onClickMinimap = minimapOnClickGenerator(
+    minimap,
+    node[0],
+    next,
+    resolvedTransition
+  );
 
-      // const backButton = d3.select("#navigateBack");
-      // backButton.on("click", () => history().length > 0 ? back(1, resolvedTransition): null);
+  // const backButton = d3.select("#navigateBack");
+  // backButton.on("click", () => history().length > 0 ? back(1, resolvedTransition): null);
 
-      minimap.nodes().off("click");
-      minimap.nodes().on("click", onClickMinimap);
+  minimap.nodes().off("click");
+  minimap.nodes().on("click", onClickMinimap);
 
-      const minimapEnterPromise = minimapTools.enter(
-        currentNodesDom.enter(),
-        currentEdgesDom.enter(),
-        minimap
-      );
-      const minimapUpdatePromise = minimapTools.update(
-        currentNodesDom,
-        currentEdgesDom,
-        minimap
-      );
-      const minimapExitPromise = minimapTools.exit(
-        currentNodesDom.exit(),
-        currentEdgesDom.exit(),
-        minimap
-      );
+  const minimapEnterPromise = minimapTools.enter(
+    currentNodesDom.enter(),
+    currentEdgesDom.enter(),
+    minimap
+  );
+  const minimapUpdatePromise = minimapTools.update(
+    currentNodesDom,
+    currentEdgesDom,
+    minimap
+  );
+  const minimapExitPromise = minimapTools.exit(
+    currentNodesDom.exit(),
+    currentEdgesDom.exit(),
+    minimap
+  );
 
-      const {
-        enterLayout: disconnectedEnterLayout,
-        exitLayout: disconnectedExitLayout
-      } = computeStartEndDisconnectedLayout(
-        node[0],
-        previousNode,
-        allLayouts,
-        minimap
-      );
+  const {
+    enterLayout: disconnectedEnterLayout,
+    exitLayout: disconnectedExitLayout
+  } = computeStartEndDisconnectedLayout(
+    node[0],
+    previousNode,
+    allLayouts,
+    minimap
+  );
 
-      // if node contains only one entry, it's because we try to reach a disconnected node (two disjoint graphs)
-      const enterLayout = node.length >= 2
-        ? mergeLayouts(..._.drop(layout))
-        : disconnectedEnterLayout;
-      const exitLayout = node.length >= 2
-        ? mergeLayouts(..._.dropRight(layout).reverse())
-        : disconnectedExitLayout;
+  // if node contains only one entry, it's because we try to reach a disconnected node (two disjoint graphs)
+  const enterLayout = node.length >= 2
+    ? mergeLayouts(..._.drop(layout))
+    : disconnectedEnterLayout;
+  const exitLayout = node.length >= 2
+    ? mergeLayouts(..._.dropRight(layout).reverse())
+    : disconnectedExitLayout;
 
-      const updatePromise = update(
-        currentNodesDom,
-        currentEdgesDom,
-        layout[0],
-        onClick
-      );
-      const enterPromise = enter(
-        currentNodesDom.enter(),
-        currentEdgesDom.enter(),
-        enterLayout,
-        layout[0],
-        onClick,
-        tags
-      );
-      const exitPromise = exit(
-        currentNodesDom.exit(),
-        currentEdgesDom.exit(),
-        exitLayout
-      );
+  const updatePromise = update(
+    currentNodesDom,
+    currentEdgesDom,
+    layout[0],
+    onClick
+  );
+  const enterPromise = enter(
+    currentNodesDom.enter(),
+    currentEdgesDom.enter(),
+    enterLayout,
+    layout[0],
+    onClick,
+    tags
+  );
+  const exitPromise = exit(
+    currentNodesDom.exit(),
+    currentEdgesDom.exit(),
+    exitLayout
+  );
 
-      return Promise.all([
-        ...enterPromise,
-        ...updatePromise,
-        ...exitPromise,
-        ...minimapEnterPromise,
-        ...minimapUpdatePromise,
-        ...minimapExitPromise
-      ]);
-    };
+  return Promise.all([
+    ...enterPromise,
+    ...updatePromise,
+    ...exitPromise,
+    ...minimapEnterPromise,
+    ...minimapUpdatePromise,
+    ...minimapExitPromise
+  ]);
+};
 
 //
 //
@@ -199,9 +196,11 @@ export const enter = (
         );
         node.on("click", () => onClick(d.id));
         transitionNode(node, currentLayout.nodes[d.id]).on("end", () =>
-          resolve("enter nodes done"));
+          resolve("enter nodes done")
+        );
       })
-    ));
+    )
+  );
 
   edgesSelection.each((d, i, nodes) =>
     promises.push(
@@ -214,8 +213,10 @@ export const enter = (
           ),
           currentLayout.edges[d.id],
           currentLayout.nodes
-        ).on("end", () => resolve("enter edges done")))
-    ));
+        ).on("end", () => resolve("enter edges done"))
+      )
+    )
+  );
 
   return promises;
 };
@@ -235,8 +236,10 @@ export const update = (
           d3.select(nodes[i]),
           currentLayout.edges[d.id],
           currentLayout.nodes
-        ).on("end", () => resolve("update edges done")))
-    ));
+        ).on("end", () => resolve("update edges done"))
+      )
+    )
+  );
 
   nodesSelection.each((d, i, nodes) =>
     promises.push(
@@ -244,9 +247,11 @@ export const update = (
         const node = d3.select(nodes[i]);
         node.on("click", () => onClick(d.id));
         transitionNode(node, currentLayout.nodes[d.id]).on("end", () =>
-          resolve("update nodes done"));
+          resolve("update nodes done")
+        );
       })
-    ));
+    )
+  );
 
   return promises;
 };
@@ -265,7 +270,8 @@ export const exit = (nodesSelection, edgesSelection, currentLayout) => {
         movingEdge.on("end", () => resolve("exit edges done"));
         movingEdge.remove();
       })
-    ));
+    )
+  );
 
   nodesSelection.each((d, i, nodes) =>
     promises.push(
@@ -277,7 +283,8 @@ export const exit = (nodesSelection, edgesSelection, currentLayout) => {
         movingNode.on("end", () => resolve("exit nodes done"));
         movingNode.remove();
       })
-    ));
+    )
+  );
 
   return promises;
 };

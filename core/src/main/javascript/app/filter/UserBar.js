@@ -63,18 +63,17 @@ const handleKeyPress = (
   jobSearchInput,
   deselectJob,
   selectJob
-) =>
-  e => {
-    switch (e.key) {
-      case "Backspace":
-        if (!jobSearchInput && selectedJobs.length > 0)
-          deselectJob(last(selectedJobs).id);
-        break;
-      case "Enter":
-        if (jobsList.length > 0) selectJob(head(jobsList).id);
-        break;
-    }
-  };
+) => e => {
+  switch (e.key) {
+    case "Backspace":
+      if (!jobSearchInput && selectedJobs.length > 0)
+        deselectJob(last(selectedJobs).id);
+      break;
+    case "Enter":
+      if (jobsList.length > 0) selectJob(head(jobsList).id);
+      break;
+  }
+};
 
 class Userbar extends React.Component {
   props: Props;
@@ -133,7 +132,8 @@ class Userbar extends React.Component {
       selectedTags
     );
     const displayedJobsList = reject(filteredJobsList, j =>
-      includes(selectedJobs, j.id));
+      includes(selectedJobs, j.id)
+    );
     const selectedJobsList = map(selectedJobs, jobId => allJobs[jobId]);
 
     return (

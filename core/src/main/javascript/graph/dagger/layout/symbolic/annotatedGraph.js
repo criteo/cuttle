@@ -59,9 +59,10 @@ export class AnnotatedGraph {
     return edge ? edge.kind : edgeKind.border;
   }
 
-  getEdges(
-    { from, to }: $Shape<{ from: string[], to: string[] }>
-  ): AnnotatedEdge[] {
+  getEdges({
+    from,
+    to
+  }: $Shape<{ from: string[], to: string[] }>): AnnotatedEdge[] {
     const filterSource = typeof from === "undefined"
       ? edge => true
       : edge => from.includes(edge.source);

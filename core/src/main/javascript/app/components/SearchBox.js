@@ -17,18 +17,16 @@ type Props = {
   icon: boolean
 };
 
-const SearchBox = (
-  {
-    classes,
-    className,
-    placeholder,
-    onChange,
-    defaultValue,
-    autoFocus,
-    icon = false,
-    onKeyDown
-  }: Props
-) => (
+const SearchBox = ({
+  classes,
+  className,
+  placeholder,
+  onChange,
+  defaultValue,
+  autoFocus,
+  icon = false,
+  onKeyDown
+}: Props) => (
   <div className={classNames(classes.searchBox, className)}>
     {icon && <SearchIcon />}
     <input

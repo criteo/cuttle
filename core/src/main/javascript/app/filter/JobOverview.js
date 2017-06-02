@@ -27,9 +27,16 @@ type Props = {
 const kindofNodeTitle = (kind: NodeKind) =>
   kind === "root" ? "Root node" : kind === "leaf" ? "Leaf node" : "Middle node";
 
-const JobOverview = (
-  { classes, className, id, name, kind, tags, description, active }: Props
-) => {
+const JobOverview = ({
+  classes,
+  className,
+  id,
+  name,
+  kind,
+  tags,
+  description,
+  active
+}: Props) => {
   return (
     <div className={classNames(classes.job, className)}>
 

@@ -157,9 +157,13 @@ let styles = {
   }
 };
 
-const mapStateToProps = (
-  { page, project, workflow, isLoading, statistics }
-) => ({
+const mapStateToProps = ({
+  page,
+  project,
+  workflow,
+  isLoading,
+  statistics
+}) => ({
   page,
   projectName: project && project.name,
   environment: "production",

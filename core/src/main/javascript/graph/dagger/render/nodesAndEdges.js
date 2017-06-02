@@ -100,23 +100,29 @@ const arrowHead = (cos, sin, x, y, width, height) =>
 
 const adjustNodePosition = (kind, width, realWidth, height, x, y) => {
   if (kind === nodeKind.parent)
-    return "translate(" +
+    return (
+      "translate(" +
       (x + width / 2 - realWidth).toFixed(2) +
       "," +
       (y - height / 2).toFixed(2) +
-      ")";
+      ")"
+    );
   else if (kind === nodeKind.main)
-    return "translate(" +
+    return (
+      "translate(" +
       (x - realWidth / 2).toFixed(2) +
       "," +
       (y - height / 2).toFixed(2) +
-      ")";
+      ")"
+    );
   else
-    return "translate(" +
+    return (
+      "translate(" +
       (x - width / 2).toFixed(2) +
       "," +
       (y - height / 2).toFixed(2) +
-      ")";
+      ")"
+    );
 };
 
 export const transitionEdge = (
@@ -129,8 +135,8 @@ export const transitionEdge = (
     .delay(transitionDelay)
     .duration(transitionDuration);
 
-  const parentOrChild = kind === edgeKind.parentToCenter ||
-    kind === edgeKind.centerToChild;
+  const parentOrChild =
+    kind === edgeKind.parentToCenter || kind === edgeKind.centerToChild;
   const lineOpacity = parentOrChild ? 1 : 0.2;
   const lineColor = "#909AB9";
   const path = transition
@@ -189,8 +195,8 @@ export const drawEdge = (
 ) => {
   const edge = domContainer.append("g").attr("id", id).attr("class", "oneEdge");
 
-  const parentOrChild = kind === edgeKind.parentToCenter ||
-    kind === edgeKind.centerToChild;
+  const parentOrChild =
+    kind === edgeKind.parentToCenter || kind === edgeKind.centerToChild;
   const lineOpacity = parentOrChild ? 1 : 0.2;
   const lineColor = "#909AB9";
 
@@ -233,7 +239,8 @@ const computeNewWidth = (
 ) => {
   const labelLength = Array.from(label).length;
   const overflowCharacters = Math.max(labelLength - widthMax, 0);
-  const maxUsableWidth = pixelWidthReference *
+  const maxUsableWidth =
+    pixelWidthReference *
     Math.max(Math.min(labelLength, widthMax), widthMin) /
     widthReference;
 
@@ -243,11 +250,7 @@ const computeNewWidth = (
   return [maxUsableWidth, labelToDisplay];
 };
 
-const tagBulletVerticalOffset = (
-  {
-    height
-  }
-) => {
+const tagBulletVerticalOffset = ({ height }) => {
   const bulletSize = height / 5;
   const spaceBetweenBullets = bulletSize / 2;
   const startOffset = spaceBetweenBullets;

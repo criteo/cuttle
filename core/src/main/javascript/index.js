@@ -49,7 +49,8 @@ const store = createStore(
 router.sync();
 store.dispatch(Actions.loadAppData());
 listenEvents("/api/statistics?events=true", stats =>
-  store.dispatch(Actions.updateStatistics(stats)));
+  store.dispatch(Actions.updateStatistics(stats))
+);
 
 render(
   <Provider store={store}>
