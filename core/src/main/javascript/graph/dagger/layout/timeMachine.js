@@ -3,7 +3,10 @@
 import { LayoutManager } from "./manager";
 import { ResolvedGraphLayout } from "./resolver/types";
 import { AnnotatedGraph } from "./symbolic/annotatedGraph";
-import _ from "lodash";
+
+import compact from "lodash/compact";
+import take from "lodash/take";
+import map from "lodash/map";
 
 export type TransitionAction = (
   arg: $Shape<{
@@ -35,10 +38,11 @@ export interface NextReturn {
 const computeDijkstraPath = (minimap, start) => {
   const path = minimap.elements().dijkstra(minimap.getElementById(start));
   return end =>
-    _.compact(
-      path
-        .pathTo(minimap.getElementById(end))
-        .map(n => (n.isNode() ? n.id() : null))
+    compact(
+      map(
+        path.pathTo(minimap.getElementById(end)),
+        n => n.isNode() ? n.id() : null
+      )
     );
 };
 
@@ -93,9 +97,9 @@ const nextBuilder = (
       back
     };
     return action({
-      layout: finalPath.map(n => lm.layout[n]),
+      layout: map(finalPath, n => lm.layout[n]),
       node: finalPath,
-      annotatedGraph: finalPath.map(n => lm.annotatedGraph[n]),
+      annotatedGraph: map(finalPath, n => lm.annotatedGraph[n]),
       history: nextHistoryAccess,
       next,
       back,
@@ -130,9 +134,9 @@ const backBuilder = (
       back
     };
     return action({
-      layout: finalPath.map(n => lm.layout[n]),
+      layout: map(finalPath, n => lm.layout[n]),
       node: finalPath,
-      annotatedGraph: finalPath.map(n => lm.annotatedGraph[n]),
+      annotatedGraph: map(finalPath, n => lm.annotatedGraph[n]),
       history: previousHistoryAccess,
       next,
       back,
@@ -144,5 +148,5 @@ const backBuilder = (
   };
 };
 
-const historyBuilder = (history: string[]) => (relPos: number = 3): string[] =>
-  _.take(history, relPos);
+const historyBuilder = (history: string[]) =>
+  (relPos: number = 3): string[] => take(history, relPos);

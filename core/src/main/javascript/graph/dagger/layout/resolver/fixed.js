@@ -9,10 +9,11 @@ import {
 import { GraphDimensions } from "../dimensions";
 import type { ResolvedGraphLayout, ResolvedEdge } from "./types";
 import { resolveEdgesForChildNode, resolveEdgesForParentNode } from "./edge";
-import * as d3 from "d3";
+import { scaleLinear } from "d3";
+import reduce from "lodash/reduce";
 
 const scaleBuilder = (fullHeight, nodeHeight) =>
-  d3.scaleLinear().domain([0, fullHeight]).range([0, nodeHeight]);
+  scaleLinear().domain([0, fullHeight]).range([0, nodeHeight]);
 
 export const resolveFixedNodes = (
   parents: AnnotatedNode[],
@@ -45,51 +46,59 @@ export const resolveFixedNodes = (
     ...main
   };
 
-  const parentPositions = parents.reduce((acc, current, i) => {
-    const x = dimensions.parentOffset + parentNodeWidth / 2;
-    const y = dimensions.nodeVerticalOffset(i, parents.length);
-    const newNodePosition = {
-      x,
-      y,
-      width: parentNodeWidth,
-      height: parentNodeHeight,
-      ...current
-    };
-    edges = {
-      ...edges,
-      ...resolveEdgesForParentNode(
-        newNodePosition,
-        current,
-        mainPosition,
-        graph,
-        scale
-      )
-    };
-    return { ...acc, [current.id]: newNodePosition };
-  }, {});
+  const parentPositions = reduce(
+    parents,
+    (acc, current, i) => {
+      const x = dimensions.parentOffset + parentNodeWidth / 2;
+      const y = dimensions.nodeVerticalOffset(i, parents.length);
+      const newNodePosition = {
+        x,
+        y,
+        width: parentNodeWidth,
+        height: parentNodeHeight,
+        ...current
+      };
+      edges = {
+        ...edges,
+        ...resolveEdgesForParentNode(
+          newNodePosition,
+          current,
+          mainPosition,
+          graph,
+          scale
+        )
+      };
+      return { ...acc, [current.id]: newNodePosition };
+    },
+    {}
+  );
 
-  const childrenPositions = children.reduce((acc, current, i) => {
-    const x = dimensions.childOffset + childNodeWidth / 2;
-    const y = dimensions.nodeVerticalOffset(i, children.length);
-    const newNodePosition = {
-      x,
-      y,
-      width: childNodeWidth,
-      height: childNodeHeight,
-      ...current
-    };
-    edges = {
-      ...edges,
-      ...resolveEdgesForChildNode(
-        newNodePosition,
-        current,
-        mainPosition,
-        graph,
-        scale
-      )
-    };
-    return { ...acc, [current.id]: newNodePosition };
-  }, {});
+  const childrenPositions = reduce(
+    children,
+    (acc, current, i) => {
+      const x = dimensions.childOffset + childNodeWidth / 2;
+      const y = dimensions.nodeVerticalOffset(i, children.length);
+      const newNodePosition = {
+        x,
+        y,
+        width: childNodeWidth,
+        height: childNodeHeight,
+        ...current
+      };
+      edges = {
+        ...edges,
+        ...resolveEdgesForChildNode(
+          newNodePosition,
+          current,
+          mainPosition,
+          graph,
+          scale
+        )
+      };
+      return { ...acc, [current.id]: newNodePosition };
+    },
+    {}
+  );
 
   return {
     nodes: {

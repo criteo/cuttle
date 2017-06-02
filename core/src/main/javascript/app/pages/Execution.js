@@ -10,16 +10,17 @@ import CloseIcon from "react-icons/lib/md/close";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
-import _ from "lodash";
 import moment from "moment";
 
+import Window from "../components/Window";
+import FancyTable from "../components/FancyTable";
 import Error from "../components/Error";
 import Spinner from "../components/Spinner";
 import Clock from "../components/Clock";
 import Link from "../components/Link";
 import JobStatus from "../components/JobStatus";
 import { listenEvents } from "../../Utils";
-import type { ExecutionLog, Workflow } from "../../datamodel";
+import type { ExecutionLog } from "../../datamodel";
 
 type Line = {
   timestamp: string,
@@ -80,7 +81,6 @@ class Execution extends React.Component {
         this.streams.bind(this)
       );
       this.setState({
-        ...this.state,
         query: newQuery,
         data: null,
         streams: [],
@@ -94,14 +94,12 @@ class Execution extends React.Component {
 
   notFound(error) {
     this.setState({
-      ...this.state,
       error
     });
   }
 
   updateData(json: ExecutionLog) {
     this.setState({
-      ...this.state,
       data: json,
       autoScroll: this.state.autoScroll || json.status == "running"
     });
@@ -125,7 +123,6 @@ class Execution extends React.Component {
         }
       });
       this.setState({
-        ...this.state,
         streams: this.state.streams.concat(lines)
       });
     }
@@ -154,30 +151,25 @@ class Execution extends React.Component {
 
   onClickFullscreen(fullscreen: boolean) {
     this.setState({
-      ...this.state,
       fullscreen
     });
   }
 
   onClickAutoScroll(autoScroll: boolean) {
     this.setState({
-      ...this.state,
       autoScroll
     });
   }
 
   detectManualScroll() {
-    if (this.scroller) {
-      if (
-        this.scroller.scrollHeight - this.scroller.offsetHeight !=
-        this.scroller.scrollTop
-      ) {
-        this.setState({
-          ...this.state,
-          autoScroll: false
-        });
-      }
-    }
+    const manualScroll = this.scroller &&
+      this.scroller.scrollHeight - this.scroller.offsetHeight !=
+        this.scroller.scrollTop;
+
+    if (manualScroll)
+      this.setState({
+        autoScroll: false
+      });
   }
 
   render() {
@@ -185,13 +177,11 @@ class Execution extends React.Component {
     let { data, error, streams } = this.state;
 
     return (
-      <div className={classes.container}>
-        <div className={classes.overlay}>
-          <h1 className={classes.title}>Execution detail</h1>
-          <CloseIcon className={classes.close} onClick={back} />
+      <Window title="Execution detail">
+        <CloseIcon className={classes.close} onClick={back} />
           {data
             ? [
-                <dl className={classes.definitions} key="properties">
+                <FancyTable key="properties">
                   <dt key="id">Id:</dt>
                   <dd key="id_">{data.id}</dd>
                   <dt key="job">Job:</dt>
@@ -251,7 +241,7 @@ class Execution extends React.Component {
                         </dd>
                       ]
                     : null}
-                </dl>,
+                </FancyTable>,
                 <div
                   className={classNames(classes.streams, {
                     [classes.fullscreen]: this.state.fullscreen
@@ -294,45 +284,12 @@ class Execution extends React.Component {
             : error
                 ? <Error message={`execution ${execution} not found`} />
                 : <Spinner />}
-        </div>
-      </div>
+        </Window>
     );
   }
 }
 
 const styles = {
-  container: {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    right: "0",
-    bottom: "0",
-    padding: "2em",
-    display: "flex",
-    flexDirection: "column",
-    zIndex: "99999",
-    background: "rgba(53, 57, 68, 0.95)"
-  },
-  overlay: {
-    background: "#ffffff",
-    flex: "1",
-    position: "relative",
-    padding: "1em",
-    boxShadow: "0px 0px 15px 0px #12202b",
-    borderRadius: "2px",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column"
-  },
-  title: {
-    fontSize: "1em",
-    margin: "-1em -1em 1em -1em",
-    padding: "1em",
-    color: "#f9fbfc",
-    background: "#5c6477",
-    fontWeight: "normal",
-    boxShadow: "0px 0px 15px 0px #799cb7"
-  },
   close: {
     position: "absolute",
     color: "#eef5fb",

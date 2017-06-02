@@ -2,9 +2,7 @@
 
 import injectSheet from "react-jss";
 import React from "react";
-import ReactDOM from "react-dom";
 import reduce from "lodash/reduce";
-import forEach from "lodash/forEach";
 
 import { Graph } from "./dagger/dataAPI/genericGraph";
 import type { Node, Edge } from "./dagger/dataAPI/genericGraph";
@@ -15,21 +13,23 @@ import { buildDagger } from "./dagger/dagger";
 
 type Props = {
   classes: any,
-  currentNodeId: string,
   nodes: Node[],
   edges: Edge[],
-  tags: Tag[]
+  tags: Tag[],
+  startNodeId: string
 };
 
 const updateDaggerDimensions = (dagger: any, width: number, height: number) =>
   dagger.updateDimensions(width, height);
 
 const cleanDOMContainer = domNode => {
-  domNode.childNodes.forEach(child => domNode.removeChild(child));
+  while (domNode.firstChild)
+    domNode.removeChild(domNode.firstChild);
 };
 
 class DaggerComponent extends React.Component {
   minimapContainer: any;
+  minimapHover: any;
   navigatorContainer: any;
   svgNavigatorContainer: any;
   edgesContainer: any;
@@ -90,10 +90,16 @@ class DaggerComponent extends React.Component {
             />
           </svg>
         </div>
-        <div
-          className={classes.minimapContainer}
-          ref={element => (this.minimapContainer = element)}
-        />
+        <div className={classes.minimapContainer}>
+          <div
+            className={classes.minimapInnerContainer}
+            ref={element => this.minimapContainer = element}
+          />
+          <div
+            className={classes.minimapHover}
+            ref={element => this.minimapHover = element}
+          />
+        </div>
       </div>
     );
   }
@@ -121,9 +127,10 @@ class DaggerComponent extends React.Component {
         setup: minimap => {
           minimap.nodes().on("mouseover", event => {
             const target = event.cyTarget;
+            this.minimapHover.innerText = target.id();
           });
           minimap.nodes().on("mouseout", event => {
-            const target = event.cyTarget;
+            this.minimapHover.innerText = "";
           });
         }
       }
@@ -162,19 +169,35 @@ const styles = {
     flexDirection: "column",
     flex: 2,
     alignItems: "stretch",
-    overflow: "hidden"
+    overflow: "hidden",
+    position: "relative"
   },
   minimapContainer: {
-    flex: 1,
-    margin: "1em",
-    backgroundColor: "#F5F8FA",
+    backgroundColor: "rgba(255,255,255,.5)",
     boxShadow: "0px 1px 5px 0px #BECBD6",
-    width: "50%",
-    minHeight: "300px",
-    alignSelf: "flex-end"
+    width: "300px",
+    position: "absolute",
+    bottom: "1em",
+    borderRadius: "0.2em",
+    left: "50%",
+    marginLeft: "-150px",
+    overflow: "hidden"
+  },
+  minimapHover: {
+    position: "absolute",
+    bottom: "0.5em",
+    width: "100%",
+    fontFamily: "Arial",
+    textAlign: "center",
+    fontSize: "0.8em",
+    fontWeight: "bold",
+    color: "rgba(92,100,119, 0.75)"
+  },
+  minimapInnerContainer: {
+    height: "150px",
+    width: "100%"
   },
   navigatorContainer: {
-    minWidth: "800px",
     flex: 7,
     overflow: "hidden"
   }
