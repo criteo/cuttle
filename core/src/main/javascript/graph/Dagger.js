@@ -93,7 +93,7 @@ class DaggerComponent extends React.Component {
         <div className={classes.minimapContainer}>
           <div
             className={classes.minimapInnerContainer}
-            ref={element => this.minimapContainer = element}
+            ref={element => (this.minimapContainer = element)}
           />
           <div
             className={classes.minimapHover}
