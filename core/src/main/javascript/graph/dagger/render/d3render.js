@@ -7,7 +7,6 @@ import {
 import * as d3 from "d3";
 import _ from "lodash";
 import * as minimapTools from "../minimap";
-import CSSescape from "css.escape";
 
 //const animateQuit
 export const minimapOnClickGenerator = (

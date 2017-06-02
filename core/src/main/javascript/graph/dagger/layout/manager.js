@@ -1,6 +1,5 @@
 // @flow
 import { ResolvedGraphLayout } from "./resolver/types";
-import type { NodeKind } from "./symbolic/annotatedGraph";
 import { AnnotatedGraph, nodeKind } from "./symbolic/annotatedGraph";
 import { Graph } from "../dataAPI/genericGraph";
 
@@ -9,12 +8,19 @@ import { resolveStartPositions } from "./resolver/node/start";
 import { resolveBorderEdges } from "./resolver/edge";
 
 import { GraphDimensions } from "./dimensions";
-import _ from "lodash";
-import * as d3 from "d3";
+
+import max from "lodash/max";
+import reduce from "lodash/reduce";
+import map from "lodash/map";
+import mapValues from "lodash/mapValues";
+import values from "lodash/values";
+import orderBy from "lodash/orderBy";
+import memoize from "lodash/memoize";
+
+import { scalePow } from "d3";
 
 type AnnotatedGraphMap = { [mainNodeId: string]: AnnotatedGraph };
 type FixLayoutMap = { [mainNodeId: string]: ResolvedGraphLayout };
-type StartLayoutMap = { [selectedNodeId: string]: ResolvedGraphLayout };
 
 export interface LayoutManager {
   annotatedGraph: $Shape<AnnotatedGraphMap>,
@@ -65,8 +71,8 @@ const shiftLayout = (
   }
 
   const myLayout = {
-    nodes: _.mapValues(layout.nodes, shiftNodes),
-    edges: _.mapValues(layout.edges, shiftEdges)
+    nodes: mapValues(layout.nodes, shiftNodes),
+    edges: mapValues(layout.edges, shiftEdges)
   };
   return { ...myLayout, shift: shiftLayout(dimensions, myLayout) };
 };
@@ -80,17 +86,21 @@ export const buildCachedLayoutManager = (
     layout: {}
   };
 
-  const graphs = overallGraph.nodes.reduce(
+  const graphs = reduce(
+    overallGraph.nodes,
     (acc, current) => ({
       ...acc,
       [current.id]: AnnotatedGraph.build(current.id, overallGraph)
     }),
     {}
   );
-  return overallGraph.nodes.reduce((acc: LayoutManager, current) => {
-    const graph = graphs[current.id];
-    const parents = _.orderBy(graph.findNodesByTag(nodeKind.parent), "order");
-    const children = _.orderBy(graph.findNodesByTag(nodeKind.child), "order");
+
+  return reduce(
+    overallGraph.nodes,
+    (acc: LayoutManager, current) => {
+      const graph = graphs[current.id];
+      const parents = orderBy(graph.findNodesByTag(nodeKind.parent), "order");
+      const children = orderBy(graph.findNodesByTag(nodeKind.child), "order");
 
     const centralLayout = resolveFixedNodes(
       parents,
@@ -110,23 +120,19 @@ export const buildCachedLayoutManager = (
       ...centralLayout.nodes
     };
 
-    const yMaxPosition =
-      1.30 *
-      _.max(
-        _.values(startNodePositions).map(n =>
-          Math.abs(n.y - dimensions.canva.height / 2)
-        )
-      );
-    const bigScale = _.memoize(height =>
-      d3
-        .scalePow()
-        .domain([
-          dimensions.canva.height / 2 - yMaxPosition,
-          dimensions.canva.height / 2 + yMaxPosition
-        ])
-        .range([0, height])
-        .clamp(true)
-    );
+      const yMaxPosition = 1.30 *
+        max(
+          map(values(startNodePositions), n =>
+            Math.abs(n.y - dimensions.canva.height / 2))
+        );
+      const bigScale = memoize(height =>
+        scalePow()
+          .domain([
+            dimensions.canva.height / 2 - yMaxPosition,
+            dimensions.canva.height / 2 + yMaxPosition
+          ])
+          .range([0, height])
+          .clamp(true));
 
     const startEdgesPositions = {
       ...resolveBorderEdges(
