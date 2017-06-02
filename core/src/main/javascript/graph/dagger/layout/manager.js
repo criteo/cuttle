@@ -102,28 +102,30 @@ export const buildCachedLayoutManager = (
       const parents = orderBy(graph.findNodesByTag(nodeKind.parent), "order");
       const children = orderBy(graph.findNodesByTag(nodeKind.child), "order");
 
-    const centralLayout = resolveFixedNodes(
-      parents,
-      children,
-      graph,
-      dimensions
-    );
-    const borderNodes = resolveStartPositions(
-      parents,
-      children,
-      graphs,
-      dimensions
-    );
+      const centralLayout = resolveFixedNodes(
+        parents,
+        children,
+        graph,
+        dimensions
+      );
+      const borderNodes = resolveStartPositions(
+        parents,
+        children,
+        graphs,
+        dimensions
+      );
 
-    const startNodePositions = {
-      ...borderNodes,
-      ...centralLayout.nodes
-    };
+      const startNodePositions = {
+        ...borderNodes,
+        ...centralLayout.nodes
+      };
 
-      const yMaxPosition = 1.30 *
+      const yMaxPosition =
+        1.30 *
         max(
           map(values(startNodePositions), n =>
-            Math.abs(n.y - dimensions.canva.height / 2))
+            Math.abs(n.y - dimensions.canva.height / 2)
+          )
         );
       const bigScale = memoize(height =>
         scalePow()
@@ -132,25 +134,28 @@ export const buildCachedLayoutManager = (
             dimensions.canva.height / 2 + yMaxPosition
           ])
           .range([0, height])
-          .clamp(true));
+          .clamp(true)
+      );
 
-    const startEdgesPositions = {
-      ...resolveBorderEdges(
-        current.id,
-        startNodePositions,
-        graphs,
-        dimensions,
-        bigScale
-      ),
-      ...centralLayout.edges
-    };
+      const startEdgesPositions = {
+        ...resolveBorderEdges(
+          current.id,
+          startNodePositions,
+          graphs,
+          dimensions,
+          bigScale
+        ),
+        ...centralLayout.edges
+      };
 
-    acc.annotatedGraph[current.id] = graph;
-    const layout = { nodes: startNodePositions, edges: startEdgesPositions };
-    acc.layout[current.id] = {
-      ...layout,
-      shift: shiftLayout(dimensions, layout)
-    };
-    return acc;
-  }, lm);
+      acc.annotatedGraph[current.id] = graph;
+      const layout = { nodes: startNodePositions, edges: startEdgesPositions };
+      acc.layout[current.id] = {
+        ...layout,
+        shift: shiftLayout(dimensions, layout)
+      };
+      return acc;
+    },
+    lm
+  );
 };

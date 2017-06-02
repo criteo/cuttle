@@ -40,7 +40,12 @@ class WorkflowComponent extends React.Component {
     const startNode = find(workflow.jobs, { id: job }) || workflow.jobs[0];
     return (
       <div className={classes.main}>
-        <Dagger nodes={nodes} edges={edges} tags={tags} startNodeId={startNode.id} />
+        <Dagger
+          nodes={nodes}
+          edges={edges}
+          tags={tags}
+          startNodeId={startNode.id}
+        />
         <Window className={classes.nodeDescription} title="Job Information">
           <FancyTable key="infos">
             <dt key="id">Id:</dt>
