@@ -2,9 +2,6 @@ import cytoscape from "cytoscape";
 import cytoscapedagre from "cytoscape-dagre";
 import dagre from "dagre";
 import _ from "lodash";
-import * as d3 from "d3";
-
-import CSSescape from "css.escape";
 
 cytoscapedagre(cytoscape, dagre);
 
