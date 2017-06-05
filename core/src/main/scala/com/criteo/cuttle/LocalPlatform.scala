@@ -83,7 +83,7 @@ trait LocalPlatformApp[S <: Scheduling] { self: LocalPlatform[S] =>
   import io.circe._
   import io.circe.syntax._
 
-  import JsonApi._
+  import App._
 
   implicit val encoder = new Encoder[(LocalProcess, Execution[S])] {
     override def apply(x: (LocalProcess, Execution[S])) = x match {

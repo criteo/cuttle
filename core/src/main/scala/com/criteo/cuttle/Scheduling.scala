@@ -6,7 +6,7 @@ import doobie.imports._
 
 trait Scheduler[S <: Scheduling] {
   def run(graph: Graph[S], executor: Executor[S], xa: XA): Unit
-  def routes(graph: Graph[S]): PartialService = PartialFunction.empty
+  def routes(graph: Graph[S], executor: Executor[S], xa: XA): PartialService = PartialFunction.empty
   val allContexts: Fragment
 }
 

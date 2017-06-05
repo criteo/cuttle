@@ -2,20 +2,20 @@ package com.criteo.cuttle
 
 import lol.json._
 import lol.http._
-import JsonApi._
 
 import io.circe._
 import io.circe.syntax._
+
+import java.time.{ Instant }
 
 import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler: Scheduler[S], executor: Executor[S]) {
-
+object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
   private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
-  private def sse[A](thunk: () => Option[A], encode: A => Json) = {
+  def sse[A](thunk: () => Option[A], encode: A => Json) = {
     val throttle = fs2.Stream.eval(fs2.Task.schedule((), 1.second))
     def next(previous: Option[A] = None): fs2.Stream[fs2.Task, ServerSentEvents.Event[Json]] =
       thunk()
@@ -24,6 +24,89 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
         .getOrElse(throttle.flatMap(_ => next(previous)))
     thunk().map(_ => Ok(next())).getOrElse(NotFound)
   }
+
+  implicit val projectEncoder = new Encoder[Project] {
+    override def apply(project: Project) =
+      Json.obj(
+        "name" -> project.name.asJson,
+        "description" -> project.description.asJson
+      )
+  }
+
+  implicit val instantEncoder = new Encoder[Instant] {
+    override def apply(date: Instant) =
+      date.toString.asJson
+  }
+
+  implicit lazy val executionLogEncoder: Encoder[ExecutionLog] = new Encoder[ExecutionLog] {
+    override def apply(execution: ExecutionLog) =
+      Json.obj(
+        "id" -> execution.id.asJson,
+        "job" -> execution.job.asJson,
+        "startTime" -> execution.startTime.asJson,
+        "endTime" -> execution.endTime.asJson,
+        "context" -> execution.context,
+        "status" -> (execution.status match {
+          case ExecutionSuccessful => "successful"
+          case ExecutionFailed => "failed"
+          case ExecutionRunning => "running"
+          case ExecutionPaused => "paused"
+          case ExecutionThrottled => "throttled"
+        }).asJson,
+        "failing" -> execution.failing.map {
+          case FailingJob(failedExecutions, nextRetry) =>
+            Json.obj(
+              "failedExecutions" -> Json.fromValues(failedExecutions.map(_.asJson(executionLogEncoder))),
+              "nextRetry" -> nextRetry.asJson
+            )
+        }.asJson
+      )
+  }
+
+  implicit val tagEncoder = new Encoder[Tag] {
+    override def apply(tag: Tag) =
+      Json.obj(
+        "name" -> tag.name.asJson,
+        "description" -> tag.description.asJson,
+        "color" -> tag.color.asJson
+      )
+  }
+
+  implicit def jobEncoder[S <: Scheduling] = new Encoder[Job[S]] {
+    override def apply(job: Job[S]) =
+      Json
+        .obj(
+          "id" -> job.id.asJson,
+          "name" -> job.name.getOrElse(job.id).asJson,
+          "description" -> job.description.asJson,
+          "tags" -> job.tags.map(_.name).asJson
+        )
+        .asJson
+  }
+
+  implicit def graphEncoder[S <: Scheduling] =
+    new Encoder[Graph[S]] {
+      override def apply(workflow: Graph[S]) = {
+        val jobs = workflow.vertices.asJson
+        val tags = workflow.vertices.flatMap(_.tags).asJson
+        val dependencies = workflow.edges.map {
+          case (to, from, _) =>
+            Json.obj(
+              "from" -> from.id.asJson,
+              "to" -> to.id.asJson
+            )
+        }.asJson
+        Json.obj(
+          "jobs" -> jobs,
+          "dependencies" -> dependencies,
+          "tags" -> tags
+        )
+      }
+    }
+}
+
+case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler: Scheduler[S], executor: Executor[S], xa: XA) {
+  import App._
 
   val api: PartialService = {
 
@@ -57,7 +140,7 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
         case "paused" =>
           Some(executor.pausedExecutionsSize -> executor.pausedExecutions(sort, asc, offset, limit))
         case "finished" =>
-          Some(executor.archivedExecutionsSize -> executor.rawRunningExecutions)
+          Some(executor.archivedExecutionsSize -> executor.allRunning)
         case _ =>
           None
       }
@@ -159,7 +242,7 @@ case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler:
   }
 
   val routes = api
-    .orElse(scheduler.routes(workflow))
+    .orElse(scheduler.routes(workflow, executor, xa))
     .orElse {
       executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
     }

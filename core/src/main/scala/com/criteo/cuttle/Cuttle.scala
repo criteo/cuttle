@@ -16,14 +16,14 @@ class Cuttle[S <: Scheduling](
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = Database.configFromEnv
   ) = {
-    val database = Database.connect(databaseConfig)
-    val executor = Executor[S](platforms, queries, database)(retryStrategy, ordering)
+    val xa = Database.connect(databaseConfig)
+    val executor = Executor[S](platforms, queries, xa)(retryStrategy, ordering)
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(App(project, workflow, scheduler, executor).routes)
+    })(App(project, workflow, scheduler, executor, xa).routes)
     println(s"Listening on http://localhost:$httpPort")
-    scheduler.run(workflow, executor, database)
+    scheduler.run(workflow, executor, xa)
   }
 }
 
