@@ -58,11 +58,12 @@ export const buildDagger = (overallGraph: Graph, userOptions: any = {}) => {
   minimapOptions.setup(minimap);
 
   return {
-    updateDimensions: (width: number, height: number) =>
+    updateDimensions: (width: number, height: number, startNodeId: string) =>
       buildDagger(overallGraph, {
         ...options,
         width,
-        height
+        height,
+        startNodeId
       }),
     initRender: () => timeMachine(trAction),
     transitionAction: (nodesContainer: any, edgesContainer: any) => transitionAction({

@@ -23,8 +23,8 @@ type Props = {
   navTo: () => void
 };
 
-const updateDaggerDimensions = (dagger: any, width: number, height: number) =>
-  dagger.updateDimensions(width, height);
+const updateDaggerDimensions = (dagger: any, width: number, height: number, startNodeId: string) =>
+  dagger.updateDimensions(width, height, startNodeId);
 
 const cleanDOMContainer = domNode => {
   while (domNode.firstChild)
@@ -41,6 +41,7 @@ class DaggerComponent extends React.Component {
 
   dagger: any;
   timeMachine: any;
+  
 
   constructor(props: Props) {
     super(props);
@@ -166,7 +167,7 @@ class DaggerComponent extends React.Component {
       this.svgNavigatorContainer.setAttribute("width", width);
       this.svgNavigatorContainer.setAttribute("height", height);
       // Update layouts and rerender
-      this.dagger = updateDaggerDimensions(this.dagger, width, height);
+      this.dagger = updateDaggerDimensions(this.dagger, width, height, this.props.startNodeId);
       this.timeMachine = null;
       this.dagger
         .initRender(transitionAction)
