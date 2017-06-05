@@ -11,12 +11,16 @@ import type { Tag } from "../datamodel";
 import { transitionAction } from "./dagger/render/d3render";
 import { buildDagger } from "./dagger/dagger";
 
+import { navigate } from "redux-url";
+import { connect } from "react-redux";
+
 type Props = {
   classes: any,
   nodes: Node[],
   edges: Edge[],
   tags: Tag[],
-  startNodeId: string
+  startNodeId: string,
+  navTo: () => void
 };
 
 const updateDaggerDimensions = (dagger: any, width: number, height: number) =>
@@ -48,6 +52,15 @@ class DaggerComponent extends React.Component {
       nextProps.edges.length !== this.props.edges.length ||
       nextProps.tags.length !== this.props.tags.length
     );
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    const transitionAction = this.dagger.transitionAction(this.nodesContainer, this.edgesContainer);
+    if (this.timeMachine)
+      this.timeMachine
+      .next(nextProps.startNodeId, transitionAction)
+      .then(({ timeMachine }) =>
+        this.timeMachine = timeMachine);
   }
 
   render() {
@@ -105,7 +118,7 @@ class DaggerComponent extends React.Component {
   }
 
   componentDidMount() {
-    const { nodes, edges, tags, startNodeId } = this.props;
+    const { nodes, edges, tags, startNodeId, navTo } = this.props;
     const overallGraph: Graph = new Graph(nodes, edges);
     const width = this.navigatorContainer.clientWidth;
     const height = this.navigatorContainer.clientHeight;
@@ -115,6 +128,7 @@ class DaggerComponent extends React.Component {
       width,
       height,
       startNodeId,
+      onClickNode: id => navTo("/workflow/" + id),
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
       tags: reduce(
@@ -124,19 +138,22 @@ class DaggerComponent extends React.Component {
       ),
       minimap: {
         container: this.minimapContainer,
+        onClickNode: id => navTo("/workflow/" + id),
         setup: minimap => {
           minimap.nodes().on("mouseover", event => {
             const target = event.cyTarget;
             this.minimapHover.innerText = target.id();
           });
-          minimap.nodes().on("mouseout", event => {
+          minimap.nodes().on("mouseout", () => {
             this.minimapHover.innerText = "";
           });
         }
       }
     });
 
-    this.timeMachine = this.dagger.initRender(transitionAction);
+    this.dagger
+      .initRender(transitionAction)
+      .then(({ timeMachine }) => (this.timeMachine = timeMachine));
 
     const resizeDagger = () => {
       // Clean dom nodes holders
@@ -150,7 +167,10 @@ class DaggerComponent extends React.Component {
       this.svgNavigatorContainer.setAttribute("height", height);
       // Update layouts and rerender
       this.dagger = updateDaggerDimensions(this.dagger, width, height);
-      this.timeMachine = this.dagger.initRender(transitionAction);
+      this.timeMachine = null;
+      this.dagger
+        .initRender(transitionAction)
+        .then(({ timeMachine }) => (this.timeMachine = timeMachine));
     };
 
     let doResize;
@@ -203,4 +223,9 @@ const styles = {
   }
 };
 
-export default injectSheet(styles)(DaggerComponent);
+export default connect(
+  () => ({}),
+  dispatch => ({
+    navTo: link => dispatch(navigate(link))
+  })
+)(injectSheet(styles)(DaggerComponent));
