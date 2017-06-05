@@ -310,9 +310,8 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
 
         lazy val maybePaused: Option[(Execution[S], Future[Unit])] =
           pausedState
-            .get(job.id)
-            .getOrElse(Map.empty)
-            .find { case (e, _) => e.job == job && e.context == context }
+            .getOrElse(job.id, Map.empty)
+            .find { case (e, _) => e.context == context }
             .map {
               case (e, p) => (e, p.future)
             }
