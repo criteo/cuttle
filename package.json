@@ -46,7 +46,7 @@
     "react-addons-css-transition-group": "^15.4.2",
     "react-addons-shallow-compare": "^15.4.2",
     "react-collapse": "^4.0.1",
-    "react-dom": "^15.4.2",
+    "react-dom": "^15.5.4",
     "react-icons": "^2.2.5",
     "react-jss": "^5.3.0",
     "react-measure": "^1.4.7",

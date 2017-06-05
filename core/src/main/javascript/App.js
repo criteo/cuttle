@@ -77,7 +77,7 @@ class App extends React.Component {
       const renderTab = () => {
         switch (page.id) {
           case "workflow":
-            return <Workflow workflow={workflow} />;
+            return <Workflow workflow={workflow} job={page.jobId} />;
           case "executions/started":
             return <Started />;
           case "executions/stuck":

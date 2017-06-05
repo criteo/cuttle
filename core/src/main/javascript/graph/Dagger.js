@@ -13,19 +13,29 @@ import { buildDagger } from "./dagger/dagger";
 
 type Props = {
   classes: any,
-  currentNodeId: string,
   nodes: Node[],
   edges: Edge[],
-  tags: Tag[]
+  tags: Tag[],
+  startNodeId: string
+};
+
+const updateDaggerDimensions = (dagger: any, width: number, height: number) =>
+  dagger.updateDimensions(width, height);
+
+const cleanDOMContainer = domNode => {
+  domNode.childNodes.forEach(child => domNode.removeChild(child));
 };
 
 class DaggerComponent extends React.Component {
   minimapContainer: any;
+  minimapHover: any;
   navigatorContainer: any;
   svgNavigatorContainer: any;
   edgesContainer: any;
   nodesContainer: any;
+
   dagger: any;
+  timeMachine: any;
 
   constructor(props: Props) {
     super(props);
@@ -79,17 +89,22 @@ class DaggerComponent extends React.Component {
             />
           </svg>
         </div>
-        <div className={classes.nodeDescription} />
-        <div
-          className={classes.minimapContainer}
-          ref={element => (this.minimapContainer = element)}
-        />
+        <div className={classes.minimapContainer}>
+          <div
+            className={classes.minimapHover}
+            ref={element => (this.minimapHover = element)}
+          />
+          <div
+            className={classes.minimapInnerContainer}
+            ref={element => (this.minimapContainer = element)}
+          />
+        </div>
       </div>
     );
   }
 
   componentDidMount() {
-    const { nodes, edges, tags } = this.props;
+    const { nodes, edges, tags, startNodeId } = this.props;
     const overallGraph: Graph = new Graph(nodes, edges);
     const width = this.navigatorContainer.clientWidth;
     const height = this.navigatorContainer.clientHeight;
@@ -98,6 +113,7 @@ class DaggerComponent extends React.Component {
     this.dagger = buildDagger(overallGraph, {
       width,
       height,
+      startNodeId,
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
       tags: reduce(
@@ -110,15 +126,37 @@ class DaggerComponent extends React.Component {
         setup: minimap => {
           minimap.nodes().on("mouseover", event => {
             const target = event.cyTarget;
+            this.minimapHover.innerText = target.id();
           });
           minimap.nodes().on("mouseout", event => {
-            const target = event.cyTarget;
+            this.minimapHover.innerText = "";
           });
         }
       }
     });
 
-    this.dagger.initRender(transitionAction);
+    this.timeMachine = this.dagger.initRender(transitionAction);
+
+    const resizeDagger = () => {
+      // Clean dom nodes holders
+      cleanDOMContainer(this.nodesContainer);
+      cleanDOMContainer(this.edgesContainer);
+      cleanDOMContainer(this.minimapContainer);
+      // Resize svg container
+      const width = this.navigatorContainer.clientWidth;
+      const height = this.navigatorContainer.clientHeight;
+      this.svgNavigatorContainer.setAttribute("width", width);
+      this.svgNavigatorContainer.setAttribute("height", height);
+      // Update layouts and rerender
+      this.dagger = updateDaggerDimensions(this.dagger, width, height);
+      this.timeMachine = this.dagger.initRender(transitionAction);
+    };
+
+    let doResize;
+    window.onresize = () => {
+      clearTimeout(doResize);
+      doResize = setTimeout(resizeDagger, 500);
+    };
   }
 }
 
@@ -128,25 +166,39 @@ const styles = {
     border: "0px",
     display: "flex",
     flexDirection: "column",
-    flex: 1,
-    alignItems: "stretch"
-  },
-  nodeDescription: {
-    backgroundColor: "#FFF",
-    flex: 1,
-    boxShadow: "0px 1px 5px 0px #BECBD6",
-    margin: "0 5em"
+    flex: 2,
+    alignItems: "stretch",
+    overflow: "hidden",
+    position: "relative"
   },
   minimapContainer: {
-    flex: 1,
-    marginTop: "2.5em",
-    margin: "5em",
-    padding: "2.5em",
-    backgroundColor: "#FFF",
-    boxShadow: "0px 1px 5px 0px #BECBD6"
+    backgroundColor: "rgba(255,255,255,.5)",
+    boxShadow: "0px 1px 5px 0px #BECBD6",
+    width: "300px",
+    position: "absolute",
+    bottom: "1em",
+    borderRadius: "0.2em",
+    left: "50%",
+    marginLeft: "-150px",
+    overflow: "hidden"
+  },
+  minimapHover: {
+    fontFamily: "Arial",
+    textAlign: "center",
+    height: "1.8em",
+    lineHeight: "1.8em",
+    fontSize: "0.8em",
+    fontWeight: "bold",
+    color: "#FFF",
+    backgroundColor: "rgba(92,100,119, 0.75)"
+  },
+  minimapInnerContainer: {
+    height: "150px",
+    width: "100%"
   },
   navigatorContainer: {
-    flex: 4
+    flex: 7,
+    overflow: "hidden"
   }
 };
 

@@ -9,7 +9,10 @@ import without from "lodash/without";
 
 export type Page =
   | { id: "" }
-  | { id: "workflow" }
+  | {
+      id: "workflow",
+      jobId?: string
+    }
   | {
       id: "executions/started",
       page?: number,

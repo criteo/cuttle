@@ -10,16 +10,17 @@ import CloseIcon from "react-icons/lib/md/close";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
-import _ from "lodash";
 import moment from "moment";
 
+import Window from "../components/Window";
+import FancyTable from "../components/FancyTable";
 import Error from "../components/Error";
 import Spinner from "../components/Spinner";
 import Clock from "../components/Clock";
 import Link from "../components/Link";
 import JobStatus from "../components/JobStatus";
 import { listenEvents } from "../../Utils";
-import type { ExecutionLog, Workflow } from "../../datamodel";
+import type { ExecutionLog } from "../../datamodel";
 
 type Line = {
   timestamp: string,
@@ -80,7 +81,6 @@ class Execution extends React.Component {
         this.streams.bind(this)
       );
       this.setState({
-        ...this.state,
         query: newQuery,
         data: null,
         streams: [],
@@ -94,14 +94,12 @@ class Execution extends React.Component {
 
   notFound(error) {
     this.setState({
-      ...this.state,
       error
     });
   }
 
   updateData(json: ExecutionLog) {
     this.setState({
-      ...this.state,
       data: json,
       autoScroll: this.state.autoScroll || json.status == "running"
     });
@@ -125,7 +123,6 @@ class Execution extends React.Component {
         }
       });
       this.setState({
-        ...this.state,
         streams: this.state.streams.concat(lines)
       });
     }
@@ -154,30 +151,26 @@ class Execution extends React.Component {
 
   onClickFullscreen(fullscreen: boolean) {
     this.setState({
-      ...this.state,
       fullscreen
     });
   }
 
   onClickAutoScroll(autoScroll: boolean) {
     this.setState({
-      ...this.state,
       autoScroll
     });
   }
 
   detectManualScroll() {
-    if (this.scroller) {
-      if (
-        this.scroller.scrollHeight - this.scroller.offsetHeight !=
-        this.scroller.scrollTop
-      ) {
-        this.setState({
-          ...this.state,
-          autoScroll: false
-        });
-      }
-    }
+    const manualScroll =
+      this.scroller &&
+      this.scroller.scrollHeight - this.scroller.offsetHeight !=
+        this.scroller.scrollTop;
+
+    if (manualScroll)
+      this.setState({
+        autoScroll: false
+      });
   }
 
   render() {
@@ -185,149 +178,119 @@ class Execution extends React.Component {
     let { data, error, streams } = this.state;
 
     return (
-      <div className={classes.container}>
-        <div className={classes.overlay}>
-          <h1 className={classes.title}>Execution detail</h1>
-          <CloseIcon className={classes.close} onClick={back} />
-          {data
-            ? [
-                <dl className={classes.definitions} key="properties">
-                  <dt key="id">Id:</dt>
-                  <dd key="id_">{data.id}</dd>
-                  <dt key="job">Job:</dt>
-                  <dd key="job_">{data.job}</dd>
-                  <dt key="status">Status:</dt>
-                  <dd key="status_"><JobStatus status={data.status} /></dd>
-                  {data.startTime
-                    ? [
-                        <dt key="startTime">Start time:</dt>,
-                        <dd key="startTime_">
-                          {moment(data.startTime)
-                            .utc()
-                            .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
-                        </dd>
-                      ]
-                    : null}
-                  {data.endTime
-                    ? [
-                        <dt key="endTime">End time:</dt>,
-                        <dd key="endTime_">
-                          {moment(data.endTime)
-                            .utc()
-                            .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
-                        </dd>
-                      ]
-                    : null}
-                  {data.startTime
-                    ? [
-                        <dt key="duration">Duration:</dt>,
-                        <dd key="duration_">
-                          {data.endTime
-                            ? moment
-                                .utc(
-                                  moment(data.endTime).diff(
-                                    moment(data.startTime)
-                                  )
+      <Window title="Execution detail">
+        <CloseIcon className={classes.close} onClick={back} />
+        {data
+          ? [
+              <FancyTable key="properties">
+                <dt key="id">Id:</dt>
+                <dd key="id_">{data.id}</dd>
+                <dt key="job">Job:</dt>
+                <dd key="job_">{data.job}</dd>
+                <dt key="status">Status:</dt>
+                <dd key="status_"><JobStatus status={data.status} /></dd>
+                {data.startTime
+                  ? [
+                      <dt key="startTime">Start time:</dt>,
+                      <dd key="startTime_">
+                        {moment(data.startTime)
+                          .utc()
+                          .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
+                      </dd>
+                    ]
+                  : null}
+                {data.endTime
+                  ? [
+                      <dt key="endTime">End time:</dt>,
+                      <dd key="endTime_">
+                        {moment(data.endTime)
+                          .utc()
+                          .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
+                      </dd>
+                    ]
+                  : null}
+                {data.startTime
+                  ? [
+                      <dt key="duration">Duration:</dt>,
+                      <dd key="duration_">
+                        {data.endTime
+                          ? moment
+                              .utc(
+                                moment(data.endTime).diff(
+                                  moment(data.startTime)
                                 )
-                                .format("HH:mm:ss")
-                            : <Clock time={data.startTime} humanize={false} />}
-                        </dd>
-                      ]
-                    : null}
-                  {data.failing
-                    ? [
-                        <dt key="failing">Failing:</dt>,
-                        <dd key="failing_">
-                          {`Failed ${data.failing.failedExecutions.length} times and will be retried`}
-                          {" "}
-                          <Clock time={data.failing.nextRetry || ""} />
-                          .&nbsp;
-                          <Link
-                            className={classes.failedLink}
-                            href={`/executions/${(data.failing: any).failedExecutions[(data.failing: any).failedExecutions.length - 1].id}`}
-                          >
-                            Check latest failed execution.
-                          </Link>
-                        </dd>
-                      ]
-                    : null}
-                </dl>,
-                <div
-                  className={classNames(classes.streams, {
-                    [classes.fullscreen]: this.state.fullscreen
-                  })}
-                  key="streams"
+                              )
+                              .format("HH:mm:ss")
+                          : <Clock time={data.startTime} humanize={false} />}
+                      </dd>
+                    ]
+                  : null}
+                {data.failing
+                  ? [
+                      <dt key="failing">Failing:</dt>,
+                      <dd key="failing_">
+                        {`Failed ${data.failing.failedExecutions.length} times and will be retried`}
+                        {" "}
+                        <Clock time={data.failing.nextRetry || ""} />
+                        .&nbsp;
+                        <Link
+                          className={classes.failedLink}
+                          href={`/executions/${(data.failing: any).failedExecutions[(data.failing: any).failedExecutions.length - 1].id}`}
+                        >
+                          Check latest failed execution.
+                        </Link>
+                      </dd>
+                    ]
+                  : null}
+              </FancyTable>,
+              <div
+                className={classNames(classes.streams, {
+                  [classes.fullscreen]: this.state.fullscreen
+                })}
+                key="streams"
+              >
+                <ul
+                  ref={this.storeStreamRef.bind(this)}
+                  onScroll={this.detectManualScroll.bind(this)}
                 >
-                  <ul
-                    ref={this.storeStreamRef.bind(this)}
-                    onScroll={this.detectManualScroll.bind(this)}
-                  >
-                    {streams.map(({ timestamp, level, message }, i) => {
-                      return (
-                        <li key={i}>
-                          <span>{timestamp}</span>
-                          <p className={classes[level]}>{message}</p>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {this.state.fullscreen
-                    ? <ExitFullscreenIcon
-                        onClick={this.onClickFullscreen.bind(this, false)}
-                        className={classes.fullscreenButton}
-                      />
-                    : <FullscreenIcon
-                        onClick={this.onClickFullscreen.bind(this, true)}
-                        className={classes.fullscreenButton}
-                      />}
-                  <AutoScrollIcon
-                    onClick={this.onClickAutoScroll.bind(
-                      this,
-                      !this.state.autoScroll
-                    )}
-                    className={classNames(classes.autoScrollButton, {
-                      [classes.activeAutoScroll]: this.state.autoScroll
-                    })}
-                  />
-                </div>
-              ]
-            : error
-                ? <Error message={`execution ${execution} not found`} />
-                : <Spinner />}
-        </div>
-      </div>
+                  {streams.map(({ timestamp, level, message }, i) => {
+                    return (
+                      <li key={i}>
+                        <span>{timestamp}</span>
+                        <p className={classes[level]}>{message}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {this.state.fullscreen
+                  ? <ExitFullscreenIcon
+                      onClick={this.onClickFullscreen.bind(this, false)}
+                      className={classes.fullscreenButton}
+                    />
+                  : <FullscreenIcon
+                      onClick={this.onClickFullscreen.bind(this, true)}
+                      className={classes.fullscreenButton}
+                    />}
+                <AutoScrollIcon
+                  onClick={this.onClickAutoScroll.bind(
+                    this,
+                    !this.state.autoScroll
+                  )}
+                  className={classNames(classes.autoScrollButton, {
+                    [classes.activeAutoScroll]: this.state.autoScroll
+                  })}
+                />
+              </div>
+            ]
+          : error
+              ? <Error message={`execution ${execution} not found`} />
+              : <Spinner />}
+      </Window>
     );
   }
 }
 
 const styles = {
-  container: {
-    padding: "1em",
-    flex: "1",
-    display: "flex",
-    flexDirection: "column",
-    position: "relative"
-  },
-  overlay: {
-    background: "#ffffff",
-    flex: "1",
-    position: "relative",
-    padding: "1em",
-    boxShadow: "0px 0px 15px 0px #799cb7",
-    borderRadius: "2px",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column"
-  },
-  title: {
-    fontSize: "1em",
-    margin: "-1em -1em 1em -1em",
-    padding: "1em",
-    color: "#f9fbfc",
-    background: "#5c6477",
-    fontWeight: "normal",
-    boxShadow: "0px 0px 15px 0px #799cb7"
-  },
   close: {
     position: "absolute",
     color: "#eef5fb",
