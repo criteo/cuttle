@@ -5,24 +5,16 @@ import {
   drawEdge
 } from "./nodesAndEdges";
 import * as d3 from "d3";
-import _ from "lodash";
+
+import reduce from "lodash/reduce";
+import drop from "lodash/drop";
+import dropRight from "lodash/dropRight";
+
 import * as minimapTools from "../minimap";
-import CSSescape from "css.escape";
 
-//const animateQuit
-export const minimapOnClickGenerator = (
-  minimap,
-  startNodeId,
-  next,
-  transitionAction
-) => event => {
-  const node = event.cyTarget;
-  return next(node.id(), transitionAction);
-};
-
-const mergeLayouts = (...layouts) => ({
-  nodes: layouts.reduce((acc, current) => ({ ...acc, ...current.nodes }), {}),
-  edges: layouts.reduce((acc, current) => ({ ...acc, ...current.edges }), {})
+const mergeLayouts = layouts => ({
+  nodes: reduce(layouts, (acc, current) => ({ ...acc, ...current.nodes }), {}),
+  edges: reduce(layouts, (acc, current) => ({ ...acc, ...current.edges }), {})
 });
 
 // Moves needed to transit from a layout to another one, if the two graphs are disjoints
@@ -64,8 +56,9 @@ const computeStartEndDisconnectedLayout = (
 export const transitionAction: TransitionAction = ({
   allEdgesContainer,
   allNodesContainer,
-  tags
-}) => minimap => ({
+  tags,
+  onClick
+}) => (minimap, minimapOnClick) => ({
   layout,
   annotatedGraph,
   node,
@@ -82,8 +75,9 @@ export const transitionAction: TransitionAction = ({
   const resolvedTransition = transitionAction({
     allEdgesContainer,
     allNodesContainer,
-    tags
-  })(minimap);
+    tags,
+    onClick
+  })(minimap, minimapOnClick);
   const currentNodesDom = allNodesContainer
     .selectAll("g.oneNode")
     .data(annotatedGraph[0].nodes, d => d.id);
@@ -91,19 +85,11 @@ export const transitionAction: TransitionAction = ({
     .selectAll("g.oneEdge")
     .data(annotatedGraph[0].edges, d => d.id);
 
-  const onClick = id => next(id, resolvedTransition);
-  const onClickMinimap = minimapOnClickGenerator(
-    minimap,
-    node[0],
-    next,
-    resolvedTransition
-  );
-
-  // const backButton = d3.select("#navigateBack");
-  // backButton.on("click", () => history().length > 0 ? back(1, resolvedTransition): null);
+  const onClickParameter = id => onClick(id, resolvedTransition, { next });
+  const minimapOnClickParameter = id => minimapOnClick(id, resolvedTransition, { next });
 
   minimap.nodes().off("click");
-  minimap.nodes().on("click", onClickMinimap);
+  minimap.nodes().on("click", event => minimapOnClickParameter(event.cyTarget.id()));
 
   const minimapEnterPromise = minimapTools.enter(
     currentNodesDom.enter(),
@@ -133,24 +119,24 @@ export const transitionAction: TransitionAction = ({
 
   // if node contains only one entry, it's because we try to reach a disconnected node (two disjoint graphs)
   const enterLayout = node.length >= 2
-    ? mergeLayouts(..._.drop(layout))
+    ? mergeLayouts(drop(layout))
     : disconnectedEnterLayout;
   const exitLayout = node.length >= 2
-    ? mergeLayouts(..._.dropRight(layout).reverse())
+    ? mergeLayouts(dropRight(layout).reverse())
     : disconnectedExitLayout;
 
   const updatePromise = update(
     currentNodesDom,
     currentEdgesDom,
     layout[0],
-    onClick
+    onClickParameter
   );
   const enterPromise = enter(
     currentNodesDom.enter(),
     currentEdgesDom.enter(),
     enterLayout,
     layout[0],
-    onClick,
+    onClickParameter,
     tags
   );
   const exitPromise = exit(
