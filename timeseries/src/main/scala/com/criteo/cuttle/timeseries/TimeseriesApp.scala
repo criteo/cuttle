@@ -12,6 +12,7 @@ import io.circe.syntax._
 
 import algebra.lattice.Bool._
 
+import scala.util.{Try}
 import scala.math.Ordering.Implicits._
 
 import continuum._
@@ -35,7 +36,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
     }
   }
 
-  override def routes(graph: Graph[TimeSeriesScheduling],
+  override def routes(workflow: Graph[TimeSeriesScheduling],
                       executor: Executor[TimeSeriesScheduling],
                       xa: XA): PartialService = {
 
@@ -99,13 +100,20 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
       else
         Ok(getFocusView())
 
-    case GET at url"/api/timeseries/calendar?events=$events" =>
+    case GET at url"/api/timeseries/calendar?events=$events&jobs=$jobs" =>
+      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
+        .filter(_.nonEmpty)
+        .getOrElse(workflow.vertices.map(_.id))
+        .toSet
       def watchState() = Some((state, executor.allFailing))
       def getCalendar(watchedValue: Any = ()) = {
-        val (done, running, _) = state
-        val stucks = executor.allFailing
+        val (done, running) = state match { case (done, running, _) =>
+          val filter = (job: TimeSeriesJob) => filteredJobs.contains(job.id)
+          (done.filterKeys(filter), running.filterKeys(filter))
+        }
+        val stucks = executor.allFailing.filter(x => filteredJobs.contains(x._1.id))
         val goal = StateD(
-          graph.vertices.map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start)))).toMap)
+          workflow.vertices.filter(job => filteredJobs.contains(job.id)).map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start)))).toMap)
         val domain = and(or(StateD(done), StateD(running)), goal).defined
         val days = (for {
           (_, is) <- domain.toList

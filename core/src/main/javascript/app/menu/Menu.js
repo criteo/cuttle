@@ -4,11 +4,11 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 
-import type { Page } from "../../state";
+import type { Page } from "../../ApplicationState";
 import MenuEntry from "./MenuEntry";
 import MenuSubEntry from "./MenuSubEntry";
 import LogIcon from "react-icons/lib/md/playlist-play";
-import WorkflowIcon from "react-icons/lib/md/device-hub";
+import WorkflowIcon from "react-icons/lib/go/git-merge";
 import CalendarIcon from "react-icons/lib/md/date-range";
 import type { Statistics } from "../../datamodel";
 
@@ -34,10 +34,6 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
               statistics.failing && {
                 label: statistics.failing,
                 kind: "error"
-              },
-              statistics.paused && {
-                label: statistics.paused,
-                kind: "warning"
               }
             ]
       }
@@ -67,9 +63,7 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
           active={active.id === "executions/paused"}
           label="Paused"
           link="/executions/paused"
-          badges={[
-            statistics.paused && { label: statistics.paused, kind: "warning" }
-          ]}
+          badges={[statistics.paused && { label: statistics.paused }]}
         />
       ]}
     />

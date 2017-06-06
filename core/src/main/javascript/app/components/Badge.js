@@ -1,6 +1,5 @@
 // @flow
 
-import { connect } from "react-redux";
 import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
@@ -69,8 +68,7 @@ const styles = {
     borderRadius: "2px",
     padding: "0 .5em",
     maxHeight: "18px",
-    textAlign: "center",
-    transform: "translateY(-1px)"
+    textAlign: "center"
   }
 };
 export const Badge = injectSheet(styles)(BadgeComponent);

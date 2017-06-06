@@ -1,5 +1,5 @@
 // @flow
-import type { Page } from "./state";
+import type { Page } from "./ApplicationState";
 import type { Project, Workflow, Statistics } from "./datamodel";
 
 type StatusSuccess = "success";
@@ -7,18 +7,7 @@ type StatusWaiting = "pending" | "error";
 type Status = StatusSuccess | StatusWaiting;
 type Dispatch = (action: Action) => void;
 
-export type Action =
-  | OPEN_PAGE
-  | LOAD_APP_DATA
-  | SELECT_JOB
-  | DESELECT_JOB
-  | TOGGLE_USERBAR
-  | OPEN_USERBAR
-  | CLOSE_USERBAR
-  | CHANGE_JOBSEARCH_INPUT
-  | SELECT_FILTERTAG
-  | DESELECT_FILTERTAG
-  | TOGGLE_FILTERTAG;
+export type Action = OPEN_PAGE | LOAD_APP_DATA | UPDATE_STATISTICS | SELECT_JOBS;
 
 // Action that should be dispatched by the "redux-url router"
 type OPEN_PAGE = { type: "OPEN_PAGE", page: Page };
@@ -81,71 +70,8 @@ export const updateStatistics = (
   statistics
 });
 
-// Jobs selection
-
-type SELECT_JOB = { type: "SELECT_JOB", jobId: string };
-export const selectJob = (dispatch: Dispatch) => (id: string) =>
-  dispatch({
-    type: "SELECT_JOB",
-    jobId: id
-  });
-
-type DESELECT_JOB = { type: "DESELECT_JOB", jobId: string };
-export const deselectJob = (dispatch: Dispatch) => (id: string) =>
-  dispatch({
-    type: "DESELECT_JOB",
-    jobId: id
-  });
-
-// Userbar
-
-type TOGGLE_USERBAR = { type: "TOGGLE_USERBAR" };
-export const toggleUserbar = (dispatch: Dispatch) => () =>
-  dispatch({
-    type: "TOGGLE_USERBAR"
-  });
-
-type CLOSE_USERBAR = { type: "CLOSE_USERBAR" };
-export const closeUserbar = (dispatch: Dispatch) => () =>
-  dispatch({
-    type: "CLOSE_USERBAR"
-  });
-
-type OPEN_USERBAR = { type: "OPEN_USERBAR" };
-export const openUserbar = (dispatch: Dispatch) => () =>
-  dispatch({
-    type: "OPEN_USERBAR"
-  });
-
-// Job filtering
-
-type CHANGE_JOBSEARCH_INPUT = {
-  type: "CHANGE_JOBSEARCH_INPUT",
-  inputText: string
-};
-export const changeJobSearchInput = (dispatch: Dispatch) => (text: string) =>
-  dispatch({
-    type: "CHANGE_JOBSEARCH_INPUT",
-    inputText: text
-  });
-
-type SELECT_FILTERTAG = { type: "SELECT_FILTERTAG", tagName: string };
-export const selectFilterTag = (dispatch: Dispatch) => (tagName: string) =>
-  dispatch({
-    type: "SELECT_FILTERTAG",
-    tagName
-  });
-
-type DESELECT_FILTERTAG = { type: "DESELECT_FILTERTAG", tagName: string };
-export const deselectFilterTag = (dispatch: Dispatch) => (tagName: string) =>
-  dispatch({
-    type: "SELECT_FILTERTAG",
-    tagName
-  });
-
-type TOGGLE_FILTERTAG = { type: "TOGGLE_FILTERTAG", tagName: string };
-export const toggleFilterTag = (dispatch: Dispatch) => (tagName: string) =>
-  dispatch({
-    type: "TOGGLE_FILTERTAG",
-    tagName
-  });
+type SELECT_JOBS = { type: "SELECT_JOBS", jobs: Array<string> };
+export const selectJobs = (jobs: Array<string>): SELECT_JOBS => ({
+  type: "SELECT_JOBS",
+  jobs
+});

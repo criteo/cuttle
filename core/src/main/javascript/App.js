@@ -3,22 +3,21 @@
 import React from "react";
 import { connect } from "react-redux";
 import injectSheet from "react-jss";
+import _ from "lodash";
+import FilterIcon from "react-icons/lib/md/search";
 
 import MenuHeader from "./app/menu/MenuHeader";
 import Spinner from "./app/components/Spinner";
 import Menu from "./app/menu/Menu";
 import Link from "./app/components/Link";
-import type { Page } from "./state";
+import JobSelector from "./app/components/JobSelector";
+import type { Page } from "./ApplicationState";
 import * as Actions from "./actions";
-
 import Calendar from "./app/pages/Calendar";
 import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
-import UserBar from "./app/filter/UserBar";
 import type { Statistics } from "./datamodel";
-
-import reduce from "lodash/reduce";
 
 type Props = {
   page: Page,
@@ -27,8 +26,9 @@ type Props = {
   workflow: Workflow,
   statistics: Statistics,
   isLoading: boolean,
-  closeUserbar: () => void,
-  classes: any
+  classes: any,
+  selectedJobs: Array<string>,
+  selectJobs: (jobs: Array<string>) => void
 };
 
 class App extends React.Component {
@@ -46,8 +46,9 @@ class App extends React.Component {
       projectName,
       workflow,
       isLoading,
-      closeUserbar,
-      statistics
+      statistics,
+      selectedJobs,
+      selectJobs
     } = this.props;
 
     if (isLoading) {
@@ -57,7 +58,7 @@ class App extends React.Component {
         </div>
       );
     } else {
-      const allJobs = reduce(
+      const allJobs = _.reduce(
         workflow.jobs,
         (acc, cur) => ({
           ...acc,
@@ -66,7 +67,7 @@ class App extends React.Component {
         {}
       );
 
-      const allTags = reduce(
+      const allTags = _.reduce(
         workflow.tags,
         (acc, cur) => ({
           ...acc,
@@ -97,17 +98,25 @@ class App extends React.Component {
       };
 
       return (
-        <div className={classes.main} onClick={closeUserbar}>
+        <div className={classes.main}>
           <section className={classes.leftpane}>
             <MenuHeader environment={environment} projectName={projectName} />
             <Menu active={page} statistics={statistics} />
           </section>
           <section className={classes.rightpane}>
-            <UserBar
-              className={classes.userBar}
-              allTags={allTags}
-              allJobs={allJobs}
-            />
+            <div className={classes.mainFilter}>
+              <JobSelector
+                workflow={workflow}
+                selected={selectedJobs}
+                placeholder={
+                  <span>
+                    <FilterIcon className={classes.filterIcon} />
+                    Filter on specific jobs...
+                  </span>
+                }
+                onChange={selectJobs}
+              />
+            </div>
             {renderTab()}
           </section>
         </div>
@@ -126,11 +135,11 @@ let styles = {
     color: "#758390",
     fontFamily: "Arial",
     height: "100vh",
-    zIndex: 100
+    zIndex: "100"
   },
   rightpane: {
     display: "flex",
-    flexGrow: 1,
+    flexGrow: "1",
     alignItems: "stretch",
     flexDirection: "column",
     backgroundColor: "#ECF1F5",
@@ -139,8 +148,16 @@ let styles = {
     height: "100vh",
     width: "calc(100vw - 300px)"
   },
-  userBar: {
-    zIndex: 2
+  mainFilter: {
+    zIndex: "2",
+    background: "#fff",
+    height: "4em",
+    lineHeight: "4em",
+    boxShadow: "0px 1px 5px 0px #BECBD6"
+  },
+  filterIcon: {
+    transform: "scale(1.3) translateY(-1.5px) translateX(1px)",
+    marginRight: "10px"
   },
   main: {
     backgroundColor: "#ECF1F5",
@@ -158,18 +175,22 @@ const mapStateToProps = ({
   project,
   workflow,
   isLoading,
-  statistics
+  statistics,
+  selectedJobs
 }) => ({
   page,
   projectName: project && project.name,
   environment: "production",
   workflow,
   isLoading,
-  statistics
+  statistics,
+  selectedJobs
 });
 
 const mapDispatchToProps = dispatch => ({
-  closeUserbar: Actions.closeUserbar(dispatch)
+  selectJobs(jobs: Array<string>) {
+    dispatch(Actions.selectJobs(jobs));
+  }
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(

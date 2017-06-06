@@ -17,6 +17,6 @@ export default ({ status }: Props) => {
   } else if (status == "successful") {
     return <Badge label="SUCCESS" kind="success" width={75} />;
   } else if (status == "paused") {
-    return <Badge label="PAUSED" kind="warning" width={75} light={true} />;
+    return <Badge label="PAUSED" width={75} light={true} />;
   }
 };
