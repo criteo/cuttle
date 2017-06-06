@@ -149,8 +149,8 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
       .map(_.drop(offset).take(limit))
       .flatMap(_.map(_.toExecutionLog(ExecutionPaused)))
 
-  def failingContexts: Set[S#Context] =
-    throttledState.single.keys.map(_.context).toSet
+  def allFailing: Set[(Job[S], S#Context)] =
+    throttledState.single.keys.map(e => (e.job, e.context)).toSet
   def failingExecutionsSize: Int = throttledState.single.size
   def failingExecutions(sort: String, asc: Boolean, offset: Int, limit: Int): Seq[ExecutionLog] =
     Seq(throttledState.single.toSeq)
