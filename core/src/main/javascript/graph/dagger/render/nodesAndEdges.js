@@ -7,13 +7,54 @@ import { interpolatePath } from "d3-interpolate-path";
 const transitionDuration = 500;
 const transitionDelay = 0;
 const transitionEase = d3.easeLinear;
+
+const computeNewWidth = (
+  label: string,
+  stringLengthReference: number,
+  pixelWidthReference: number,
+  widthMax: number,
+  widthMin: number
+) => {
+  const labelLength = Array.from(label).length;
+  const maxUsableWidth =
+    pixelWidthReference *
+  Math.max(Math.min(labelLength, widthMax), widthMin) /
+  widthReference;
+
+  return maxUsableWidth;
+};
+
+const computeNewLabel = (
+  label: string,
+  widthMax: number
+) => {
+  const labelLength = Array.from(label).length;
+  const overflowCharacters = Math.max(labelLength - widthMax, 0);
+
+  const labelToDisplay = overflowCharacters > 0
+    ? label.substring(0, labelLength - overflowCharacters - 3) + "..."
+    : label;
+  return labelToDisplay;
+};
+
 const widthReference = 30;
 const widthMax = 1.3 * widthReference;
 const widthMin = 0.7 * widthReference;
+
 const realWidths = {};
 
-const floatPrecision = 2;
+const getRealWidth = (id, name, width) => {
+  return realWidths[id] || (realWidths[id] = computeNewWidth(
+    name || id,
+    widthReference,
+    width,
+    widthMax,
+    widthMin
+  ));
+};
 
+
+const floatPrecision = 2;
 const truncate = number => number.toFixed(floatPrecision);
 
 const dpath = (source, target, kind, x1, y1, x2, y2) => {
@@ -146,9 +187,9 @@ export const transitionEdge = (
 
 export const transitionNode = (
   node,
-  { x, y, width, height, id, order, yPosition, kind }
+  { x, y, width, height, id, name, order, yPosition, kind }
 ) => {
-  const newWidth = realWidths[id];
+  const newWidth = getRealWidth(id, name, width);
   const transition = node
     .transition()
     .delay(transitionDelay)
@@ -156,12 +197,12 @@ export const transitionNode = (
     .attr("transform", adjustNodePosition(kind, width, newWidth, height, x, y));
   transition
     .select("rect")
-    .attr("width", newWidth.toFixed(2))
-    .attr("height", height);
+    .attr("width", truncate(newWidth))
+    .attr("height", truncate(height));
   transition
     .select("text")
-    .attr("x", (newWidth / 2).toFixed(2))
-    .attr("y", height / 2);
+    .attr("x", truncate(newWidth / 2))
+    .attr("y", truncate(height / 2));
 
   return transition;
 };
@@ -208,26 +249,6 @@ export const drawEdge = (
   return edge;
 };
 
-const computeNewWidth = (
-  label: string,
-  stringLengthReference: number,
-  pixelWidthReference: number,
-  widthMax: number,
-  widthMin: number
-) => {
-  const labelLength = Array.from(label).length;
-  const overflowCharacters = Math.max(labelLength - widthMax, 0);
-  const maxUsableWidth =
-    pixelWidthReference *
-    Math.max(Math.min(labelLength, widthMax), widthMin) /
-    widthReference;
-
-  const labelToDisplay = overflowCharacters > 0
-    ? label.substring(0, labelLength - overflowCharacters - 3) + "..."
-    : label;
-  return [maxUsableWidth, labelToDisplay];
-};
-
 const tagBulletVerticalOffset = ({ height }) => {
   const bulletSize = height / 5;
   const spaceBetweenBullets = bulletSize / 2;
@@ -243,14 +264,8 @@ export const drawNode = (
 ) => {
   const node = domContainer.append("g").attr("id", id).attr("class", "oneNode");
 
-  const [newWidth, nameToDisplay] = computeNewWidth(
-    name || id,
-    widthReference,
-    width,
-    widthMax,
-    widthMin
-  );
-  realWidths[id] = newWidth;
+  const newWidth = getRealWidth(id, name, width);
+  const nameToDisplay = computeNewLabel(name, widthMax);
 
   node
     .append("rect")
