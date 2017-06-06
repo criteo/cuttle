@@ -1,0 +1,97 @@
+// @flow
+
+import React from "react";
+import injectSheet from "react-jss";
+import classNames from "classnames";
+import MdChevronLeft from "react-icons/lib/md/chevron-left";
+import MdChevronRight from "react-icons/lib/md/chevron-right";
+
+type Props = {
+  classes: any,
+  title: string,
+  children: any
+};
+
+type State = {
+  open: boolean
+};
+
+class SlidePanel extends React.Component {
+  state: State;
+  props: Props;
+
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      open: false
+    };
+  }
+
+  closePanel() {
+    this.setState({
+      open: false
+    });
+  }
+
+  openPanel() {
+    this.setState({
+      open: true
+    });
+  }
+
+  render() {
+    const { classes, children } = this.props;
+    const { open } = this.state;
+    return (
+      <div className={classes.container}>
+        <div
+          className={classNames(classes.innerContainer, open && "open")}
+          onBlur={this.closePanel.bind(this)}
+          tabIndex="0"
+          onClick={!open && this.openPanel.bind(this)}
+        >
+          <div className="content">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+const styles = {
+  container: {
+    width: "50px",
+    height: "100%",
+    position: "relative"
+  },
+  innerContainer: {
+    position: "absolute",
+    backgroundColor: "rgba(255,255,255,0.75)",
+    top: "0.5em",
+    height: "calc(100% - 1em)",
+    width: "50px",
+    transition: "all .1s ease-out",
+    border: "none",
+    outline: "none",
+    right: 0,
+    overflow: "hidden",
+    boxShadow: "0px 1px 5px 0px #BECBD6",
+    "&:hover": {
+      backgroundColor: "rgba(255,255,255,0.75)",
+      boxShadow: "0px 1px 5px 0px #BECBD6",
+      width: "60px"
+    },
+    "&.open": {
+      transition: "none",
+      backgroundColor: "rgba(255,255,255,0.85)",
+      right: 0,
+      width: "800px"
+    },
+    "& .content": {
+      width: "800px"
+    }
+  }
+};
+
+export default injectSheet(styles)(SlidePanel);

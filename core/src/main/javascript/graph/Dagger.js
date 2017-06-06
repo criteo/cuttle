@@ -188,7 +188,7 @@ const styles = {
     border: "0px",
     display: "flex",
     flexDirection: "column",
-    flex: 2,
+    flexGrow: 1,
     alignItems: "stretch",
     overflow: "hidden",
     position: "relative"

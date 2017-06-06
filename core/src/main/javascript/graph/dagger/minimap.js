@@ -11,7 +11,7 @@ export const draw = (graphData, minimapContainer) => {
     layout: {
       name: "dagre",
       nodeSep: 10,
-      rankSep: 50,
+      rankSep: 120,
       rankDir: "LR"
     },
     style: [
@@ -20,8 +20,8 @@ export const draw = (graphData, minimapContainer) => {
         style: {
           "background-color": "#90A4AE",
           shape: "rectangle",
-          width: 30,
-          height: 20
+          width: 60,
+          height: 40
         }
       },
       {

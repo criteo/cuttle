@@ -11,8 +11,7 @@ import Dagger from "../../graph/Dagger";
 import type { Node, Edge } from "../../graph/dagger/dataAPI/genericGraph";
 import type { Workflow, Tag, Job, Dependency } from "../../datamodel";
 
-import Window from "../components/Window";
-import FancyTable from "../components/FancyTable";
+import SlidePanel from "../components/SlidePanel";
 
 type Props = {
   classes: any,
@@ -46,18 +45,18 @@ class WorkflowComponent extends React.Component {
           tags={tags}
           startNodeId={startNode.id}
         />
-        <Window className={classes.nodeDescription} title="Job Information">
-          <FancyTable key="infos">
-            <dt key="id">Id:</dt>
-            <dd key="id_">{startNode.id}</dd>
-            <dt key="name">Name:</dt>
-            <dd key="name_">{startNode.name}</dd>
-            <dt key="description">Description:</dt>
-            <dd key="description_">{startNode.description}</dd>
-            <dt key="tags">Tags:</dt>
-            <dd key="tags_">{map(startNode.tags, "name").join(", ")}</dd>
-          </FancyTable>
-        </Window>
+        <SlidePanel>
+          <div className={classes.jobCard}>
+            <div className="jobTitle">
+              {startNode.name +
+                (startNode.name != startNode.id ? "(" + startNode.id + ")" : "")}
+            </div>
+            {startNode.description && <div className="jobDescription">
+              {startNode.description}
+            </div>}
+            
+          </div>
+        </SlidePanel>
       </div>
     );
   }
@@ -67,12 +66,26 @@ const styles = {
   main: {
     backgroundColor: "#ECF1F5",
     flex: 1,
-    display: "flex",
-    flexDirection: "row"
+    display: "flex"
   },
   nodeDescription: {
     backgroundColor: "#FFF",
     flex: 1
+  },
+  jobCard: {
+    padding: "1em",
+    "& .jobTitle": {
+      fontFamily: "Arial",
+      fontSize: "2em",
+      color: "black",
+      
+    },
+    "& .jobDescription": {
+      fontFamily: "Arial",
+      fontSize: "0.9em",
+      color: "#3B4254",
+      marginTop: "1em"
+    }
   }
 };
 
