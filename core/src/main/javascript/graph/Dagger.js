@@ -11,21 +11,35 @@ import type { Tag } from "../datamodel";
 import { transitionAction } from "./dagger/render/d3render";
 import { buildDagger } from "./dagger/dagger";
 
+import { navigate } from "redux-url";
+import { connect } from "react-redux";
+
 type Props = {
   classes: any,
-  currentNodeId: string,
   nodes: Node[],
   edges: Edge[],
-  tags: Tag[]
+  tags: Tag[],
+  startNodeId: string,
+  navTo: () => void
+};
+
+const updateDaggerDimensions = (dagger: any, width: number, height: number) =>
+  dagger.updateDimensions(width, height);
+
+const cleanDOMContainer = domNode => {
+  domNode.childNodes.forEach(child => domNode.removeChild(child));
 };
 
 class DaggerComponent extends React.Component {
   minimapContainer: any;
+  minimapHover: any;
   navigatorContainer: any;
   svgNavigatorContainer: any;
   edgesContainer: any;
   nodesContainer: any;
+
   dagger: any;
+  timeMachine: any;
 
   constructor(props: Props) {
     super(props);
@@ -37,6 +51,15 @@ class DaggerComponent extends React.Component {
       nextProps.edges.length !== this.props.edges.length ||
       nextProps.tags.length !== this.props.tags.length
     );
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    const transitionAction = this.dagger.transitionAction(this.nodesContainer, this.edgesContainer);
+    if (this.timeMachine)
+      this.timeMachine
+      .next(nextProps.startNodeId, transitionAction)
+      .then(({ timeMachine }) =>
+        this.timeMachine = timeMachine);
   }
 
   render() {
@@ -79,17 +102,22 @@ class DaggerComponent extends React.Component {
             />
           </svg>
         </div>
-        <div className={classes.nodeDescription} />
-        <div
-          className={classes.minimapContainer}
-          ref={element => (this.minimapContainer = element)}
-        />
+        <div className={classes.minimapContainer}>
+          <div
+            className={classes.minimapHover}
+            ref={element => (this.minimapHover = element)}
+          />
+          <div
+            className={classes.minimapInnerContainer}
+            ref={element => (this.minimapContainer = element)}
+          />
+        </div>
       </div>
     );
   }
 
   componentDidMount() {
-    const { nodes, edges, tags } = this.props;
+    const { nodes, edges, tags, startNodeId, navTo } = this.props;
     const overallGraph: Graph = new Graph(nodes, edges);
     const width = this.navigatorContainer.clientWidth;
     const height = this.navigatorContainer.clientHeight;
@@ -98,6 +126,8 @@ class DaggerComponent extends React.Component {
     this.dagger = buildDagger(overallGraph, {
       width,
       height,
+      startNodeId,
+      onClickNode: id => navTo("/workflow/" + id),
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
       tags: reduce(
@@ -107,18 +137,46 @@ class DaggerComponent extends React.Component {
       ),
       minimap: {
         container: this.minimapContainer,
+        onClickNode: id => navTo("/workflow/" + id),
         setup: minimap => {
           minimap.nodes().on("mouseover", event => {
             const target = event.cyTarget;
+            this.minimapHover.innerText = target.id();
           });
-          minimap.nodes().on("mouseout", event => {
-            const target = event.cyTarget;
+          minimap.nodes().on("mouseout", () => {
+            this.minimapHover.innerText = "";
           });
         }
       }
     });
 
-    this.dagger.initRender(transitionAction);
+    this.dagger
+      .initRender(transitionAction)
+      .then(({ timeMachine }) => (this.timeMachine = timeMachine));
+
+    const resizeDagger = () => {
+      // Clean dom nodes holders
+      cleanDOMContainer(this.nodesContainer);
+      cleanDOMContainer(this.edgesContainer);
+      cleanDOMContainer(this.minimapContainer);
+      // Resize svg container
+      const width = this.navigatorContainer.clientWidth;
+      const height = this.navigatorContainer.clientHeight;
+      this.svgNavigatorContainer.setAttribute("width", width);
+      this.svgNavigatorContainer.setAttribute("height", height);
+      // Update layouts and rerender
+      this.dagger = updateDaggerDimensions(this.dagger, width, height);
+      this.timeMachine = null;
+      this.dagger
+        .initRender(transitionAction)
+        .then(({ timeMachine }) => (this.timeMachine = timeMachine));
+    };
+
+    let doResize;
+    window.onresize = () => {
+      clearTimeout(doResize);
+      doResize = setTimeout(resizeDagger, 500);
+    };
   }
 }
 
@@ -128,26 +186,45 @@ const styles = {
     border: "0px",
     display: "flex",
     flexDirection: "column",
-    flex: 1,
-    alignItems: "stretch"
-  },
-  nodeDescription: {
-    backgroundColor: "#FFF",
-    flex: 1,
-    boxShadow: "0px 1px 5px 0px #BECBD6",
-    margin: "0 5em"
+    flex: 2,
+    alignItems: "stretch",
+    overflow: "hidden",
+    position: "relative"
   },
   minimapContainer: {
-    flex: 1,
-    marginTop: "2.5em",
-    margin: "5em",
-    padding: "2.5em",
-    backgroundColor: "#FFF",
-    boxShadow: "0px 1px 5px 0px #BECBD6"
+    backgroundColor: "rgba(255,255,255,.5)",
+    boxShadow: "0px 1px 5px 0px #BECBD6",
+    width: "300px",
+    position: "absolute",
+    bottom: "1em",
+    borderRadius: "0.2em",
+    left: "50%",
+    marginLeft: "-150px",
+    overflow: "hidden"
+  },
+  minimapHover: {
+    fontFamily: "Arial",
+    textAlign: "center",
+    height: "1.8em",
+    lineHeight: "1.8em",
+    fontSize: "0.8em",
+    fontWeight: "bold",
+    color: "#FFF",
+    backgroundColor: "rgba(92,100,119, 0.75)"
+  },
+  minimapInnerContainer: {
+    height: "150px",
+    width: "100%"
   },
   navigatorContainer: {
-    flex: 4
+    flex: 7,
+    overflow: "hidden"
   }
 };
 
-export default injectSheet(styles)(DaggerComponent);
+export default connect(
+  () => ({}),
+  dispatch => ({
+    navTo: link => dispatch(navigate(link))
+  })
+)(injectSheet(styles)(DaggerComponent));

@@ -26,7 +26,7 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
       start = source;
       end = {
         x: target.x -
-          (target.id in realWidths ? realWidths[target.id] : target.width) +
+          (realWidths[target.id] || target.width) +
           target.width / 2,
         y: y2
       };
@@ -43,7 +43,7 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
       start = {
         x: source.x -
           source.width / 2 +
-          (source.id in realWidths ? realWidths[source.id] : source.width),
+          (realWidths[source.id] || source.width),
         y: y1
       };
       end = target;
