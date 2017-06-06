@@ -459,8 +459,14 @@ const styles = {
       textAlign: "left",
       boxSizing: "border-box",
       transition: "100ms",
-      "&:hover": {
-        background: "rgba(255, 215, 0, 0.1)"
+      "&:hover td:first-child::after": {
+        content: "''",
+        position: "absolute",
+        left: "0",
+        top: "0",
+        width: "3px",
+        background: "#ff5722",
+        bottom: "0"
       }
     },
     "& th": {
@@ -473,6 +479,7 @@ const styles = {
     "& td": {
       padding: "0 15px",
       borderBottom: "1px solid #ecf1f5",
+      position: "relative",
       "& a": {
         color: "inherit",
         textDecoration: "none"

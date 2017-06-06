@@ -11,14 +11,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 object HelloWorld {
 
   def main(args: Array[String]): Unit = {
-    // Yesterday at 00:00 UTC
-    val start: Instant = LocalDate.now.minusDays(1).atStartOfDay.toInstant(UTC)
+    // 7 days ago at 00:00 UTC
+    val start: Instant = LocalDate.now.minusDays(7).atStartOfDay.toInstant(UTC)
 
     val hello1 =
       Job("hello1", hourly(start)) { implicit e =>
         sh"""
           echo "Hello 1"
-          sleep 10
+          sleep 1
         """.exec()
       }
 
@@ -38,15 +38,13 @@ object HelloWorld {
       Job("hello3", hourly(start)) { implicit e =>
         sh"""
           echo "Hello 3"
-          sleep 30
+          sleep 3
         """.exec().map { _ =>
-          // Artificially fail for the first hour of the computation period
+          // Artificially fail for Yesterday 00 to 01
           // if /tmp/hello3_success does not exist
-          if (e.context.start == start && !new File("/tmp/hello3_success").exists) {
+          if (e.context.start == LocalDate.now.minusDays(1).atStartOfDay.toInstant(UTC) && !new File("/tmp/hello3_success").exists) {
             e.streams.error("Oops, please create the /tmp/hello3_success file to make this execution pass...")
             sys.error("Oops!!!")
-          } else {
-            e.streams.info("Success file found!")
           }
         }
       }
@@ -54,7 +52,7 @@ object HelloWorld {
     val world = Job("world", daily(start, UTC)) { implicit e =>
       sh"""
         echo "World"
-        sleep 60
+        sleep 6
       """.exec()
     }
 

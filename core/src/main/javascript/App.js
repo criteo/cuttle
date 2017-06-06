@@ -11,6 +11,7 @@ import Link from "./app/components/Link";
 import type { Page } from "./state";
 import * as Actions from "./actions";
 
+import Calendar from "./app/pages/Calendar";
 import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
@@ -89,13 +90,7 @@ class App extends React.Component {
           case "executions/detail":
             return <Execution execution={page.execution} />;
           case "timeseries/calendar":
-            return (
-              <div style={{ padding: "1em" }}>
-                <Link href="/executions/0c31e0c7-6401-4d9e-b34e-c22a553961bd">
-                  random execution
-                </Link>
-              </div>
-            );
+            return <Calendar />;
           default:
             return null;
         }
@@ -141,7 +136,8 @@ let styles = {
     backgroundColor: "#ECF1F5",
     color: "#3D4454",
     fontFamily: "Arial",
-    height: "100vh"
+    height: "100vh",
+    width: "calc(100vw - 300px)"
   },
   userBar: {
     zIndex: 2

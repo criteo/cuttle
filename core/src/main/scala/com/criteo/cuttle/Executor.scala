@@ -115,7 +115,7 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
 
-  def rawRunningExecutions: Seq[ExecutionLog] =
+  def allRunning: Seq[ExecutionLog] =
     runningState.single.keys.toSeq.map(_.toExecutionLog(ExecutionRunning))
   def runningExecutionsSize: Int = runningState.single.size
   def runningExecutions(sort: String, asc: Boolean, offset: Int, limit: Int): Seq[ExecutionLog] =
@@ -149,6 +149,8 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
       .map(_.drop(offset).take(limit))
       .flatMap(_.map(_.toExecutionLog(ExecutionPaused)))
 
+  def failingContexts: Set[S#Context] =
+    throttledState.single.keys.map(_.context).toSet
   def failingExecutionsSize: Int = throttledState.single.size
   def failingExecutions(sort: String, asc: Boolean, offset: Int, limit: Int): Seq[ExecutionLog] =
     Seq(throttledState.single.toSeq)
