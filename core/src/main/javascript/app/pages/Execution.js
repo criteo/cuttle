@@ -72,7 +72,7 @@ class Execution extends React.Component {
       streamsEventSource && streamsEventSource.close();
       eventSource = listenEvents(
         newQuery,
-        _.debounce(this.updateData.bind(this), 250),
+        this.updateData.bind(this),
         this.notFound.bind(this)
       );
       streamsEventSource = listenEvents(
