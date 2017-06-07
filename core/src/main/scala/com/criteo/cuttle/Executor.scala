@@ -235,7 +235,10 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
         .orElse(throttledState.keys
           .find(predicate)
           .map(e => e.toExecutionLog(ExecutionThrottled).copy(failing = throttledState.get(e).map(_._2))))
-        .orElse(runningState.keys.find(predicate).map(_.toExecutionLog(ExecutionRunning)))
+        .orElse(runningState.keys.find(predicate).map { execution =>
+          val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
+          execution.toExecutionLog(if (waiting) ExecutionWaiting else ExecutionRunning)
+        })
     }.orElse(queries.getExecutionById(queryContexts, executionId).transact(xa).unsafePerformIO)
 
   def openStreams(executionId: String): fs2.Stream[fs2.Task, Byte] =
