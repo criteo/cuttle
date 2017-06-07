@@ -31,6 +31,7 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
           ? []
           : [
               statistics.running && { label: statistics.running, kind: "info" },
+              statistics.waiting && { label: statistics.waiting, kind: "warning" },
               statistics.failing && {
                 label: statistics.failing,
                 kind: "error"
@@ -43,7 +44,8 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
           label="Started"
           link="/executions/started"
           badges={[
-            statistics.running && { label: statistics.running, kind: "info" }
+            statistics.running && { label: statistics.running, kind: "info" },
+            statistics.waiting && { label: statistics.waiting, kind: "warning" }
           ]}
         />,
         <MenuSubEntry

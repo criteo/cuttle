@@ -50,6 +50,7 @@ object App {
           case ExecutionSuccessful => "successful"
           case ExecutionFailed => "failed"
           case ExecutionRunning => "running"
+          case ExecutionWaiting => "waiting"
           case ExecutionPaused => "paused"
           case ExecutionThrottled => "throttled"
         }).asJson,
@@ -121,13 +122,14 @@ case class App[S <: Scheduling](project: Project,
         .toSet
       def getStats() =
         Some(
-          (executor.runningExecutionsSize(filteredJobs),
+          (executor.runningExecutionsSizes(filteredJobs),
            executor.pausedExecutionsSize(filteredJobs),
            executor.failingExecutionsSize(filteredJobs)))
-      def asJson(x: (Int, Int, Int)) = x match {
-        case (running, paused, failing) =>
+      def asJson(x: ((Int, Int), Int, Int)) = x match {
+        case ((running, waiting), paused, failing) =>
           Json.obj(
             "running" -> running.asJson,
+            "waiting" -> waiting.asJson,
             "paused" -> paused.asJson,
             "failing" -> failing.asJson
           )
@@ -150,7 +152,7 @@ case class App[S <: Scheduling](project: Project,
       def getExecutions() = kind match {
         case "started" =>
           Some(
-            executor.runningExecutionsSize(filteredJobs) -> executor
+            executor.runningExecutionsSizeTotal(filteredJobs) -> executor
               .runningExecutions(filteredJobs, sort, asc, offset, limit))
         case "stuck" =>
           Some(
