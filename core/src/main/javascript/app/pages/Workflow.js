@@ -66,11 +66,8 @@ const styles = {
   main: {
     backgroundColor: "#ECF1F5",
     flex: 1,
-    display: "flex"
-  },
-  nodeDescription: {
-    backgroundColor: "#FFF",
-    flex: 1
+    width: "100%",
+    height: "calc(100vh - 4em)"
   },
   jobCard: {
     padding: "1em",

@@ -128,7 +128,6 @@ class App extends React.Component {
 let styles = {
   leftpane: {
     width: "300px",
-    minWidth: "300px",
     display: "flex",
     flexDirection: "column",
     backgroundColor: "#2F3647",

@@ -186,12 +186,8 @@ const styles = {
   main: {
     outline: "none",
     border: "0px",
-    display: "flex",
-    flexDirection: "column",
-    flexGrow: 1,
-    alignItems: "stretch",
-    overflow: "hidden",
-    position: "relative"
+    width: "100%",
+    height: "100%"
   },
   minimapContainer: {
     backgroundColor: "rgba(255,255,255,.5)",
@@ -200,9 +196,7 @@ const styles = {
     position: "absolute",
     bottom: "1em",
     borderRadius: "0.2em",
-    left: "50%",
-    marginLeft: "-150px",
-    overflow: "hidden"
+    left: "50%"
   },
   minimapHover: {
     position: "absolute",
@@ -219,8 +213,10 @@ const styles = {
     width: "100%"
   },
   navigatorContainer: {
-    flex: 7,
-    overflow: "hidden"
+    overflow: "hidden",
+    width: "100%",
+    height: "100%"
+    
   }
 };
 

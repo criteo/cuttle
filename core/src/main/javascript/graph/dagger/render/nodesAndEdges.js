@@ -53,7 +53,6 @@ const getRealWidth = (id, name, width) => {
   ));
 };
 
-
 const floatPrecision = 2;
 const truncate = number => number.toFixed(floatPrecision);
 
@@ -62,18 +61,18 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
   let path;
   switch (kind) {
     case edgeKind.centerToChild:
-      start = { x: source.x + (realWidths[source.id] || source.width) / 2, y: y1 };
+      start = { x: source.x + getRealWidth(source.id, source.name, source.width) / 2, y: y1 };
       end = { x: target.x - target.width / 2, y: y2 };
       break;
     case edgeKind.parentToCenter:
       start = { x: source.x + source.width / 2, y: y1 };
-      end = { x: target.x - (realWidths[target.id] || target.width) / 2, y: y2 };
+      end = { x: target.x - getRealWidth(target.id, target.name, target.width) / 2, y: y2 };
       break;
     case edgeKind.missingParentToParent:
       start = source;
       end = {
         x: target.x -
-          (realWidths[target.id] || target.width) +
+          getRealWidth(target.id, target.name, target.width) +
           target.width / 2,
         y: y2
       };
@@ -90,7 +89,7 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
       start = {
         x: source.x -
           source.width / 2 +
-          (realWidths[source.id] || source.width),
+          getRealWidth(source.id, source.name, source.width),
         y: y1
       };
       end = target;

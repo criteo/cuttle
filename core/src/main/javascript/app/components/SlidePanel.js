@@ -61,12 +61,12 @@ class SlidePanel extends React.Component {
 
 const styles = {
   container: {
-    width: "50px",
-    height: "100%",
-    position: "relative"
+    position: "absolute",
+    right: 0,
+    top: "5em",
+    height: "calc(100% - 5em)"
   },
   innerContainer: {
-    position: "absolute",
     backgroundColor: "rgba(255,255,255,0.75)",
     top: "0.5em",
     height: "calc(100% - 1em)",
@@ -85,7 +85,6 @@ const styles = {
     "&.open": {
       transition: "none",
       backgroundColor: "rgba(255,255,255,0.85)",
-      right: 0,
       width: "800px"
     },
     "& .content": {
