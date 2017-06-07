@@ -58,24 +58,6 @@ class App extends React.Component {
         </div>
       );
     } else {
-      const allJobs = _.reduce(
-        workflow.jobs,
-        (acc, cur) => ({
-          ...acc,
-          [cur.id]: cur
-        }),
-        {}
-      );
-
-      const allTags = _.reduce(
-        workflow.tags,
-        (acc, cur) => ({
-          ...acc,
-          [cur.name]: cur
-        }),
-        {}
-      );
-
       const renderTab = () => {
         switch (page.id) {
           case "workflow":

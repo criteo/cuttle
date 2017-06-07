@@ -3,8 +3,6 @@
 import React from "react";
 import injectSheet from "react-jss";
 import classNames from "classnames";
-import MdChevronLeft from "react-icons/lib/md/chevron-left";
-import MdChevronRight from "react-icons/lib/md/chevron-right";
 
 type Props = {
   classes: any,
@@ -63,15 +61,14 @@ const styles = {
   container: {
     position: "absolute",
     right: 0,
-    top: "5em",
-    height: "calc(100% - 5em)"
+    top: 0,
+    height: "100%"
   },
   innerContainer: {
     backgroundColor: "rgba(255,255,255,0.75)",
-    top: "0.5em",
-    height: "calc(100% - 1em)",
     width: "50px",
     transition: "all .1s ease-out",
+    height:"100%",
     border: "none",
     outline: "none",
     right: 0,

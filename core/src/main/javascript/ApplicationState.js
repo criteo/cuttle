@@ -7,7 +7,10 @@ import { prepareWorkflow } from "./datamodel";
 
 export type Page =
   | { id: "" }
-  | { id: "workflow" }
+  | {
+      id: "workflow",
+      jobId?: string
+    }
   | {
       id: "executions/started",
       page?: number,

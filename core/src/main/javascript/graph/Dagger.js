@@ -3,16 +3,20 @@
 import injectSheet from "react-jss";
 import React from "react";
 import reduce from "lodash/reduce";
+import map from "lodash/map";
 
 import { Graph } from "./dagger/dataAPI/genericGraph";
 import type { Node, Edge } from "./dagger/dataAPI/genericGraph";
 import type { Tag } from "../datamodel";
 
 import { transitionAction } from "./dagger/render/d3render";
+import { cleanRealWidths } from "./dagger/render/nodesAndEdges";
 import { buildDagger } from "./dagger/dagger";
 
 import { navigate } from "redux-url";
 import { connect } from "react-redux";
+
+import Select from "react-select";
 
 type Props = {
   classes: any,
@@ -50,8 +54,8 @@ class DaggerComponent extends React.Component {
   shouldComponentUpdate(nextProps: Props) {
     return (
       nextProps.nodes.length !== this.props.nodes.length ||
-      nextProps.edges.length !== this.props.edges.length ||
-      nextProps.tags.length !== this.props.tags.length
+        nextProps.edges.length !== this.props.edges.length ||
+        nextProps.tags.length !== this.props.tags.length
     );
   }
 
@@ -64,8 +68,30 @@ class DaggerComponent extends React.Component {
         this.timeMachine = timeMachine);
   }
 
+  renderFilters() {
+    return (
+      <defs>
+        <filter id="blur" x="-20%" y="-20%" width="200%" height="200%">
+          <feOffset result="offOut" in="SourceGraphic" />
+          <feColorMatrix
+            result="matrixOut"
+            in="offOut"
+            type="matrix"
+            values="0.7 0 0 0 0 0 0.7 0 0 0 0 0 0.7 0 0 0 0 0 1 0"
+          />
+          <feGaussianBlur
+            result="blurOut"
+            in="matrixOut"
+            stdDeviation="3"
+          />
+          <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
+        </filter>
+      </defs>
+    );
+  }
+
   render() {
-    const { classes } = this.props;
+    const { classes, nodes, navTo } = this.props;
     return (
       <div className={classes.main}>
         <div
@@ -77,23 +103,7 @@ class DaggerComponent extends React.Component {
             height="100%"
             ref={el => (this.svgNavigatorContainer = el)}
           >
-            <defs>
-              <filter id="blur" x="-20%" y="-20%" width="200%" height="200%">
-                <feOffset result="offOut" in="SourceGraphic" />
-                <feColorMatrix
-                  result="matrixOut"
-                  in="offOut"
-                  type="matrix"
-                  values="0.7 0 0 0 0 0 0.7 0 0 0 0 0 0.7 0 0 0 0 0 1 0"
-                />
-                <feGaussianBlur
-                  result="blurOut"
-                  in="matrixOut"
-                  stdDeviation="3"
-                />
-                <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
-              </filter>
-            </defs>
+            {this.renderFilters()}
             <g
               id="allNodesContainer"
               ref={element => (this.nodesContainer = element)}
@@ -114,6 +124,12 @@ class DaggerComponent extends React.Component {
             ref={element => this.minimapHover = element}
           />
         </div>
+        <Select
+          className={classes.jobSelector}
+          name="jobSelector"
+          options={map(nodes, n => ({ value: n.id, label: n.name }))}
+          onChange={o => navTo("/workflow/" + o.value)}
+        />
       </div>
     );
   }
@@ -121,6 +137,9 @@ class DaggerComponent extends React.Component {
   componentDidMount() {
     const { nodes, edges, tags, startNodeId, navTo } = this.props;
     const overallGraph: Graph = new Graph(nodes, edges);
+
+    const onClick = id => navTo("/workflow/" + id);
+    
     const width = this.navigatorContainer.clientWidth;
     const height = this.navigatorContainer.clientHeight;
     this.svgNavigatorContainer.setAttribute("width", width);
@@ -129,7 +148,7 @@ class DaggerComponent extends React.Component {
       width,
       height,
       startNodeId,
-      onClickNode: id => navTo("/workflow/" + id),
+      onClickNode: onClick,
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
       tags: reduce(
@@ -139,7 +158,7 @@ class DaggerComponent extends React.Component {
       ),
       minimap: {
         container: this.minimapContainer,
-        onClickNode: id => navTo("/workflow/" + id),
+        onClickNode: onClick,
         setup: minimap => {
           minimap.nodes().on("mouseover", event => {
             const target = event.cyTarget;
@@ -158,6 +177,7 @@ class DaggerComponent extends React.Component {
 
     const resizeDagger = () => {
       // Clean dom nodes holders
+      cleanRealWidths(map(nodes, "id"));
       cleanDOMContainer(this.nodesContainer);
       cleanDOMContainer(this.edgesContainer);
       cleanDOMContainer(this.minimapContainer);
@@ -187,12 +207,14 @@ const styles = {
     outline: "none",
     border: "0px",
     width: "100%",
-    height: "100%"
+    height: "100%",
+    position: "relative"
   },
   minimapContainer: {
     backgroundColor: "rgba(255,255,255,.5)",
     boxShadow: "0px 1px 5px 0px #BECBD6",
     width: "300px",
+    marginLeft: "-150px",
     position: "absolute",
     bottom: "1em",
     borderRadius: "0.2em",
@@ -216,7 +238,36 @@ const styles = {
     overflow: "hidden",
     width: "100%",
     height: "100%"
-    
+  },
+  jobSelector: {
+    position: "absolute",
+    top: "2em",
+    left: "50%",
+    marginLeft: "-300px",
+    width: "600px",
+    "& .Select-control": {
+      borderRadius: "1em",
+      height: "1em",
+      backgroundColor: "#F5F8FA",
+      "& .Select-value": {
+        color: "#A9B8C3",
+        fontSize: "0.9em"
+      },
+      "& .Select-menu ! important": {
+        margin: "0 1em",
+        width: "calc(600px - 2em)"
+      },
+      "& .Select-menu-outer !important": {
+        margin: "0 1em",
+        width: "calc(600px - 2em)"
+      },
+      "& .Select-option !important": {
+        fontSize: "0.9em"
+      },
+      "& .Select-arrow-zone": {
+        display: "none"
+      }
+    }
   }
 };
 

@@ -41,7 +41,11 @@ const widthReference = 30;
 const widthMax = 1.3 * widthReference;
 const widthMin = 0.7 * widthReference;
 
-const realWidths = {};
+let realWidths = {};
+
+export const cleanRealWidths = keys => {
+  forEach(keys, k => delete realWidths[k]);
+};
 
 const getRealWidth = (id, name, width) => {
   return realWidths[id] || (realWidths[id] = computeNewWidth(

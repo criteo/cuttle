@@ -67,7 +67,8 @@ const styles = {
     backgroundColor: "#ECF1F5",
     flex: 1,
     width: "100%",
-    height: "calc(100vh - 4em)"
+    height: "calc(100vh - 4em)",
+    position: "relative"
   },
   jobCard: {
     padding: "1em",
