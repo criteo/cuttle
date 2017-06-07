@@ -70,7 +70,7 @@ const styles = {
     background: "#ffffff",
     listStyle: "none",
     margin: "0",
-    padding: ".5em 0",
+    padding: ".25em 0",
     position: "absolute",
     width: "auto",
     right: "-.4em",

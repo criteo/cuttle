@@ -6,6 +6,7 @@ import { connect } from "react-redux";
 import classNames from "classnames";
 import injectSheet from "react-jss";
 import moment from "moment";
+import _ from "lodash";
 
 import { Calendar as MiniCalendar } from "react-calendar";
 import Spinner from "../components/Spinner";
@@ -47,9 +48,10 @@ class Calendar extends React.Component {
     let query = `/api/timeseries/calendar?events=true${jobsFilter}`;
     if(this.state.query != query) {
       this.state.eventSource && this.state.eventSource.close();
-      let eventSource = listenEvents(query,this.updateData.bind(this));
+      let eventSource = listenEvents(query, _.debounce(this.updateData.bind(this), 250));
       this.setState({
         ...this.state,
+        data: null,
         eventSource
       });
     }

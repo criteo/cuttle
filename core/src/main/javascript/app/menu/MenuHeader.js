@@ -4,7 +4,7 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 import { Badge } from "../components/Badge";
-import AppIcon from "react-icons/lib/md/fiber-smart-record";
+import Link from "../components/Link";
 
 type Props = {
   projectName: string,
@@ -19,10 +19,10 @@ const MenuHeader = ({
   environment,
   projectName
 }: Props) => (
-  <div className={classNames(classes.main, className)}>
+  <Link className={classNames(classes.main, className)} href="/">
     <span className={classes.projectName}>{projectName}</span>
     <Badge label={environment} className={classes.badge} />
-  </div>
+  </Link>
 );
 
 const styles = {
@@ -34,7 +34,9 @@ const styles = {
     color: "#FFF",
     fontFamily: "Arial",
     alignItems: "center",
-    padding: "0.5em 5%"
+    padding: "0.5em 5%",
+    cursor: "pointer",
+    textDecoration: "none"
   },
   icon: {
     marginRight: ".5em",
