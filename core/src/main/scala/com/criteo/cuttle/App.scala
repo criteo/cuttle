@@ -6,7 +6,7 @@ import lol.http._
 import io.circe._
 import io.circe.syntax._
 
-import java.time.{ Instant }
+import java.time.Instant
 
 import scala.util._
 import scala.concurrent.duration._
@@ -105,7 +105,11 @@ object App {
     }
 }
 
-case class App[S <: Scheduling](project: Project, workflow: Graph[S], scheduler: Scheduler[S], executor: Executor[S], xa: XA) {
+case class App[S <: Scheduling](project: Project,
+                                workflow: Graph[S],
+                                scheduler: Scheduler[S],
+                                executor: Executor[S],
+                                xa: XA) {
   import App._
 
   val api: PartialService = {

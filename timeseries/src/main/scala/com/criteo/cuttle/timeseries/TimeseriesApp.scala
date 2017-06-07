@@ -35,51 +35,77 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
     }
   }
 
-  override def routes(graph: Graph[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling], xa: XA): PartialService = {
-    case GET at url"/api/timeseries/focus?start=$start&end=$end" =>
-      val startDate = Instant.parse(start)
-      val endDate = Instant.parse(end)
-      val (_done, _running, _) = state
-      val periodInterval = Interval.closedOpen(startDate, endDate)
-      val period = StateD(Map.empty, IntervalSet(periodInterval))
-      val done = and(StateD(_done), period)
-      val running = and(StateD(_running), period)
-      val remaining = and(complement(or(done, running)), period)
-      val executions = List((done, "done"), (running, "running"), (remaining, "remaining"))
-        .flatMap { case (state, label) =>
-          for {
-            (job, is) <- state.defined.toList
-            interval <- is
-            context <- splitInterval(job, interval, false).toList
-          } yield (job.id -> ((context.toInterval.intersect(periodInterval).get, label)))
-        }
-      val jobTimelines = executions
-        .groupBy(_._1)
-        .mapValues(_.map(_._2).sortBy(_._1))
-      val summary =
-        (for {
-          (_, (interval, label)) <- executions
-          Closed(start) = interval.lower.bound
-          Open(end) = interval.upper.bound
-          duration = start.until(end, HOURS)
-          hour <- (1L to duration).map(i =>
-            Interval.closedOpen(start.plus(i-1, HOURS), start.plus(i, HOURS)))
+  override def routes(graph: Graph[TimeSeriesScheduling],
+                      executor: Executor[TimeSeriesScheduling],
+                      xa: XA): PartialService = {
+
+    case request @ GET at url"/api/timeseries/focus?start=$start&end=$end" =>
+      def watchState() = Some((state, executor.allFailing))
+      def getFocusView(watchedValue: Any = ()) = {
+        val startDate = Instant.parse(start)
+        val endDate = Instant.parse(end)
+        val (_done, _running, _) = state
+        val stucks = executor.allFailing
+        val periodInterval = Interval.closedOpen(startDate, endDate)
+        val period = StateD(Map.empty, IntervalSet(periodInterval))
+        val done = and(StateD(_done), period)
+        val running = and(StateD(_running), period)
+        val remaining = and(complement(or(done, running)), period)
+        val executions = List((done, "done"), (running, "running"), (remaining, "remaining"))
+          .flatMap {
+            case (state, label) =>
+              for {
+                (job, is) <- state.defined.toList
+                interval <- is
+                context <- splitInterval(job, interval, false).toList
+              } yield {
+                val lbl =
+                  if (label == "running"
+                      && stucks.exists {
+                        case (stuckJob, stuckCtx) =>
+                          stuckCtx.toInterval.intersect(periodInterval).isDefined
+                      })
+                    "stuck"
+                  else
+                    label
+                job.id -> ((context.toInterval.intersect(periodInterval).get, lbl))
+              }
+          }
+        val jobTimelines = executions
+          .groupBy(_._1)
+          .mapValues(_.map(_._2).sortBy(_._1))
+        val summary =
+          (for {
+            (_, (interval, label)) <- executions
+            Closed(start) = interval.lower.bound
+            Open(end) = interval.upper.bound
+            duration = start.until(end, HOURS)
+            hour <- (1L to duration).map(i => Interval.closedOpen(start.plus(i - 1, HOURS), start.plus(i, HOURS)))
           } yield (hour, label))
-        .groupBy(_._1)
-        .mapValues(xs => xs.filter(_._2 == "done").length.toFloat / xs.length)
-        .toList
-        .sortBy(_._1)
-      Ok(Json.obj(
-        "summary" -> summary.asJson,
-        "jobs" -> jobTimelines.asJson
-      ))
+            .groupBy(_._1)
+            .map {
+              case (hour, xs) =>
+                (xs.filter(_._2 == "done").length.toFloat / xs.length, xs.exists(_._2 == "stuck"))
+            }
+            .toList
+            .sortBy(_._1)
+        Json.obj(
+          "summary" -> summary.asJson,
+          "jobs" -> jobTimelines.asJson
+        )
+      }
+      if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
+        sse(watchState, getFocusView)
+      else
+        Ok(getFocusView())
 
     case GET at url"/api/timeseries/calendar?events=$events" =>
-      def watchState() = Some(state)
+      def watchState() = Some((state, executor.allFailing))
       def getCalendar(watchedValue: Any = ()) = {
         val (done, running, _) = state
-        val stucks = executor.failingContexts
-        val goal = StateD(graph.vertices.map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start)))).toMap)
+        val stucks = executor.allFailing
+        val goal = StateD(
+          graph.vertices.map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start)))).toMap)
         val domain = and(or(StateD(done), StateD(running)), goal).defined
         val days = (for {
           (_, is) <- domain.toList
@@ -97,7 +123,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
           val doneForDay =
             and(StateD(done), StateD(Map.empty, IntervalSet(day)))
           val goalForDay = and(goal, StateD(Map.empty, IntervalSet(day)))
-          val isStuck = stucks.exists(ctx => Interval.closedOpen(ctx.start, ctx.end).intersect(day).isDefined)
+          val isStuck = stucks.exists(_._2.toInterval.intersect(day).isDefined)
 
           def totalDuration(state: StateD) =
             (for {
@@ -110,12 +136,16 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
             }).fold(0L)(_ + _)
           (d.toString, f"${totalDuration(doneForDay).toDouble / totalDuration(goalForDay)}%1.1f", isStuck)
         }
-        calendar.toList.sortBy(_._1).map { case (date, completion, isStuck) =>
-          (Map(
-            "date" -> date.asJson,
-            "completion" -> completion.asJson
-          ) ++ (if(isStuck) Map("stuck" -> true.asJson) else Map.empty)).asJson
-        }.asJson
+        calendar.toList
+          .sortBy(_._1)
+          .map {
+            case (date, completion, isStuck) =>
+              (Map(
+                "date" -> date.asJson,
+                "completion" -> completion.asJson
+              ) ++ (if (isStuck) Map("stuck" -> true.asJson) else Map.empty)).asJson
+          }
+          .asJson
       }
       events match {
         case "true" | "yes" =>
