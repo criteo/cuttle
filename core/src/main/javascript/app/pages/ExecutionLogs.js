@@ -537,11 +537,12 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ workflow, page }) => ({
+const mapStateToProps = ({ workflow, page, selectedJobs }) => ({
   workflow,
   page: page.page || 1,
   sort: page.sort,
-  order: page.order || "asc"
+  order: page.order || "asc",
+  selectedJobs: selectedJobs
 });
 const mapDispatchToProps = dispatch => ({
   open(href, replace) {
@@ -550,7 +551,12 @@ const mapDispatchToProps = dispatch => ({
 });
 
 export const Finished = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+  injectSheet(
+    styles
+  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
+    let jobsFilter = selectedJobs.length
+      ? `&jobs=${selectedJobs.join(",")}`
+      : "";
     return (
       <div className={classes.container}>
         <h1 className={classes.title}>Finished executions</h1>
@@ -561,7 +567,7 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
           workflow={workflow}
           columns={["job", "context", "endTime", "status", "detail"]}
           request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+            `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="finished"
           sort={{ column: sort || "endTime", order }}
         />
@@ -571,7 +577,12 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
 );
 
 export const Started = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+  injectSheet(
+    styles
+  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
+    let jobsFilter = selectedJobs.length
+      ? `&jobs=${selectedJobs.join(",")}`
+      : "";
     let pauseAll = () => fetch("/api/jobs/all/pause", { method: "POST" });
     return (
       <div className={classes.container}>
@@ -587,7 +598,7 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
           workflow={workflow}
           columns={["job", "context", "startTime", "status", "detail"]}
           request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+            `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="started"
           sort={{ column: sort || "context", order }}
         />
@@ -597,7 +608,12 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
 );
 
 export const Paused = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+  injectSheet(
+    styles
+  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
+    let jobsFilter = selectedJobs.length
+      ? `&jobs=${selectedJobs.join(",")}`
+      : "";
     let unpauseAll = () => fetch("/api/jobs/all/unpause", { method: "POST" });
     return (
       <div className={classes.container}>
@@ -613,7 +629,7 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
           workflow={workflow}
           columns={["job", "context", "status", "detail"]}
           request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+            `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="paused"
           sort={{ column: sort || "context", order }}
         />
@@ -623,7 +639,12 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
 );
 
 export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(({ classes, workflow, page, sort, order, open }) => {
+  injectSheet(
+    styles
+  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
+    let jobsFilter = selectedJobs.length
+      ? `&jobs=${selectedJobs.join(",")}`
+      : "";
     return (
       <div className={classes.container}>
         <h1 className={classes.title}>Stuck executions</h1>
@@ -638,7 +659,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
           workflow={workflow}
           columns={["job", "context", "failed", "retry", "status", "detail"]}
           request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}`}
+            `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="stuck"
           sort={{ column: sort || "failed", order }}
         />

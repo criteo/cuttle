@@ -3,6 +3,7 @@ package com.criteo.cuttle
 import doobie.imports._
 import doobie.hikari.imports._
 
+import cats.data.{NonEmptyList}
 import cats.implicits._
 
 import io.circe._
@@ -128,12 +129,14 @@ trait Queries {
         """.update.run
     } yield result
 
-  def getExecutionLogSize: ConnectionIO[Int] =
-    sql"""
-      SELECT COUNT(*) FROM executions
-    """.query[Int].unique
+  def getExecutionLogSize(jobs: Set[String]): ConnectionIO[Int] =
+    (sql"""
+      SELECT COUNT(*) FROM executions WHERE """ ++ Fragments.in(fr"job", NonEmptyList.fromListUnsafe(jobs.toList)))
+      .query[Int]
+      .unique
 
   def getExecutionLog(contextQuery: Fragment,
+                      jobs: Set[String],
                       sort: String,
                       asc: Boolean,
                       offset: Int,
@@ -153,7 +156,9 @@ trait Queries {
     (sql"""
       SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
       FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
-      ON executions.context_id = contexts.id """ ++ orderBy ++ sql""" LIMIT $limit OFFSET $offset""")
+      ON executions.context_id = contexts.id WHERE """ ++ Fragments.in(
+      fr"job",
+      NonEmptyList.fromListUnsafe(jobs.toList)) ++ orderBy ++ sql""" LIMIT $limit OFFSET $offset""")
       .query[(String, String, Instant, Instant, Json, ExecutionStatus)]
       .list
       .map(_.map {

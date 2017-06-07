@@ -117,9 +117,14 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
 
   def allRunning: Seq[ExecutionLog] =
     runningState.single.keys.toSeq.map(_.toExecutionLog(ExecutionRunning))
-  def runningExecutionsSize: Int = runningState.single.size
-  def runningExecutions(sort: String, asc: Boolean, offset: Int, limit: Int): Seq[ExecutionLog] =
-    Seq(runningState.single.snapshot.keys.toSeq)
+  def runningExecutionsSize(filteredJobs: Set[String]): Int =
+    runningState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size
+  def runningExecutions(filteredJobs: Set[String],
+                        sort: String,
+                        asc: Boolean,
+                        offset: Int,
+                        limit: Int): Seq[ExecutionLog] =
+    Seq(runningState.single.snapshot.keys.toSeq.filter(e => filteredJobs.contains(e.job.id)))
       .map { executions =>
         sort match {
           case "job" => executions.sortBy(_.job.id)
@@ -133,9 +138,14 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
       .map(_.drop(offset).take(limit))
       .flatMap(_.map(_.toExecutionLog(ExecutionRunning)))
 
-  def pausedExecutionsSize: Int = pausedState.single.values.flatten.size
-  def pausedExecutions(sort: String, asc: Boolean, offset: Int, limit: Int): Seq[ExecutionLog] =
-    Seq(pausedState.single.values.flatMap(_.keys).toSeq)
+  def pausedExecutionsSize(filteredJobs: Set[String]): Int =
+    pausedState.single.values.flatten.filter(x => filteredJobs.contains(x._1.job.id)).size
+  def pausedExecutions(filteredJobs: Set[String],
+                       sort: String,
+                       asc: Boolean,
+                       offset: Int,
+                       limit: Int): Seq[ExecutionLog] =
+    Seq(pausedState.single.values.flatMap(_.keys).toSeq.filter(e => filteredJobs.contains(e.job.id)))
       .map { executions =>
         sort match {
           case "job" => executions.sortBy(_.job.id)
@@ -151,9 +161,14 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
 
   def allFailing: Set[(Job[S], S#Context)] =
     throttledState.single.keys.map(e => (e.job, e.context)).toSet
-  def failingExecutionsSize: Int = throttledState.single.size
-  def failingExecutions(sort: String, asc: Boolean, offset: Int, limit: Int): Seq[ExecutionLog] =
-    Seq(throttledState.single.toSeq)
+  def failingExecutionsSize(filteredJobs: Set[String]): Int =
+    throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size
+  def failingExecutions(filteredJobs: Set[String],
+                        sort: String,
+                        asc: Boolean,
+                        offset: Int,
+                        limit: Int): Seq[ExecutionLog] =
+    Seq(throttledState.single.toSeq.filter(x => filteredJobs.contains(x._1.job.id)))
       .map { executions =>
         sort match {
           case "job" => executions.sortBy(_._1.job.id)
@@ -172,14 +187,15 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
           execution.toExecutionLog(ExecutionThrottled).copy(failing = Some(failingJob))
       })
 
-  def archivedExecutionsSize: Int =
-    queries.getExecutionLogSize.transact(xa).unsafePerformIO
+  def archivedExecutionsSize(jobs: Set[String]): Int =
+    queries.getExecutionLogSize(jobs).transact(xa).unsafePerformIO
   def archivedExecutions(queryContexts: Fragment,
+                         jobs: Set[String],
                          sort: String,
                          asc: Boolean,
                          offset: Int,
                          limit: Int): Seq[ExecutionLog] =
-    queries.getExecutionLog(queryContexts, sort, asc, offset, limit).transact(xa).unsafePerformIO
+    queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa).unsafePerformIO
 
   def pausedJobs: Seq[String] =
     pausedState.single.keys.toSeq

@@ -12,8 +12,9 @@ import ReduxThunk from "redux-thunk";
 import "../style/index.less";
 
 import App from "./App";
-import { initialState, reducers } from "./state";
+import { initialState, reducers } from "./ApplicationState";
 import * as Actions from "./actions";
+import type { State } from "./ApplicationState";
 import type { Statistics } from "./datamodel";
 import { listenEvents } from "./Utils";
 
@@ -48,9 +49,25 @@ const store = createStore(
 
 router.sync();
 store.dispatch(Actions.loadAppData());
-listenEvents("/api/statistics?events=true", stats =>
-  store.dispatch(Actions.updateStatistics(stats))
-);
+
+// Global stats listener
+let statisticsQuery = null, statisticsListener = null;
+let listenForStatistics = (query: string) => {
+  if (query != statisticsQuery) {
+    statisticsListener && statisticsListener.close();
+    statisticsListener = listenEvents(query, stats =>
+      store.dispatch(Actions.updateStatistics(stats))
+    );
+    statisticsQuery = query;
+  }
+};
+store.subscribe(() => {
+  let state: State = store.getState();
+  let jobsFilter = state.selectedJobs.length
+    ? `&jobs=${state.selectedJobs.join(",")}`
+    : "";
+  listenForStatistics(`/api/statistics?events=true${jobsFilter}`);
+});
 
 render(
   <Provider store={store}>

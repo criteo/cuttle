@@ -13,7 +13,8 @@ import Spinner from "../components/Spinner";
 import { listenEvents } from "../../Utils";
 
 type Props = {
-  classes: any
+  classes: any,
+  selectedJobs: Array<string>
 };
 
 type Day = {
@@ -24,6 +25,7 @@ type Day = {
 
 type State = {
   data: ?Array<Day>,
+  query: ?string,
   eventSource: ?any
 };
 
@@ -35,21 +37,32 @@ class Calendar extends React.Component {
     super(props);
     this.state = {
       data: null,
+      query: null,
       eventSource: null
     };
+  }
+
+  listenForUpdates(props: Props) {
+    let jobsFilter = props.selectedJobs.length ? `&jobs=${props.selectedJobs.join(",")}` : "";
+    let query = `/api/timeseries/calendar?events=true${jobsFilter}`;
+    if(this.state.query != query) {
+      this.state.eventSource && this.state.eventSource.close();
+      let eventSource = listenEvents(query,this.updateData.bind(this));
+      this.setState({
+        ...this.state,
+        eventSource
+      });
+    }
   }
 
   componentDidMount() {
     let scroller: any = ReactDOM.findDOMNode(this);
     scroller.scrollTop = Number.MAX_SAFE_INTEGER;
-    let eventSource = listenEvents(
-      `/api/timeseries/calendar?events=true`,
-      this.updateData.bind(this)
-    );
-    this.setState({
-      ...this.state,
-      eventSource
-    });
+    this.listenForUpdates(this.props);
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    this.listenForUpdates(nextProps);
   }
 
   componentWillUnmount() {
@@ -225,7 +238,7 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({}) => ({});
+const mapStateToProps = ({selectedJobs}) => ({selectedJobs});
 const mapDispatchToProps = dispatch => ({});
 
 export default connect(mapStateToProps, mapDispatchToProps)(

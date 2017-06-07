@@ -6,7 +6,7 @@ import lol.http._
 import io.circe._
 import io.circe.syntax._
 
-import java.time.Instant
+import java.time.{Instant}
 
 import scala.util._
 import scala.concurrent.duration._
@@ -114,9 +114,16 @@ case class App[S <: Scheduling](project: Project,
 
   val api: PartialService = {
 
-    case GET at url"/api/statistics?events=$events" =>
+    case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
+      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
+        .filter(_.nonEmpty)
+        .getOrElse(workflow.vertices.map(_.id))
+        .toSet
       def getStats() =
-        Some((executor.runningExecutionsSize, executor.pausedExecutionsSize, executor.failingExecutionsSize))
+        Some(
+          (executor.runningExecutionsSize(filteredJobs),
+           executor.pausedExecutionsSize(filteredJobs),
+           executor.failingExecutionsSize(filteredJobs)))
       def asJson(x: (Int, Int, Int)) = x match {
         case (running, paused, failing) =>
           Json.obj(
@@ -132,19 +139,29 @@ case class App[S <: Scheduling](project: Project,
           Ok(asJson(getStats().get))
       }
 
-    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a" =>
+    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
       val asc = (a.toLowerCase == "asc")
+      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
+        .filter(_.nonEmpty)
+        .getOrElse(workflow.vertices.map(_.id))
+        .toSet
       def getExecutions() = kind match {
         case "started" =>
-          Some(executor.runningExecutionsSize -> executor.runningExecutions(sort, asc, offset, limit))
+          Some(
+            executor.runningExecutionsSize(filteredJobs) -> executor
+              .runningExecutions(filteredJobs, sort, asc, offset, limit))
         case "stuck" =>
-          Some(executor.failingExecutionsSize -> executor.failingExecutions(sort, asc, offset, limit))
+          Some(
+            executor.failingExecutionsSize(filteredJobs) -> executor
+              .failingExecutions(filteredJobs, sort, asc, offset, limit))
         case "paused" =>
-          Some(executor.pausedExecutionsSize -> executor.pausedExecutions(sort, asc, offset, limit))
+          Some(
+            executor.pausedExecutionsSize(filteredJobs) -> executor
+              .pausedExecutions(filteredJobs, sort, asc, offset, limit))
         case "finished" =>
-          Some(executor.archivedExecutionsSize -> executor.allRunning)
+          Some(executor.archivedExecutionsSize(filteredJobs) -> executor.allRunning)
         case _ =>
           None
       }
@@ -158,7 +175,7 @@ case class App[S <: Scheduling](project: Project,
             "asc" -> asc.asJson,
             "data" -> (kind match {
               case "finished" =>
-                executor.archivedExecutions(scheduler.allContexts, sort, asc, offset, limit).asJson
+                executor.archivedExecutions(scheduler.allContexts, filteredJobs, sort, asc, offset, limit).asJson
               case _ =>
                 executions.asJson
             })

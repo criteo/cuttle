@@ -20,7 +20,6 @@ const MenuHeader = ({
   projectName
 }: Props) => (
   <div className={classNames(classes.main, className)}>
-    <AppIcon className={classes.icon} />
     <span className={classes.projectName}>{projectName}</span>
     <Badge label={environment} className={classes.badge} />
   </div>

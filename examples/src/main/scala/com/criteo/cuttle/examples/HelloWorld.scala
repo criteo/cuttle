@@ -35,7 +35,7 @@ object HelloWorld {
       }
 
     val hello3 =
-      Job("hello3", hourly(start)) { implicit e =>
+      Job("hello3", hourly(start), tags = Set(Tag("unsafe job"))) { implicit e =>
         sh"""
           echo "Hello 3"
           sleep 3

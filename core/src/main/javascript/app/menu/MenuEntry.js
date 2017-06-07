@@ -77,7 +77,7 @@ const styles = {
     lineHeight: "1.5em",
     fontFamily: "Arial",
     alignItems: "center",
-    fontSize: "1em",
+    fontSize: ".95em",
     color: "#7D8B99",
     padding: "5%",
     textDecoration: "none",
