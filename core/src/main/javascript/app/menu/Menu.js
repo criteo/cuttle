@@ -23,7 +23,7 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
   <nav className={classNames(classes.main, className)}>
     <MenuEntry
       active={active.id.indexOf("executions/") === 0}
-      label="Execution log"
+      label="Executions"
       link="/executions/started"
       icon={<LogIcon />}
       badges={

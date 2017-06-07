@@ -8,7 +8,8 @@ import { connect } from "react-redux";
 
 import type { BadgeType } from "../components/Badge";
 import { Badge } from "../components/Badge";
-import map from "lodash/map";
+import Link from "../components/Link";
+import _ from "lodash";
 
 type Props = {
   active: boolean,
@@ -36,14 +37,14 @@ const MenuEntry = ({
   navTo
 }: Props) => (
   <div className={classes.menuentry}>
-    <a
+    <Link
       className={classNames(
         classes.main,
         className,
         active && classes.active,
         active && activeClassName
       )}
-      onClick={() => navTo(link)}
+      href={link}
     >
       <span className={classes.icon}>{icon}</span>
       <span className={classes.label}>{label}</span>
@@ -60,7 +61,7 @@ const MenuEntry = ({
           ))}
       </div>
 
-    </a>
+    </Link>
     {active
       ? <div className={classes.content}>
           {subEntries &&

@@ -53,7 +53,8 @@ type Props = {
     column: string,
     order: "asc" | "desc"
   },
-  open: (link: string) => void
+  open: (link: string) => void,
+  selectedJobs: Array<string>
 };
 
 type State = {
@@ -83,7 +84,7 @@ class ExecutionLogs extends React.Component {
     };
     (this: any).adaptTableHeight = _.throttle(
       this.adaptTableHeight.bind(this),
-      1000 // no more than one event per second
+      1000 // no more than one resize event per second
     );
   }
 
@@ -93,7 +94,7 @@ class ExecutionLogs extends React.Component {
     let newQuery = this.props.request(page, rowsPerPage, sort);
     if (newQuery != query) {
       eventSource && eventSource.close();
-      eventSource = listenEvents(newQuery, this.updateData.bind(this));
+      eventSource = listenEvents(newQuery, _.debounce(this.updateData.bind(this), 250));
       this.setState({
         ...this.state,
         query: newQuery,
@@ -125,7 +126,7 @@ class ExecutionLogs extends React.Component {
       total: json.total,
       page: Math.min(
         this.state.page,
-        Math.ceil(json.total / this.state.rowsPerPage) - 1
+        Math.max(0, Math.ceil(json.total / this.state.rowsPerPage) - 1)
       ),
       data: json.data
     });
@@ -152,7 +153,7 @@ class ExecutionLogs extends React.Component {
   render() {
     let { sort } = this.props;
     let { data, page, rowsPerPage, total } = this.state;
-    let { classes, workflow, label } = this.props;
+    let { classes, workflow, label, selectedJobs } = this.props;
 
     let jobName = (id: string) => {
       let job = workflow.getJob(id);
@@ -224,7 +225,7 @@ class ExecutionLogs extends React.Component {
     };
 
     let Table = () => {
-      if (data) {
+      if (data && data.length) {
         return (
           <table className={classes.table}>
             <thead>
@@ -371,7 +372,15 @@ class ExecutionLogs extends React.Component {
             </tbody>
           </table>
         );
-      } else {
+      }
+      else if(data) {
+        return (
+          <div className={classes.noData}>
+            No {label} executions for now{selectedJobs.length ? " (some may have been filtered)" : ""}.
+          </div>
+        );
+      }
+      else {
         return <Spinner />;
       }
     };
@@ -443,6 +452,14 @@ const styles = {
   data: {
     display: "flex",
     flex: "1"
+  },
+  noData: {
+    flex: "1",
+    textAlign: "center",
+    fontSize: "0.9em",
+    color: "#8089a2",
+    alignSelf: "center",
+    paddingBottom: "15%"
   },
   table: {
     borderSpacing: "0",
@@ -570,6 +587,7 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
             `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="finished"
           sort={{ column: sort || "endTime", order }}
+          selectedJobs={selectedJobs}
         />
       </div>
     );
@@ -601,6 +619,7 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
             `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="started"
           sort={{ column: sort || "context", order }}
+          selectedJobs={selectedJobs}
         />
       </div>
     );
@@ -632,6 +651,7 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
             `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="paused"
           sort={{ column: sort || "context", order }}
+          selectedJobs={selectedJobs}
         />
       </div>
     );
@@ -662,6 +682,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
             `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
           label="stuck"
           sort={{ column: sort || "failed", order }}
+          selectedJobs={selectedJobs}
         />
       </div>
     );
