@@ -107,13 +107,17 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .toSet
       def watchState() = Some((state, executor.allFailing))
       def getCalendar(watchedValue: Any = ()) = {
-        val (done, running) = state match { case (done, running, _) =>
-          val filter = (job: TimeSeriesJob) => filteredJobs.contains(job.id)
-          (done.filterKeys(filter), running.filterKeys(filter))
+        val (done, running) = state match {
+          case (done, running, _) =>
+            val filter = (job: TimeSeriesJob) => filteredJobs.contains(job.id)
+            (done.filterKeys(filter), running.filterKeys(filter))
         }
         val stucks = executor.allFailing.filter(x => filteredJobs.contains(x._1.id))
         val goal = StateD(
-          workflow.vertices.filter(job => filteredJobs.contains(job.id)).map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start)))).toMap)
+          workflow.vertices
+            .filter(job => filteredJobs.contains(job.id))
+            .map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start))))
+            .toMap)
         val domain = and(or(StateD(done), StateD(running)), goal).defined
         val days = (for {
           (_, is) <- domain.toList

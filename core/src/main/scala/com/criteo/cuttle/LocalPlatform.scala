@@ -14,19 +14,21 @@ import scala.concurrent.ExecutionContext.Implicits.global
 case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrdering: Ordering[S#Context])
     extends ExecutionPlatform[S]
     with LocalPlatformApp[S] {
-  private[cuttle] val running = Ref(Set.empty[(LocalProcess, Execution[S])])
-  private[cuttle] val waiting = Ref(
+  private[cuttle] val _running = Ref(Set.empty[(LocalProcess, Execution[S])])
+  private[cuttle] val _waiting = Ref(
     SortedSet.empty[(LocalProcess, Execution[S], () => Future[Unit], Promise[Unit])](Ordering.by(x =>
       (x._2.context, x._2.job.id))))
 
+  def waiting = _waiting.single().map(_._2)
+
   private def runNext(): Unit = {
     val maybeToRun = atomic { implicit txn =>
-      if (running().size < maxTasks) {
-        val maybeNext = waiting().headOption
+      if (_running().size < maxTasks) {
+        val maybeNext = _waiting().headOption
         maybeNext.foreach {
           case x @ (l, e, _, _) =>
-            running() = running() + (l -> e)
-            waiting() = waiting() - x
+            _running() = _running() + (l -> e)
+            _waiting() = _waiting() - x
         }
         maybeNext
       } else {
@@ -44,7 +46,7 @@ case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrderin
         fEffect.andThen {
           case _ =>
             atomic { implicit txn =>
-              running() = running() - (l -> e)
+              _running() = _running() - (l -> e)
             }
             runNext()
         }
@@ -55,11 +57,11 @@ case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrderin
     val p = Promise[Unit]()
     val entry = (l, e, f, p)
     atomic { implicit txn =>
-      waiting() = waiting() + entry
+      _waiting() = _waiting() + entry
     }
     e.onCancelled(() => {
       atomic { implicit txn =>
-        waiting() = waiting() - entry
+        _waiting() = _waiting() - entry
       }
       p.tryFailure(ExecutionCancelled)
     })
@@ -97,10 +99,10 @@ trait LocalPlatformApp[S <: Scheduling] { self: LocalPlatform[S] =>
   }
 
   override lazy val routes: PartialService = {
-    case GET at url"/api/local/tasks/running" =>
-      Ok(this.running.single.get.toSeq.asJson)
-    case GET at url"/api/local/tasks/waiting" =>
-      Ok(this.waiting.single.get.toSeq.map(x => (x._1, x._2)).asJson)
+    case GET at url"/api/local/tasks/_running" =>
+      Ok(this._running.single.get.toSeq.asJson)
+    case GET at url"/api/local/tasks/_waiting" =>
+      Ok(this._waiting.single.get.toSeq.map(x => (x._1, x._2)).asJson)
   }
 }
 

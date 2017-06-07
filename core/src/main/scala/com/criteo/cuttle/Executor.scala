@@ -37,6 +37,7 @@ case object ExecutionFailed extends ExecutionStatus
 case object ExecutionRunning extends ExecutionStatus
 case object ExecutionPaused extends ExecutionStatus
 case object ExecutionThrottled extends ExecutionStatus
+case object ExecutionWaiting extends ExecutionStatus
 
 case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[Instant]) {
   def isLastFailureAfter(date: Instant): Boolean =
@@ -92,6 +93,7 @@ case class SubmittedExecution[S <: Scheduling](execution: Execution[S], result: 
 
 trait ExecutionPlatform[S <: Scheduling] {
   def routes: PartialService = PartialFunction.empty
+  def waiting: Set[Execution[S]]
 }
 
 object ExecutionPlatform {
@@ -116,9 +118,21 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
 
   def allRunning: Seq[ExecutionLog] =
-    runningState.single.keys.toSeq.map(_.toExecutionLog(ExecutionRunning))
-  def runningExecutionsSize(filteredJobs: Set[String]): Int =
-    runningState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size
+    runningState.single.keys.toSeq.map { execution =>
+      val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
+      execution.toExecutionLog(if (waiting) ExecutionWaiting else ExecutionRunning)
+    }
+
+  def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
+    runningState.single.keys
+      .filter(e => filteredJobs.contains(e.job.id))
+      .size
+  def runningExecutionsSizes(filteredJobs: Set[String]): (Int, Int) = {
+    val started = runningState.single.keys
+      .filter(e => filteredJobs.contains(e.job.id))
+    val sizes = List(true, false).map(b => started.filter(e => e.platforms.flatMap(_.waiting).contains(e) ^ b).size)
+    (sizes(0), sizes(1))
+  }
   def runningExecutions(filteredJobs: Set[String],
                         sort: String,
                         asc: Boolean,
@@ -136,7 +150,10 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
         if (asc) executions else executions.reverse
       }
       .map(_.drop(offset).take(limit))
-      .flatMap(_.map(_.toExecutionLog(ExecutionRunning)))
+      .flatMap(_.map { execution =>
+        val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
+        execution.toExecutionLog(if (waiting) ExecutionWaiting else ExecutionRunning)
+      })
 
   def pausedExecutionsSize(filteredJobs: Set[String]): Int =
     pausedState.single.values.flatten.filter(x => filteredJobs.contains(x._1.job.id)).size
