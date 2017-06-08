@@ -47,7 +47,7 @@ export const buildDagger = (overallGraph: Graph, userOptions: any = {}) => {
   );
   const onClickDefault = (id, resolvedTransition, { next }) =>
     next(id, resolvedTransition);
-  
+
   const trAction = transitionAction({
     allNodesContainer: d3.select(options.nodesContainer),
     allEdgesContainer: d3.select(options.edgesContainer),
@@ -66,11 +66,12 @@ export const buildDagger = (overallGraph: Graph, userOptions: any = {}) => {
         startNodeId
       }),
     initRender: () => timeMachine(trAction),
-    transitionAction: (nodesContainer: any, edgesContainer: any) => transitionAction({
-      allNodesContainer: d3.select(nodesContainer),
-      allEdgesContainer: d3.select(edgesContainer),
-      tags: options.tags,
-      onClick: options.onClickNode || onClickDefault
-    })(minimap, minimapOptions.onClickNode || onClickDefault)
+    transitionAction: (nodesContainer: any, edgesContainer: any) =>
+      transitionAction({
+        allNodesContainer: d3.select(nodesContainer),
+        allEdgesContainer: d3.select(edgesContainer),
+        tags: options.tags,
+        onClick: options.onClickNode || onClickDefault
+      })(minimap, minimapOptions.onClickNode || onClickDefault)
   };
 };

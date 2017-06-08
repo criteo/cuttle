@@ -34,7 +34,11 @@ const routes = {
   "/workflow/:jobId": ({ jobId }) => openPage({ id: "workflow", jobId }),
   "/workflow": () => openPage({ id: "workflow" }),
   "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
-  "/timeseries/backfills": () => openPage({ id: "timeseries/backfills" })
+  "/timeseries/calendar/:start_:end": ({ start, end }) =>
+    openPage({ id: "timeseries/calendar/focus", start, end }),
+  "/timeseries/backfills": () => openPage({ id: "timeseries/backfills" }),
+  "/timeseries/executions/:job/:start_:end": ({ job, start, end }) =>
+    openPage({ id: "timeseries/executions", job, start, end })
 };
 
 const router = createRouter(routes, createHistory());
