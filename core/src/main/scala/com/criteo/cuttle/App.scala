@@ -53,6 +53,7 @@ object App {
           case ExecutionWaiting => "waiting"
           case ExecutionPaused => "paused"
           case ExecutionThrottled => "throttled"
+          case ExecutionTodo => "todo"
         }).asJson,
         "failing" -> execution.failing.map {
           case FailingJob(failedExecutions, nextRetry) =>

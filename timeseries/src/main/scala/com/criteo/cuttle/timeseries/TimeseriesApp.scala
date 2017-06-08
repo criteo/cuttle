@@ -40,6 +40,34 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
                       executor: Executor[TimeSeriesScheduling],
                       xa: XA): PartialService = {
 
+    case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
+      val job = workflow.vertices.find(_.id == jobId).get
+      val startDate = Instant.parse(start)
+      val endDate = Instant.parse(end)
+      val requestedInterval = Interval.closedOpen(startDate, endDate)
+      val contextQuery = Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
+      val archivedExecutions = executor.archivedExecutions(contextQuery, Set(jobId), "", true, 0, Int.MaxValue)
+      val runningExecutions = executor.runningExecutions
+        .filter {
+          case (e, _) =>
+            e.job.id == jobId && e.context.toInterval.intersects(requestedInterval)
+        }
+        .map { case (e, status) => e.toExecutionLog(status) }
+      val (done, running, _) = state
+      val scheduledPeriods = done(job) ++ running(job)
+      val remainingPeriods =
+        scheduledPeriods.complement.intersect(Interval.atLeast(job.scheduling.start)).intersect(requestedInterval)
+      val remainingContexts: Seq[TimeSeriesContext] = for {
+        interval <- remainingPeriods.toSeq
+        context <- splitInterval(job, interval, false)
+      } yield context
+      val remainingExecutions =
+        remainingContexts.map(ctx => ExecutionLog("virtual", job.id, None, None, ctx.asJson, ExecutionTodo, None))
+      val throttledExecutions = executor.allFailingExecutions
+        .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))
+        .map(_.toExecutionLog(ExecutionThrottled))
+      Ok((archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions).asJson)
+
     case request @ GET at url"/api/timeseries/focus?start=$start&end=$end&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
@@ -56,12 +84,12 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val done = and(StateD(_done), period)
         val running = and(StateD(_running), period)
         val remaining = and(complement(or(done, running)), period)
-        val executions = List((done, "done"), (running, "running"), (remaining, "remaining"))
+        val executions = List((done, "successful"), (running, "running"), (remaining, "todo"))
           .flatMap {
             case (state, label) =>
               for {
                 (job, is) <- state.defined.toList
-                if (filteredJobs.contains(job.id))
+                if filteredJobs.contains(job.id)
                 interval <- is
                 context <- splitInterval(job, interval, false).toList
               } yield {
@@ -69,9 +97,9 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   if (label == "running"
                       && stucks.exists {
                         case (stuckJob, stuckCtx) =>
-                          stuckCtx.toInterval.intersect(periodInterval).isDefined
+                          stuckCtx.toInterval.intersects(context.toInterval) && stuckJob == job
                       })
-                    "stuck"
+                    "failed"
                   else
                     label
                 job.id -> ((context.toInterval.intersect(periodInterval).get, lbl))
@@ -90,7 +118,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
           } yield (hour, label))
             .groupBy(_._1)
             .mapValues { xs =>
-                ((xs.filter(_._2 == "done").length.toFloat / xs.length, xs.exists(_._2 == "stuck")))
+              ((xs.filter(_._2 == "done").length.toFloat / xs.length, xs.exists(_._2 == "stuck")))
             }
             .toList
             .sortBy(_._1)
@@ -104,7 +132,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
       else
         Ok(getFocusView())
 
-    case GET at url"/api/timeseries/calendar?events=$events&jobs=$jobs" =>
+    case request @ GET at url"/api/timeseries/calendar?jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
         .getOrElse(workflow.vertices.map(_.id))
@@ -139,7 +167,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
           val doneForDay =
             and(StateD(done), StateD(Map.empty, IntervalSet(day)))
           val goalForDay = and(goal, StateD(Map.empty, IntervalSet(day)))
-          val isStuck = stucks.exists(_._2.toInterval.intersect(day).isDefined)
+          val isStuck = stucks.exists(_._2.toInterval.intersects(day))
 
           def totalDuration(state: StateD) =
             (for {
@@ -163,12 +191,10 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
           }
           .asJson
       }
-      events match {
-        case "true" | "yes" =>
-          sse(watchState, getCalendar)
-        case _ =>
-          Ok(getCalendar())
-      }
+      if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
+        sse(watchState, getCalendar)
+      else
+        Ok(getCalendar())
 
     case POST at url"/api/timeseries/backfill?job=$id&startDate=$start&endDate=$end&priority=$priority" =>
       val job = this.state._1.keySet.find(_.id == id).get
