@@ -11,6 +11,7 @@ import java.time.{Instant}
 import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.postfixOps
 
 object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
