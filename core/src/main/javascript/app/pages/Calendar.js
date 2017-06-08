@@ -48,7 +48,7 @@ class Calendar extends React.Component {
     let query = `/api/timeseries/calendar?events=true${jobsFilter}`;
     if(this.state.query != query) {
       this.state.eventSource && this.state.eventSource.close();
-      let eventSource = listenEvents(query, _.debounce(this.updateData.bind(this), 250));
+      let eventSource = listenEvents(query, this.updateData.bind(this));
       this.setState({
         ...this.state,
         data: null,

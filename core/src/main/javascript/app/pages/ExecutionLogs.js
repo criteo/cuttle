@@ -94,7 +94,7 @@ class ExecutionLogs extends React.Component {
     let newQuery = this.props.request(page, rowsPerPage, sort);
     if (newQuery != query) {
       eventSource && eventSource.close();
-      eventSource = listenEvents(newQuery, _.debounce(this.updateData.bind(this), 250));
+      eventSource = listenEvents(newQuery, this.updateData.bind(this));
       this.setState({
         ...this.state,
         query: newQuery,
@@ -376,7 +376,7 @@ class ExecutionLogs extends React.Component {
       else if(data) {
         return (
           <div className={classes.noData}>
-            No {label} executions for now{selectedJobs.length ? " (some may have been filtered)" : ""}.
+            No {label} executions for now{selectedJobs.length ? " (some may have been filtered)" : ""}
           </div>
         );
       }
