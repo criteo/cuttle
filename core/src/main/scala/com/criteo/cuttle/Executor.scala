@@ -139,20 +139,24 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
                         offset: Int,
                         limit: Int): Seq[ExecutionLog] =
     Seq(runningState.single.snapshot.keys.toSeq.filter(e => filteredJobs.contains(e.job.id)))
+      .map(_.map { execution =>
+        val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
+        (execution, if (waiting) ExecutionWaiting else ExecutionRunning)
+      })
       .map { executions =>
         sort match {
-          case "job" => executions.sortBy(_.job.id)
-          case "startTime" => executions.sortBy(_.startTime.toString)
-          case _ => executions.sortBy(_.context)
+          case "job" => executions.sortBy(_._1.job.id)
+          case "startTime" => executions.sortBy(_._1.startTime.toString)
+          case "status" => executions.sortBy(_._2.toString)
+          case _ => executions.sortBy(_._1.context)
         }
       }
       .map { executions =>
         if (asc) executions else executions.reverse
       }
       .map(_.drop(offset).take(limit))
-      .flatMap(_.map { execution =>
-        val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
-        execution.toExecutionLog(if (waiting) ExecutionWaiting else ExecutionRunning)
+      .flatMap(_.map { case (execution, status) =>
+        execution.toExecutionLog(status)
       })
 
   def pausedExecutionsSize(filteredJobs: Set[String]): Int =
