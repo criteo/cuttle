@@ -40,7 +40,11 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
                       executor: Executor[TimeSeriesScheduling],
                       xa: XA): PartialService = {
 
-    case request @ GET at url"/api/timeseries/focus?start=$start&end=$end" =>
+    case request @ GET at url"/api/timeseries/focus?start=$start&end=$end&jobs=$jobs" =>
+      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
+        .filter(_.nonEmpty)
+        .getOrElse(workflow.vertices.map(_.id))
+        .toSet
       def watchState() = Some((state, executor.allFailing))
       def getFocusView(watchedValue: Any = ()) = {
         val startDate = Instant.parse(start)
@@ -57,6 +61,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
             case (state, label) =>
               for {
                 (job, is) <- state.defined.toList
+                if (filteredJobs.contains(job.id))
                 interval <- is
                 context <- splitInterval(job, interval, false).toList
               } yield {
@@ -84,9 +89,8 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
             hour <- (1L to duration).map(i => Interval.closedOpen(start.plus(i - 1, HOURS), start.plus(i, HOURS)))
           } yield (hour, label))
             .groupBy(_._1)
-            .map {
-              case (hour, xs) =>
-                (xs.filter(_._2 == "done").length.toFloat / xs.length, xs.exists(_._2 == "stuck"))
+            .mapValues { xs =>
+                ((xs.filter(_._2 == "done").length.toFloat / xs.length, xs.exists(_._2 == "stuck")))
             }
             .toList
             .sortBy(_._1)
