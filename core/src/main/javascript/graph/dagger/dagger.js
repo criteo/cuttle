@@ -16,9 +16,11 @@ const defaultOptions = {
   nodesContainer: undefined,
   edgesContainer: undefined,
   tags: {},
+  onClickNode: noop,
   startNodeId: undefined,
   startHistory: [],
   minimap: {
+    onClickNode: noop,
     container: undefined,
     setup: noop
   }
@@ -43,21 +45,32 @@ export const buildDagger = (overallGraph: Graph, userOptions: any = {}) => {
     options.startNodeId || overallGraph.nodes[0].id,
     minimap
   );
+  const onClickDefault = (id, resolvedTransition, { next }) =>
+    next(id, resolvedTransition);
+  
   const trAction = transitionAction({
     allNodesContainer: d3.select(options.nodesContainer),
     allEdgesContainer: d3.select(options.edgesContainer),
-    tags: options.tags
-  })(minimap);
+    tags: options.tags,
+    onClick: options.onClickNode || onClickDefault
+  })(minimap, minimapOptions.onClickNode || onClickDefault);
 
   minimapOptions.setup(minimap);
 
   return {
-    updateDimensions: (width: number, height: number) =>
+    updateDimensions: (width: number, height: number, startNodeId: string) =>
       buildDagger(overallGraph, {
         ...options,
         width,
-        height
+        height,
+        startNodeId
       }),
-    initRender: () => timeMachine(trAction)
+    initRender: () => timeMachine(trAction),
+    transitionAction: (nodesContainer: any, edgesContainer: any) => transitionAction({
+      allNodesContainer: d3.select(nodesContainer),
+      allEdgesContainer: d3.select(edgesContainer),
+      tags: options.tags,
+      onClick: options.onClickNode || onClickDefault
+    })(minimap, minimapOptions.onClickNode || onClickDefault)
   };
 };

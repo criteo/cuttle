@@ -5,7 +5,7 @@ import React from "react";
 import createHistory from "history/createBrowserHistory"; // choose a history implementation
 import { createStore, compose, applyMiddleware } from "redux";
 import { Provider } from "react-redux";
-import { createRouter, navigate } from "redux-url";
+import { createRouter } from "redux-url";
 import { render } from "react-dom";
 import ReduxThunk from "redux-thunk";
 
@@ -15,7 +15,6 @@ import App from "./App";
 import { initialState, reducers } from "./ApplicationState";
 import * as Actions from "./actions";
 import type { State } from "./ApplicationState";
-import type { Statistics } from "./datamodel";
 import { listenEvents } from "./Utils";
 
 import { openPage } from "./actions";
@@ -32,6 +31,7 @@ const routes = {
     openPage({ id: "executions/paused", page, sort, order }),
   "/executions/:id": ({ id }) =>
     openPage({ id: "executions/detail", execution: id }),
+  "/workflow/:jobId": ({ jobId }) => openPage({ id: "workflow", jobId }),
   "/workflow": () => openPage({ id: "workflow" }),
   "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
   "/timeseries/backfills": () => openPage({ id: "timeseries/backfills" })

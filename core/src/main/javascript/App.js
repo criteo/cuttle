@@ -58,28 +58,10 @@ class App extends React.Component {
         </div>
       );
     } else {
-      const allJobs = _.reduce(
-        workflow.jobs,
-        (acc, cur) => ({
-          ...acc,
-          [cur.id]: cur
-        }),
-        {}
-      );
-
-      const allTags = _.reduce(
-        workflow.tags,
-        (acc, cur) => ({
-          ...acc,
-          [cur.name]: cur
-        }),
-        {}
-      );
-
       const renderTab = () => {
         switch (page.id) {
           case "workflow":
-            return <Workflow workflow={workflow} />;
+            return <Workflow workflow={workflow} job={page.jobId} />;
           case "executions/started":
             return <Started />;
           case "executions/stuck":
@@ -128,7 +110,6 @@ class App extends React.Component {
 let styles = {
   leftpane: {
     width: "300px",
-    minWidth: "300px",
     display: "flex",
     flexDirection: "column",
     backgroundColor: "#2F3647",

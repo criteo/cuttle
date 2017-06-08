@@ -2,9 +2,6 @@ import cytoscape from "cytoscape";
 import cytoscapedagre from "cytoscape-dagre";
 import dagre from "dagre";
 import _ from "lodash";
-import * as d3 from "d3";
-
-import CSSescape from "css.escape";
 
 cytoscapedagre(cytoscape, dagre);
 
@@ -13,8 +10,8 @@ export const draw = (graphData, minimapContainer) => {
     container: minimapContainer,
     layout: {
       name: "dagre",
-      nodeSep: 30,
-      rankSep: 300,
+      nodeSep: 10,
+      rankSep: 120,
       rankDir: "LR"
     },
     style: [
@@ -23,14 +20,14 @@ export const draw = (graphData, minimapContainer) => {
         style: {
           "background-color": "#90A4AE",
           shape: "rectangle",
-          width: 120,
-          height: 60
+          width: 60,
+          height: 40
         }
       },
       {
         selector: "edge",
         style: {
-          width: 0.8,
+          width: 1.5,
           "line-color": "#777"
         }
       }
@@ -63,13 +60,13 @@ export const getNodesOrder = minimap => {
 
 const activeNodeStyle = {
   "background-color": "#42A5F5",
-  "shadow-blur": 80,
+  "shadow-blur": 30,
   "shadow-opacity": 1,
   "shadow-color": "#42A5F5"
 };
 const activeLineStyle = {
   "line-color": "#42A5F5",
-  width: 3
+  width: 1.5
 };
 const inactiveNodeStyle = {
   "background-color": "#90A4AE",
@@ -79,7 +76,7 @@ const inactiveNodeStyle = {
 };
 const inactiveLineStyle = {
   "line-color": "#777",
-  width: 0.8
+  width: 1.5
 };
 
 export const enter = (nodesSelection, edgesSelection, minimap) => {

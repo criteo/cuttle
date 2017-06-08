@@ -1,32 +1,82 @@
 import { nodeKind, edgeKind } from "../layout/symbolic/annotatedGraph";
 import * as d3 from "d3";
+
 import forEach from "lodash/forEach";
 import { interpolatePath } from "d3-interpolate-path";
 
 const transitionDuration = 500;
 const transitionDelay = 0;
 const transitionEase = d3.easeLinear;
+
+const computeNewWidth = (
+  label: string,
+  stringLengthReference: number,
+  pixelWidthReference: number,
+  widthMax: number,
+  widthMin: number
+) => {
+  const labelLength = Array.from(label).length;
+  const maxUsableWidth =
+    pixelWidthReference *
+  Math.max(Math.min(labelLength, widthMax), widthMin) /
+  widthReference;
+
+  return maxUsableWidth;
+};
+
+const computeNewLabel = (
+  label: string,
+  widthMax: number
+) => {
+  const labelLength = Array.from(label).length;
+  const overflowCharacters = Math.max(labelLength - widthMax, 0);
+
+  const labelToDisplay = overflowCharacters > 0
+    ? label.substring(0, labelLength - overflowCharacters - 3) + "..."
+    : label;
+  return labelToDisplay;
+};
+
 const widthReference = 30;
 const widthMax = 1.3 * widthReference;
 const widthMin = 0.7 * widthReference;
-const realWidths = {};
+
+let realWidths = {};
+
+export const cleanRealWidths = keys => {
+  forEach(keys, k => delete realWidths[k]);
+};
+
+const getRealWidth = (id, name, width) => {
+  return realWidths[id] || (realWidths[id] = computeNewWidth(
+    name || id,
+    widthReference,
+    width,
+    widthMax,
+    widthMin
+  ));
+};
+
+const floatPrecision = 2;
+const truncate = number => number.toFixed(floatPrecision);
 
 const dpath = (source, target, kind, x1, y1, x2, y2) => {
   let start, end;
+  let path;
   switch (kind) {
     case edgeKind.centerToChild:
-      start = { x: source.x + realWidths[source.id] / 2, y: y1 };
+      start = { x: source.x + getRealWidth(source.id, source.name, source.width) / 2, y: y1 };
       end = { x: target.x - target.width / 2, y: y2 };
       break;
     case edgeKind.parentToCenter:
       start = { x: source.x + source.width / 2, y: y1 };
-      end = { x: target.x - realWidths[target.id] / 2, y: y2 };
+      end = { x: target.x - getRealWidth(target.id, target.name, target.width) / 2, y: y2 };
       break;
     case edgeKind.missingParentToParent:
       start = source;
       end = {
         x: target.x -
-          (target.id in realWidths ? realWidths[target.id] : target.width) +
+          getRealWidth(target.id, target.name, target.width) +
           target.width / 2,
         y: y2
       };
@@ -43,85 +93,57 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
       start = {
         x: source.x -
           source.width / 2 +
-          (source.id in realWidths ? realWidths[source.id] : source.width),
+          getRealWidth(source.id, source.name, source.width),
         y: y1
       };
       end = target;
       break;
     default:
       return {
-        path: "M" +
-          x1.toFixed(2) +
-          "," +
-          y1.toFixed(2) +
-          "L" +
-          x2.toFixed(2) +
-          "," +
-          y2.toFixed(2),
+        path: (path = d3.path(),
+          path.moveTo(truncate(x1), truncate(y1)),
+          path.lineTo(truncate(x2), truncate(y2)),
+          path.toString()),
         start: { x: x1, y: y1 },
         end: { x: x2, y: y2 }
       };
   }
   return {
-    path: "M" +
-      start.x.toFixed(2) +
-      "," +
-      start.y.toFixed(2) +
-      "L" +
-      (start.x + 30).toFixed(2) +
-      "," +
-      start.y.toFixed(2) +
-      "L" +
-      (end.x - 30).toFixed(2) +
-      "," +
-      end.y.toFixed(2) +
-      "L" +
-      end.x.toFixed(2) +
-      "," +
-      end.y.toFixed(2),
+    path: (path = d3.path(),
+      path.moveTo(truncate(start.x), truncate(start.y)),
+      path.lineTo(truncate(start.x + 30), truncate(start.y)),
+      path.lineTo(truncate(end.x - 30), truncate(end.y)),
+      path.lineTo(truncate(end.x), truncate(end.y)),
+      path.toString()),
     start,
     end
   };
 };
 
-const arrowHead = (cos, sin, x, y, width, height) =>
-  "M" +
-  (x - width).toFixed(2) +
-  "," +
-  (y - height / 2).toFixed(2) +
-  "L" +
-  x.toFixed(2) +
-  "," +
-  y.toFixed(2) +
-  "L" +
-  (x - width).toFixed(2) +
-  "," +
-  (y + height / 2).toFixed(2);
+const arrowHead = (cos, sin, x, y, width, height, p = null) =>
+  (p = d3.path(),
+    p.moveTo(truncate(x - width), truncate(y - height / 2)),
+    p.lineTo(truncate(x), truncate(y)),
+    p.lineTo(truncate(x - width), truncate(y + height / 2)),
+    p.toString());
 
 const adjustNodePosition = (kind, width, realWidth, height, x, y) => {
   if (kind === nodeKind.parent)
+    // parents are aligned on the right border
     return (
-      "translate(" +
-      (x + width / 2 - realWidth).toFixed(2) +
-      "," +
-      (y - height / 2).toFixed(2) +
-      ")"
+      "translate(" + truncate(x + width / 2 - realWidth) + "," +
+        truncate(y - height / 2) + ")"
     );
   else if (kind === nodeKind.main)
     return (
-      "translate(" +
-      (x - realWidth / 2).toFixed(2) +
-      "," +
-      (y - height / 2).toFixed(2) +
-      ")"
+      "translate(" + truncate(x - realWidth / 2) + "," +
+        truncate(y - height / 2) + ")"
     );
   else
+    // children are aligned on the left border
     return (
-      "translate(" +
-      (x - width / 2).toFixed(2) +
-      "," +
-      (y - height / 2).toFixed(2) +
-      ")"
+      "translate(" + truncate(x - width / 2) + "," +
+        truncate(y - height / 2) + ")"
     );
 };
 
@@ -168,9 +190,9 @@ export const transitionEdge = (
 
 export const transitionNode = (
   node,
-  { x, y, width, height, id, order, yPosition, kind }
+  { x, y, width, height, id, name, order, yPosition, kind }
 ) => {
-  const newWidth = realWidths[id];
+  const newWidth = getRealWidth(id, name, width);
   const transition = node
     .transition()
     .delay(transitionDelay)
@@ -178,12 +200,12 @@ export const transitionNode = (
     .attr("transform", adjustNodePosition(kind, width, newWidth, height, x, y));
   transition
     .select("rect")
-    .attr("width", newWidth.toFixed(2))
-    .attr("height", height);
+    .attr("width", truncate(newWidth))
+    .attr("height", truncate(height));
   transition
     .select("text")
-    .attr("x", (newWidth / 2).toFixed(2))
-    .attr("y", height / 2);
+    .attr("x", truncate(newWidth / 2))
+    .attr("y", truncate(height / 2));
 
   return transition;
 };
@@ -230,26 +252,6 @@ export const drawEdge = (
   return edge;
 };
 
-const computeNewWidth = (
-  label: string,
-  stringLengthReference: number,
-  pixelWidthReference: number,
-  widthMax: number,
-  widthMin: number
-) => {
-  const labelLength = Array.from(label).length;
-  const overflowCharacters = Math.max(labelLength - widthMax, 0);
-  const maxUsableWidth =
-    pixelWidthReference *
-    Math.max(Math.min(labelLength, widthMax), widthMin) /
-    widthReference;
-
-  const labelToDisplay = overflowCharacters > 0
-    ? label.substring(0, labelLength - overflowCharacters - 3) + "..."
-    : label;
-  return [maxUsableWidth, labelToDisplay];
-};
-
 const tagBulletVerticalOffset = ({ height }) => {
   const bulletSize = height / 5;
   const spaceBetweenBullets = bulletSize / 2;
@@ -265,19 +267,13 @@ export const drawNode = (
 ) => {
   const node = domContainer.append("g").attr("id", id).attr("class", "oneNode");
 
-  const [newWidth, nameToDisplay] = computeNewWidth(
-    name || id,
-    widthReference,
-    width,
-    widthMax,
-    widthMin
-  );
-  realWidths[id] = newWidth;
+  const newWidth = getRealWidth(id, name, width);
+  const nameToDisplay = computeNewLabel(name, widthMax);
 
   node
     .append("rect")
-    .attr("width", newWidth.toFixed(2))
-    .attr("height", height)
+    .attr("width", truncate(newWidth))
+    .attr("height", truncate(height))
     .style("fill", "#E1EFFA")
     .attr("rx", 4)
     .attr("ry", 4)
@@ -287,8 +283,8 @@ export const drawNode = (
 
   node
     .append("text")
-    .attr("x", (newWidth / 2).toFixed(2))
-    .attr("y", height / 2)
+    .attr("x", truncate(newWidth / 2))
+    .attr("y", truncate(height / 2))
     .style("fill", "black")
     .style("font-family", "Arial")
     .style("font-weight", "bold")

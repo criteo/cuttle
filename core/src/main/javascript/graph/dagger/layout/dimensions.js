@@ -47,50 +47,157 @@ export class GraphDimensions {
     );
   }
 
+  static buildWidthDimensions(width = 1200) {
+    if (width > 1000)
+      return {
+        reference: 1200,
+        node: {
+          small: {
+            width: 240
+          },
+          normal: {
+            width: 240
+          }
+        },
+        grid: {
+          childOffset: 840,
+          parentOffset: 120
+        }
+      };
+    else if (width > 800)
+      return {
+        reference: 1000,
+        node: {
+          small: {
+            width: 240
+          },
+          normal: {
+            width: 240
+          }
+        },
+        grid: {
+          childOffset: 660,
+          parentOffset: 100
+        }
+      };
+    else
+      return {
+        reference: 800,
+        node: {
+          small: {
+            width: 200
+          },
+          normal: {
+            width: 200
+          }
+        },
+        grid: {
+          childOffset: 575,
+          parentOffset: 25
+        }
+      };
+  }
+
+  static buildHeightDimensions(height = 1200) {
+    if (height > 1000)
+      return {
+        reference: 1200,
+        node: {
+          small: {
+            height: 30,
+            margin: 0.1
+          },
+          normal: {
+            height: 100,
+            margin: 0.5
+          }
+        },
+        grid: {
+          childOffset: 840,
+          parentOffset: 120
+        }
+      };
+    else if (height > 800)
+      return {
+        reference: 1000,
+        node: {
+          small: {
+            height: 30,
+            margin: 0.1
+          },
+          normal: {
+            height: 100,
+            margin: 0.5
+          }
+        },
+        grid: {
+          childOffset: 700,
+          parentOffset: 100
+        }
+      };
+    else if (height > 600)
+      return {
+        reference: 800,
+        node: {
+          small: {
+            height: 30,
+            margin: 0.1
+          },
+          normal: {
+            height: 80,
+            margin: 0.3
+          }
+        },
+        grid: {
+          childOffset: 450,
+          parentOffset: 50
+        }
+      };
+    else
+      return {
+        reference: 600,
+        node: {
+          small: {
+            height: 30,
+            margin: 0.1
+          },
+          normal: {
+            height: 60,
+            margin: 0.25
+          }
+        },
+        grid: {
+          childOffset: 450,
+          parentOffset: 50
+        }
+      };
+  }
+
   static buildDefaultDimensions({ width = 1200, height = 850 }) {
     // Here we define default dimensions
     // These default dimensions are used in a relative way
     // when parameters are provided (responsive behaviour)
-
-    const referenceWidth = 1200;
-    const referenceHeight = 850;
-    const widthFactor = width / referenceWidth;
-    const heightFactor = height / referenceHeight;
-
-    const grid = {
-      childOffset: 840,
-      parentOffset: 120
-    };
-
-    const node = {
-      small: {
-        width: 240,
-        height: 30,
-        margin: 0.1
-      },
-      normal: {
-        width: 240,
-        height: 100,
-        margin: 0.5
-      }
-    };
+    const wDim = GraphDimensions.buildWidthDimensions(width);
+    const hDim = GraphDimensions.buildHeightDimensions(height);
+    const widthFactor = width / wDim.reference;
+    const heightFactor = height / hDim.reference;
 
     return new GraphDimensions({
       canva: {
         height,
         width
       },
-      childOffset: grid.childOffset * widthFactor,
-      parentOffset: grid.parentOffset * heightFactor,
+      childOffset: wDim.grid.childOffset * widthFactor,
+      parentOffset: wDim.grid.parentOffset * widthFactor,
       smallNode: {
-        width: node.small.width * widthFactor,
-        height: node.small.height * heightFactor,
-        margin: node.small.margin
+        width: wDim.node.small.width * widthFactor,
+        height: hDim.node.small.height * heightFactor,
+        margin: hDim.node.small.margin
       },
       normalNode: {
-        width: node.normal.width * widthFactor,
-        height: node.normal.height * heightFactor,
-        margin: node.normal.margin
+        width: wDim.node.normal.width * widthFactor,
+        height: hDim.node.normal.height * heightFactor,
+        margin: hDim.node.normal.margin
       }
     });
   }
