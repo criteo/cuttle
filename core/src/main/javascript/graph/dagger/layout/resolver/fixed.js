@@ -12,8 +12,8 @@ import { resolveEdgesForChildNode, resolveEdgesForParentNode } from "./edge";
 import { scaleLinear } from "d3";
 import reduce from "lodash/reduce";
 
-const scaleBuilder = (fullHeight, nodeHeight) =>
-  scaleLinear().domain([0, fullHeight]).range([0, nodeHeight]);
+const scaleBuilder = (start, end, nodeHeight) =>
+  scaleLinear().domain([start, end]).range([0, nodeHeight]).clamp(true);
 
 export const resolveFixedNodes = (
   parents: AnnotatedNode[],
@@ -36,20 +36,21 @@ export const resolveFixedNodes = (
 
   let edges: { [key: string]: ResolvedEdge } = {};
   const { width: mainWidth, height: mainHeight } = dimensions.nodeSize(0);
+  const innerHeight = Math.abs(dimensions.grid.bottom - dimensions.grid.top);
   // The scale is here necessary to put different start/end positions for the edges joining/quitting the main node
-  const scale = scaleBuilder(dimensions.canva.height, mainHeight);
+  const scale = scaleBuilder(dimensions.grid.top - innerHeight * 0.15, dimensions.grid.bottom + innerHeight * 0.15, mainHeight);
   const mainPosition = {
     width: mainWidth,
     height: mainHeight,
-    x: dimensions.canva.width / 2,
-    y: dimensions.canva.height / 2,
+    x: dimensions.grid.mainX,
+    y: dimensions.grid.mainY,
     ...main
   };
 
   const parentPositions = reduce(
     parents,
     (acc, current, i) => {
-      const x = dimensions.parentOffset + parentNodeWidth / 2;
+      const x = dimensions.grid.parentOffset + parentNodeWidth / 2;
       const y = dimensions.nodeVerticalOffset(i, parents.length);
       const newNodePosition = {
         x,
@@ -76,7 +77,7 @@ export const resolveFixedNodes = (
   const childrenPositions = reduce(
     children,
     (acc, current, i) => {
-      const x = dimensions.childOffset + childNodeWidth / 2;
+      const x = dimensions.grid.childOffset + childNodeWidth / 2;
       const y = dimensions.nodeVerticalOffset(i, children.length);
       const newNodePosition = {
         x,

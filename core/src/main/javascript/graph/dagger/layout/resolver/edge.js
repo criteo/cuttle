@@ -1,8 +1,7 @@
 // @flow
 import type { AnnotatedGraph, AnnotatedNode } from "../symbolic/annotatedGraph";
 import type { ResolvedNode } from "./types";
-import { edgeKind, nodeKind } from "../symbolic/annotatedGraph";
-import { ResolvedGraphLayout } from "./types";
+import { edgeKind } from "../symbolic/annotatedGraph";
 import { GraphDimensions } from "../dimensions";
 import _ from "lodash";
 import * as d3 from "d3";
