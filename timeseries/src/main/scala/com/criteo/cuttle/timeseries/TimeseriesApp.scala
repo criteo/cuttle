@@ -83,7 +83,9 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val period = StateD(Map.empty, IntervalSet(periodInterval))
         val done = and(StateD(_done), period)
         val running = and(StateD(_running), period)
-        val remaining = and(complement(or(done, running)), period)
+        val domain = StateD(
+          workflow.vertices.map(job => job -> IntervalSet(Interval.atLeast(job.scheduling.start))).toMap)
+        val remaining = List(complement(or(done, running)), period, domain).reduce(and[StateD])
         val executions = List((done, "successful"), (running, "running"), (remaining, "todo"))
           .flatMap {
             case (state, label) =>
@@ -118,7 +120,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
           } yield (hour, label))
             .groupBy(_._1)
             .mapValues { xs =>
-              ((xs.filter(_._2 == "done").length.toFloat / xs.length, xs.exists(_._2 == "stuck")))
+              ((xs.filter(_._2 == "successful").length.toFloat / xs.length, xs.exists(_._2 == "failed")))
             }
             .toList
             .sortBy(_._1)
