@@ -72,7 +72,7 @@ object Database {
         ctx_range,
         LineString(
           Point(-1, ${start.map(_.getEpochSecond).getOrElse(0L)}),
-          Point( 1, ${end.map(_.getEpochSecond).getOrElse(Long.MaxValue)})
+          Point( 1, ${end.map(_.getEpochSecond).getOrElse(Long.MaxValue) - 1L})
         )
       )
     """
@@ -85,7 +85,7 @@ object Database {
         ${context.asJson},
         LineString(
           Point(-1, ${context.start.getEpochSecond}),
-          Point( 1, ${context.end.getEpochSecond})
+          Point( 1, ${context.end.getEpochSecond - 1L})
         )
       )
     """.update.run *> Applicative[ConnectionIO].pure(context.toString)

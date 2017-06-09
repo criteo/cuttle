@@ -38,6 +38,7 @@ case object ExecutionRunning extends ExecutionStatus
 case object ExecutionPaused extends ExecutionStatus
 case object ExecutionThrottled extends ExecutionStatus
 case object ExecutionWaiting extends ExecutionStatus
+case object ExecutionTodo extends ExecutionStatus
 
 case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[Instant]) {
   def isLastFailureAfter(date: Instant): Boolean =
@@ -123,6 +124,12 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
       execution.toExecutionLog(if (waiting) ExecutionWaiting else ExecutionRunning)
     }
 
+  def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
+    runningState.single.keys.toSeq.map { execution =>
+      val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
+      (execution, if (waiting) ExecutionWaiting else ExecutionRunning)
+    }
+
   def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
     runningState.single.keys
       .filter(e => filteredJobs.contains(e.job.id))
@@ -155,8 +162,9 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
         if (asc) executions else executions.reverse
       }
       .map(_.drop(offset).take(limit))
-      .flatMap(_.map { case (execution, status) =>
-        execution.toExecutionLog(status)
+      .flatMap(_.map {
+        case (execution, status) =>
+          execution.toExecutionLog(status)
       })
 
   def pausedExecutionsSize(filteredJobs: Set[String]): Int =
@@ -184,6 +192,8 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
     throttledState.single.keys.map(e => (e.job, e.context)).toSet
   def failingExecutionsSize(filteredJobs: Set[String]): Int =
     throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size
+  def allFailingExecutions: Seq[Execution[S]] =
+    throttledState.single.toSeq.map(_._1)
   def failingExecutions(filteredJobs: Set[String],
                         sort: String,
                         asc: Boolean,
