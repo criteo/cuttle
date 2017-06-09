@@ -95,15 +95,19 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 interval <- is
                 context <- splitInterval(job, interval, false).toList
               } yield {
+                val waiting = executor.platforms.flatMap(_.waiting)
                 val lbl =
-                  if (label == "running"
-                      && stucks.exists {
-                        case (stuckJob, stuckCtx) =>
-                          stuckCtx.toInterval.intersects(context.toInterval) && stuckJob == job
-                      })
-                    "failed"
-                  else
+                  if (label != "running")
                     label
+                  else if (stucks.exists {
+                             case (stuckJob, stuckCtx) =>
+                               stuckCtx.toInterval.intersects(context.toInterval) && stuckJob == job
+                           })
+                    "failed"
+                  else if (waiting.exists(e => e.job == job && e.context == context))
+                    "waiting"
+                  else
+                    "running"
                 job.id -> ((context.toInterval.intersect(periodInterval).get, lbl))
               }
           }

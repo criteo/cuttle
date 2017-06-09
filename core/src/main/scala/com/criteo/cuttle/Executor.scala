@@ -118,11 +118,12 @@ case class Executor[S <: Scheduling](platforms: Seq[ExecutionPlatform[S]], queri
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
 
-  def allRunning: Seq[ExecutionLog] =
+  def allRunning: Seq[ExecutionLog] = {
+    val waiting = platforms.flatMap(_.waiting)
     runningState.single.keys.toSeq.map { execution =>
-      val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
-      execution.toExecutionLog(if (waiting) ExecutionWaiting else ExecutionRunning)
+      execution.toExecutionLog(if (waiting.contains(execution)) ExecutionWaiting else ExecutionRunning)
     }
+  }
 
   def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
     runningState.single.keys.toSeq.map { execution =>

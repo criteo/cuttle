@@ -22,7 +22,7 @@ object App {
         .filterNot(_ == previous.getOrElse(()))
         .map(a => fs2.Stream(ServerSentEvents.Event(encode(a))) ++ throttle.flatMap(_ => next(Some(a))))
         .getOrElse(throttle.flatMap(_ => next(previous)))
-    thunk().map(_ => Ok(next())).getOrElse(NotFound)
+    thunk().map(_ => Ok(next().changes)).getOrElse(NotFound)
   }
 
   implicit val projectEncoder = new Encoder[Project] {
