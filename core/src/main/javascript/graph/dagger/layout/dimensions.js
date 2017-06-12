@@ -10,20 +10,27 @@ export type Path = {
   lineWidth: number
 };
 
+export type Grid = {
+  parentOffset: number,
+  childOffset: number,
+  top: number,
+  bottom: number,
+  mainX: number,
+  mainY: number
+};
+
 export class GraphDimensions {
   edge: Path;
   canva: $Shape<Box>;
   smallNode: Box;
   normalNode: Box;
-  parentOffset: number;
-  childOffset: number;
+  grid: Grid;
 
   constructor(dim: any) {
     this.canva = dim.canva;
     this.smallNode = dim.smallNode;
     this.normalNode = dim.normalNode;
-    this.parentOffset = dim.parentOffset;
-    this.childOffset = dim.childOffset;
+    this.grid = dim.grid;
   }
 
   nodeDimensions(nbElements: number) {
@@ -41,7 +48,7 @@ export class GraphDimensions {
   nodeVerticalOffset(order: number, nbElements: number) {
     const dimensions = this.nodeDimensions(nbElements);
     const verticalBand = dimensions.height * nbElements;
-    const startVerticalOffset = (this.canva.height - verticalBand) / 2;
+    const startVerticalOffset = this.grid.top + ((this.grid.bottom - this.grid.top) - verticalBand) / 2;
     return (
       startVerticalOffset + order * dimensions.height + dimensions.height / 2
     );
@@ -61,6 +68,7 @@ export class GraphDimensions {
         },
         grid: {
           childOffset: 840,
+          mainX: 600,
           parentOffset: 120
         }
       };
@@ -77,6 +85,7 @@ export class GraphDimensions {
         },
         grid: {
           childOffset: 660,
+          mainX: 500,
           parentOffset: 100
         }
       };
@@ -93,6 +102,7 @@ export class GraphDimensions {
         },
         grid: {
           childOffset: 575,
+          mainX: 400,
           parentOffset: 25
         }
       };
@@ -113,8 +123,9 @@ export class GraphDimensions {
           }
         },
         grid: {
-          childOffset: 840,
-          parentOffset: 120
+          top: 0,
+          bottom: 1200,
+          mainY: 600
         }
       };
     else if (height > 800)
@@ -131,8 +142,9 @@ export class GraphDimensions {
           }
         },
         grid: {
-          childOffset: 700,
-          parentOffset: 100
+          top: 100,
+          bottom: 700,
+          mainY: 400
         }
       };
     else if (height > 600)
@@ -149,8 +161,9 @@ export class GraphDimensions {
           }
         },
         grid: {
-          childOffset: 450,
-          parentOffset: 50
+          top: 100,
+          bottom: 600,
+          mainY: 350
         }
       };
     else
@@ -167,8 +180,9 @@ export class GraphDimensions {
           }
         },
         grid: {
-          childOffset: 450,
-          parentOffset: 50
+          top: 100,
+          bottom: 400,
+          mainY: 250
         }
       };
   }
@@ -187,8 +201,14 @@ export class GraphDimensions {
         height,
         width
       },
-      childOffset: wDim.grid.childOffset * widthFactor,
-      parentOffset: wDim.grid.parentOffset * widthFactor,
+      grid: {
+        childOffset: wDim.grid.childOffset * widthFactor,
+        parentOffset: wDim.grid.parentOffset * widthFactor,
+        mainX: wDim.grid.mainX * widthFactor,
+        mainY: hDim.grid.mainY * heightFactor,
+        top: hDim.grid.top * heightFactor,
+        bottom: hDim.grid.bottom * heightFactor
+      },
       smallNode: {
         width: wDim.node.small.width * widthFactor,
         height: hDim.node.small.height * heightFactor,
