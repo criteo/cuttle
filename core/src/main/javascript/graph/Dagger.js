@@ -22,8 +22,12 @@ type Props = {
   onClickNode: string => void
 };
 
-const updateDaggerDimensions = (dagger: any, width: number, height: number, startNodeId: string) =>
-  dagger.updateDimensions(width, height, startNodeId);
+const updateDaggerDimensions = (
+  dagger: any,
+  width: number,
+  height: number,
+  startNodeId: string
+) => dagger.updateDimensions(width, height, startNodeId);
 
 const cleanDOMContainer = domNode => {
   while (domNode.firstChild)
@@ -40,7 +44,6 @@ class DaggerComponent extends React.Component {
 
   dagger: any;
   timeMachine: any;
-  
 
   constructor(props: Props) {
     super(props);
@@ -54,13 +57,15 @@ class DaggerComponent extends React.Component {
     const { nodes, edges, tags, startNodeId, onClickNode } = nextProps;
     if (nextProps.nodes.length != this.props.nodes.length)
       this.buildGraph(nodes, edges, tags, startNodeId, onClickNode);
-    
-    const transitionAction = this.dagger.transitionAction(this.nodesContainer, this.edgesContainer);
+
+    const transitionAction = this.dagger.transitionAction(
+      this.nodesContainer,
+      this.edgesContainer
+    );
     if (this.timeMachine && nextProps.startNodeId != this.props.startNodeId)
       this.timeMachine
         .next(nextProps.startNodeId, transitionAction)
-        .then(({ timeMachine }) =>
-          this.timeMachine = timeMachine);
+        .then(({ timeMachine }) => (this.timeMachine = timeMachine));
   }
 
   renderFilters() {
@@ -74,11 +79,7 @@ class DaggerComponent extends React.Component {
             type="matrix"
             values="0.7 0 0 0 0 0 0.7 0 0 0 0 0 0.7 0 0 0 0 0 1 0"
           />
-          <feGaussianBlur
-            result="blurOut"
-            in="matrixOut"
-            stdDeviation="3"
-          />
+          <feGaussianBlur result="blurOut" in="matrixOut" stdDeviation="3" />
           <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
         </filter>
       </defs>
@@ -116,7 +117,7 @@ class DaggerComponent extends React.Component {
           />
           <div
             className={classes.minimapHover}
-            ref={element => this.minimapHover = element}
+            ref={element => (this.minimapHover = element)}
           />
         </div>
       </div>
@@ -127,7 +128,7 @@ class DaggerComponent extends React.Component {
     const { nodes, edges, tags, startNodeId, onClickNode } = this.props;
 
     this.buildGraph(nodes, edges, tags, startNodeId, onClickNode);
-    
+
     this.dagger
       .initRender(transitionAction)
       .then(({ timeMachine }) => (this.timeMachine = timeMachine));
@@ -135,12 +136,14 @@ class DaggerComponent extends React.Component {
     let doResize;
     window.onresize = () => {
       clearTimeout(doResize);
-      doResize = setTimeout(() => this.buildGraph(nodes, edges, tags, startNodeId, onClickNode), 500);
+      doResize = setTimeout(
+        () => this.buildGraph(nodes, edges, tags, startNodeId, onClickNode),
+        500
+      );
     };
   }
 
   buildGraph(nodes, edges, tags, startNodeId, onClickNode) {
-
     // Clean dom nodes holders
     cleanRealWidths(map(nodes, "id"));
     cleanDOMContainer(this.nodesContainer);
@@ -178,7 +181,7 @@ class DaggerComponent extends React.Component {
         }
       }
     });
-    
+
     this.timeMachine = null;
     this.dagger
       .initRender(transitionAction)

@@ -68,7 +68,7 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .map(_.toExecutionLog(ExecutionThrottled))
       Ok((archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions).asJson)
 
-    case request @ GET at url"/api/timeseries/focus?start=$start&end=$end&jobs=$jobs" =>
+    case request @ GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
         .getOrElse(workflow.vertices.map(_.id))

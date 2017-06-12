@@ -37,6 +37,17 @@ export type Page =
     }
   | { id: "executions/detail", execution: string }
   | { id: "timeseries/calendar" }
+  | {
+      id: "timeseries/calendar/focus",
+      start: string,
+      end: string
+    }
+  | {
+      id: "timeseries/executions",
+      job: string,
+      start: string,
+      end: string
+    }
   | { id: "timeseries/backfills" };
 
 export type State = {
@@ -113,7 +124,6 @@ export const reducers = (currentState: State, action: Action): State => {
     }
 
     default:
-      console.log("Unhandled action %o", action);
       return currentState;
   }
 };

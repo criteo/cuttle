@@ -14,9 +14,11 @@ import JobSelector from "./app/components/JobSelector";
 import type { Page } from "./ApplicationState";
 import * as Actions from "./actions";
 import Calendar from "./app/pages/Calendar";
+import CalendarFocus from "./app/pages/CalendarFocus";
 import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
+import TimeseriesExecutions from "./app/pages/TimeseriesExecutions";
 import type { Statistics } from "./datamodel";
 
 type Props = {
@@ -61,7 +63,13 @@ class App extends React.Component {
       const renderTab = () => {
         switch (page.id) {
           case "workflow":
-            return <Workflow workflow={workflow} job={page.jobId} selectedJobs={selectedJobs} />;
+            return (
+              <Workflow
+                workflow={workflow}
+                job={page.jobId}
+                selectedJobs={selectedJobs}
+              />
+            );
           case "executions/started":
             return <Started />;
           case "executions/stuck":
@@ -74,6 +82,16 @@ class App extends React.Component {
             return <Execution execution={page.execution} />;
           case "timeseries/calendar":
             return <Calendar />;
+          case "timeseries/calendar/focus":
+            return <CalendarFocus start={page.start} end={page.end} />;
+          case "timeseries/executions":
+            return (
+              <TimeseriesExecutions
+                job={page.job}
+                start={page.start}
+                end={page.end}
+              />
+            );
           default:
             return null;
         }

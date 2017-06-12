@@ -68,7 +68,7 @@ const styles = {
     backgroundColor: "rgba(255,255,255,0.75)",
     width: "50px",
     transition: "all .1s ease-out",
-    height:"100%",
+    height: "100%",
     border: "none",
     outline: "none",
     right: 0,

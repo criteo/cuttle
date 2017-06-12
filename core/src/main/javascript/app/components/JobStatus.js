@@ -11,7 +11,7 @@ export default ({ status }: Props) => {
   if (status == "running") {
     return <Badge label="RUNNING" kind="info" width={75} />;
   } else if (status == "throttled") {
-    return <Badge label="STUCK" kind="error" light={true} width={75} />;
+    return <Badge label="RETRYING" kind="error" light={true} width={75} />;
   } else if (status == "failed") {
     return <Badge label="FAILED" kind="error" width={75} />;
   } else if (status == "successful") {

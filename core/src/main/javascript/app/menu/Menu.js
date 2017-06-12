@@ -31,7 +31,10 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
           ? []
           : [
               statistics.running && { label: statistics.running, kind: "info" },
-              statistics.waiting && { label: statistics.waiting, kind: "warning" },
+              statistics.waiting && {
+                label: statistics.waiting,
+                kind: "warning"
+              },
               statistics.failing && {
                 label: statistics.failing,
                 kind: "error"
@@ -86,7 +89,7 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
       icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
       subEntries={[
         <MenuSubEntry
-          active={active.id === "timeseries/calendar"}
+          active={active.id.indexOf("timeseries/calendar") === 0}
           label="Calendar"
           link="/timeseries/calendar"
         />,

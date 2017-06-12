@@ -9,7 +9,8 @@ export const listenEvents = (
   let minimumDelay = new Promise(resolve => setTimeout(resolve, 250));
   let e = new EventSource(url);
   let open = true;
-  e.onmessage = msg => minimumDelay.then(_ => open && callback(JSON.parse(msg.data)));
+  e.onmessage = msg =>
+    minimumDelay.then(_ => open && callback(JSON.parse(msg.data)));
   error && (e.onerror = e => error(e));
   return {
     close() {

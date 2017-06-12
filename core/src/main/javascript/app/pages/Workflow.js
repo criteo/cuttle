@@ -31,32 +31,34 @@ class WorkflowComponent extends React.Component {
   props: Props;
 
   render() {
-    const { classes, workflow = {}, job, selectedJobs = [], navTo } = this.props;
+    const {
+      classes,
+      workflow = {},
+      job,
+      selectedJobs = [],
+      navTo
+    } = this.props;
 
-    const filteredJobs = filter(workflow.jobs, j => includes(selectedJobs, j.id));
-    const jobs = filteredJobs.length > 0 ? filteredJobs : workflow.jobs;
-    const nodes: Node[] = map(
-      jobs,
-      (j: Job, i) => ({
-        ...j,
-        order: i,
-        yPosition: i
-      })
+    const filteredJobs = filter(workflow.jobs, j =>
+      includes(selectedJobs, j.id)
     );
+    const jobs = filteredJobs.length > 0 ? filteredJobs : workflow.jobs;
+    const nodes: Node[] = map(jobs, (j: Job, i) => ({
+      ...j,
+      order: i,
+      yPosition: i
+    }));
 
     const filteredEdges = filter(
       workflow.dependencies,
-      e => some(jobs, {id: e.from}) && some(jobs, {id: e.to})
+      e => some(jobs, { id: e.from }) && some(jobs, { id: e.to })
     );
-    const edges: Edge[] = map(
-      filteredEdges,
-      (d: Dependency) => ({
-        id: d.from + d.to,
-        source: d.from,
-        target: d.to,
-        value: 1
-      })
-    );
+    const edges: Edge[] = map(filteredEdges, (d: Dependency) => ({
+      id: d.from + d.to,
+      source: d.from,
+      target: d.to,
+      value: 1
+    }));
     const tags: Tag[] = workflow.tags;
     const startNode = find(jobs, { id: job }) || jobs[0];
     return (
@@ -78,11 +80,14 @@ class WorkflowComponent extends React.Component {
           <div className={classes.jobCard}>
             <div className="jobTitle">
               {startNode.name +
-                              (startNode.name != startNode.id ? "(" + startNode.id + ")" : "")}
+                (startNode.name != startNode.id
+                  ? "(" + startNode.id + ")"
+                  : "")}
             </div>
-            {startNode.description && <div className="jobDescription">
-              {startNode.description}
-            </div>}
+            {startNode.description &&
+              <div className="jobDescription">
+                {startNode.description}
+              </div>}
           </div>
         </SlidePanel>
       </div>
@@ -133,8 +138,7 @@ const styles = {
     "& .jobTitle": {
       fontFamily: "Arial",
       fontSize: "2em",
-      color: "black",
-      
+      color: "black"
     },
     "& .jobDescription": {
       fontFamily: "Arial",

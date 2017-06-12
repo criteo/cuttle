@@ -25,7 +25,7 @@ const styles = {
     left: "0",
     right: "0",
     bottom: "0",
-    padding: "2em",
+    padding: "2em 5em",
     display: "flex",
     flexDirection: "column",
     zIndex: "99999",
@@ -47,7 +47,7 @@ const styles = {
     margin: "-1em -1em 1em -1em",
     padding: "1em",
     color: "#f9fbfc",
-    background: "#5c6477",
+    background: "#5f6b86",
     fontWeight: "normal",
     boxShadow: "0px 0px 15px 0px #799cb7"
   }

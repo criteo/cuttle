@@ -18,16 +18,13 @@ const computeNewWidth = (
   const labelLength = Array.from(label).length;
   const maxUsableWidth =
     pixelWidthReference *
-  Math.max(Math.min(labelLength, widthMax), widthMin) /
-  widthReference;
+    Math.max(Math.min(labelLength, widthMax), widthMin) /
+    widthReference;
 
   return maxUsableWidth;
 };
 
-const computeNewLabel = (
-  label: string,
-  widthMax: number
-) => {
+const computeNewLabel = (label: string, widthMax: number) => {
   const labelLength = Array.from(label).length;
   const overflowCharacters = Math.max(labelLength - widthMax, 0);
 
@@ -48,13 +45,16 @@ export const cleanRealWidths = keys => {
 };
 
 const getRealWidth = (id, name, width) => {
-  return realWidths[id] || (realWidths[id] = computeNewWidth(
-    name || id,
-    widthReference,
-    width,
-    widthMax,
-    widthMin
-  ));
+  return (
+    realWidths[id] ||
+    (realWidths[id] = computeNewWidth(
+      name || id,
+      widthReference,
+      width,
+      widthMax,
+      widthMin
+    ))
+  );
 };
 
 const floatPrecision = 2;
@@ -65,12 +65,18 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
   let path;
   switch (kind) {
     case edgeKind.centerToChild:
-      start = { x: source.x + getRealWidth(source.id, source.name, source.width) / 2, y: y1 };
+      start = {
+        x: source.x + getRealWidth(source.id, source.name, source.width) / 2,
+        y: y1
+      };
       end = { x: target.x - target.width / 2, y: y2 };
       break;
     case edgeKind.parentToCenter:
       start = { x: source.x + source.width / 2, y: y1 };
-      end = { x: target.x - getRealWidth(target.id, target.name, target.width) / 2, y: y2 };
+      end = {
+        x: target.x - getRealWidth(target.id, target.name, target.width) / 2,
+        y: y2
+      };
       break;
     case edgeKind.missingParentToParent:
       start = source;
@@ -100,50 +106,62 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
       break;
     default:
       return {
-        path: (path = d3.path(),
-          path.moveTo(truncate(x1), truncate(y1)),
-          path.lineTo(truncate(x2), truncate(y2)),
-          path.toString()),
+        path: ((path = d3.path()), path.moveTo(
+          truncate(x1),
+          truncate(y1)
+        ), path.lineTo(truncate(x2), truncate(y2)), path.toString()),
         start: { x: x1, y: y1 },
         end: { x: x2, y: y2 }
       };
   }
   return {
-    path: (path = d3.path(),
-      path.moveTo(truncate(start.x), truncate(start.y)),
-      path.lineTo(truncate(start.x + 30), truncate(start.y)),
-      path.lineTo(truncate(end.x - 30), truncate(end.y)),
-      path.lineTo(truncate(end.x), truncate(end.y)),
-      path.toString()),
+    path: ((path = d3.path()), path.moveTo(
+      truncate(start.x),
+      truncate(start.y)
+    ), path.lineTo(truncate(start.x + 30), truncate(start.y)), path.lineTo(
+      truncate(end.x - 30),
+      truncate(end.y)
+    ), path.lineTo(truncate(end.x), truncate(end.y)), path.toString()),
     start,
     end
   };
 };
 
 const arrowHead = (cos, sin, x, y, width, height, p = null) =>
-  (p = d3.path(),
-    p.moveTo(truncate(x - width), truncate(y - height / 2)),
-    p.lineTo(truncate(x), truncate(y)),
-    p.lineTo(truncate(x - width), truncate(y + height / 2)),
-    p.toString());
+  ((p = d3.path()), p.moveTo(
+    truncate(x - width),
+    truncate(y - height / 2)
+  ), p.lineTo(truncate(x), truncate(y)), p.lineTo(
+    truncate(x - width),
+    truncate(y + height / 2)
+  ), p.toString());
 
 const adjustNodePosition = (kind, width, realWidth, height, x, y) => {
   if (kind === nodeKind.parent)
     // parents are aligned on the right border
     return (
-      "translate(" + truncate(x + width / 2 - realWidth) + "," +
-        truncate(y - height / 2) + ")"
+      "translate(" +
+      truncate(x + width / 2 - realWidth) +
+      "," +
+      truncate(y - height / 2) +
+      ")"
     );
   else if (kind === nodeKind.main)
     return (
-      "translate(" + truncate(x - realWidth / 2) + "," +
-        truncate(y - height / 2) + ")"
+      "translate(" +
+      truncate(x - realWidth / 2) +
+      "," +
+      truncate(y - height / 2) +
+      ")"
     );
   else
     // children are aligned on the left border
     return (
-      "translate(" + truncate(x - width / 2) + "," +
-        truncate(y - height / 2) + ")"
+      "translate(" +
+      truncate(x - width / 2) +
+      "," +
+      truncate(y - height / 2) +
+      ")"
     );
 };
 
