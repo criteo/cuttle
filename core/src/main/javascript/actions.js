@@ -7,7 +7,11 @@ type StatusWaiting = "pending" | "error";
 type Status = StatusSuccess | StatusWaiting;
 type Dispatch = (action: Action) => void;
 
-export type Action = OPEN_PAGE | LOAD_APP_DATA | UPDATE_STATISTICS | SELECT_JOBS;
+export type Action =
+  | OPEN_PAGE
+  | LOAD_APP_DATA
+  | UPDATE_STATISTICS
+  | SELECT_JOBS;
 
 // Action that should be dispatched by the "redux-url router"
 type OPEN_PAGE = { type: "OPEN_PAGE", page: Page };

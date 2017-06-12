@@ -178,7 +178,7 @@ class Execution extends React.Component {
     let { data, error, streams } = this.state;
 
     return (
-      <Window title="Execution detail">
+      <Window title="Execution">
         <CloseIcon className={classes.close} onClick={back} />
         {data
           ? [

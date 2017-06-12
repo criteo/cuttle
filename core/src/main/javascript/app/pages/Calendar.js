@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { connect } from "react-redux";
 import classNames from "classnames";
+import { navigate } from "redux-url";
 import injectSheet from "react-jss";
 import moment from "moment";
 import _ from "lodash";
@@ -15,7 +16,8 @@ import { listenEvents } from "../../Utils";
 
 type Props = {
   classes: any,
-  selectedJobs: Array<string>
+  selectedJobs: Array<string>,
+  drillDown: (date: any) => void
 };
 
 type Day = {
@@ -44,9 +46,11 @@ class Calendar extends React.Component {
   }
 
   listenForUpdates(props: Props) {
-    let jobsFilter = props.selectedJobs.length ? `&jobs=${props.selectedJobs.join(",")}` : "";
+    let jobsFilter = props.selectedJobs.length
+      ? `&jobs=${props.selectedJobs.join(",")}`
+      : "";
     let query = `/api/timeseries/calendar?events=true${jobsFilter}`;
-    if(this.state.query != query) {
+    if (this.state.query != query) {
       this.state.eventSource && this.state.eventSource.close();
       let eventSource = listenEvents(query, this.updateData.bind(this));
       this.setState({
@@ -80,7 +84,7 @@ class Calendar extends React.Component {
   }
 
   render() {
-    let { classes } = this.props;
+    let { classes, drillDown } = this.props;
     let { data } = this.state;
     return (
       <div className={classes.container}>
@@ -89,21 +93,32 @@ class Calendar extends React.Component {
               weekNumbers={false}
               startDate={moment(data[0].date).startOf("month")}
               endDate={moment(data[data.length - 1].date).endOf("month")}
-              mods={data.map(({ date, completion, stuck }) => {
-                return {
-                  date: moment(date),
-                  classNames: [
-                    stuck
-                      ? "stuck"
-                      : completion == 1
-                          ? "done"
-                          : completion == 0
-                              ? "todo"
-                              : `progress-${completion.toString().substring(2)}`
-                  ],
-                  component: ["day"]
-                };
-              })}
+              mods={data
+                .map(({ date, completion, stuck }) => {
+                  return {
+                    date: moment(date),
+                    classNames: [
+                      stuck
+                        ? "stuck"
+                        : completion == 1
+                            ? "done"
+                            : completion == 0
+                                ? "todo"
+                                : `progress-${completion
+                                    .toString()
+                                    .substring(2)}`
+                    ],
+                    component: ["day"]
+                  };
+                })
+                .concat([
+                  {
+                    events: {
+                      onClick: drillDown
+                    },
+                    component: ["day"]
+                  }
+                ])}
             />
           : <Spinner />}
       </div>
@@ -154,37 +169,31 @@ const styles = {
     "& .rc-Day": {
       display: "inline-block",
       fontSize: "13px",
-      width: "29px",
+      width: "27px",
       height: "15px",
       lineHeight: "15px",
-      padding: "5px",
       textAlign: "center",
       cursor: "pointer",
-      borderRadius: "1px",
-      borderTop: "2.5px solid white",
-      borderBottom: "2.5px solid white",
+      border: "4px solid #fff",
+      marginLeft: "1px",
+      marginRight: "1px",
+      marginBottom: "10px",
       position: "relative",
       "&::after": {
         content: "''",
         position: "absolute",
-        left: "0",
-        right: "0",
-        height: "1px",
-        background: "white",
-        bottom: "1px"
-      },
-      "&::before": {
-        content: "''",
-        position: "absolute",
-        left: "0",
-        right: "0",
-        height: "1px",
-        background: "white",
-        top: "0px"
+        left: "-4px",
+        right: "-4px",
+        height: "3px",
+        background: "#ff5722",
+        bottom: "-8px",
+        display: "none"
       }
     },
     "& .rc-Day:hover": {
-      borderBottom: "2.5px solid #ff5722"
+      "&::after": {
+        display: "block"
+      }
     },
     "& .rc-Day--outside": {
       cursor: "default",
@@ -194,54 +203,70 @@ const styles = {
       backgroundColor: "transparent"
     },
     "& .rc-Day--done": {
+      borderColor: "#62cc64",
       backgroundColor: "#62cc64",
       color: "#fff"
     },
     "& .rc-Day--stuck": {
       backgroundColor: "#e91e63",
+      borderColor: "#e91e63",
       color: "#fff"
     },
     "& .rc-Day--progress-9": {
-      backgroundColor: "rgba(0, 188, 212, 1)",
-      color: "#fff"
+      borderColor: "rgba(98, 204, 100, 1)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-8": {
-      backgroundColor: "rgba(0, 188, 212, 0.9)",
-      color: "#fff"
+      borderColor: "rgba(98, 204, 100, 0.9)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-7": {
-      backgroundColor: "rgba(0, 188, 212, 0.8)",
-      color: "#fff"
+      borderColor: "rgba(98, 204, 100, 0.8)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-6": {
-      backgroundColor: "rgba(0, 188, 212, 0.7)",
-      color: "#fff"
+      borderColor: "rgba(98, 204, 100, 0.7)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-5": {
-      backgroundColor: "rgba(0, 188, 212, 0.6)",
-      color: "#fff"
+      borderColor: "rgba(98, 204, 100, 0.6)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-4": {
-      backgroundColor: "rgba(0, 188, 212, 0.5)",
-      color: "#fff"
+      borderColor: "rgba(98, 204, 100, 0.5)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-3": {
-      backgroundColor: "rgba(0, 188, 212, 0.4)"
+      borderColor: "rgba(98, 204, 100, 0.4)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-2": {
-      backgroundColor: "rgba(0, 188, 212, 0.3)"
+      borderColor: "rgba(98, 204, 100, 0.3)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--progress-1": {
-      backgroundColor: "rgba(0, 188, 212, 0.2)"
+      borderColor: "rgba(98, 204, 100, 0.2)",
+      backgroundColor: "#f2f9ff"
     },
     "& .rc-Day--todo": {
+      borderColor: "#f2f9ff",
       backgroundColor: "#f2f9ff"
     }
   }
 };
 
-const mapStateToProps = ({selectedJobs}) => ({selectedJobs});
-const mapDispatchToProps = dispatch => ({});
+const mapStateToProps = ({ selectedJobs }) => ({ selectedJobs });
+const mapDispatchToProps = dispatch => ({
+  drillDown(date) {
+    let day = moment.utc(date.format("YYYY-MM-DD"));
+    let f = "YYYY-MM-DDTHH";
+    dispatch(
+      navigate(
+        `/timeseries/calendar/${day.format(f)}Z_${day.add(1, "day").format(f)}Z`
+      )
+    );
+  }
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(
   injectSheet(styles)(Calendar)

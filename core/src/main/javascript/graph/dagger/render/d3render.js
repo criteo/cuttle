@@ -86,10 +86,13 @@ export const transitionAction: TransitionAction = ({
     .data(annotatedGraph[0].edges, d => d.id);
 
   const onClickParameter = id => onClick(id, resolvedTransition, { next });
-  const minimapOnClickParameter = id => minimapOnClick(id, resolvedTransition, { next });
+  const minimapOnClickParameter = id =>
+    minimapOnClick(id, resolvedTransition, { next });
 
   minimap.nodes().off("click");
-  minimap.nodes().on("click", event => minimapOnClickParameter(event.cyTarget.id()));
+  minimap
+    .nodes()
+    .on("click", event => minimapOnClickParameter(event.cyTarget.id()));
 
   const minimapEnterPromise = minimapTools.enter(
     currentNodesDom.enter(),

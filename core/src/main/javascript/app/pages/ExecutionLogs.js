@@ -204,9 +204,12 @@ class ExecutionLogs extends React.Component {
     let Context = ({ ctx }) => {
       // Need to be dynamically linked with the scehduler but for now let's
       // assume that it is a TimeseriesContext
-      let format = date => moment(date).utc().format("MMM-DD HH:mm") + " UTC";
+      let format = date => moment(date).utc().format("MMM-DD HH:mm");
+      let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
       return (
-        <a href={`/timeries/calendar/${ctx.start}-${ctx.end}`}>
+        <Link
+          href={`/timeseries/calendar/${URLFormat(ctx.start)}_${URLFormat(ctx.end)}`}
+        >
           <CalendarIcon
             style={{
               fontSize: "1.2em",
@@ -219,8 +222,8 @@ class ExecutionLogs extends React.Component {
           {" "}
           <BreakIcon />
           {" "}
-          {format(ctx.end)}
-        </a>
+          {format(ctx.end)} UTC
+        </Link>
       );
     };
 
@@ -372,15 +375,18 @@ class ExecutionLogs extends React.Component {
             </tbody>
           </table>
         );
-      }
-      else if(data) {
+      } else if (data) {
         return (
           <div className={classes.noData}>
-            No {label} executions for now{selectedJobs.length ? " (some may have been filtered)" : ""}
+            No
+            {" "}
+            {label}
+            {" "}
+            executions for now
+            {selectedJobs.length ? " (some may have been filtered)" : ""}
           </div>
         );
-      }
-      else {
+      } else {
         return <Spinner />;
       }
     };
