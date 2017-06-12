@@ -8,7 +8,7 @@ import unorm from "unorm";
 import SearchIcon from "react-icons/lib/md/search";
 import JobIcon from "react-icons/lib/go/git-commit";
 import GraphIcon from "react-icons/lib/go/repo-forked";
-import TagIcon from "react-icons/lib/md/label-outline";
+import TagIcon from "react-icons/lib/md/label";
 
 import Select from "react-select";
 import type { Workflow } from "../../datamodel.js";
@@ -105,33 +105,33 @@ class JobSelector extends React.Component {
       o => o.value
     );
     this.setState({
-      ...this.state,
       selected: newSelected
     });
     this.props.onChange(newSelected.map(s => s.value));
   }
 
   render() {
-    let { className, classes, placeholder } = this.props;
+    let { className, classes, placeholder, workflow } = this.props;
     let { selected } = this.state;
 
     let renderOption = ({ value, label, kind, others }: Option) => {
+      const tag = _.find(workflow.tags, t => `_${t.name}-TAG` == value);
       return (
         <span>
-          {kind == "parents"
-            ? <GraphIcon
-                className={classes.optionIcon}
-                style={{ transform: "rotate(-90deg) translateX(2px)" }}
-              />
-            : kind == "children"
-                ? <GraphIcon
-                    className={classes.optionIcon}
-                    style={{ transform: "rotate(90deg) translateX(-2px)" }}
-                  />
-                : kind == "tag"
-                    ? <TagIcon className={classes.optionIcon} />
-                    : <JobIcon className={classes.optionIcon} />}
-          {label}
+        {kind == "parents"
+          ? <GraphIcon
+              className={classes.optionIcon}
+              style={{ transform: "rotate(-90deg) translateX(2px)" }}
+            />
+          : kind == "children"
+          ? <GraphIcon
+              className={classes.optionIcon}
+              style={{ transform: "rotate(90deg) translateX(-2px)" }}
+            />
+          : kind == "tag"
+          ? <TagIcon className={classes.optionIcon} style={{ color: (tag && tag.color) || "#000"}} />
+          : <JobIcon className={classes.optionIcon} />}
+        {label}
           {others && others.length > 0
             ? <em className={classes.more}>
                 {`${kind != "tag" ? "+" : ""}${others.length} job${others.length > 1 ? "s" : ""}`}
