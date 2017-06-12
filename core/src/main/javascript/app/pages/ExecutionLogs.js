@@ -13,14 +13,14 @@ import ReactPaginate from "react-paginate";
 import PrevIcon from "react-icons/lib/md/navigate-before";
 import NextIcon from "react-icons/lib/md/navigate-next";
 import BreakIcon from "react-icons/lib/md/keyboard-control";
-import AscIcon from "react-icons/lib/md/keyboard-arrow-down";
-import DescIcon from "react-icons/lib/md/keyboard-arrow-up";
 import OpenIcon from "react-icons/lib/md/zoom-in";
 import CalendarIcon from "react-icons/lib/md/date-range";
 import PopoverMenu from "../components/PopoverMenu";
 
 import Spinner from "../components/Spinner";
 import Clock from "../components/Clock";
+import Table from "../components/Table";
+import { ROW_HEIGHT } from "../components/Table";
 import Link from "../components/Link";
 import { listenEvents } from "../../Utils";
 import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
@@ -31,6 +31,7 @@ type Props = {
   classes: any,
   className?: string,
   workflow: Workflow,
+  envCritical: boolean,
   request: (
     page: number,
     rowsPerPage: number,
@@ -65,8 +66,6 @@ type State = {
   query: ?string,
   eventSource: any
 };
-
-const ROW_HEIGHT = 43;
 
 class ExecutionLogs extends React.Component {
   props: Props;
@@ -151,7 +150,7 @@ class ExecutionLogs extends React.Component {
   }
 
   render() {
-    let { sort } = this.props;
+    let { sort, columns, envCritical } = this.props;
     let { data, page, rowsPerPage, total } = this.state;
     let { classes, workflow, label, selectedJobs } = this.props;
 
@@ -161,43 +160,6 @@ class ExecutionLogs extends React.Component {
         return job.name;
       } else {
         return id;
-      }
-    };
-
-    let ColumnHeader = ({
-      label,
-      width,
-      sortBy
-    }: {
-      label?: string,
-      width?: number,
-      sortBy?: string
-    }) => {
-      if (sortBy) {
-        let isSorted = sort.column == sortBy ? sort.order : null;
-        return (
-          <th
-            width={width || "auto"}
-            onClick={this.sortBy.bind(this, sortBy)}
-            className={classes.sortable}
-          >
-            {label}
-            {isSorted == "asc"
-              ? <AscIcon className={classes.sortIcon} />
-              : null}
-            {isSorted == "desc"
-              ? <DescIcon className={classes.sortIcon} />
-              : null}
-            {!isSorted
-              ? <AscIcon
-                  className={classes.sortIcon}
-                  style={{ color: "transparent" }}
-                />
-              : null}
-          </th>
-        );
-      } else {
-        return <th width={width || "auto"}>{label}</th>;
       }
     };
 
@@ -227,153 +189,91 @@ class ExecutionLogs extends React.Component {
       );
     };
 
-    let Table = () => {
+    let Data = () => {
       if (data && data.length) {
         return (
-          <table className={classes.table}>
-            <thead>
-              <tr>
-                {this.props.columns.map(column => {
-                  switch (column) {
-                    case "job":
-                      return (
-                        <ColumnHeader key="job" label="Job" sortBy="job" />
-                      );
-                    case "context":
-                      return (
-                        <ColumnHeader
-                          key="context"
-                          label="Context"
-                          sortBy="context"
-                        />
-                      );
-                    case "failed":
-                      return (
-                        <ColumnHeader
-                          key="failed"
-                          label="Failed"
-                          sortBy="failed"
-                        />
-                      );
-                    case "retry":
-                      return (
-                        <ColumnHeader
-                          key="retry"
-                          label="Next retry"
-                          sortBy="retry"
-                        />
-                      );
-                    case "startTime":
-                      return (
-                        <ColumnHeader
-                          key="startTime"
-                          label="Started"
-                          sortBy="startTime"
-                        />
-                      );
-                    case "endTime":
-                      return (
-                        <ColumnHeader
-                          key="endTime"
-                          label="Finished"
-                          sortBy="endTime"
-                        />
-                      );
-                    case "status":
-                      return (
-                        <ColumnHeader
-                          key="status"
-                          label="Status"
-                          width={120}
-                          sortBy="status"
-                        />
-                      );
-                    case "detail":
-                      return <ColumnHeader key="detail" width={40} />;
+          <Table
+            envCritical={envCritical}
+            columns={columns.map(column => {
+              switch (column) {
+                case "job":
+                  return { id: "job", label: "Job", sortable: true };
+                case "context":
+                  return { id: "context", label: "Context", sortable: true };
+                case "failed":
+                  return { id: "failed", label: "Failed", sortable: true };
+                case "retry":
+                  return { id: "retry", label: "Next retry", sortable: true };
+                case "startTime":
+                  return { id: "startTime", label: "Started", sortable: true };
+                case "endTime":
+                  return { id: "endTime", label: "Finished", sortable: true };
+                case "status":
+                  return {
+                    id: "status",
+                    label: "Status",
+                    width: 120,
+                    sortable: true
+                  };
+                case "detail":
+                  return { id: "detail", width: 40 };
+              }
+            })}
+            onSortBy={this.sortBy.bind(this)}
+            sort={sort}
+            data={data}
+            render={(
+              column,
+              { id, job, startTime, endTime, status, context, failing }
+            ) => {
+              switch (column) {
+                case "job":
+                  return <Link href={`/workflow/${job}`}>{jobName(job)}</Link>;
+                case "context":
+                  return <Context ctx={context} />;
+                case "failed":
+                  let times = (failing && failing.failedExecutions.length) || 0;
+                  if (times == 1) {
+                    return "Once";
+                  } else if (times > 1) {
+                    return `${times} times`;
                   }
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {data.map(
-                ({ id, job, startTime, endTime, status, context, failing }) => (
-                  <tr key={id}>
-                    {this.props.columns.map(column => {
-                      switch (column) {
-                        case "job":
-                          return (
-                            <td key="job">
-                              <a href={`/workflow/${job}`}>{jobName(job)}</a>
-                            </td>
-                          );
-                        case "context":
-                          return (
-                            <td key="context"><Context ctx={context} /></td>
-                          );
-                        case "failed":
-                          let times =
-                            (failing && failing.failedExecutions.length) || 0;
-                          if (times == 1) {
-                            return <td key="failed">Once</td>;
-                          } else if (times > 1) {
-                            return <td key="failed">{times} times</td>;
-                          }
-                        case "startTime":
-                          return (
-                            <td key="startTime">
-                              <Clock
-                                className={classes.time}
-                                time={startTime || ""}
-                              />
-                            </td>
-                          );
-                        case "endTime":
-                          return (
-                            <td key="endTime">
-                              <Clock
-                                className={classes.time}
-                                time={endTime || ""}
-                              />
-                            </td>
-                          );
-                        case "retry":
-                          return (
-                            <td key="retry">
-                              <Clock
-                                className={classes.time}
-                                time={(failing && failing.nextRetry) || ""}
-                              />
-                            </td>
-                          );
-                        case "status":
-                          return (
-                            <td key="status">
-                              <Link
-                                className={classes.openIcon}
-                                href={`/executions/${id}`}
-                              >
-                                <JobStatus status={status} />
-                              </Link>
-                            </td>
-                          );
-                        case "detail":
-                          return (
-                            <td key="detail">
-                              <Link
-                                className={classes.openIcon}
-                                href={`/executions/${id}`}
-                              >
-                                <OpenIcon />
-                              </Link>
-                            </td>
-                          );
-                      }
-                    })}
-                  </tr>
-                )
-              )}
-            </tbody>
-          </table>
+                case "startTime":
+                  return (
+                    <Clock className={classes.time} time={startTime || ""} />
+                  );
+                case "endTime":
+                  return (
+                    <Clock className={classes.time} time={endTime || ""} />
+                  );
+                case "retry":
+                  return (
+                    <Clock
+                      className={classes.time}
+                      time={(failing && failing.nextRetry) || ""}
+                    />
+                  );
+                case "status":
+                  return (
+                    <Link
+                      className={classes.openIcon}
+                      href={`/executions/${id}`}
+                    >
+                      <JobStatus status={status} />
+                    </Link>
+                  );
+                case "detail":
+                  return (
+                    <Link
+                      className={classes.openIcon}
+                      href={`/executions/${id}`}
+                    >
+                      <OpenIcon />
+                    </Link>
+                  );
+              }
+            }}
+          />
         );
       } else if (data) {
         return (
@@ -423,7 +323,7 @@ class ExecutionLogs extends React.Component {
     return (
       <div className={classes.grid}>
         <Measure onMeasure={this.adaptTableHeight}>
-          <div className={classes.data}><Table /></div>
+          <div className={classes.data}><Data /></div>
         </Measure>
         <Pagination />
       </div>
@@ -466,55 +366,6 @@ const styles = {
     color: "#8089a2",
     alignSelf: "center",
     paddingBottom: "15%"
-  },
-  table: {
-    borderSpacing: "0",
-    fontSize: ".9em",
-    width: "100%",
-    background: "#ffffff",
-    "& thead": {
-      color: "#303a41",
-      boxShadow: "0px 1px 2px #BECBD6"
-    },
-    "& tr": {
-      height: ROW_HEIGHT,
-      padding: "0",
-      textAlign: "left",
-      boxSizing: "border-box",
-      transition: "100ms",
-      "&:hover td:first-child::after": {
-        content: "''",
-        position: "absolute",
-        left: "0",
-        top: "0",
-        width: "3px",
-        background: "#ff5722",
-        bottom: "0"
-      }
-    },
-    "& th": {
-      padding: "0 15px",
-      background: "#f5f8fa",
-      height: "46px",
-      boxSizing: "border-box",
-      cursor: "default"
-    },
-    "& td": {
-      padding: "0 15px",
-      borderBottom: "1px solid #ecf1f5",
-      position: "relative",
-      "& a": {
-        color: "inherit",
-        textDecoration: "none"
-      }
-    }
-  },
-  sortable: {
-    cursor: "pointer !important",
-    userSelect: "none"
-  },
-  sortIcon: {
-    color: "#6f98b1"
   },
   time: {
     color: "#85929c"
@@ -560,12 +411,13 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ workflow, page, selectedJobs }) => ({
+const mapStateToProps = ({ project, workflow, page, selectedJobs }) => ({
   workflow,
   page: page.page || 1,
   sort: page.sort,
   order: page.order || "asc",
-  selectedJobs: selectedJobs
+  selectedJobs: selectedJobs,
+  envCritical: project.env.critical
 });
 const mapDispatchToProps = dispatch => ({
   open(href, replace) {
@@ -576,121 +428,169 @@ const mapDispatchToProps = dispatch => ({
 export const Finished = connect(mapStateToProps, mapDispatchToProps)(
   injectSheet(
     styles
-  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
-    let jobsFilter = selectedJobs.length
-      ? `&jobs=${selectedJobs.join(",")}`
-      : "";
-    return (
-      <div className={classes.container}>
-        <h1 className={classes.title}>Finished executions</h1>
-        <ExecutionLogs
-          classes={classes}
-          open={open}
-          page={page}
-          workflow={workflow}
-          columns={["job", "context", "endTime", "status", "detail"]}
-          request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
-          label="finished"
-          sort={{ column: sort || "endTime", order }}
-          selectedJobs={selectedJobs}
-        />
-      </div>
-    );
-  })
+  )(
+    ({
+      classes,
+      workflow,
+      page,
+      sort,
+      order,
+      open,
+      selectedJobs,
+      envCritical
+    }) => {
+      let jobsFilter = selectedJobs.length
+        ? `&jobs=${selectedJobs.join(",")}`
+        : "";
+      return (
+        <div className={classes.container}>
+          <h1 className={classes.title}>Finished executions</h1>
+          <ExecutionLogs
+            envCritical={envCritical}
+            classes={classes}
+            open={open}
+            page={page}
+            workflow={workflow}
+            columns={["job", "context", "endTime", "status", "detail"]}
+            request={(page, rowsPerPage, sort) =>
+              `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            label="finished"
+            sort={{ column: sort || "endTime", order }}
+            selectedJobs={selectedJobs}
+          />
+        </div>
+      );
+    }
+  )
 );
 
 export const Started = connect(mapStateToProps, mapDispatchToProps)(
   injectSheet(
     styles
-  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
-    let jobsFilter = selectedJobs.length
-      ? `&jobs=${selectedJobs.join(",")}`
-      : "";
-    let pauseAll = () => fetch("/api/jobs/all/pause", { method: "POST" });
-    return (
-      <div className={classes.container}>
-        <h1 className={classes.title}>Started executions</h1>
-        <PopoverMenu
-          className={classes.menu}
-          items={[<span onClick={pauseAll}>Pause everything</span>]}
-        />
-        <ExecutionLogs
-          classes={classes}
-          open={open}
-          page={page}
-          workflow={workflow}
-          columns={["job", "context", "startTime", "status", "detail"]}
-          request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
-          label="started"
-          sort={{ column: sort || "context", order }}
-          selectedJobs={selectedJobs}
-        />
-      </div>
-    );
-  })
+  )(
+    ({
+      classes,
+      workflow,
+      page,
+      sort,
+      order,
+      open,
+      selectedJobs,
+      envCritical
+    }) => {
+      let jobsFilter = selectedJobs.length
+        ? `&jobs=${selectedJobs.join(",")}`
+        : "";
+      let pauseAll = () => fetch("/api/jobs/all/pause", { method: "POST" });
+      return (
+        <div className={classes.container}>
+          <h1 className={classes.title}>Started executions</h1>
+          <PopoverMenu
+            className={classes.menu}
+            items={[<span onClick={pauseAll}>Pause everything</span>]}
+          />
+          <ExecutionLogs
+            envCritical={envCritical}
+            classes={classes}
+            open={open}
+            page={page}
+            workflow={workflow}
+            columns={["job", "context", "startTime", "status", "detail"]}
+            request={(page, rowsPerPage, sort) =>
+              `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            label="started"
+            sort={{ column: sort || "context", order }}
+            selectedJobs={selectedJobs}
+          />
+        </div>
+      );
+    }
+  )
 );
 
 export const Paused = connect(mapStateToProps, mapDispatchToProps)(
   injectSheet(
     styles
-  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
-    let jobsFilter = selectedJobs.length
-      ? `&jobs=${selectedJobs.join(",")}`
-      : "";
-    let unpauseAll = () => fetch("/api/jobs/all/unpause", { method: "POST" });
-    return (
-      <div className={classes.container}>
-        <h1 className={classes.title}>Paused executions</h1>
-        <PopoverMenu
-          className={classes.menu}
-          items={[<span onClick={unpauseAll}>Resume everything</span>]}
-        />
-        <ExecutionLogs
-          classes={classes}
-          open={open}
-          page={page}
-          workflow={workflow}
-          columns={["job", "context", "status", "detail"]}
-          request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
-          label="paused"
-          sort={{ column: sort || "context", order }}
-          selectedJobs={selectedJobs}
-        />
-      </div>
-    );
-  })
+  )(
+    ({
+      classes,
+      workflow,
+      page,
+      sort,
+      order,
+      open,
+      selectedJobs,
+      envCritical
+    }) => {
+      let jobsFilter = selectedJobs.length
+        ? `&jobs=${selectedJobs.join(",")}`
+        : "";
+      let unpauseAll = () => fetch("/api/jobs/all/unpause", { method: "POST" });
+      return (
+        <div className={classes.container}>
+          <h1 className={classes.title}>Paused executions</h1>
+          <PopoverMenu
+            className={classes.menu}
+            items={[<span onClick={unpauseAll}>Resume everything</span>]}
+          />
+          <ExecutionLogs
+            envCritical={envCritical}
+            classes={classes}
+            open={open}
+            page={page}
+            workflow={workflow}
+            columns={["job", "context", "status", "detail"]}
+            request={(page, rowsPerPage, sort) =>
+              `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            label="paused"
+            sort={{ column: sort || "context", order }}
+            selectedJobs={selectedJobs}
+          />
+        </div>
+      );
+    }
+  )
 );
 
 export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
   injectSheet(
     styles
-  )(({ classes, workflow, page, sort, order, open, selectedJobs }) => {
-    let jobsFilter = selectedJobs.length
-      ? `&jobs=${selectedJobs.join(",")}`
-      : "";
-    return (
-      <div className={classes.container}>
-        <h1 className={classes.title}>Stuck executions</h1>
-        <PopoverMenu
-          className={classes.menu}
-          items={[<span onClick={console.log}>Retry everything now</span>]}
-        />
-        <ExecutionLogs
-          classes={classes}
-          open={open}
-          page={page}
-          workflow={workflow}
-          columns={["job", "context", "failed", "retry", "status", "detail"]}
-          request={(page, rowsPerPage, sort) =>
-            `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
-          label="stuck"
-          sort={{ column: sort || "failed", order }}
-          selectedJobs={selectedJobs}
-        />
-      </div>
-    );
-  })
+  )(
+    ({
+      classes,
+      workflow,
+      page,
+      sort,
+      order,
+      open,
+      selectedJobs,
+      envCritical
+    }) => {
+      let jobsFilter = selectedJobs.length
+        ? `&jobs=${selectedJobs.join(",")}`
+        : "";
+      return (
+        <div className={classes.container}>
+          <h1 className={classes.title}>Stuck executions</h1>
+          <PopoverMenu
+            className={classes.menu}
+            items={[<span onClick={console.log}>Retry everything now</span>]}
+          />
+          <ExecutionLogs
+            envCritical={envCritical}
+            classes={classes}
+            open={open}
+            page={page}
+            workflow={workflow}
+            columns={["job", "context", "failed", "retry", "status", "detail"]}
+            request={(page, rowsPerPage, sort) =>
+              `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            label="stuck"
+            sort={{ column: sort || "failed", order }}
+            selectedJobs={selectedJobs}
+          />
+        </div>
+      );
+    }
+  )
 );

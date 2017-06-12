@@ -13,7 +13,7 @@ import scala.util._
 
 import java.time._
 
-case class DatabaseConfig(host: String, port: Int, database: String, user: String, password: String)
+case class DatabaseConfig(host: String, port: Int, database: String, username: String, password: String)
 
 object Database {
 
@@ -93,7 +93,7 @@ object Database {
       hikari <- HikariTransactor[IOLite](
         "com.mysql.cj.jdbc.Driver",
         s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
-        c.user,
+        c.username,
         c.password
       )
       _ <- hikari.configure { datasource =>
@@ -111,7 +111,7 @@ object Database {
       env("MYSQL_HOST", Some("localhost")),
       Try(env("MYSQL_PORT", Some("3306")).toInt).getOrElse(3306),
       env("MYSQL_DATABASE"),
-      env("MYSQL_USER"),
+      env("MYSQL_USERNAME"),
       env("MYSQL_PASSWORD")
     )
   }

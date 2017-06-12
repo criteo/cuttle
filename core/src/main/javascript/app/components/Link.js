@@ -1,10 +1,13 @@
 // @flow
 
 import React from "react";
+import classNames from "classnames";
+import injectSheet from "react-jss";
 import { connect } from "react-redux";
 import { navigate } from "redux-url";
 
 type Props = {
+  classes: any,
   href: string,
   className: string,
   children: any,
@@ -12,9 +15,20 @@ type Props = {
   replace: ?boolean
 };
 
-const Link = ({ href, className, children, open, replace = false }) => {
+const Link = ({
+  classes,
+  href,
+  className,
+  children,
+  open,
+  replace = false
+}) => {
   return (
-    <a onClick={open(href, replace)} href={href} className={className}>
+    <a
+      onClick={open(href, replace)}
+      href={href}
+      className={classNames(classes.link, className)}
+    >
       {children}
     </a>
   );
@@ -30,4 +44,13 @@ const mapDispatchToProps = dispatch => ({
   }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(Link);
+const styles = {
+  link: {
+    textDecoration: "none",
+    color: "inherit"
+  }
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(
+  injectSheet(styles)(Link)
+);

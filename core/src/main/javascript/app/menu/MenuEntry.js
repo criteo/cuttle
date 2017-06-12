@@ -81,7 +81,6 @@ const styles = {
     fontSize: ".95em",
     color: "#7D8B99",
     padding: "5%",
-    textDecoration: "none",
     "&:hover": {
       backgroundColor: "#3B4254",
       color: "#FFF",

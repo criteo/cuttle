@@ -112,7 +112,7 @@ class CalendarFocus extends React.Component {
         .scaleUtc()
         .domain([moment(start).toDate(), moment(end).toDate()])
         .range([0, axisWidth]);
-      let colorScale = d3.interpolateRgb("#f2f9ff", "#62cc64");
+      let colorScale = d3.interpolateRgb("#ecf1f5", "#62cc64");
       let tickFormat = date => {
         return (d3.utcHour(date) < date
           ? d3.utcFormat("")
@@ -143,14 +143,8 @@ class CalendarFocus extends React.Component {
               </div>
             `
             )
-            .attr("class", classes.period)
-            .attr("transform", `translate(${x1 + MARGIN + 2}, 0)`)
-            .on("click", () =>
-              this.props.drillDown(
-                moment.utc(period.start),
-                moment.utc(period.end)
-              )
-            );
+            .attr("class", classes.aggregatedPeriod)
+            .attr("transform", `translate(${x1 + MARGIN + 2}, 0)`);
           g
             .append("rect")
             .attr("y", -(ROW_HEIGHT / 2))
@@ -164,7 +158,7 @@ class CalendarFocus extends React.Component {
             .attr("height", ROW_HEIGHT - 4)
             .attr(
               "fill",
-              error ? "#e91e63" : completion == 1 ? "#62cc64" : "#f2f9ff"
+              error ? "#e91e63" : completion == 1 ? "#62cc64" : "#ecf1f5"
             )
             .attr("stroke-width", "4")
             .attr("stroke", error ? "#e91e63" : colorScale(completion));
@@ -203,7 +197,7 @@ class CalendarFocus extends React.Component {
               `
               <div>
                 ${job} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"}
-                – ${formatDate(period.start)} to ${formatDate(period.end)}
+                – ${formatDate(period.start)} to ${formatDate(period.end)} UTC
               </div>
             `
             )
@@ -231,7 +225,7 @@ class CalendarFocus extends React.Component {
                 ? "#e91e63"
                 : status == "successful"
                     ? "#62cc64"
-                    : status == "running" ? "#f2f9ff" : "#f2f9ff"
+                    : status == "running" ? "#ecf1f5" : "#ecf1f5"
             );
         });
       };
@@ -338,11 +332,7 @@ const styles = {
     fontSize: "1.2em",
     margin: "0 0 16px 0",
     color: "#607e96",
-    fontWeight: "normal",
-    "& a": {
-      color: "inherit",
-      textDecoration: "none"
-    }
+    fontWeight: "normal"
   },
   chevron: {
     color: "#92a2af",
@@ -391,6 +381,10 @@ const styles = {
     cursor: "pointer",
     transition: ".1s",
     "&:hover": {}
+  },
+  aggregatedPeriod: {
+    extend: "period",
+    cursor: "default"
   },
   jobName: {
     fontSize: "0.75em",

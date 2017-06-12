@@ -3,7 +3,7 @@ val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
-  version := "0.1.0",
+  version := "0.1.0-SNAPSHOT",
   scalaVersion := "2.11.9",
   scalacOptions ++= Seq(
     "-deprecation",
@@ -37,6 +37,22 @@ lazy val commonSettings = Seq(
   }
 )
 
+def removeDependencies(groups: String*)(xml: scala.xml.Node) = {
+  import scala.xml._
+  import scala.xml.transform._
+  (new RuleTransformer(
+    new RewriteRule {
+      override def transform(n: Node): Seq[Node] = n match {
+        case dependency @ Elem(_, "dependency", _, _, _*) =>
+          if(dependency.child.collect { case e: Elem => e}.headOption.exists { e =>
+            groups.exists(group => e.toString == s"<groupId>$group</groupId>")
+          }) Nil else dependency
+        case x => x
+      }
+    }
+  ))(xml)
+}
+
 lazy val continuum = {
   ProjectRef(uri("git://github.com/danburkert/continuum.git#b2122f1980fb69eb0d047e47e9d7de730ccbd448"), "continuum")
 }
@@ -45,6 +61,7 @@ lazy val localdb = {
   (project in file("localdb"))
     .settings(commonSettings: _*)
     .settings(
+      publishArtifact := false,
       libraryDependencies ++= Seq(
         "com.wix" % "wix-embedded-mysql" % "2.1.4"
       )
@@ -80,6 +97,8 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1"
       ).map(_ % "test"),
+
+      // Webpack
       resourceGenerators in Compile += Def.task {
         if (devMode.value) {
           streams.value.log.warn(s"Skipping webpack resource generation.")
@@ -104,8 +123,20 @@ lazy val cuttle =
           listFiles(webpackOutputDir)
         }
       }.taskValue,
-      cleanFiles += (file(".") / "node_modules")
+      cleanFiles += (file(".") / "node_modules"),
+
+      // Assembly
+      assemblyExcludedJars in assembly := (fullClasspath in assembly).value,
+      assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
+      publishArtifact in (Compile, packageBin) := false,
+      artifact in (Compile, assembly) := {
+        val core = (artifact in (Compile, packageBin)).value
+        val vendorised = (artifact in (Compile, assembly)).value
+        vendorised
+      },
+      pomPostProcess := removeDependencies("danburkert", "org.scalatest")
     )
+    .settings(addArtifact(artifact in (Compile, assembly), assembly): _*)
     .dependsOn(continuum, localdb % "test->test")
 
 lazy val timeseries =
@@ -119,6 +150,7 @@ lazy val examples =
   (project in file("examples"))
     .settings(commonSettings: _*)
     .settings(
+      publishArtifact := false,
       fork in Test := true,
       connectInput in Test := true
     )

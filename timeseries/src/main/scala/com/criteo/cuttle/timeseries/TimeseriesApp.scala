@@ -41,32 +41,39 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
                       xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
-      val job = workflow.vertices.find(_.id == jobId).get
-      val startDate = Instant.parse(start)
-      val endDate = Instant.parse(end)
-      val requestedInterval = Interval.closedOpen(startDate, endDate)
-      val contextQuery = Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
-      val archivedExecutions = executor.archivedExecutions(contextQuery, Set(jobId), "", true, 0, Int.MaxValue)
-      val runningExecutions = executor.runningExecutions
-        .filter {
-          case (e, _) =>
-            e.job.id == jobId && e.context.toInterval.intersects(requestedInterval)
-        }
-        .map { case (e, status) => e.toExecutionLog(status) }
-      val (done, running, _) = state
-      val scheduledPeriods = done(job) ++ running(job)
-      val remainingPeriods =
-        scheduledPeriods.complement.intersect(Interval.atLeast(job.scheduling.start)).intersect(requestedInterval)
-      val remainingContexts: Seq[TimeSeriesContext] = for {
-        interval <- remainingPeriods.toSeq
-        context <- splitInterval(job, interval, false)
-      } yield context
-      val remainingExecutions =
-        remainingContexts.map(ctx => ExecutionLog("virtual", job.id, None, None, ctx.asJson, ExecutionTodo, None))
-      val throttledExecutions = executor.allFailingExecutions
-        .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))
-        .map(_.toExecutionLog(ExecutionThrottled))
-      Ok((archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions).asJson)
+      def watchState() = Some((state, executor.allFailing))
+      def getExecutions(watchedValue: Any = ()) = {
+        val job = workflow.vertices.find(_.id == jobId).get
+        val startDate = Instant.parse(start)
+        val endDate = Instant.parse(end)
+        val requestedInterval = Interval.closedOpen(startDate, endDate)
+        val contextQuery = Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
+        val archivedExecutions = executor.archivedExecutions(contextQuery, Set(jobId), "", true, 0, Int.MaxValue)
+        val runningExecutions = executor.runningExecutions
+          .filter {
+            case (e, _) =>
+              e.job.id == jobId && e.context.toInterval.intersects(requestedInterval)
+          }
+          .map { case (e, status) => e.toExecutionLog(status) }
+        val (done, running, _) = state
+        val scheduledPeriods = done(job) ++ running(job)
+        val remainingPeriods =
+          scheduledPeriods.complement.intersect(Interval.atLeast(job.scheduling.start)).intersect(requestedInterval)
+        val remainingContexts: Seq[TimeSeriesContext] = for {
+          interval <- remainingPeriods.toSeq
+          context <- splitInterval(job, interval, false)
+        } yield context
+        val remainingExecutions =
+          remainingContexts.map(ctx => ExecutionLog("", job.id, None, None, ctx.asJson, ExecutionTodo, None))
+        val throttledExecutions = executor.allFailingExecutions
+          .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))
+          .map(_.toExecutionLog(ExecutionThrottled))
+        (archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions).asJson
+      }
+      if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
+        sse(watchState, getExecutions)
+      else
+        Ok(getExecutions())
 
     case request @ GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption

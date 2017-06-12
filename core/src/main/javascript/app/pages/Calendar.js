@@ -16,6 +16,7 @@ import { listenEvents } from "../../Utils";
 
 type Props = {
   classes: any,
+  envCritical: boolean,
   selectedJobs: Array<string>,
   drillDown: (date: any) => void
 };
@@ -84,10 +85,14 @@ class Calendar extends React.Component {
   }
 
   render() {
-    let { classes, drillDown } = this.props;
+    let { classes, drillDown, envCritical } = this.props;
     let { data } = this.state;
     return (
-      <div className={classes.container}>
+      <div
+        className={classNames(classes.container, {
+          [classes.critical]: envCritical
+        })}
+      >
         {data
           ? <MiniCalendar
               weekNumbers={false}
@@ -185,7 +190,7 @@ const styles = {
         left: "-4px",
         right: "-4px",
         height: "3px",
-        background: "#ff5722",
+        background: "#26a69a",
         bottom: "-8px",
         display: "none"
       }
@@ -214,48 +219,56 @@ const styles = {
     },
     "& .rc-Day--progress-9": {
       borderColor: "rgba(98, 204, 100, 1)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-8": {
       borderColor: "rgba(98, 204, 100, 0.9)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-7": {
       borderColor: "rgba(98, 204, 100, 0.8)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-6": {
       borderColor: "rgba(98, 204, 100, 0.7)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-5": {
       borderColor: "rgba(98, 204, 100, 0.6)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-4": {
       borderColor: "rgba(98, 204, 100, 0.5)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-3": {
       borderColor: "rgba(98, 204, 100, 0.4)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-2": {
       borderColor: "rgba(98, 204, 100, 0.3)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--progress-1": {
       borderColor: "rgba(98, 204, 100, 0.2)",
-      backgroundColor: "#f2f9ff"
+      backgroundColor: "#ecf1f5"
     },
     "& .rc-Day--todo": {
-      borderColor: "#f2f9ff",
-      backgroundColor: "#f2f9ff"
+      borderColor: "#ecf1f5",
+      backgroundColor: "#ecf1f5"
+    }
+  },
+  critical: {
+    "& .rc-Day::after": {
+      background: "#ff5722 !important"
     }
   }
 };
 
-const mapStateToProps = ({ selectedJobs }) => ({ selectedJobs });
+const mapStateToProps = ({ selectedJobs, project }) => ({
+  selectedJobs,
+  envCritical: project.env.critical
+});
 const mapDispatchToProps = dispatch => ({
   drillDown(date) {
     let day = moment.utc(date.format("YYYY-MM-DD"));

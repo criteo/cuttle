@@ -118,20 +118,23 @@ class JobSelector extends React.Component {
       const tag = _.find(workflow.tags, t => `_${t.name}-TAG` == value);
       return (
         <span>
-        {kind == "parents"
-          ? <GraphIcon
-              className={classes.optionIcon}
-              style={{ transform: "rotate(-90deg) translateX(2px)" }}
-            />
-          : kind == "children"
-          ? <GraphIcon
-              className={classes.optionIcon}
-              style={{ transform: "rotate(90deg) translateX(-2px)" }}
-            />
-          : kind == "tag"
-          ? <TagIcon className={classes.optionIcon} style={{ color: (tag && tag.color) || "#000"}} />
-          : <JobIcon className={classes.optionIcon} />}
-        {label}
+          {kind == "parents"
+            ? <GraphIcon
+                className={classes.optionIcon}
+                style={{ transform: "rotate(-90deg) translateX(2px)" }}
+              />
+            : kind == "children"
+                ? <GraphIcon
+                    className={classes.optionIcon}
+                    style={{ transform: "rotate(90deg) translateX(-2px)" }}
+                  />
+                : kind == "tag"
+                    ? <TagIcon
+                        className={classes.optionIcon}
+                        style={{ color: (tag && tag.color) || "#000" }}
+                      />
+                    : <JobIcon className={classes.optionIcon} />}
+          {label}
           {others && others.length > 0
             ? <em className={classes.more}>
                 {`${kind != "tag" ? "+" : ""}${others.length} job${others.length > 1 ? "s" : ""}`}

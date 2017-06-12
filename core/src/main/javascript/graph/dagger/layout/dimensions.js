@@ -48,7 +48,8 @@ export class GraphDimensions {
   nodeVerticalOffset(order: number, nbElements: number) {
     const dimensions = this.nodeDimensions(nbElements);
     const verticalBand = dimensions.height * nbElements;
-    const startVerticalOffset = this.grid.top + ((this.grid.bottom - this.grid.top) - verticalBand) / 2;
+    const startVerticalOffset =
+      this.grid.top + (this.grid.bottom - this.grid.top - verticalBand) / 2;
     return (
       startVerticalOffset + order * dimensions.height + dimensions.height / 2
     );

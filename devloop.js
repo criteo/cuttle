@@ -40,7 +40,7 @@ let server = runServer({
     MYSQL_HOST: 'localhost',
     MYSQL_PORT: '3388',
     MYSQL_DATABASE: 'cuttle_dev',
-    MYSQL_USER: 'root',
+    MYSQL_USERNAME: 'root',
     MYSQL_PASSWORD: ''
   }
 }).dependsOn(compile, generateClasspath, database);

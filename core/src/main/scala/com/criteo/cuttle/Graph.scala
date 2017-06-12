@@ -42,12 +42,12 @@ sealed trait Graph[S <: Scheduling] {
 /*
  * A tag is used to annotate a job.
  * */
-case class Tag(name: String, description: Option[String] = None, color: Option[String] = None)
+case class Tag(name: String, description: String = "", color: String = "")
 
 case class Job[S <: Scheduling](id: String,
                                 scheduling: S,
-                                name: Option[String] = None,
-                                description: Option[String] = None,
+                                name: String = "",
+                                description: String = "",
                                 tags: Set[Tag] = Set.empty[Tag])(val effect: Execution[S] => Future[Unit])
     extends Graph[S] {
   val vertices = Set(this)
