@@ -71,8 +71,8 @@ const styles = {
     height: "100%",
     border: "none",
     outline: "none",
-    right: 0,
     overflow: "hidden",
+    right: 0,
     boxShadow: "0px 1px 5px 0px #BECBD6",
     "&:hover": {
       backgroundColor: "rgba(255,255,255,0.75)",
@@ -81,8 +81,10 @@ const styles = {
     },
     "&.open": {
       transition: "none",
-      backgroundColor: "rgba(255,255,255,0.85)",
-      width: "800px"
+      backgroundColor: "rgba(255,255,255,0.95)",
+      width: "800px",
+      overflowX: "hidden",
+      overflowY: "auto"
     },
     "& .content": {
       width: "800px"

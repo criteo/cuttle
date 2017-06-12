@@ -29,4 +29,5 @@ object SchedulingContext {
 trait Scheduling {
   type Context <: SchedulingContext
   type DependencyDescriptor
+  def toJson: Json
 }
