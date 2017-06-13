@@ -145,10 +145,6 @@ class Execution extends React.Component {
     streamsEventSource && streamsEventSource.close();
   }
 
-  storeStreamRef(ref) {
-    this.scroller = ReactDOM.findDOMNode(ref);
-  }
-
   onClickFullscreen(fullscreen: boolean) {
     this.setState({
       fullscreen
@@ -250,7 +246,7 @@ class Execution extends React.Component {
                 key="streams"
               >
                 <ul
-                  ref={this.storeStreamRef.bind(this)}
+                  ref={r => (this.scroller = r)}
                   onScroll={this.detectManualScroll.bind(this)}
                 >
                   {streams.map(({ timestamp, level, message }, i) => {

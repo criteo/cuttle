@@ -8,20 +8,25 @@ import Link from "../components/Link";
 
 type Props = {
   projectName: string,
-  environment: string,
+  env: {
+    name: ?string,
+    critical: boolean
+  },
   classes: any,
   className: any
 };
 
-const MenuHeader = ({
-  classes,
-  className,
-  environment,
-  projectName
-}: Props) => (
+const MenuHeader = ({ classes, className, env, projectName }: Props) => (
   <Link className={classNames(classes.main, className)} href="/">
     <span className={classes.projectName}>{projectName}</span>
-    <Badge label={environment} className={classes.badge} />
+    {env.name
+      ? <Badge
+          label={env.name}
+          className={classNames(classes.badge, {
+            [classes.badgeCritical]: env.critical
+          })}
+        />
+      : null}
   </Link>
 );
 
@@ -35,8 +40,7 @@ const styles = {
     fontFamily: "Arial",
     alignItems: "center",
     padding: "0.5em 5%",
-    cursor: "pointer",
-    textDecoration: "none"
+    cursor: "pointer"
   },
   icon: {
     marginRight: ".5em",
@@ -49,6 +53,9 @@ const styles = {
   },
   badge: {
     margin: "auto 0em auto auto",
+    backgroundColor: "#26a69a !important"
+  },
+  badgeCritical: {
     backgroundColor: "#FF5722 !important"
   }
 };

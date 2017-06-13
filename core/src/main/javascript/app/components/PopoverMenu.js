@@ -1,6 +1,7 @@
 // @flow
 
 import injectSheet from "react-jss";
+import { connect } from "react-redux";
 import classNames from "classnames";
 import React from "react";
 
@@ -9,6 +10,7 @@ import Icon from "react-icons/lib/md/more-vert";
 type Props = {
   classes: any,
   className: string,
+  envCritical: boolean,
   items: Array<Node>
 };
 
@@ -26,7 +28,7 @@ class PopoverMenu extends React.Component {
   }
 
   render() {
-    let { classes, className, items } = this.props;
+    let { classes, className, envCritical, items } = this.props;
 
     let open = () => {
       this.setState({ open: true });
@@ -37,7 +39,7 @@ class PopoverMenu extends React.Component {
     };
 
     return (
-      <div className={className}>
+      <div className={classNames(className, {[classes.critical]: envCritical})}>
         <Icon className={classes.icon} onClick={open} />
         {this.state.open
           ? <div className={classes.overlay} onClick={close} />
@@ -85,11 +87,20 @@ const styles = {
       padding: ".5em 1.5em",
 
       "&:hover": {
-        background: "#8b99a5",
+        background: "#26a69a",
         color: "#ffffff"
       }
+    }
+  },
+  critical: {
+    "& li:hover": {
+      background: "#FF5722"
     }
   }
 };
 
-export default injectSheet(styles)(PopoverMenu);
+const mapStateToProps = ({ project }) => ({
+  envCritical: project.env.critical
+});
+
+export default connect(mapStateToProps)(injectSheet(styles)(PopoverMenu));

@@ -38,7 +38,11 @@ export const resolveFixedNodes = (
   const { width: mainWidth, height: mainHeight } = dimensions.nodeSize(0);
   const innerHeight = Math.abs(dimensions.grid.bottom - dimensions.grid.top);
   // The scale is here necessary to put different start/end positions for the edges joining/quitting the main node
-  const scale = scaleBuilder(dimensions.grid.top - innerHeight * 0.15, dimensions.grid.bottom + innerHeight * 0.15, mainHeight);
+  const scale = scaleBuilder(
+    dimensions.grid.top - innerHeight * 0.15,
+    dimensions.grid.bottom + innerHeight * 0.15,
+    mainHeight
+  );
   const mainPosition = {
     width: mainWidth,
     height: mainHeight,

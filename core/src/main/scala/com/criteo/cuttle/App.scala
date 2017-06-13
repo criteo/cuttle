@@ -25,11 +25,15 @@ object App {
     thunk().map(_ => Ok(next().changes)).getOrElse(NotFound)
   }
 
-  implicit val projectEncoder = new Encoder[Project] {
-    override def apply(project: Project) =
+  implicit def projectEncoder[S <: Scheduling] = new Encoder[CuttleProject[S]] {
+    override def apply(project: CuttleProject[S]) =
       Json.obj(
         "name" -> project.name.asJson,
-        "description" -> project.description.asJson
+        "description" -> Option(project.description).filterNot(_.isEmpty).asJson,
+        "env" -> Json.obj(
+          "name" -> Option(project.env._1).filterNot(_.isEmpty).asJson,
+          "critical" -> project.env._2.asJson
+        )
       )
   }
 
@@ -69,8 +73,8 @@ object App {
     override def apply(tag: Tag) =
       Json.obj(
         "name" -> tag.name.asJson,
-        "description" -> tag.description.asJson,
-        "color" -> tag.color.asJson
+        "description" -> Option(tag.description).filterNot(_.isEmpty).asJson,
+        "color" -> Option(tag.color).filterNot(_.isEmpty).asJson
       )
   }
 
@@ -79,8 +83,8 @@ object App {
       Json
         .obj(
           "id" -> job.id.asJson,
-          "name" -> job.name.getOrElse(job.id).asJson,
-          "description" -> job.description.asJson,
+          "name" -> Option(job.name).filterNot(_.isEmpty).getOrElse(job.id).asJson,
+          "description" -> Option(job.description).filterNot(_.isEmpty).asJson,
           "tags" -> job.tags.map(_.name).asJson
         )
         .asJson
@@ -107,12 +111,9 @@ object App {
     }
 }
 
-case class App[S <: Scheduling](project: Project,
-                                workflow: Graph[S],
-                                scheduler: Scheduler[S],
-                                executor: Executor[S],
-                                xa: XA) {
+case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
   import App._
+  import project.{scheduler, workflow}
 
   val api: PartialService = {
 

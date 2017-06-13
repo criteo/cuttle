@@ -1,7 +1,14 @@
 //@flow
 import _ from "lodash";
 
-export type Project = { name: string, description: string };
+export type Project = {
+  name: string,
+  description: string,
+  env: {
+    name: ?string,
+    critical: boolean
+  }
+};
 
 export type ExecutionStatus = "running" | "throttled";
 

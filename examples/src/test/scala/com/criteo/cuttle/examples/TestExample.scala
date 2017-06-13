@@ -11,7 +11,7 @@ object TestExample {
     exampleJVM.environment.put("MYSQL_HOST", "localhost")
     exampleJVM.environment.put("MYSQL_PORT", "3388")
     exampleJVM.environment.put("MYSQL_DATABASE", "cuttle_dev")
-    exampleJVM.environment.put("MYSQL_USER", "root")
+    exampleJVM.environment.put("MYSQL_USERNAME", "root")
     exampleJVM.environment.put("MYSQL_PASSWORD", "")
 
     val forked = exampleJVM.inheritIO.start()

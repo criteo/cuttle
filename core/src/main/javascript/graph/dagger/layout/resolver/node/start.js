@@ -34,9 +34,11 @@ export const resolveStartPositions = (
     (acc, current) => {
       const pOp = graphs[current.id].findNodesByTag(nodeKind.parent);
       return [...acc, ...pOp];
-    }, []);
+    },
+    []
+  );
   const parentOfParentsPositions = reduce(
-    orderBy(uniqBy(parentsOfParents, "id"),"order"),
+    orderBy(uniqBy(parentsOfParents, "id"), "order"),
     (acc, current, i, array) => {
       const x = -dimensions.normalNode.width * 2;
       const y = dimensions.nodeVerticalOffset(i, array.length);
@@ -44,17 +46,24 @@ export const resolveStartPositions = (
         ...acc,
         [current.id]: { x, y, ...parentNodeDimensions, ...current }
       };
-    }, {});
+    },
+    {}
+  );
 
-  const childrenOfParents = reduce(parents, (acc, current) => {
-    const cOp: any = map(
-      graphs[current.id].findNodesByTag(nodeKind.child),
-      n => ({
-        ...n,
-        yRelativePosition: sign(n.yPosition - current.yPosition)
-      }));
-    return [...acc, ...cOp];
-  }, []);
+  const childrenOfParents = reduce(
+    parents,
+    (acc, current) => {
+      const cOp: any = map(
+        graphs[current.id].findNodesByTag(nodeKind.child),
+        n => ({
+          ...n,
+          yRelativePosition: sign(n.yPosition - current.yPosition)
+        })
+      );
+      return [...acc, ...cOp];
+    },
+    []
+  );
   const relPosCnt = relativeSlotsCounter();
   const childrenOfParentsPositions = reduce(
     orderBy(uniqBy(childrenOfParents, "id"), "order"),
@@ -62,15 +71,18 @@ export const resolveStartPositions = (
       const x = dimensions.grid.childOffset + dimensions.normalNode.width / 2;
       const y =
         dimensions.canva.height / 2 +
-          current.yRelativePosition *
-      (dimensions.canva.height / 2 +
-        relPosCnt(current.yRelativePosition) * dimensions.normalNode.height) +
-          dimensions.normalNode.height / 2;
+        current.yRelativePosition *
+          (dimensions.canva.height / 2 +
+            relPosCnt(current.yRelativePosition) *
+              dimensions.normalNode.height) +
+        dimensions.normalNode.height / 2;
       return {
         ...acc,
         [current.id]: { x, y, ...childNodeDimensions, ...current }
       };
-    }, {});
+    },
+    {}
+  );
 
   // Children
   const childrenOfChildren = reduce(
@@ -78,7 +90,9 @@ export const resolveStartPositions = (
     (acc, current) => {
       const cOc = graphs[current.id].findNodesByTag(nodeKind.child);
       return [...acc, ...cOc];
-    }, []);
+    },
+    []
+  );
   const childrenOfChildrenPositions = reduce(
     orderBy(uniqBy(childrenOfChildren, "id"), "order"),
     (acc, current, i, array) => {
@@ -88,7 +102,9 @@ export const resolveStartPositions = (
         ...acc,
         [current.id]: { x, y, ...childNodeDimensions, ...current }
       };
-    }, {});
+    },
+    {}
+  );
 
   const parentsOfChildren = reduce(
     children,
@@ -98,9 +114,12 @@ export const resolveStartPositions = (
         n => ({
           ...n,
           yRelativePosition: sign(n.yPosition - current.yPosition)
-        }));
+        })
+      );
       return [...acc, ...pOc];
-    }, []);
+    },
+    []
+  );
   const relPosCnt2 = relativeSlotsCounter();
   const parentsOfChildrenPositions = reduce(
     orderBy(uniqBy(parentsOfChildren, "id"), "order"),
@@ -108,16 +127,18 @@ export const resolveStartPositions = (
       const x = dimensions.grid.parentOffset + dimensions.normalNode.width / 2;
       const y =
         dimensions.canva.height / 2 +
-          current.yRelativePosition *
-      (dimensions.canva.height / 2 +
-        relPosCnt2(current.yRelativePosition) *
-        dimensions.normalNode.height) +
-          dimensions.normalNode.height / 2;
+        current.yRelativePosition *
+          (dimensions.canva.height / 2 +
+            relPosCnt2(current.yRelativePosition) *
+              dimensions.normalNode.height) +
+        dimensions.normalNode.height / 2;
       return {
         ...acc,
         [current.id]: { x, y, ...parentNodeDimensions, ...current }
       };
-    }, {});
+    },
+    {}
+  );
 
   // When a node is child of a rendered parent, and parent of a rendered child, it should be laid out between them (x) in the hidden space
   const middleNodes = filter(

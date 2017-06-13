@@ -24,7 +24,10 @@ import type { Statistics } from "./datamodel";
 type Props = {
   page: Page,
   projectName: string,
-  environment: string,
+  env: {
+    name: ?string,
+    critical: boolean
+  },
   workflow: Workflow,
   statistics: Statistics,
   isLoading: boolean,
@@ -44,7 +47,7 @@ class App extends React.Component {
     const {
       classes,
       page,
-      environment,
+      env,
       projectName,
       workflow,
       isLoading,
@@ -100,7 +103,7 @@ class App extends React.Component {
       return (
         <div className={classes.main}>
           <section className={classes.leftpane}>
-            <MenuHeader environment={environment} projectName={projectName} />
+            <MenuHeader env={env} projectName={projectName} />
             <Menu active={page} statistics={statistics} />
           </section>
           <section className={classes.rightpane}>
@@ -179,7 +182,7 @@ const mapStateToProps = ({
 }) => ({
   page,
   projectName: project && project.name,
-  environment: "production",
+  env: project && project.env,
   workflow,
   isLoading,
   statistics,

@@ -11,7 +11,7 @@ import scala.concurrent.stm.{atomic, Ref}
 import scala.collection.{SortedSet}
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrdering: Ordering[S#Context])
+case class LocalPlatform[S <: Scheduling](maxForkedProcesses: Int)(implicit contextOrdering: Ordering[S#Context])
     extends ExecutionPlatform[S]
     with LocalPlatformApp[S] {
   private[cuttle] val _running = Ref(Set.empty[(LocalProcess, Execution[S])])
@@ -23,7 +23,7 @@ case class LocalPlatform[S <: Scheduling](maxTasks: Int)(implicit contextOrderin
 
   private def runNext(): Unit = {
     val maybeToRun = atomic { implicit txn =>
-      if (_running().size < maxTasks) {
+      if (_running().size < maxForkedProcesses) {
         val maybeNext = _waiting().headOption
         maybeNext.foreach {
           case x @ (l, e, _, _) =>
