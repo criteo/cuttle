@@ -64,7 +64,9 @@
     "whatwg-fetch": "^2.0.3"
   },
   "scripts": {
-    "start": "./node_modules/devloop/bin/main.js",
-    "format": "./node_modules/prettier-eslint-cli/dist/index.js \"**/src/**/*.js\" -l info --write --bracket-spacing true"
+    "start": "loop",
+    "format": "prettier-eslint \"**/src/**/*.js\" --write --bracket-spacing true",
+    "eslint": "eslint \"**/src/**/*.js\"",
+    "eslint-check": "eslint --print-config .eslintrc | eslint-config-prettier-check"
   }
 }
