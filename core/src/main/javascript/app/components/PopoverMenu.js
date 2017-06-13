@@ -89,6 +89,11 @@ const styles = {
       "&:hover": {
         background: "#26a69a",
         color: "#ffffff"
+      },
+
+      "& a": {
+        color: "inherit",
+        textDecoration: "none"
       }
     }
   },
