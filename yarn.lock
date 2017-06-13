@@ -61,7 +61,7 @@ ansi-escapes@^1.1.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/ansi-escapes/-/ansi-escapes-1.4.0.tgz#d3a8a83b319aa67793662b13e761c7911422306e"
 
-ansi-regex@^2.0.0:
+ansi-regex@^2.0.0, ansi-regex@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/ansi-regex/-/ansi-regex-2.1.1.tgz#c3b33ab5ee360d86e0e628f0468ae7ef27d654df"
 
@@ -4561,9 +4561,9 @@ preserve@^0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/preserve/-/preserve-0.2.0.tgz#815ed1f6ebc65926f865b310c0713bcb3315ce4b"
 
-prettier-eslint-cli@^3.6.1:
-  version "3.6.1"
-  resolved "https://registry.yarnpkg.com/prettier-eslint-cli/-/prettier-eslint-cli-3.6.1.tgz#6f4d838a7b4a95f8b0e232c4cb8c595cee9cf64a"
+prettier-eslint-cli@^4.1.0:
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/prettier-eslint-cli/-/prettier-eslint-cli-4.1.0.tgz#506f5fa63d8bffd3eb48b754223d1223f5cde4ab"
   dependencies:
     arrify "^1.0.1"
     babel-runtime "^6.23.0"
@@ -4579,13 +4579,13 @@ prettier-eslint-cli@^3.6.1:
     lodash.memoize "^4.1.2"
     loglevel-colored-level-prefix "^1.0.0"
     messageformat "^1.0.2"
-    prettier-eslint "^5.1.0"
+    prettier-eslint "^6.0.0"
     rxjs "^5.3.0"
     yargs "^7.1.0"
 
-prettier-eslint@^5.1.0:
-  version "5.1.0"
-  resolved "https://registry.yarnpkg.com/prettier-eslint/-/prettier-eslint-5.1.0.tgz#cee9aaaa9f3370665e5897057313a823da0932e2"
+prettier-eslint@^6.0.0:
+  version "6.3.0"
+  resolved "https://registry.yarnpkg.com/prettier-eslint/-/prettier-eslint-6.3.0.tgz#2c86ae959439c25d9a9ce8fce90c7bd809b7082f"
   dependencies:
     common-tags "^1.4.0"
     dlv "^1.1.0"
@@ -4593,11 +4593,11 @@ prettier-eslint@^5.1.0:
     indent-string "^3.1.0"
     lodash.merge "^4.6.0"
     loglevel-colored-level-prefix "^1.0.0"
-    prettier "^1.0.2"
-    pretty-format "^19.0.0"
+    prettier "^1.4.2"
+    pretty-format "^20.0.3"
     require-relative "^0.8.7"
 
-prettier@^1.0.2, prettier@^1.3.1:
+prettier@^1.3.1:
   version "1.3.1"
   resolved "https://registry.yarnpkg.com/prettier/-/prettier-1.3.1.tgz#fa0ea84b45ac0ba6de6a1e4cecdcff900d563151"
   dependencies:
@@ -4612,6 +4612,10 @@ prettier@^1.0.2, prettier@^1.3.1:
     jest-validate "19.0.0"
     minimist "1.2.0"
 
+prettier@^1.4.2:
+  version "1.4.4"
+  resolved "https://registry.yarnpkg.com/prettier/-/prettier-1.4.4.tgz#a8d1447b14c9bf67e6d420dcadd10fb9a4fad65a"
+
 pretty-error@^2.0.2:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/pretty-error/-/pretty-error-2.0.3.tgz#bed3d816a008e76da617cde8216f4b778849b5d9"
@@ -4623,6 +4627,13 @@ pretty-format@^19.0.0:
   version "19.0.0"
   resolved "https://registry.yarnpkg.com/pretty-format/-/pretty-format-19.0.0.tgz#56530d32acb98a3fa4851c4e2b9d37b420684c84"
   dependencies:
+    ansi-styles "^3.0.0"
+
+pretty-format@^20.0.3:
+  version "20.0.3"
+  resolved "https://registry.yarnpkg.com/pretty-format/-/pretty-format-20.0.3.tgz#020e350a560a1fe1a98dc3beb6ccffb386de8b14"
+  dependencies:
+    ansi-regex "^2.1.1"
     ansi-styles "^3.0.0"
 
 private@^0.1.6, private@~0.1.5:
