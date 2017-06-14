@@ -92,8 +92,6 @@ case class Execution[S <: Scheduling](
     )
 }
 
-case class SubmittedExecution[S <: Scheduling](execution: Execution[S], result: Future[Unit])
-
 trait ExecutionPlatform[S <: Scheduling] {
   private[cuttle] def routes: PartialService = PartialFunction.empty
   def waiting: Set[Execution[S]]
@@ -352,15 +350,15 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             }
         })
 
-  def runAll(all: Seq[(Job[S], S#Context)]): Seq[SubmittedExecution[S]] = all.sortBy(_._2).map((run _).tupled)
+  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] = all.sortBy(_._2).map((run _).tupled)
 
-  def run(job: Job[S], context: S#Context): SubmittedExecution[S] = {
+  def run(job: Job[S], context: S#Context): (Execution[S], Future[Unit]) = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
     case object Paused extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
-    val existingOrNew: Either[SubmittedExecution[S], (Execution[S], Promise[Unit], NewExecution)] = atomic {
+    val existingOrNew: Either[(Execution[S], Future[Unit]), (Execution[S], Promise[Unit], NewExecution)] = atomic {
       implicit tx =>
         val maybeAlreadyRunning: Option[(Execution[S], Future[Unit])] =
           runningState.find { case (e, _) => e.job == job && e.context == context }
@@ -381,7 +379,6 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         maybeAlreadyRunning
           .orElse(maybePaused)
           .orElse(maybeThrottled)
-          .map((SubmittedExecution.apply[S] _).tupled)
           .toLeft {
             val nextExecutionId = utils.randomUUID
             val execution = Execution(
@@ -474,7 +471,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
               }
 
           }
-          SubmittedExecution(execution, promise.future)
+          (execution, promise.future)
       }
     )
   }
