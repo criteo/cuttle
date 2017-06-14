@@ -18,7 +18,7 @@ import CalendarFocus from "./app/pages/CalendarFocus";
 import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
-import TimeseriesExecutions from "./app/pages/TimeseriesExecutions";
+import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
 import type { Statistics } from "./datamodel";
 
 type Props = {
@@ -89,7 +89,7 @@ class App extends React.Component {
             return <CalendarFocus start={page.start} end={page.end} />;
           case "timeseries/executions":
             return (
-              <TimeseriesExecutions
+              <TimeSeriesExecutions
                 job={page.job}
                 start={page.start}
                 end={page.end}
