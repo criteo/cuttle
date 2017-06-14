@@ -57,7 +57,7 @@ private[cuttle] case class ExecutionLog(
   failing: Option[FailingJob] = None
 )
 
-private[cuttle] object ExecutionCancelledException extends RuntimeException("Execution cancelled")
+private object ExecutionCancelledException extends RuntimeException("Execution cancelled")
 
 case class Execution[S <: Scheduling](
   id: String,
@@ -67,16 +67,17 @@ case class Execution[S <: Scheduling](
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform[S]]
 ) {
-  private[cuttle] val cancelSignal = Promise[Unit]
+  private[cuttle] val cancelSignal = Promise[Nothing]
   def isCancelled = cancelSignal.isCompleted
   val cancelled = cancelSignal.future
   def onCancelled(thunk: () => Unit) = cancelled.andThen {
-    case Success(_) =>
-      thunk()
     case Failure(_) =>
+      thunk()
+    case Success(_) =>
+      sys.error("Panic, the cancelled future can never succeed!")
   }
   def cancel(): Boolean =
-    if (cancelSignal.trySuccess(())) {
+    if (cancelSignal.tryFailure(ExecutionCancelledException)) {
       streams.debug(s"Execution has been cancelled.")
       true
     } else false

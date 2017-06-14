@@ -66,7 +66,7 @@ case class LocalPlatform[S <: Scheduling](maxForkedProcesses: Int)(implicit cont
       atomic { implicit txn =>
         _waiting() = _waiting() - entry
       }
-      p.tryFailure(ExecutionCancelledException)
+      p.tryCompleteWith(e.cancelled)
     })
     runNext()
     p.future
