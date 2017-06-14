@@ -59,7 +59,7 @@ object HelloWorld {
 
     CuttleProject("Hello World", env = ("Demo", false)) {
       world dependsOn (hello1 and hello2 and hello3)
-    }.run()
+    }.start()
   }
 
 }

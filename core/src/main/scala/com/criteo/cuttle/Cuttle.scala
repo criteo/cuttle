@@ -13,7 +13,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val retryStrategy: RetryStrategy[S],
   queries: Queries
 ) {
-  def run(
+  def start(
     platforms: Seq[ExecutionPlatform[S]] = List(LocalPlatform(maxForkedProcesses = 10)(ordering)),
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv
