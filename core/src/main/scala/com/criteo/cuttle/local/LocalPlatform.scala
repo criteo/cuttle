@@ -1,4 +1,4 @@
-package com.criteo.cuttle
+package com.criteo.cuttle.local
 
 import java.nio.{ByteBuffer}
 
@@ -11,6 +11,7 @@ import scala.concurrent.stm.{atomic, Ref}
 import scala.collection.{SortedSet}
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import com.criteo.cuttle._
 import ExecutionStatus._
 
 case class LocalPlatform[S <: Scheduling](maxForkedProcesses: Int)(implicit contextOrdering: Ordering[S#Context])
