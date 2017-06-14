@@ -14,7 +14,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   queries: Queries
 ) {
   def start(
-    platforms: Seq[ExecutionPlatform[S]] = List(LocalPlatform(maxForkedProcesses = 10)(ordering)),
+    platforms: Seq[ExecutionPlatform[S]] = List(local.LocalPlatform(maxForkedProcesses = 10)(ordering)),
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv
   ) = {

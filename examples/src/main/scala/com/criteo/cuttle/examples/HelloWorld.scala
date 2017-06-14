@@ -1,10 +1,11 @@
 package com.criteo.cuttle.examples
 
 import com.criteo.cuttle._
+import local._
 import timeseries._
-import java.io._
-import java.time.ZoneOffset.UTC
+
 import java.time._
+import java.time.ZoneOffset.{ UTC }
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -43,7 +44,7 @@ object HelloWorld {
           // Artificially fail for 2 days ago 00 to 01
           // if /tmp/hello3_success does not exist
           if (e.context.start == LocalDate.now.minusDays(2).atStartOfDay.toInstant(UTC)
-              && !new File("/tmp/hello3_success").exists) {
+              && !new java.io.File("/tmp/hello3_success").exists) {
             e.streams.error("Oops, please create the /tmp/hello3_success file to make this execution pass...")
             sys.error("Oops!!!")
           }
