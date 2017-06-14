@@ -44,7 +44,7 @@ type State = {
 let formatDate = (date: string) =>
   moment(date).utc().format("YYYY-MM-DD HH:mm");
 
-class TimeseriesExecutions extends React.Component {
+class TimeSeriesExecutions extends React.Component {
   props: Props;
   state: State;
   tableRef: any;
@@ -283,5 +283,5 @@ const mapDispatchToProps = dispatch => ({
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(TimeseriesExecutions)
+  injectSheet(styles)(TimeSeriesExecutions)
 );
