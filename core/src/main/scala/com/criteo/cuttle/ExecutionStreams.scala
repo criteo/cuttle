@@ -17,7 +17,7 @@ trait ExecutionStreams {
     val time = Instant.now.toString
     str.toString.split("\n").foreach(l => this.writeln(s"$time $tag - $l"))
   }
-  def writeln(str: CharSequence): Unit
+  private[cuttle] def writeln(str: CharSequence): Unit
 }
 
 private[cuttle] object ExecutionStreams {

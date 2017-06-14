@@ -10,10 +10,11 @@ import continuum.{Interval, IntervalSet}
 
 import TimeSeriesUtils._
 
-case class StateD(defined: Map[TimeSeriesJob, IntervalSet[Instant]], default: IntervalSet[Instant] = IntervalSet.empty) {
+private[timeseries] case class StateD(defined: Map[TimeSeriesJob, IntervalSet[Instant]],
+                                      default: IntervalSet[Instant] = IntervalSet.empty) {
   def get(job: TimeSeriesJob) = defined.getOrElse(job, default)
 }
-object StateD {
+private[timeseries] object StateD {
   implicit def stateLattice: Bool[StateD] = new LatticeStateD
   implicit val eqInstance: Eq[StateD] = new Eq[StateD] {
     def eqv(x: StateD, y: StateD) =
@@ -23,7 +24,7 @@ object StateD {
   }
 }
 
-class LatticeStateD extends Bool[StateD] {
+private[timeseries] class LatticeStateD extends Bool[StateD] {
   def or(x: StateD, y: StateD) = {
     val orMap = (x.defined.keySet union y.defined.keySet).map { k =>
       k -> (x.get(k) ++ y.get(k))

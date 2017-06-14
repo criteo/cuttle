@@ -1,9 +1,11 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
+val VERSION = "0.1.0-SNAPSHOT"
+
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
-  version := "0.1.0-SNAPSHOT",
+  version := VERSION,
   scalaVersion := "2.11.9",
   scalacOptions ++= Seq(
     "-deprecation",
@@ -43,10 +45,11 @@ def removeDependencies(groups: String*)(xml: scala.xml.Node) = {
   (new RuleTransformer(
     new RewriteRule {
       override def transform(n: Node): Seq[Node] = n match {
-        case dependency @ Elem(_, "dependency", _, _, _*) =>
-          if(dependency.child.collect { case e: Elem => e}.headOption.exists { e =>
-            groups.exists(group => e.toString == s"<groupId>$group</groupId>")
-          }) Nil else dependency
+        case dependency @ Elem(_, "dependency", _, _, _ *) =>
+          if (dependency.child.collect { case e: Elem => e }.headOption.exists { e =>
+                groups.exists(group => e.toString == s"<groupId>$group</groupId>")
+              }) Nil
+          else dependency
         case x => x
       }
     }
@@ -97,7 +100,6 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1"
       ).map(_ % "test"),
-
       // Webpack
       resourceGenerators in Compile += Def.task {
         if (devMode.value) {
@@ -124,7 +126,6 @@ lazy val cuttle =
         }
       }.taskValue,
       cleanFiles += (file(".") / "node_modules"),
-
       // Assembly
       assemblyExcludedJars in assembly := (fullClasspath in assembly).value,
       assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
@@ -158,8 +159,36 @@ lazy val examples =
 
 lazy val root =
   (project in file("."))
+    .enablePlugins(ScalaUnidocPlugin)
     .settings(commonSettings: _*)
     .settings(
-      publishArtifact := false
+      publishArtifact := false,
+      scalacOptions in (Compile, doc) ++= Seq(
+        Seq(
+          "-sourcepath",
+          baseDirectory.value.getAbsolutePath
+        ),
+        Opts.doc.title("cuttle"),
+        Opts.doc.version(VERSION),
+        Opts.doc.sourceUrl("https://github.com/criteo/cuttle/blob/master€{FILE_PATH}.scala")
+      ).flatten,
+      // Not so useful for now because of SI-9967
+      unidocAllAPIMappings in (ScalaUnidoc, unidoc) ++= {
+        val allJars = {
+          (fullClasspath in cuttle in Compile).value ++
+            (fullClasspath in timeseries in Compile).value
+        }
+        Seq(
+          allJars
+            .flatMap(x => x.metadata.get(moduleID.key).map(m => x.data -> m))
+            .collect {
+              case (jar, ModuleID("org.scala-lang", "scala-library", _, _, _, _, _, _, _, _, _)) =>
+                jar -> "https://www.scala-lang.org/api/current/"
+            }
+            .toMap
+            .mapValues(url => new java.net.URL(url))
+        )
+      },
+      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(cuttle, timeseries)
     )
     .aggregate(cuttle, timeseries, examples, localdb)

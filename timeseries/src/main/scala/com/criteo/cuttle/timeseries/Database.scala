@@ -17,7 +17,7 @@ import doobie.imports._
 import continuum.bound._
 import continuum.{Interval, IntervalSet}
 
-object Database {
+private[timeseries] object Database {
   import TimeSeriesUtils._
   import com.criteo.cuttle.Database._
   import com.criteo.cuttle.NoUpdate

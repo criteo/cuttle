@@ -13,9 +13,25 @@ import scala.util._
 
 import java.time._
 
+import ExecutionStatus._
+
 case class DatabaseConfig(host: String, port: Int, database: String, username: String, password: String)
 
-object Database {
+object DatabaseConfig {
+  def fromEnv: DatabaseConfig = {
+    def env(variable: String, default: Option[String] = None) =
+      Option(System.getenv(variable)).orElse(default).getOrElse(sys.error(s"Missing env ${'$' + variable}"))
+    DatabaseConfig(
+      env("MYSQL_HOST", Some("localhost")),
+      Try(env("MYSQL_PORT", Some("3306")).toInt).getOrElse(3306),
+      env("MYSQL_DATABASE"),
+      env("MYSQL_USERNAME"),
+      env("MYSQL_PASSWORD")
+    )
+  }
+}
+
+private[cuttle] object Database {
 
   implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].nxmap(
     x => Instant.ofEpochMilli(x.getTime),
@@ -103,21 +119,9 @@ object Database {
     doSchemaUpdates.transact(xa).unsafePerformIO
     xa
   }
-
-  def configFromEnv: DatabaseConfig = {
-    def env(variable: String, default: Option[String] = None) =
-      Option(System.getenv(variable)).orElse(default).getOrElse(sys.error(s"Missing env ${'$' + variable}"))
-    DatabaseConfig(
-      env("MYSQL_HOST", Some("localhost")),
-      Try(env("MYSQL_PORT", Some("3306")).toInt).getOrElse(3306),
-      env("MYSQL_DATABASE"),
-      env("MYSQL_USERNAME"),
-      env("MYSQL_PASSWORD")
-    )
-  }
 }
 
-trait Queries {
+private[cuttle] trait Queries {
   import Database._
 
   def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]): ConnectionIO[Int] =

@@ -9,6 +9,8 @@ import scala.reflect.macros.blackbox
 
 package object timeseries {
 
+  import TimeSeriesGrid._
+
   implicit class SafeLiteralDate(val sc: StringContext) extends AnyVal {
     def date(args: Any*): Instant = macro safeLiteralDate
   }

@@ -11,6 +11,8 @@ import scala.concurrent.stm.{atomic, Ref}
 import scala.collection.{SortedSet}
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import ExecutionStatus._
+
 case class LocalPlatform[S <: Scheduling](maxForkedProcesses: Int)(implicit contextOrdering: Ordering[S#Context])
     extends ExecutionPlatform[S]
     with LocalPlatformApp[S] {
@@ -63,7 +65,7 @@ case class LocalPlatform[S <: Scheduling](maxForkedProcesses: Int)(implicit cont
       atomic { implicit txn =>
         _waiting() = _waiting() - entry
       }
-      p.tryFailure(ExecutionCancelled)
+      p.tryFailure(ExecutionCancelledException)
     })
     runNext()
     p.future
@@ -77,7 +79,7 @@ object LocalPlatform {
   }
 }
 
-trait LocalPlatformApp[S <: Scheduling] { self: LocalPlatform[S] =>
+private[cuttle] trait LocalPlatformApp[S <: Scheduling] { self: LocalPlatform[S] =>
 
   import lol.http._
   import lol.json._

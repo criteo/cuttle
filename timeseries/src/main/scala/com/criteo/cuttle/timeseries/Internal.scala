@@ -8,7 +8,7 @@ import cats.syntax.either._
 
 import java.time.Instant
 
-object Internal {
+private[timeseries] object Internal {
 
   implicit def jobEncoder[A <: Scheduling]: Encoder[Job[A]] =
     Encoder.encodeString.contramap(_.id)

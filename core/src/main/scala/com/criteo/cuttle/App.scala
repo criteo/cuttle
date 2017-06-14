@@ -12,7 +12,9 @@ import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object App {
+import ExecutionStatus._
+
+private[cuttle] object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
   private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
   def sse[A](thunk: () => Option[A], encode: A => Json) = {
@@ -90,9 +92,9 @@ object App {
         .asJson
   }
 
-  implicit def graphEncoder[S <: Scheduling] =
-    new Encoder[Graph[S]] {
-      override def apply(workflow: Graph[S]) = {
+  implicit def workflowEncoder[S <: Scheduling] =
+    new Encoder[Workflow[S]] {
+      override def apply(workflow: Workflow[S]) = {
         val jobs = workflow.vertices.asJson
         val tags = workflow.vertices.flatMap(_.tags).asJson
         val dependencies = workflow.edges.map {
@@ -111,7 +113,7 @@ object App {
     }
 }
 
-case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
+private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
   import App._
   import project.{scheduler, workflow}
 

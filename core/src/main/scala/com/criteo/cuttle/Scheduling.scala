@@ -5,8 +5,9 @@ import io.circe.Json
 import doobie.imports._
 
 trait Scheduler[S <: Scheduling] {
-  def run(graph: Graph[S], executor: Executor[S], xa: XA): Unit
-  def routes(graph: Graph[S], executor: Executor[S], xa: XA): PartialService = PartialFunction.empty
+  def start(workflow: Workflow[S], executor: Executor[S], xa: XA): Unit
+  private[cuttle] def routes(workflow: Workflow[S], executor: Executor[S], xa: XA): PartialService =
+    PartialFunction.empty
   val allContexts: Fragment
 }
 

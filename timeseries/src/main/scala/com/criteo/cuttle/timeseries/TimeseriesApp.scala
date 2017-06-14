@@ -22,10 +22,12 @@ import java.time.{Instant, ZoneId}
 import java.time.temporal.ChronoUnit._
 import java.util.UUID
 
-trait TimeSeriesApp { self: TimeSeriesScheduler =>
+import ExecutionStatus._
+
+private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   import App._
 
-  implicit val intervalEncoder = new Encoder[Interval[Instant]] {
+  private implicit val intervalEncoder = new Encoder[Interval[Instant]] {
     override def apply(interval: Interval[Instant]) = {
       val Closed(start) = interval.lower.bound
       val Open(end) = interval.upper.bound
@@ -36,9 +38,9 @@ trait TimeSeriesApp { self: TimeSeriesScheduler =>
     }
   }
 
-  override def routes(workflow: Graph[TimeSeriesScheduling],
-                      executor: Executor[TimeSeriesScheduling],
-                      xa: XA): PartialService = {
+  private[cuttle] override def routes(workflow: Workflow[TimeSeriesScheduling],
+                                      executor: Executor[TimeSeriesScheduling],
+                                      xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
       def watchState() = Some((state, executor.allFailing))
