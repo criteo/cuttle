@@ -10,9 +10,9 @@ import scala.concurrent.duration._
 import scala.concurrent.stm._
 
 trait ExecutionStreams {
-  def info(str: CharSequence) = this.writeln("INFO ", str)
-  def error(str: CharSequence) = this.writeln("ERROR", str)
-  def debug(str: CharSequence) = this.writeln("DEBUG", str)
+  def info(str: CharSequence = "") = this.writeln("INFO ", str)
+  def error(str: CharSequence = "") = this.writeln("ERROR", str)
+  def debug(str: CharSequence = "") = this.writeln("DEBUG", str)
   private def writeln(tag: String, str: CharSequence): Unit = {
     val time = Instant.now.toString
     str.toString.split("\n").foreach(l => this.writeln(s"$time $tag - $l"))
