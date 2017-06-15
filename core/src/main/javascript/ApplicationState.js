@@ -93,7 +93,7 @@ export const reducers = (currentState: State, action: Action): State => {
 
     case "LOAD_APP_DATA": {
       switch (action.status) {
-        case "success":
+        case "success": {
           let [project, workflow] = action.data;
           return {
             ...currentState,
@@ -101,6 +101,7 @@ export const reducers = (currentState: State, action: Action): State => {
             workflow: prepareWorkflow(workflow),
             isLoading: false
           };
+        }
         case "pending":
           return {
             ...currentState,

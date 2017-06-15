@@ -9,7 +9,6 @@
     "eslint:recommended",
     "plugin:react/recommended",
     "plugin:flowtype/recommended",
-    "plugin:lodash/recommended",
     "prettier",
     "prettier/flowtype",
     "prettier/react"
@@ -24,12 +23,13 @@
   "parser": "babel-eslint",
   "env": {
     "es6": true,
-    "node": true
+    "node": true,
+    "browser": true
   },
   "rules": {
     "prettier/prettier": "warn",
     "no-unused-vars": "warn",
-    "lodash/prefer-lodash-method": "warn"
+    "react/no-find-dom-node": "warn"
   },
   "settings": {
     "flowtype": {

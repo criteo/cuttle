@@ -11,6 +11,7 @@ import drop from "lodash/drop";
 import dropRight from "lodash/dropRight";
 
 import * as minimapTools from "../minimap";
+import { TransitionAction } from "../layout/timeMachine";
 
 const mergeLayouts = layouts => ({
   nodes: reduce(layouts, (acc, current) => ({ ...acc, ...current.nodes }), {}),

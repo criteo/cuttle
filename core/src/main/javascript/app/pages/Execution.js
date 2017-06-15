@@ -1,7 +1,6 @@
 // @flow
 
 import React from "react";
-import ReactDOM from "react-dom";
 import { connect } from "react-redux";
 import classNames from "classnames";
 import injectSheet from "react-jss";
@@ -398,7 +397,7 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({}) => ({});
+const mapStateToProps = () => ({});
 const mapDispatchToProps = dispatch => ({
   back() {
     dispatch(goBack());

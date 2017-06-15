@@ -292,7 +292,6 @@ const styles = {
       }
     },
     "& .Select-value": {
-      lineHeight: "1em",
       verticalAlign: "baseline",
       marginLeft: "0",
       marginRight: ".5em",
