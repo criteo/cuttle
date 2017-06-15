@@ -9,7 +9,6 @@
     "eslint:recommended",
     "plugin:react/recommended",
     "plugin:flowtype/recommended",
-    //"plugin:lodash/recommended",
     "prettier",
     "prettier/flowtype",
     "prettier/react"
