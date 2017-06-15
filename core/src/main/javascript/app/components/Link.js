@@ -12,7 +12,7 @@ type Props = {
   className: string,
   children: any,
   open: (href: string) => void,
-  replace: ?boolean
+  replace: boolean
 };
 
 const Link = ({
@@ -22,7 +22,7 @@ const Link = ({
   children,
   open,
   replace = false
-}) => {
+}: Props) => {
   return (
     <a
       onClick={open(href, replace)}
@@ -34,7 +34,7 @@ const Link = ({
   );
 };
 
-const mapStateToProps = ({}) => ({});
+const mapStateToProps = () => ({});
 const mapDispatchToProps = dispatch => ({
   open(href, replace) {
     return e => {

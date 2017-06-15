@@ -39,7 +39,9 @@ class PopoverMenu extends React.Component {
     };
 
     return (
-      <div className={classNames(className, {[classes.critical]: envCritical})}>
+      <div
+        className={classNames(className, { [classes.critical]: envCritical })}
+      >
         <Icon className={classes.icon} onClick={open} />
         {this.state.open
           ? <div className={classes.overlay} onClick={close} />

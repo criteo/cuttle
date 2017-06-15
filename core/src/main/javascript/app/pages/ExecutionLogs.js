@@ -231,13 +231,15 @@ class ExecutionLogs extends React.Component {
                   return <Link href={`/workflow/${job}`}>{jobName(job)}</Link>;
                 case "context":
                   return <Context ctx={context} />;
-                case "failed":
+                case "failed": {
                   let times = (failing && failing.failedExecutions.length) || 0;
                   if (times == 1) {
                     return "Once";
                   } else if (times > 1) {
                     return `${times} times`;
                   }
+                  return "";
+                }
                 case "startTime":
                   return (
                     <Clock className={classes.time} time={startTime || ""} />
@@ -574,7 +576,13 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
           <h1 className={classes.title}>Stuck executions</h1>
           <PopoverMenu
             className={classes.menu}
-            items={[<span onClick={console.log}>Retry everything now</span>]}
+            items={[
+              //TODO retry stuck implementation
+              // eslint-disable-next-line no-console
+              <span onClick={console.log}>
+                Retry everything now
+              </span>
+            ]}
           />
           <ExecutionLogs
             envCritical={envCritical}

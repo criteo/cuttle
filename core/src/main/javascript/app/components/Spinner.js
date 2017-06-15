@@ -12,7 +12,7 @@ type Props = {
 
 const items = 3;
 
-const SpinnerComponent = ({ classes, className, dark }: Props) => {
+const SpinnerComponent = ({ classes, className }: Props) => {
   return (
     <div className={classNames(classes.spinner, className)}>
       {times(items, i => (
