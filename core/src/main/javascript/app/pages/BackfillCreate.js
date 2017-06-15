@@ -13,7 +13,8 @@ import JobSelector from "../components/JobSelector";
 import type { Workflow } from "../../datamodel";
 
 type Props = {
-  workflow: ?Workflow,
+  workflow: Workflow,
+  selectedJobs: Array<string>,
   classes: any,
   back: () => void
 };
@@ -36,7 +37,7 @@ class BackfillCreate extends React.Component {
     (this: any).createBackfill = this.createBackfill.bind(this);
     (this: any).selectJobs = this.selectJobs.bind(this);
     this.state = {
-      selectedJobs: [],
+      selectedJobs: props.selectedJobs,
       name: "",
       start: moment({ hour: 0 }),
       end: moment({ hour: 1 }),
@@ -61,14 +62,17 @@ class BackfillCreate extends React.Component {
     const dateFormat = date => {
       return moment.utc(date).toISOString();
     };
-    return Promise.all(
+    Promise.all(
       selectedJobs.map(job =>
         fetch(
-          `/api/timeseries/backfill?name=${name}&job=${job}&startDate=${dateFormat(start)}&endDate=${dateFormat(end)}&priority=${priority}`,
+          `/api/timeseries/backfill?name=${name}&job=${job}&priority=${priority}&` +
+            `startDate=${dateFormat(start)}&endDate=${dateFormat(end)}`,
           { method: "POST" }
         )
       )
     );
+    //TODO loader and/or error handling
+    this.props.back();
   }
 
   render() {
@@ -158,8 +162,9 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ workflow }) => ({
-  workflow
+const mapStateToProps = ({ workflow, selectedJobs }) => ({
+  workflow,
+  selectedJobs
 });
 const mapDispatchToProps = dispatch => ({
   back() {
