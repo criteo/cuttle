@@ -46,7 +46,7 @@ export const loadAppData = () => (dispatch: Dispatch) => {
     fetch("/api/workflow_definition")
   ]).then(responses => {
     Promise.all(responses.map(r => r.json())).then(
-      ([project: Project, workflow: Workflow]) =>
+      ([project, workflow]) =>
         dispatch(
           ({
             type: "LOAD_APP_DATA",
