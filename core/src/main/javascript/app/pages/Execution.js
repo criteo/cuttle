@@ -341,15 +341,16 @@ const styles = {
       padding: "1em",
       margin: "0",
       listStyle: "none",
-      fontSize: ".85em",
-      lineHeight: "1.5em"
+      fontSize: "12px",
+      fontFamily: "Menlo, 'Lucida Console', Monaco, monospace",
+      lineHeight: "1.7em",
+      whiteSpace: "nowrap"
     },
 
     "& span": {
-      width: "150px",
       color: "#747a88",
       display: "inline-block",
-      marginRight: "-10px",
+      marginRight: "15px",
       boxSizing: "border-box"
     },
 
