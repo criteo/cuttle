@@ -11,4 +11,6 @@ package object cuttle {
 
   type SideEffect[S <: Scheduling] = (Execution[S]) => Future[Unit]
 
+  implicit def scopedExecutionContext(implicit execution: Execution[_]) = execution.executionContext
+
 }
