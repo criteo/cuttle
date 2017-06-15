@@ -23,8 +23,11 @@ case class LocalPlatform[S <: Scheduling](maxForkedProcesses: Int)(implicit cont
 }
 
 object LocalPlatform {
-  def fork(command: String) = new LocalProcess(new NuProcessBuilder("sh", "-c", command)) {
-    override def toString = command
+  def fork(command: String) = {
+    val script = command.stripMargin('|')
+    new LocalProcess(new NuProcessBuilder("sh", "-ce", script)) {
+      override def toString = script
+    }
   }
 }
 

@@ -5,7 +5,7 @@ import java.util.{Timer, TimerTask}
 import java.time.{Duration, Instant, ZoneId}
 
 import scala.util.{Failure, Success}
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
@@ -65,7 +65,8 @@ case class Execution[S <: Scheduling](
   context: S#Context,
   startTime: Option[Instant],
   streams: ExecutionStreams,
-  platforms: Seq[ExecutionPlatform[S]]
+  platforms: Seq[ExecutionPlatform[S]],
+  executionContext: ExecutionContext
 ) {
   private[cuttle] val cancelSignal = Promise[Nothing]
   def isCancelled = cancelSignal.isCompleted
@@ -390,7 +391,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
               streams = new ExecutionStreams {
                 def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
               },
-              platforms = platforms
+              platforms = platforms,
+              executionContext = global
             )
             val promise = Promise[Unit]
 
@@ -418,6 +420,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         case (execution, promise, whatToDo) =>
           execution.streams.debug(s"Execution: ${execution.id}")
           execution.streams.debug(s"Context: ${execution.context.toJson}")
+          execution.streams.debug()
           whatToDo match {
             case ToRunNow =>
               unsafeDoRun(execution, promise)

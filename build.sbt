@@ -6,7 +6,7 @@ val VERSION = "0.1.0-SNAPSHOT"
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
-  scalaVersion := "2.11.9",
+  scalaVersion := "2.11.11",
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
@@ -79,7 +79,7 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "lolhttp",
         "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml"
-      ).map(_ % "0.4.2"),
+      ).map(_ % "0.4.3"),
       libraryDependencies ++= Seq("core", "generic", "parser")
         .map(module => "io.circe" %% s"circe-${module}" % "0.7.1"),
       libraryDependencies ++= Seq(
