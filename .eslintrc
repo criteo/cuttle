@@ -9,7 +9,7 @@
     "eslint:recommended",
     "plugin:react/recommended",
     "plugin:flowtype/recommended",
-    "plugin:lodash/recommended",
+    //"plugin:lodash/recommended",
     "prettier",
     "prettier/flowtype",
     "prettier/react"
@@ -29,8 +29,7 @@
   },
   "rules": {
     "prettier/prettier": "warn",
-    "no-unused-vars": "warn",
-    "lodash/prefer-lodash-method": "warn"
+    "no-unused-vars": "warn"
   },
   "settings": {
     "flowtype": {
