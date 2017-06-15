@@ -1,7 +1,7 @@
 package com.criteo.cuttle.examples
 
 import com.criteo.cuttle._
-import local._
+import com.criteo.cuttle.platforms.local.local._
 import timeseries._
 
 import java.time._

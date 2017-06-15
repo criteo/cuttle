@@ -94,7 +94,7 @@ case class Execution[S <: Scheduling](
 }
 
 trait ExecutionPlatform[S <: Scheduling] {
-  private[cuttle] def routes: PartialService = PartialFunction.empty
+  def routes: PartialService = PartialFunction.empty
   def waiting: Set[Execution[S]]
 }
 

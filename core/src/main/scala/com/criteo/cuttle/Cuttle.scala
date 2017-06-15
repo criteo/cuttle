@@ -2,6 +2,7 @@ package com.criteo.cuttle
 
 import lol.http._
 import scala.concurrent.ExecutionContext.Implicits.global
+import com.criteo.cuttle.platforms.local.LocalPlatform
 
 class CuttleProject[S <: Scheduling] private[cuttle] (
   val name: String,
@@ -14,7 +15,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   queries: Queries
 ) {
   def start(
-    platforms: Seq[ExecutionPlatform[S]] = List(local.LocalPlatform(maxForkedProcesses = 10)(ordering)),
+    platforms: Seq[ExecutionPlatform[S]] = List(LocalPlatform(maxForkedProcesses = 10)(ordering)),
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv
   ) = {
