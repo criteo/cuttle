@@ -76,7 +76,7 @@ private[cuttle] object Database {
 
       CREATE TABLE executions_streams (
         id          CHAR(36) NOT NULL,
-        streams     TEXT
+        streams     MEDIUMTEXT
       ) ENGINE = INNODB;
     """
   )
