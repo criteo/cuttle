@@ -19,6 +19,7 @@ import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
 import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
+import Backfills from "./app/pages/Backfills";
 import type { Statistics } from "./datamodel";
 
 type Props = {
@@ -95,6 +96,8 @@ class App extends React.Component {
                 end={page.end}
               />
             );
+          case "timeseries/backfills":
+            return <Backfills />;
           default:
             return null;
         }
