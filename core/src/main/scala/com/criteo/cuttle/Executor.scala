@@ -137,28 +137,32 @@ class Executor[S <: Scheduling] private[cuttle] (
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
 
-  private def isExecutionWaiting(execution: Execution[S]) =
-    execution.isParked.get || platforms.flatMap(_.waiting).contains(execution)
+  private def flagWaitingExecutions(executions: Seq[Execution[S]]): Seq[(Execution[S], ExecutionStatus)] = {
+    val waitings: Set[Execution[S]] = platforms.flatMap(_.waiting).toSet
+    executions.map { execution =>
+      val status = if (execution.isParked.get || waitings.contains(execution)) ExecutionWaiting else ExecutionRunning
+      (execution -> status)
+    }
+  }
 
   private[cuttle] def allRunning: Seq[ExecutionLog] =
-    runningState.single.keys.toSeq.map { execution =>
-      execution.toExecutionLog(if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
+    flagWaitingExecutions(runningState.single.keys.toSeq).map {
+      case (execution, status) =>
+        execution.toExecutionLog(status)
     }
 
   private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
-    runningState.single.keys.toSeq.map { execution =>
-      (execution, if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
-    }
+    flagWaitingExecutions(runningState.single.keys.toSeq)
 
   private[cuttle] def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
     runningState.single.keys
       .filter(e => filteredJobs.contains(e.job.id))
       .size
+
   private[cuttle] def runningExecutionsSizes(filteredJobs: Set[String]): (Int, Int) = {
-    val started = runningState.single.keys
-      .filter(e => filteredJobs.contains(e.job.id))
-    val sizes = List(true, false).map(b => started.filter(e => isExecutionWaiting(e) ^ b).size)
-    (sizes(0), sizes(1))
+    val statuses =
+      flagWaitingExecutions(runningState.single.keys.toSeq.filter(e => filteredJobs.contains(e.job.id))).map(_._2)
+    (statuses.count(_ == ExecutionRunning), statuses.count(_ == ExecutionWaiting))
   }
   private[cuttle] def runningExecutions(filteredJobs: Set[String],
                                         sort: String,
@@ -166,9 +170,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                                         offset: Int,
                                         limit: Int): Seq[ExecutionLog] =
     Seq(runningState.single.snapshot.keys.toSeq.filter(e => filteredJobs.contains(e.job.id)))
-      .map(_.map { execution =>
-        (execution, if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
-      })
+      .map(flagWaitingExecutions)
       .map { executions =>
         sort match {
           case "job" => executions.sortBy(_._1.job.id)
@@ -269,7 +271,7 @@ class Executor[S <: Scheduling] private[cuttle] (
           .find(predicate)
           .map(e => e.toExecutionLog(ExecutionThrottled).copy(failing = throttledState.get(e).map(_._2))))
         .orElse(runningState.keys.find(predicate).map { execution =>
-          execution.toExecutionLog(if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
+          execution.toExecutionLog(flagWaitingExecutions(execution :: Nil).head._2)
         })
     }.orElse(queries.getExecutionById(queryContexts, executionId).transact(xa).unsafePerformIO)
 
@@ -350,8 +352,7 @@ class Executor[S <: Scheduling] private[cuttle] (
           case result =>
             try {
               ExecutionStreams.archive(execution.id, queries, xa)
-            }
-            catch {
+            } catch {
               case e: Throwable =>
                 e.printStackTrace()
             }
