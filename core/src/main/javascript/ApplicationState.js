@@ -48,7 +48,8 @@ export type Page =
       start: string,
       end: string
     }
-  | { id: "timeseries/backfills" };
+  | { id: "timeseries/backfills" }
+  | { id: "timeseries/backfills/create" };
 
 export type State = {
   page: Page,
