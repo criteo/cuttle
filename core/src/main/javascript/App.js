@@ -20,6 +20,7 @@ import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
 import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
 import Backfills from "./app/pages/Backfills";
+import BackfillCreate from "./app/pages/BackfillCreate";
 import type { Statistics } from "./datamodel";
 
 type Props = {
@@ -98,6 +99,8 @@ class App extends React.Component {
             );
           case "timeseries/backfills":
             return <Backfills />;
+          case "timeseries/backfills/create":
+            return <BackfillCreate />;
           default:
             return null;
         }
