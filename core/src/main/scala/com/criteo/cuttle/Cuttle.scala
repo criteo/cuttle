@@ -11,8 +11,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val workflow: Workflow[S],
   val scheduler: Scheduler[S],
   val ordering: Ordering[S#Context],
-  val retryStrategy: RetryStrategy[S],
-  queries: Queries
+  val retryStrategy: RetryStrategy[S]
 ) {
   def start(
     platforms: Seq[ExecutionPlatform[S]] = List(LocalPlatform(maxForkedProcesses = 10)(ordering)),
@@ -20,7 +19,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv
   ) = {
     val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, queries, xa)(retryStrategy, ordering)
+    val executor = new Executor[S](platforms, xa)(retryStrategy, ordering)
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
@@ -35,5 +34,5 @@ object CuttleProject {
     workflow: Workflow[S])(implicit scheduler: Scheduler[S],
                            retryStrategy: RetryStrategy[S],
                            ordering: Ordering[S#Context]): CuttleProject[S] =
-    new CuttleProject(name, description, env, workflow, scheduler, ordering, retryStrategy, new Queries {})
+    new CuttleProject(name, description, env, workflow, scheduler, ordering, retryStrategy)
 }

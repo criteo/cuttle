@@ -105,7 +105,7 @@ private[cuttle] object ExecutionPlatform {
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
-class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform[S]], queries: Queries, xa: XA)(
+class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform[S]], xa: XA, queries: Queries = new Queries {})(
   implicit retryStrategy: RetryStrategy[S],
   contextOrdering: Ordering[S#Context]) {
 
@@ -309,7 +309,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private def unsafeDoRun(execution: Execution[S], promise: Promise[Unit]): Unit =
     promise.completeWith(
       execution.job
-        .effect(execution)
+        .run(execution)
         .andThen {
           case Success(()) =>
             execution.streams.debug(s"Execution successful")

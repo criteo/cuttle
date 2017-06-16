@@ -1,4 +1,4 @@
-package com.criteo.cuttle.platforms.local
+package com.criteo.cuttle.platforms
 
 package object local {
 
