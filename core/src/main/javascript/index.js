@@ -3,16 +3,17 @@
 import React from "react";
 
 import createHistory from "history/createBrowserHistory"; // choose a history implementation
-import { createStore, compose, applyMiddleware } from "redux";
+import { createStore, combineReducers, compose, applyMiddleware } from "redux";
 import { Provider } from "react-redux";
 import { createRouter } from "redux-url";
 import { render } from "react-dom";
 import ReduxThunk from "redux-thunk";
+import { reducer as formReducer } from "redux-form";
 
 import "../style/index.less";
 
 import App from "./App";
-import { initialState, reducers } from "./ApplicationState";
+import { appReducer } from "./ApplicationState";
 import * as Actions from "./actions";
 import type { State } from "./ApplicationState";
 import { listenEvents } from "./Utils";
@@ -43,8 +44,10 @@ const routes = {
 
 const router = createRouter(routes, createHistory());
 const store = createStore(
-  reducers,
-  initialState,
+  combineReducers({
+    app: appReducer,
+    form: formReducer
+  }),
   compose(
     applyMiddleware(router, ReduxThunk),
     window.devToolsExtension ? window.devToolsExtension() : _ => _
@@ -66,7 +69,7 @@ let listenForStatistics = (query: string) => {
   }
 };
 store.subscribe(() => {
-  let state: State = store.getState();
+  let state: State = store.getState().app;
   let jobsFilter = state.selectedJobs.length
     ? `&jobs=${state.selectedJobs.join(",")}`
     : "";

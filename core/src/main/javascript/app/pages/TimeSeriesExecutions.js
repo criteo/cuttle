@@ -273,7 +273,7 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ project }) => ({
+const mapStateToProps = ({ app: { project } }) => ({
   envCritical: project.env.critical
 });
 const mapDispatchToProps = dispatch => ({

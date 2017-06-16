@@ -173,12 +173,7 @@ let styles = {
 };
 
 const mapStateToProps = ({
-  page,
-  project,
-  workflow,
-  isLoading,
-  statistics,
-  selectedJobs
+  app: { page, project, workflow, isLoading, statistics, selectedJobs }
 }) => ({
   page,
   projectName: project && project.name,
