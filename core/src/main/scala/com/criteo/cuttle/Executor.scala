@@ -348,7 +348,13 @@ class Executor[S <: Scheduling] private[cuttle] (
         }
         .andThen {
           case result =>
-            ExecutionStreams.archive(execution.id, queries, xa)
+            try {
+              ExecutionStreams.archive(execution.id, queries, xa)
+            }
+            catch {
+              case e: Throwable =>
+                e.printStackTrace()
+            }
             atomic { implicit tx =>
               runningState -= execution
             }
