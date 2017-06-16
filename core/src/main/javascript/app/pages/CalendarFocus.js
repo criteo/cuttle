@@ -218,14 +218,16 @@ class CalendarFocus extends React.Component {
           g
             .append("rect")
             .attr("width", x2 - x1 - 2 * MARGIN)
-            .attr("height", 20)
+            .attr("height", ROW_HEIGHT)
             .attr(
               "fill",
               status == "failed"
                 ? "#e91e63"
                 : status == "successful"
                     ? "#62cc64"
-                    : status == "running" ? "#ecf1f5" : "#ecf1f5"
+                    : status == "waiting"
+                        ? "#ffbc5a"
+                        : status == "running" ? "#49d3e4" : "#ecf1f5"
             );
         });
       };
