@@ -1,5 +1,7 @@
 package com.criteo.cuttle
 
+import scala.concurrent.{ Future }
+
 /*
  * The representation of the workflow to be scheduled
  * */
@@ -50,4 +52,6 @@ case class Job[S <: Scheduling](id: String,
     extends Workflow[S] {
   private[cuttle] val vertices = Set(this)
   private[cuttle] val edges = Set.empty[Dependency]
+
+  def run(execution: Execution[S]): Future[Unit] = effect(execution)
 }
