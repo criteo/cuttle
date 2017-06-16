@@ -2,7 +2,6 @@ package com.criteo.cuttle
 
 import lol.http._
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.criteo.cuttle.platforms.local.LocalPlatform
 
 class CuttleProject[S <: Scheduling] private[cuttle] (
   val name: String,
@@ -14,7 +13,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val retryStrategy: RetryStrategy[S]
 ) {
   def start(
-    platforms: Seq[ExecutionPlatform[S]] = List(LocalPlatform(maxForkedProcesses = 10)(ordering)),
+    platforms: Seq[ExecutionPlatform[S]] = CuttleProject.defaultPlatforms(ordering),
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv
   ) = {
@@ -35,4 +34,21 @@ object CuttleProject {
                            retryStrategy: RetryStrategy[S],
                            ordering: Ordering[S#Context]): CuttleProject[S] =
     new CuttleProject(name, description, env, workflow, scheduler, ordering, retryStrategy)
+
+  private[CuttleProject] def defaultPlatforms[S <: Scheduling](ordering: Ordering[S#Context]) = {
+    import platforms._
+    import java.util.concurrent.TimeUnit.{SECONDS}
+
+    Seq(
+      local.LocalPlatform(
+        maxForkedProcesses = 10
+      )(ordering),
+      http.HttpPlatform(
+        maxConcurrentRequests = 10,
+        rateLimits = Seq(
+          ".*" -> http.HttpPlatform.RateLimit(1, per = SECONDS)
+        )
+      )(ordering)
+    )
+  }
 }
