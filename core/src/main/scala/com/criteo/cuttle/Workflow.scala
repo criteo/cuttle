@@ -1,6 +1,6 @@
 package com.criteo.cuttle
 
-import scala.concurrent.{ Future }
+import scala.concurrent.{Future}
 
 /*
  * The representation of the workflow to be scheduled

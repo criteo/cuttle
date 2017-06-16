@@ -5,7 +5,7 @@ import platforms.local._
 import timeseries._
 
 import java.time._
-import java.time.ZoneOffset.{ UTC }
+import java.time.ZoneOffset.{UTC}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 

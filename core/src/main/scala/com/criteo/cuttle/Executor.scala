@@ -2,6 +2,7 @@ package com.criteo.cuttle
 
 import java.io.{PrintWriter, StringWriter}
 import java.util.{Timer, TimerTask}
+import java.util.concurrent.atomic.{AtomicBoolean}
 import java.time.{Duration, Instant, ZoneId}
 
 import scala.util.{Failure, Success}
@@ -9,6 +10,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
+import scala.concurrent.duration._
 import scala.reflect.{classTag, ClassTag}
 
 import lol.http.{PartialService}
@@ -92,6 +94,18 @@ case class Execution[S <: Scheduling](
       context.toJson,
       status
     )
+
+  private[cuttle] val isParked = new AtomicBoolean(false)
+  def park(duration: FiniteDuration): Future[Unit] =
+    if (isParked.get) {
+      sys.error(s"Already parked")
+    } else {
+      isParked.set(true)
+      utils.Timeout(duration).andThen {
+        case _ =>
+          isParked.set(false)
+      }
+    }
 }
 
 trait ExecutionPlatform[S <: Scheduling] {
@@ -105,9 +119,10 @@ private[cuttle] object ExecutionPlatform {
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
-class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform[S]], xa: XA, queries: Queries = new Queries {})(
-  implicit retryStrategy: RetryStrategy[S],
-  contextOrdering: Ordering[S#Context]) {
+class Executor[S <: Scheduling] private[cuttle] (
+  val platforms: Seq[ExecutionPlatform[S]],
+  xa: XA,
+  queries: Queries = new Queries {})(implicit retryStrategy: RetryStrategy[S], contextOrdering: Ordering[S#Context]) {
 
   import ExecutionStatus._
 
@@ -122,17 +137,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
 
-  private[cuttle] def allRunning: Seq[ExecutionLog] = {
-    val waiting = platforms.flatMap(_.waiting)
+  private def isExecutionWaiting(execution: Execution[S]) =
+    execution.isParked.get || platforms.flatMap(_.waiting).contains(execution)
+
+  private[cuttle] def allRunning: Seq[ExecutionLog] =
     runningState.single.keys.toSeq.map { execution =>
-      execution.toExecutionLog(if (waiting.contains(execution)) ExecutionWaiting else ExecutionRunning)
+      execution.toExecutionLog(if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
     }
-  }
 
   private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
     runningState.single.keys.toSeq.map { execution =>
-      val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
-      (execution, if (waiting) ExecutionWaiting else ExecutionRunning)
+      (execution, if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
     }
 
   private[cuttle] def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
@@ -142,7 +157,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def runningExecutionsSizes(filteredJobs: Set[String]): (Int, Int) = {
     val started = runningState.single.keys
       .filter(e => filteredJobs.contains(e.job.id))
-    val sizes = List(true, false).map(b => started.filter(e => e.platforms.flatMap(_.waiting).contains(e) ^ b).size)
+    val sizes = List(true, false).map(b => started.filter(e => isExecutionWaiting(e) ^ b).size)
     (sizes(0), sizes(1))
   }
   private[cuttle] def runningExecutions(filteredJobs: Set[String],
@@ -152,8 +167,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                                         limit: Int): Seq[ExecutionLog] =
     Seq(runningState.single.snapshot.keys.toSeq.filter(e => filteredJobs.contains(e.job.id)))
       .map(_.map { execution =>
-        val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
-        (execution, if (waiting) ExecutionWaiting else ExecutionRunning)
+        (execution, if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
       })
       .map { executions =>
         sort match {
@@ -255,8 +269,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           .find(predicate)
           .map(e => e.toExecutionLog(ExecutionThrottled).copy(failing = throttledState.get(e).map(_._2))))
         .orElse(runningState.keys.find(predicate).map { execution =>
-          val waiting = execution.platforms.flatMap(_.waiting).contains(execution)
-          execution.toExecutionLog(if (waiting) ExecutionWaiting else ExecutionRunning)
+          execution.toExecutionLog(if (isExecutionWaiting(execution)) ExecutionWaiting else ExecutionRunning)
         })
     }.orElse(queries.getExecutionById(queryContexts, executionId).transact(xa).unsafePerformIO)
 

@@ -164,8 +164,9 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
       if (toRun.nonEmpty)
         Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
 
-      val newRunning = stillRunning ++ executor.runAll(toRun).map { case (execution, result) =>
-        (execution.job, execution.context, result)
+      val newRunning = stillRunning ++ executor.runAll(toRun).map {
+        case (execution, result) =>
+          (execution.job, execution.context, result)
       }
 
       Future.firstCompletedOf(utils.Timeout(ScalaDuration.create(1, "s")) :: newRunning.map(_._3).toList).andThen {
@@ -225,10 +226,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
   }
 
   private[timeseries] def next(workflow0: Workflow[TimeSeriesScheduling],
-                   state0: State,
-                   backfills: Set[Backfill],
-                   running: Set[(TimeSeriesJob, TimeSeriesContext)],
-                   timerInterval: IntervalSet[Instant]): List[Executable] = {
+                               state0: State,
+                               backfills: Set[Backfill],
+                               running: Set[(TimeSeriesJob, TimeSeriesContext)],
+                               timerInterval: IntervalSet[Instant]): List[Executable] = {
     val workflow = workflow0 dependsOn timer
     val state = state0 + (timer -> timerInterval)
 
