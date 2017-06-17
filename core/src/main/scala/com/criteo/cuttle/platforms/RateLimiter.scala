@@ -13,10 +13,11 @@ private[cuttle] class RateLimiter[S <: Scheduling](name: String, tokens: Int, re
   implicit contextOrdering: Ordering[S#Context])
     extends WaitingExecutionQueue[S] {
   val queueOrdering = Ordering.by((e: Execution[S]) => (e.context, e.job.id))
-  val _tokens = Ref(tokens)
+  private val _tokens = Ref(tokens)
   RateLimiter.SC.scheduleAtFixedRate(refillRateInMs.milliseconds) {
     atomic { implicit txn =>
-      _tokens() = _tokens() + 1
+      if(_tokens() < tokens)
+        _tokens() = _tokens() + 1
     }
     runNext()
   }
