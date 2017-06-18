@@ -328,37 +328,6 @@ class Execution extends React.Component {
 }
 
 const styles = {
-  definitions: {
-    margin: "-1em",
-    display: "flex",
-    flexFlow: "row",
-    flexWrap: "wrap",
-    fontSize: ".85em",
-    background: "rgba(189, 213, 228, 0.1)",
-    "& dt": {
-      flex: "0 0 150px",
-      textOverflow: "ellipsis",
-      overflow: "hidden",
-      padding: "0 1em",
-      boxSizing: "border-box",
-      textAlign: "right",
-      color: "#637686",
-      lineHeight: "2.75em"
-    },
-    "& dd": {
-      flex: "0 0 calc(100% - 150px)",
-      marginLeft: "auto",
-      textAlign: "left",
-      textOverflow: "ellipsis",
-      overflow: "hidden",
-      padding: "0",
-      boxSizing: "border-box",
-      lineHeight: "2.75em"
-    },
-    "& dd:nth-of-type(even), & dt:nth-of-type(even)": {
-      background: "#eef5fb"
-    }
-  },
   failedLink: {
     color: "#e91e63"
   },
