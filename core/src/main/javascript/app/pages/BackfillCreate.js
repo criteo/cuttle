@@ -5,7 +5,6 @@ import { connect } from "react-redux";
 import injectSheet from "react-jss";
 import { compose } from "redux";
 import { goBack } from "redux-url";
-import CloseIcon from "react-icons/lib/md/close";
 import { Field, reduxForm, SubmissionError } from "redux-form";
 import moment, { Moment } from "moment";
 
@@ -97,17 +96,9 @@ class BackfillCreate extends React.Component<any, Props, void> {
   }
 
   render() {
-    const {
-      workflow,
-      back,
-      classes,
-      handleSubmit,
-      error,
-      submitting
-    } = this.props;
+    const { workflow, classes, handleSubmit, error, submitting } = this.props;
     return (
       <Window title="Create Backfill">
-        <CloseIcon className={classes.close} onClick={back} />
         <div className={classes.filter}>
           <Field
             name="jobs"
@@ -159,14 +150,6 @@ class BackfillCreate extends React.Component<any, Props, void> {
 
 // TODO duplicated styles
 const styles = {
-  close: {
-    position: "absolute",
-    color: "#eef5fb",
-    top: ".75em",
-    right: ".5em",
-    cursor: "pointer",
-    fontSize: "20px"
-  },
   filter: {
     margin: "-1em -1em 1em -1em", //TODO that is fishy ;(
     background: "#fff",

@@ -1,11 +1,8 @@
 // @flow
 
 import React from "react";
-import { connect } from "react-redux";
 import classNames from "classnames";
 import injectSheet from "react-jss";
-import { goBack } from "redux-url";
-import CloseIcon from "react-icons/lib/md/close";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
@@ -31,8 +28,7 @@ type Line = {
 
 type Props = {
   classes: any,
-  execution: string,
-  back: () => void
+  execution: string
 };
 
 type State = {
@@ -197,12 +193,11 @@ class Execution extends React.Component {
   }
 
   render() {
-    let { classes, execution, back } = this.props;
+    let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
 
     return (
       <Window title="Execution">
-        <CloseIcon className={classes.close} onClick={back} />
         {data
           ? [
               <FancyTable key="properties">
@@ -333,14 +328,6 @@ class Execution extends React.Component {
 }
 
 const styles = {
-  close: {
-    position: "absolute",
-    color: "#eef5fb",
-    top: ".75em",
-    right: ".5em",
-    cursor: "pointer",
-    fontSize: "20px"
-  },
   definitions: {
     margin: "-1em",
     display: "flex",
@@ -465,13 +452,4 @@ const styles = {
   }
 };
 
-const mapStateToProps = () => ({});
-const mapDispatchToProps = dispatch => ({
-  back() {
-    dispatch(goBack());
-  }
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(Execution)
-);
+export default injectSheet(styles)(Execution);
