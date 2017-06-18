@@ -17,6 +17,7 @@ object TestDependencyDescriptor {
 case class TestContext() extends SchedulingContext {
   val toJson = Json.Null
   val log = Applicative[ConnectionIO].pure("id")
+  def compareTo(other: SchedulingContext) = 0
 }
 
 case class TestScheduling(config: Unit = ()) extends Scheduling {

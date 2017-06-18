@@ -20,14 +20,15 @@ import cats.implicits._
 
 import io.circe._
 
-trait RetryStrategy[S <: Scheduling] extends ((Job[S], S#Context, FailingJob) => Duration) {
+trait RetryStrategy {
+  def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]): Duration
   def retryWindow: Duration
 }
 
 object RetryStrategy {
-  implicit def ExponentialBackoffRetryStrategy[A <: Scheduling] = new RetryStrategy[A] {
-    def apply(job: Job[A], ctx: A#Context, failingJob: FailingJob) =
-      retryWindow.multipliedBy(math.pow(2, failingJob.failedExecutions.size - 1).toLong)
+  implicit def ExponentialBackoffRetryStrategy = new RetryStrategy {
+    def apply[S <: Scheduling](job: Job[S], ctx: S#Context, previouslyFailing: List[String]) =
+      retryWindow.multipliedBy(math.pow(2, previouslyFailing.size - 1).toLong)
     def retryWindow =
       Duration.ofMinutes(5)
   }
@@ -67,7 +68,7 @@ case class Execution[S <: Scheduling](
   context: S#Context,
   startTime: Option[Instant],
   streams: ExecutionStreams,
-  platforms: Seq[ExecutionPlatform[S]],
+  platforms: Seq[ExecutionPlatform],
   executionContext: ExecutionContext
 ) {
   private[cuttle] val cancelSignal = Promise[Nothing]
@@ -108,21 +109,28 @@ case class Execution[S <: Scheduling](
     }
 }
 
-trait ExecutionPlatform[S <: Scheduling] {
+object Execution {
+  private[cuttle] implicit val ordering: Ordering[Execution[_]] =
+    Ordering.by(e => (e.context: SchedulingContext, e.job.id))
+}
+
+trait ExecutionPlatform {
   def routes: PartialService = PartialFunction.empty
-  def waiting: Set[Execution[S]]
+  def waiting: Set[Execution[_]]
 }
 
 private[cuttle] object ExecutionPlatform {
-  implicit def fromExecution[S <: Scheduling](implicit e: Execution[S]): Seq[ExecutionPlatform[S]] = e.platforms
-  def lookup[E: ClassTag](implicit platforms: Seq[ExecutionPlatform[_]]): Option[E] =
+  implicit def fromExecution(implicit e: Execution[_]): Seq[ExecutionPlatform] = e.platforms
+  def lookup[E: ClassTag](implicit platforms: Seq[ExecutionPlatform]): Option[E] =
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
 class Executor[S <: Scheduling] private[cuttle] (
-  val platforms: Seq[ExecutionPlatform[S]],
+  val platforms: Seq[ExecutionPlatform],
   xa: XA,
-  queries: Queries = new Queries {})(implicit retryStrategy: RetryStrategy[S], contextOrdering: Ordering[S#Context]) {
+  queries: Queries = new Queries {})(implicit retryStrategy: RetryStrategy) {
+
+  private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
   import ExecutionStatus._
 
@@ -138,7 +146,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
 
   private def flagWaitingExecutions(executions: Seq[Execution[S]]): Seq[(Execution[S], ExecutionStatus)] = {
-    val waitings: Set[Execution[S]] = platforms.flatMap(_.waiting).toSet
+    val waitings = platforms.flatMap(_.waiting).toSet
     executions.map { execution =>
       val status = if (execution.isParked.get || waitings.contains(execution)) ExecutionWaiting else ExecutionRunning
       (execution -> status)
@@ -429,7 +437,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                 } else if (recentFailures.contains(job -> context)) {
                   val (_, failingJob) = recentFailures(job -> context)
                   recentFailures += ((job -> context) -> (Some(execution) -> failingJob))
-                  val throttleFor = retryStrategy(job, context, recentFailures(job -> context)._2)
+                  val throttleFor = retryStrategy(job, context, recentFailures(job -> context)._2.failedExecutions.map(_.id))
                   val launchDate = failingJob.failedExecutions.head.endTime.get.plus(throttleFor)
                   throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
                   (job, execution, promise, Throttled(launchDate))

@@ -8,11 +8,8 @@ import java.util.concurrent.{TimeUnit}
 
 import lol.http._
 
-case class HttpPlatform[S <: Scheduling](
-  maxConcurrentRequests: Int,
-  rateLimits: Seq[(String, HttpPlatform.RateLimit)]
-)(implicit contextOrdering: Ordering[S#Context])
-    extends ExecutionPlatform[S] {
+case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, HttpPlatform.RateLimit)])
+    extends ExecutionPlatform {
 
   private[HttpPlatform] val pool = new ExecutionPool(name = "http", concurrencyLimit = maxConcurrentRequests)
   private[HttpPlatform] val rateLimiters = rateLimits.map {
@@ -30,7 +27,7 @@ case class HttpPlatform[S <: Scheduling](
       ))
   }
 
-  override def waiting: Set[Execution[S]] =
+  override def waiting: Set[Execution[_]] =
     rateLimiters.map(_._2).foldLeft(pool.waiting)(_ ++ _.waiting)
 
   override lazy val routes: PartialService = pool.routes
@@ -45,7 +42,7 @@ object HttpPlatform {
     streams.debug(s"HTTP request: ${request}")
 
     val httpPlatform =
-      ExecutionPlatform.lookup[HttpPlatform[S]].getOrElse(sys.error("No http execution platform configured"))
+      ExecutionPlatform.lookup[HttpPlatform].getOrElse(sys.error("No http execution platform configured"))
     httpPlatform.pool.run(execution) { () =>
       try {
         val host =

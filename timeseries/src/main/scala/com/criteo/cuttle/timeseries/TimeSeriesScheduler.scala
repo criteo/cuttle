@@ -43,28 +43,28 @@ private[timeseries] object Backfill {
 
 case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Backfill] = None)
     extends SchedulingContext {
-  import TimeSeriesUtils._
 
   def toJson: Json = this.asJson
 
   def log: ConnectionIO[String] = Database.serializeContext(this)
 
   def toInterval: Interval[Instant] = Interval.closedOpen(start, end)
+
+  def compareTo(other: SchedulingContext) = other match {
+    case TimeSeriesContext(otherStart, _, otherBackfil) =>
+      val priority = backfill.map(_.priority).getOrElse(0) - otherBackfil.map(_.priority).getOrElse(0)
+      if (priority == 0) {
+        start.compareTo(otherStart)
+      } else {
+        priority
+      }
+  }
 }
 
 object TimeSeriesContext {
-  import TimeSeriesUtils._
-
   private[timeseries] implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
   private[timeseries] implicit def decoder(implicit jobs: Set[Job[TimeSeries]]): Decoder[TimeSeriesContext] =
     deriveDecoder
-
-  implicit val ordering: Ordering[TimeSeriesContext] = {
-    implicit val maybeBackfillOrdering: Ordering[Option[Backfill]] = {
-      Ordering.by(maybeBackfill => maybeBackfill.map(_.priority).getOrElse(0))
-    }
-    Ordering.by(context => (context.backfill, context.start))
-  }
 }
 
 case class TimeSeriesDependency(offset: Duration)
