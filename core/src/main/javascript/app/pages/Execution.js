@@ -335,7 +335,6 @@ const styles = {
     flex: "1",
     display: "flex",
     background: "#23252f",
-    margin: "1em -1em -1em -1em",
     position: "relative",
 
     "& ul": {

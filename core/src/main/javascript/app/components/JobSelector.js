@@ -176,27 +176,36 @@ class JobSelector extends React.Component {
     };
 
     return (
-      <Select
-        multi
-        joinValues
-        placeholder={
-          placeholder ||
-            <span>
-              <SearchIcon className={classes.searchIcon} /> Select jobs...
-            </span>
-        }
-        className={classNames(className, classes.select)}
-        value={selected}
-        options={this.options}
-        onChange={this.onSelectItem.bind(this)}
-        optionRenderer={renderOption}
-        filterOptions={filterOptions}
-      />
+      <div className={classes.container}>
+        <Select
+          multi
+          joinValues
+          placeholder={
+            placeholder ||
+              <span>
+                <SearchIcon className={classes.searchIcon} /> Select jobs...
+              </span>
+          }
+          className={classNames(className, classes.select)}
+          value={selected}
+          options={this.options}
+          onChange={this.onSelectItem.bind(this)}
+          optionRenderer={renderOption}
+          filterOptions={filterOptions}
+        />
+      </div>
     );
   }
 }
 
 const styles = {
+  container: {
+    zIndex: "2",
+    background: "#fff",
+    height: "4em",
+    lineHeight: "4em",
+    boxShadow: "0px 1px 5px 0px #BECBD6"
+  },
   searchIcon: {
     fontSize: "1.3em",
     transform: "translateY(-1px)"

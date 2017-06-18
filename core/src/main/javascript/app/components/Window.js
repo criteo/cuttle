@@ -40,7 +40,6 @@ const styles = {
     background: "#ffffff",
     flex: "1",
     position: "relative",
-    padding: "1em",
     boxShadow: "0px 0px 15px 0px #12202b",
     borderRadius: "2px",
     overflow: "hidden",
@@ -49,7 +48,7 @@ const styles = {
   },
   title: {
     fontSize: "1em",
-    margin: "-1em -1em 1em -1em",
+    margin: "0",
     padding: "1em",
     color: "#f9fbfc",
     background: "#5f6b86",

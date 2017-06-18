@@ -243,7 +243,6 @@ class TimeSeriesExecutions extends React.Component {
 const styles = {
   logs: {
     flex: "1",
-    margin: "1em -1em -1em -1em",
     overflow: "scroll",
     borderTop: "46px solid #fff"
   },
