@@ -3,6 +3,7 @@
 import React from "react";
 import { connect } from "react-redux";
 import injectSheet from "react-jss";
+import { compose } from "redux";
 import { goBack } from "redux-url";
 import CloseIcon from "react-icons/lib/md/close";
 import { Field, reduxForm, SubmissionError } from "redux-form";
@@ -194,7 +195,8 @@ const mapDispatchToProps = dispatch => ({
   }
 });
 
-let form: any = reduxForm({ form: "backfillForm" })(BackfillCreate);
-form = connect(mapStateToProps, mapDispatchToProps)(form);
-form = injectSheet(styles)(form);
-export default form;
+export default compose(
+  injectSheet(styles),
+  connect(mapStateToProps, mapDispatchToProps),
+  reduxForm({ form: "backfillForm" })
+)(BackfillCreate);
