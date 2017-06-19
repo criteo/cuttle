@@ -372,131 +372,141 @@ class Executor[S <: Scheduling] private[cuttle] (
             }
         })
 
-  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] = all.sortBy(_._2).map((run _).tupled)
+  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] =
+    run0(all.sortBy(_._2))
 
-  def run(job: Job[S], context: S#Context): (Execution[S], Future[Unit]) = {
+  def run(job: Job[S], context: S#Context): (Execution[S], Future[Unit]) =
+    run0(Seq(job -> context)).head
+
+  private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
     case object Paused extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
-    val existingOrNew: Either[(Execution[S], Future[Unit]), (Execution[S], Promise[Unit], NewExecution)] = atomic {
-      implicit tx =>
-        val maybeAlreadyRunning: Option[(Execution[S], Future[Unit])] =
-          runningState.find { case (e, _) => e.job == job && e.context == context }
+    val existingOrNew: Seq[Either[(Execution[S], Future[Unit]), (Job[S], Execution[S], Promise[Unit], NewExecution)]] =
+      atomic { implicit tx =>
+        all.map {
+          case (job, context) =>
+            val maybeAlreadyRunning: Option[(Execution[S], Future[Unit])] =
+              runningState.find { case (e, _) => e.job == job && e.context == context }
 
-        lazy val maybePaused: Option[(Execution[S], Future[Unit])] =
-          pausedState
-            .getOrElse(job.id, Map.empty)
-            .find { case (e, _) => e.context == context }
-            .map {
-              case (e, p) => (e, p.future)
-            }
-
-        lazy val maybeThrottled: Option[(Execution[S], Future[Unit])] =
-          throttledState.find { case (e, _) => e.job == job && e.context == context }.map {
-            case (e, (p, _)) => (e, p.future)
-          }
-
-        maybeAlreadyRunning
-          .orElse(maybePaused)
-          .orElse(maybeThrottled)
-          .toLeft {
-            val nextExecutionId = utils.randomUUID
-            val execution = Execution(
-              id = nextExecutionId,
-              job = job,
-              context = context,
-              startTime = None,
-              streams = new ExecutionStreams {
-                def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
-              },
-              platforms = platforms,
-              executionContext = global
-            )
-            val promise = Promise[Unit]
-
-            if (pausedState.contains(job.id)) {
-              val pausedExecutions = pausedState(job.id) + (execution -> promise)
-              pausedState += (job.id -> pausedExecutions)
-              (execution, promise, Paused)
-            } else if (recentFailures.contains(job -> context)) {
-              val (_, failingJob) = recentFailures(job -> context)
-              recentFailures += ((job -> context) -> (Some(execution) -> failingJob))
-              val throttleFor = retryStrategy(job, context, recentFailures(job -> context)._2)
-              val launchDate = failingJob.failedExecutions.head.endTime.get.plus(throttleFor)
-              throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
-              (execution, promise, Throttled(launchDate))
-            } else {
-              val startedExecution = execution.copy(startTime = Some(Instant.now()))
-              runningState += (startedExecution -> promise.future)
-              (startedExecution, promise, ToRunNow)
-            }
-          }
-    }
-
-    existingOrNew.fold(
-      identity, {
-        case (execution, promise, whatToDo) =>
-          execution.streams.debug(s"Execution: ${execution.id}")
-          execution.streams.debug(s"Context: ${execution.context.toJson}")
-          execution.streams.debug()
-          whatToDo match {
-            case ToRunNow =>
-              unsafeDoRun(execution, promise)
-            case Paused =>
-              execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
-              execution.onCancelled { () =>
-                val cancelNow = atomic { implicit tx =>
-                  val isStillPaused = pausedState.get(job.id).getOrElse(Map.empty).contains(execution)
-                  if (isStillPaused) {
-                    val pausedExecutions = pausedState.get(job.id).getOrElse(Map.empty).filterKeys(_ == execution)
-                    pausedState += (job.id -> pausedExecutions)
-                    true
-                  } else {
-                    false
-                  }
+            lazy val maybePaused: Option[(Execution[S], Future[Unit])] =
+              pausedState
+                .getOrElse(job.id, Map.empty)
+                .find { case (e, _) => e.context == context }
+                .map {
+                  case (e, p) => (e, p.future)
                 }
-                if (cancelNow) promise.tryFailure(ExecutionCancelledException)
+
+            lazy val maybeThrottled: Option[(Execution[S], Future[Unit])] =
+              throttledState.find { case (e, _) => e.job == job && e.context == context }.map {
+                case (e, (p, _)) => (e, p.future)
               }
-            case Throttled(launchDate) =>
-              execution.streams.debug(s"Delayed until ${launchDate} because previous execution failed")
-              val timerTask = new TimerTask {
-                def run = {
-                  val runNow = atomic { implicit tx =>
-                    if (throttledState.contains(execution)) {
-                      throttledState -= execution
-                      true
-                    } else {
-                      false
-                    }
-                  }
-                  if (runNow) unsafeDoRun(execution, promise)
+
+            maybeAlreadyRunning
+              .orElse(maybePaused)
+              .orElse(maybeThrottled)
+              .toLeft {
+                val nextExecutionId = utils.randomUUID
+                val execution = Execution(
+                  id = nextExecutionId,
+                  job = job,
+                  context = context,
+                  startTime = None,
+                  streams = new ExecutionStreams {
+                    def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
+                  },
+                  platforms = platforms,
+                  executionContext = global
+                )
+                val promise = Promise[Unit]
+
+                if (pausedState.contains(job.id)) {
+                  val pausedExecutions = pausedState(job.id) + (execution -> promise)
+                  pausedState += (job.id -> pausedExecutions)
+                  (job, execution, promise, Paused)
+                } else if (recentFailures.contains(job -> context)) {
+                  val (_, failingJob) = recentFailures(job -> context)
+                  recentFailures += ((job -> context) -> (Some(execution) -> failingJob))
+                  val throttleFor = retryStrategy(job, context, recentFailures(job -> context)._2)
+                  val launchDate = failingJob.failedExecutions.head.endTime.get.plus(throttleFor)
+                  throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
+                  (job, execution, promise, Throttled(launchDate))
+                } else {
+                  val startedExecution = execution.copy(startTime = Some(Instant.now()))
+                  runningState += (startedExecution -> promise.future)
+                  (job, startedExecution, promise, ToRunNow)
                 }
               }
-              timer.schedule(timerTask, java.util.Date.from(launchDate.atZone(ZoneId.systemDefault()).toInstant))
-              execution.onCancelled {
-                () =>
-                  val cancelNow = atomic { implicit tx =>
-                    val failureKey = (execution.job -> execution.context)
-                    recentFailures.get(failureKey).foreach {
-                      case (_, failingJob) =>
-                        recentFailures += (failureKey -> (None -> failingJob))
-                    }
-                    val isStillDelayed = throttledState.contains(execution)
-                    if (isStillDelayed) {
-                      throttledState -= execution
-                      true
-                    } else {
-                      false
-                    }
-                  }
-                  if (cancelNow) promise.tryFailure(ExecutionCancelledException)
-              }
-
-          }
-          (execution, promise.future)
+        }
       }
-    )
+
+    existingOrNew.map(
+      _.fold(
+        identity, {
+          case (job, execution, promise, whatToDo) =>
+            Future {
+              execution.streams.debug(s"Execution: ${execution.id}")
+              execution.streams.debug(s"Context: ${execution.context.toJson}")
+              execution.streams.debug()
+              whatToDo match {
+                case ToRunNow =>
+                  unsafeDoRun(execution, promise)
+                case Paused =>
+                  execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
+                  execution.onCancelled { () =>
+                    val cancelNow = atomic { implicit tx =>
+                      val isStillPaused = pausedState.get(job.id).getOrElse(Map.empty).contains(execution)
+                      if (isStillPaused) {
+                        val pausedExecutions = pausedState.get(job.id).getOrElse(Map.empty).filterKeys(_ == execution)
+                        pausedState += (job.id -> pausedExecutions)
+                        true
+                      } else {
+                        false
+                      }
+                    }
+                    if (cancelNow) promise.tryFailure(ExecutionCancelledException)
+                  }
+                case Throttled(launchDate) =>
+                  execution.streams.debug(s"Delayed until ${launchDate} because previous execution failed")
+                  val timerTask = new TimerTask {
+                    def run = {
+                      val runNow = atomic { implicit tx =>
+                        if (throttledState.contains(execution)) {
+                          throttledState -= execution
+                          true
+                        } else {
+                          false
+                        }
+                      }
+                      if (runNow) unsafeDoRun(execution, promise)
+                    }
+                  }
+                  timer.schedule(timerTask, java.util.Date.from(launchDate.atZone(ZoneId.systemDefault()).toInstant))
+                  execution.onCancelled {
+                    () =>
+                      val cancelNow = atomic { implicit tx =>
+                        val failureKey = (execution.job -> execution.context)
+                        recentFailures.get(failureKey).foreach {
+                          case (_, failingJob) =>
+                            recentFailures += (failureKey -> (None -> failingJob))
+                        }
+                        val isStillDelayed = throttledState.contains(execution)
+                        if (isStillDelayed) {
+                          throttledState -= execution
+                          true
+                        } else {
+                          false
+                        }
+                      }
+                      if (cancelNow) promise.tryFailure(ExecutionCancelledException)
+                  }
+
+              }
+            }
+            (execution, promise.future)
+        }
+      ))
   }
 }
