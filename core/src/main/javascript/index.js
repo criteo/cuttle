@@ -59,8 +59,18 @@ let statisticsQuery = null, statisticsListener = null;
 let listenForStatistics = (query: string) => {
   if (query != statisticsQuery) {
     statisticsListener && statisticsListener.close();
-    statisticsListener = listenEvents(query, stats =>
-      store.dispatch(Actions.updateStatistics(stats))
+    statisticsListener = listenEvents(
+      query,
+      stats => store.dispatch(Actions.updateStatistics(stats)),
+      error =>
+        store.dispatch(
+          Actions.updateStatistics({
+            running: 0,
+            paused: 0,
+            failing: 0,
+            error: true
+          })
+        )
     );
     statisticsQuery = query;
   }

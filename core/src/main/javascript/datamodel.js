@@ -33,7 +33,8 @@ export type Paginated<A> = {
 export type Statistics = {
   running: number,
   paused: number,
-  failing: number
+  failing: number,
+  error?: boolean
 };
 
 export type Dependency = { from: string, to: string };
