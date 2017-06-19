@@ -161,7 +161,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
         (_state(), _backfills.snapshot, _toRun)
       }
 
-      if (toRun.nonEmpty)
+      if (completed.nonEmpty || toRun.nonEmpty)
         Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
 
       val newRunning = stillRunning ++ executor.runAll(toRun).map {
