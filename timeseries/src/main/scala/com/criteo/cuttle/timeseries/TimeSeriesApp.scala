@@ -38,8 +38,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
     }
   }
 
-  private[cuttle] override def routes(workflow: Workflow[TimeSeriesScheduling],
-                                      executor: Executor[TimeSeriesScheduling],
+  private[cuttle] override def routes(workflow: Workflow[TimeSeries],
+                                      executor: Executor[TimeSeries],
                                       xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
