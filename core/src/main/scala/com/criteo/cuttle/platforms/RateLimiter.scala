@@ -16,7 +16,7 @@ private[cuttle] class RateLimiter[S <: Scheduling](name: String, tokens: Int, re
   private val _tokens = Ref(tokens)
   RateLimiter.SC.scheduleAtFixedRate(refillRateInMs.milliseconds) {
     atomic { implicit txn =>
-      if(_tokens() < tokens)
+      if (_tokens() < tokens)
         _tokens() = _tokens() + 1
     }
     runNext()
