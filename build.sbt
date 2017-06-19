@@ -7,6 +7,7 @@ lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
   scalaVersion := "2.11.11",
+  crossScalaVersions := Seq("2.11.11", "2.12.2"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
