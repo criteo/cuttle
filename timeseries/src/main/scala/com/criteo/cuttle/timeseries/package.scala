@@ -33,7 +33,7 @@ package object timeseries {
   implicit val defaultDependencyDescriptor: TimeSeriesDependency =
     TimeSeriesDependency(0.hours)
 
-  def hourly(start: Instant) = TimeSeriesScheduling(grid = Hourly, start)
-  def daily(start: Instant, tz: ZoneId) = TimeSeriesScheduling(grid = Daily(tz), start)
+  def hourly(start: Instant) = TimeSeries(grid = Hourly, start)
+  def daily(start: Instant, tz: ZoneId) = TimeSeries(grid = Daily(tz), start)
 
 }
