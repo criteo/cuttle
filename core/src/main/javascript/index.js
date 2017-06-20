@@ -60,22 +60,32 @@ router.sync();
 store.dispatch(Actions.loadAppData());
 
 // Global stats listener
-let statisticsQuery = null, statisticsListener = null;
+let statisticsQuery = null, statisticsListener = null, statisticsError = null;
 let listenForStatistics = (query: string) => {
   if (query != statisticsQuery) {
     statisticsListener && statisticsListener.close();
     statisticsListener = listenEvents(
       query,
-      stats => store.dispatch(Actions.updateStatistics(stats)),
-      error =>
-        store.dispatch(
-          Actions.updateStatistics({
-            running: 0,
-            paused: 0,
-            failing: 0,
-            error: true
-          })
-        )
+      stats => {
+        statisticsError && clearTimeout(statisticsError);
+        store.dispatch(Actions.updateStatistics(stats));
+      },
+      error => {
+        if (!statisticsError) {
+          statisticsError = setTimeout(
+            () =>
+              store.dispatch(
+                Actions.updateStatistics({
+                  running: 0,
+                  paused: 0,
+                  failing: 0,
+                  error: true
+                })
+              ),
+            15000
+          );
+        }
+      }
     );
     statisticsQuery = query;
   }
