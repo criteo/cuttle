@@ -438,7 +438,8 @@ class Executor[S <: Scheduling] private[cuttle] (
                 } else if (recentFailures.contains(job -> context)) {
                   val (_, failingJob) = recentFailures(job -> context)
                   recentFailures += ((job -> context) -> (Some(execution) -> failingJob))
-                  val throttleFor = retryStrategy(job, context, recentFailures(job -> context)._2.failedExecutions.map(_.id))
+                  val throttleFor =
+                    retryStrategy(job, context, recentFailures(job -> context)._2.failedExecutions.map(_.id))
                   val launchDate = failingJob.failedExecutions.head.endTime.get.plus(throttleFor)
                   throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
                   (job, execution, promise, Throttled(launchDate))
