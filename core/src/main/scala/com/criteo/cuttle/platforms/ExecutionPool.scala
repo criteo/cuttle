@@ -21,11 +21,7 @@ import App._
   * @param contextOrdering
   * @tparam S
   */
-private[cuttle] class ExecutionPool[S <: Scheduling](name: String, concurrencyLimit: Int)(
-  implicit contextOrdering: Ordering[S#Context])
-    extends WaitingExecutionQueue[S] {
-  val queueOrdering = Ordering.by((e: Execution[S]) => (e.context, e.job.id))
-
+private[cuttle] class ExecutionPool(name: String, concurrencyLimit: Int) extends WaitingExecutionQueue {
   def canRunNextCondition(implicit txn: InTxn) = _running().size < concurrencyLimit
   def doRunNext()(implicit txn: InTxn): Unit = ()
 

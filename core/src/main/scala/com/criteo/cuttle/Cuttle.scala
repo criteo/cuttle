@@ -8,17 +8,16 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val description: String,
   val env: (String, Boolean),
   val workflow: Workflow[S],
-  val scheduler: Scheduler[S],
-  val ordering: Ordering[S#Context],
-  val retryStrategy: RetryStrategy[S]
+  val scheduler: Scheduler[S]
 ) {
   def start(
-    platforms: Seq[ExecutionPlatform[S]] = CuttleProject.defaultPlatforms(ordering),
+    platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
     httpPort: Int = 8888,
-    databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv
+    databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
+    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ) = {
     val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa)(retryStrategy, ordering)
+    val executor = new Executor[S](platforms, xa)(retryStrategy)
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
@@ -30,25 +29,23 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
 
 object CuttleProject {
   def apply[S <: Scheduling](name: String, description: String = "", env: (String, Boolean) = ("", false))(
-    workflow: Workflow[S])(implicit scheduler: Scheduler[S],
-                           retryStrategy: RetryStrategy[S],
-                           ordering: Ordering[S#Context]): CuttleProject[S] =
-    new CuttleProject(name, description, env, workflow, scheduler, ordering, retryStrategy)
+    workflow: Workflow[S])(implicit scheduler: Scheduler[S]): CuttleProject[S] =
+    new CuttleProject(name, description, env, workflow, scheduler)
 
-  private[CuttleProject] def defaultPlatforms[S <: Scheduling](ordering: Ordering[S#Context]) = {
+  private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import platforms._
     import java.util.concurrent.TimeUnit.{SECONDS}
 
     Seq(
       local.LocalPlatform(
         maxForkedProcesses = 10
-      )(ordering),
+      ),
       http.HttpPlatform(
         maxConcurrentRequests = 10,
         rateLimits = Seq(
           ".*" -> http.HttpPlatform.RateLimit(1, per = SECONDS)
         )
-      )(ordering)
+      )
     )
   }
 }

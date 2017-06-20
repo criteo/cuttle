@@ -38,8 +38,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
     }
   }
 
-  private[cuttle] override def routes(workflow: Workflow[TimeSeriesScheduling],
-                                      executor: Executor[TimeSeriesScheduling],
+  private[cuttle] override def routes(workflow: Workflow[TimeSeries],
+                                      executor: Executor[TimeSeries],
                                       xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
@@ -95,6 +95,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val domain = StateD(
           workflow.vertices.map(job => job -> IntervalSet(Interval.atLeast(job.scheduling.start))).toMap)
         val remaining = List(complement(or(done, running)), period, domain).reduce(and[StateD])
+        val waiting = executor.platforms.flatMap(_.waiting)
         val executions = List((done, "successful"), (running, "running"), (remaining, "todo"))
           .flatMap {
             case (state, label) =>
@@ -104,7 +105,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 interval <- is
                 context <- splitInterval(job, interval, false).toList
               } yield {
-                val waiting = executor.platforms.flatMap(_.waiting)
                 val lbl =
                   if (label != "running")
                     label

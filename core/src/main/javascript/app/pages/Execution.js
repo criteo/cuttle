@@ -9,6 +9,8 @@ import CloseIcon from "react-icons/lib/md/close";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
+import BreakIcon from "react-icons/lib/md/keyboard-control";
+import CalendarIcon from "react-icons/lib/md/date-range";
 import moment from "moment";
 
 import Window from "../components/Window";
@@ -168,6 +170,32 @@ class Execution extends React.Component {
       });
   }
 
+  renderContext(ctx) {
+    // Need to be dynamically linked with the scehduler but for now let's
+    // assume that it is a TimeseriesContext
+    let format = date => moment(date).utc().format("MMM-DD HH:mm");
+    let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
+    return (
+      <Link
+        href={`/timeseries/calendar/${URLFormat(ctx.start)}_${URLFormat(ctx.end)}`}
+      >
+        <CalendarIcon
+          style={{
+            fontSize: "1.2em",
+            verticalAlign: "middle",
+            transform: "translateY(-2px)"
+          }}
+        />
+        {" "}
+        {format(ctx.start)}
+        {" "}
+        <BreakIcon />
+        {" "}
+        {format(ctx.end)} UTC
+      </Link>
+    );
+  }
+
   render() {
     let { classes, execution, back } = this.props;
     let { data, error, streams } = this.state;
@@ -181,7 +209,11 @@ class Execution extends React.Component {
                 <dt key="id">Id:</dt>
                 <dd key="id_">{data.id}</dd>
                 <dt key="job">Job:</dt>
-                <dd key="job_">{data.job}</dd>
+                <dd key="job_">
+                  <Link href={`/workflow/${data.job}`}>{data.job}</Link>
+                </dd>
+                <dt key="context">Context:</dt>
+                <dd key="context_">{this.renderContext(data.context)}</dd>
                 <dt key="status">Status:</dt>
                 <dd key="status_"><JobStatus status={data.status} /></dd>
                 {data.startTime
@@ -256,6 +288,21 @@ class Execution extends React.Component {
                       </li>
                     );
                   })}
+                  {data.status == "waiting" ||
+                    data.status == "throttled" ||
+                    data.status == "paused"
+                    ? <li key="waiting" className={classes.waiting}>
+                        <svg
+                          width="100%"
+                          height="2"
+                          version="1.1"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <line x1="-10" y1="0" x2="100%" y2="0" />
+                        </svg>
+                        <span>Execution is waiting</span>
+                      </li>
+                    : null}
                 </ul>
                 {this.state.fullscreen
                   ? <ExitFullscreenIcon
@@ -394,6 +441,27 @@ const styles = {
   },
   ERROR: {
     color: "#FF6C60 !important"
+  },
+  waiting: {
+    position: "relative",
+    margin: "5px 0",
+    "& line": {
+      stroke: "#FFFF91",
+      strokeWidth: "2px",
+      strokeDasharray: "5,5",
+      animation: "dashed 500ms linear infinite"
+    },
+    "& span": {
+      color: "#FFFF91",
+      position: "absolute",
+      textAlign: "center",
+      left: "50%",
+      top: "2px",
+      display: "inline-block",
+      width: "180px",
+      marginLeft: "-90px",
+      background: "#23252f"
+    }
   }
 };
 

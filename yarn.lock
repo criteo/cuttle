@@ -4046,6 +4046,10 @@ number-is-nan@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/number-is-nan/-/number-is-nan-1.0.1.tgz#097b602b53422a522c1afb8790318336941a011d"
 
+numeraljs@^1.5.6:
+  version "1.5.6"
+  resolved "https://registry.yarnpkg.com/numeraljs/-/numeraljs-1.5.6.tgz#91ac1901578a42657b877583a28b5ea040a83271"
+
 oauth-sign@~0.8.1:
   version "0.8.2"
   resolved "https://registry.yarnpkg.com/oauth-sign/-/oauth-sign-0.8.2.tgz#46a6ab7f0aead8deae9ec0565780b7d4efeb9d43"

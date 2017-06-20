@@ -1,6 +1,7 @@
 // @flow
 
 import React from "react";
+import classNames from "classnames";
 import { connect } from "react-redux";
 import injectSheet from "react-jss";
 import _ from "lodash";
@@ -107,7 +108,11 @@ class App extends React.Component {
       };
 
       return (
-        <div className={classes.main}>
+        <div
+          className={classNames(classes.main, {
+            [classes.connectionLost]: statistics.error
+          })}
+        >
           <section className={classes.leftpane}>
             <MenuHeader env={env} projectName={projectName} />
             <Menu active={page} statistics={statistics} />
@@ -175,6 +180,9 @@ let styles = {
   loading: {
     display: "flex",
     height: "100vh"
+  },
+  connectionLost: {
+    filter: "grayscale(100%)"
   }
 };
 

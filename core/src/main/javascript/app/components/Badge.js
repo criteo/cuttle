@@ -3,6 +3,8 @@
 import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
+import _ from "lodash";
+import numeral from "numeraljs";
 
 export type BadgeKind = "success" | "info" | "error" | "warning";
 
@@ -50,7 +52,7 @@ const BadgeComponent = ({
         color: light ? colors(kind) : "white"
       }}
     >
-      {label}
+      {_.isInteger(label) ? numeral(label).format("0,0") : label}
     </span>
   );
 };

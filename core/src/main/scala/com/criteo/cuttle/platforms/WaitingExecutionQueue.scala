@@ -8,20 +8,18 @@ import scala.collection.{SortedSet}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-private[cuttle] trait WaitingExecutionQueue[S <: Scheduling] {
-  implicit def queueOrdering: Ordering[Execution[S]]
-
+private[cuttle] trait WaitingExecutionQueue {
   case class DelayedResult[A](effect: () => Future[A], promise: Promise[A])
 
-  lazy val _running = Ref(Set.empty[Execution[S]])
-  lazy val _waiting = Ref(SortedSet.empty[(Execution[S], DelayedResult[_])](Ordering.by(_._1)))
+  lazy val _running = Ref(Set.empty[Execution[_]])
+  lazy val _waiting = Ref(SortedSet.empty[(Execution[_], DelayedResult[_])](Ordering.by(_._1)))
 
-  def waiting: Set[Execution[S]] = _waiting.single().map(_._1)
+  def waiting: Set[Execution[_]] = _waiting.single().map(_._1)
 
   def canRunNextCondition(implicit txn: InTxn): Boolean
   def doRunNext()(implicit txn: InTxn): Unit
 
-  def run[A](execution: Execution[S])(f: () => Future[A]): Future[A] = {
+  def run[A, S <: Scheduling](execution: Execution[S])(f: () => Future[A]): Future[A] = {
     val result = DelayedResult(f, Promise[A]())
     val entry = (execution, result)
     atomic { implicit txn =>
