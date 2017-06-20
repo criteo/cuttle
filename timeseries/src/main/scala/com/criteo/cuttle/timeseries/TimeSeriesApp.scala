@@ -211,12 +211,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       else
         Ok(getCalendar())
 
-    case POST at url"/api/timeseries/backfill?job=$id&startDate=$start&endDate=$end&priority=$priority" =>
-      val job = this.state._1.keySet.find(_.id == id).get
+    case POST at url"/api/timeseries/backfill?jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
+      val jobIds = jobsString.split(",")
+      val jobs = this.state._1.keySet.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
       val startDate = Instant.parse(start)
       val endDate = Instant.parse(end)
       val backfillId = UUID.randomUUID().toString
-      backfillJob(backfillId, job, startDate, endDate, priority.toInt)
+      backfillJob(backfillId, jobs, startDate, endDate, priority.toInt)
       Ok(
         Json.obj(
           "id" -> backfillId.asJson

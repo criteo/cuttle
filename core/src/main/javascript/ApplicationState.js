@@ -48,7 +48,8 @@ export type Page =
       start: string,
       end: string
     }
-  | { id: "timeseries/backfills" };
+  | { id: "timeseries/backfills" }
+  | { id: "timeseries/backfills/create" };
 
 export type State = {
   page: Page,
@@ -60,7 +61,7 @@ export type State = {
   selectedJobs: Array<string>
 };
 
-export const initialState: State = {
+const initialState: State = {
   isLoading: true,
   page: { id: "" },
   project: null,
@@ -73,9 +74,10 @@ export const initialState: State = {
   selectedJobs: []
 };
 
-// -- Reducers
-
-export const reducers = (currentState: State, action: Action): State => {
+export const appReducer = (
+  currentState: State = initialState,
+  action: Action
+): State => {
   switch (action.type) {
     case "OPEN_PAGE": {
       return {

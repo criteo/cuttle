@@ -414,7 +414,9 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ project, workflow, page, selectedJobs }) => ({
+const mapStateToProps = ({
+  app: { project, workflow, page, selectedJobs }
+}) => ({
   workflow,
   page: page.page || 1,
   sort: page.sort,

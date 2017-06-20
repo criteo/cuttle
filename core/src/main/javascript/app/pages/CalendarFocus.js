@@ -418,7 +418,7 @@ const styles = {
 };
 
 let f = "YYYY-MM-DDTHH";
-const mapStateToProps = ({ selectedJobs }) => ({ selectedJobs });
+const mapStateToProps = ({ app: { selectedJobs } }) => ({ selectedJobs });
 const mapDispatchToProps = dispatch => ({
   drillDown(start, end) {
     dispatch(

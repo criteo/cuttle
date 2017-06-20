@@ -94,11 +94,12 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     (_state(), _running(), _backfills.snapshot)
   }
 
-  private[timeseries] def backfillJob(id: String, job: TimeSeriesJob, start: Instant, end: Instant, priority: Int) =
+  private[timeseries] def backfillJob(id: String, jobs: Set[TimeSeriesJob], start: Instant, end: Instant, priority: Int) =
     atomic { implicit txn =>
-      val newBackfill = Backfill(id, start, end, Set(job), priority)
+      val newBackfill = Backfill(id, start, end, jobs, priority)
       _backfills += newBackfill
-      _state() = _state() + (job -> (_state().apply(job) - Interval.closedOpen(start, end)))
+      _state() = _state() ++ jobs.map((job: TimeSeriesJob) =>
+        job -> (_state().apply(job) - Interval.closedOpen(start, end)))
     }
 
   private def backfillDomain(backfill: Backfill) =

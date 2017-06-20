@@ -59,6 +59,7 @@
     "react-select": "^1.0.0-rc.5",
     "react-tooltip": "^3.3.0",
     "redux": "^3.6.0",
+    "redux-form": "^6.8.0",
     "redux-thunk": "^2.2.0",
     "redux-url": "^1.2.3",
     "unorm": "^1.4.1",

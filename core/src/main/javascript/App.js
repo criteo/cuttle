@@ -20,6 +20,8 @@ import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
 import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
+import Backfills from "./app/pages/Backfills";
+import BackfillCreate from "./app/pages/BackfillCreate";
 import type { Statistics } from "./datamodel";
 
 type Props = {
@@ -96,6 +98,10 @@ class App extends React.Component {
                 end={page.end}
               />
             );
+          case "timeseries/backfills":
+            return <Backfills />;
+          case "timeseries/backfills/create":
+            return <BackfillCreate />;
           default:
             return null;
         }
@@ -181,12 +187,7 @@ let styles = {
 };
 
 const mapStateToProps = ({
-  page,
-  project,
-  workflow,
-  isLoading,
-  statistics,
-  selectedJobs
+  app: { page, project, workflow, isLoading, statistics, selectedJobs }
 }) => ({
   page,
   projectName: project && project.name,
