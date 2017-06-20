@@ -2,17 +2,22 @@
 
 import React from "react";
 import injectSheet from "react-jss";
+import { connect } from "react-redux";
+import { goBack } from "redux-url";
+import CloseIcon from "react-icons/lib/md/close";
 
 type Props = {
   classes: any,
   title: string,
-  children: any
+  children: any,
+  back: () => void
 };
 
-const Window = ({ classes, title, children }: Props) => (
+const Window = ({ classes, title, children, back }: Props) => (
   <div className={classes.container}>
     <div className={classes.overlay}>
       <h1 className={classes.title}>{title}</h1>
+      <CloseIcon className={classes.close} onClick={back} />
       {children}
     </div>
   </div>
@@ -35,7 +40,6 @@ const styles = {
     background: "#ffffff",
     flex: "1",
     position: "relative",
-    padding: "1em",
     boxShadow: "0px 0px 15px 0px #12202b",
     borderRadius: "2px",
     overflow: "hidden",
@@ -44,13 +48,27 @@ const styles = {
   },
   title: {
     fontSize: "1em",
-    margin: "-1em -1em 1em -1em",
+    margin: "0",
     padding: "1em",
     color: "#f9fbfc",
     background: "#5f6b86",
     fontWeight: "normal",
     boxShadow: "0px 0px 15px 0px #799cb7"
+  },
+  close: {
+    position: "absolute",
+    color: "#eef5fb",
+    top: ".75em",
+    right: ".5em",
+    cursor: "pointer",
+    fontSize: "20px"
   }
 };
 
-export default injectSheet(styles)(Window);
+const mapDispatchToProps = dispatch => ({
+  back() {
+    dispatch(goBack());
+  }
+});
+
+export default connect(null, mapDispatchToProps)(injectSheet(styles)(Window));

@@ -1,11 +1,8 @@
 // @flow
 
 import React from "react";
-import { connect } from "react-redux";
 import classNames from "classnames";
 import injectSheet from "react-jss";
-import { goBack } from "redux-url";
-import CloseIcon from "react-icons/lib/md/close";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
@@ -31,8 +28,7 @@ type Line = {
 
 type Props = {
   classes: any,
-  execution: string,
-  back: () => void
+  execution: string
 };
 
 type State = {
@@ -197,12 +193,11 @@ class Execution extends React.Component {
   }
 
   render() {
-    let { classes, execution, back } = this.props;
+    let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
 
     return (
       <Window title="Execution">
-        <CloseIcon className={classes.close} onClick={back} />
         {data
           ? [
               <FancyTable key="properties">
@@ -333,45 +328,6 @@ class Execution extends React.Component {
 }
 
 const styles = {
-  close: {
-    position: "absolute",
-    color: "#eef5fb",
-    top: ".75em",
-    right: ".5em",
-    cursor: "pointer",
-    fontSize: "20px"
-  },
-  definitions: {
-    margin: "-1em",
-    display: "flex",
-    flexFlow: "row",
-    flexWrap: "wrap",
-    fontSize: ".85em",
-    background: "rgba(189, 213, 228, 0.1)",
-    "& dt": {
-      flex: "0 0 150px",
-      textOverflow: "ellipsis",
-      overflow: "hidden",
-      padding: "0 1em",
-      boxSizing: "border-box",
-      textAlign: "right",
-      color: "#637686",
-      lineHeight: "2.75em"
-    },
-    "& dd": {
-      flex: "0 0 calc(100% - 150px)",
-      marginLeft: "auto",
-      textAlign: "left",
-      textOverflow: "ellipsis",
-      overflow: "hidden",
-      padding: "0",
-      boxSizing: "border-box",
-      lineHeight: "2.75em"
-    },
-    "& dd:nth-of-type(even), & dt:nth-of-type(even)": {
-      background: "#eef5fb"
-    }
-  },
   failedLink: {
     color: "#e91e63"
   },
@@ -379,7 +335,6 @@ const styles = {
     flex: "1",
     display: "flex",
     background: "#23252f",
-    margin: "1em -1em -1em -1em",
     position: "relative",
 
     "& ul": {
@@ -465,13 +420,4 @@ const styles = {
   }
 };
 
-const mapStateToProps = () => ({});
-const mapDispatchToProps = dispatch => ({
-  back() {
-    dispatch(goBack());
-  }
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(Execution)
-);
+export default injectSheet(styles)(Execution);

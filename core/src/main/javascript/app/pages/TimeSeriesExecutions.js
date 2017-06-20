@@ -5,8 +5,6 @@ import ReactDOM from "react-dom";
 import { connect } from "react-redux";
 import classNames from "classnames";
 import injectSheet from "react-jss";
-import { goBack } from "redux-url";
-import CloseIcon from "react-icons/lib/md/close";
 import OpenIcon from "react-icons/lib/md/zoom-in";
 import moment from "moment";
 import _ from "lodash";
@@ -27,8 +25,7 @@ type Props = {
   envCritical: boolean,
   job: string,
   start: string,
-  end: string,
-  back: () => void
+  end: string
 };
 
 type State = {
@@ -138,7 +135,7 @@ class TimeSeriesExecutions extends React.Component {
   }
 
   render() {
-    let { classes, job, start, end, back, envCritical } = this.props;
+    let { classes, job, start, end, envCritical } = this.props;
     let { data, sort } = this.state;
 
     let sortedData = _.sortBy(data, e => {
@@ -155,7 +152,6 @@ class TimeSeriesExecutions extends React.Component {
 
     return (
       <Window title="Executions for the period">
-        <CloseIcon className={classes.close} onClick={back} />
         {data
           ? [
               <FancyTable key="properties">
@@ -245,17 +241,8 @@ class TimeSeriesExecutions extends React.Component {
 }
 
 const styles = {
-  close: {
-    position: "absolute",
-    color: "#eef5fb",
-    top: ".75em",
-    right: ".5em",
-    cursor: "pointer",
-    fontSize: "20px"
-  },
   logs: {
     flex: "1",
-    margin: "1em -1em -1em -1em",
     overflow: "scroll",
     borderTop: "46px solid #fff"
   },
@@ -276,11 +263,7 @@ const styles = {
 const mapStateToProps = ({ app: { project } }) => ({
   envCritical: project.env.critical
 });
-const mapDispatchToProps = dispatch => ({
-  back() {
-    dispatch(goBack());
-  }
-});
+const mapDispatchToProps = () => ({});
 
 export default connect(mapStateToProps, mapDispatchToProps)(
   injectSheet(styles)(TimeSeriesExecutions)
