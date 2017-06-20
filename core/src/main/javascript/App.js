@@ -118,17 +118,19 @@ class App extends React.Component {
             <Menu active={page} statistics={statistics} />
           </section>
           <section className={classes.rightpane}>
-            <JobSelector
-              workflow={workflow}
-              selected={selectedJobs}
-              placeholder={
-                <span>
-                  <FilterIcon className={classes.filterIcon} />
-                  Filter on specific jobs...
-                </span>
-              }
-              onChange={selectJobs}
-            />
+            <div className={classes.mainFilter}>
+              <JobSelector
+                workflow={workflow}
+                selected={selectedJobs}
+                placeholder={
+                  <span>
+                    <FilterIcon className={classes.filterIcon} />
+                    Filter on specific jobs...
+                  </span>
+                }
+                onChange={selectJobs}
+              />
+            </div>
             {renderTab()}
           </section>
         </div>
@@ -158,6 +160,13 @@ let styles = {
     fontFamily: "Arial",
     height: "100vh",
     width: "calc(100vw - 300px)"
+  },
+  mainFilter: {
+    zIndex: "2",
+    background: "#fff",
+    height: "4em",
+    lineHeight: "4em",
+    boxShadow: "0px 1px 5px 0px #BECBD6"
   },
   filterIcon: {
     transform: "scale(1.3) translateY(-1.5px) translateX(1px)",

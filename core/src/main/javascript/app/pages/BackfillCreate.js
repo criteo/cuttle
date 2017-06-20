@@ -96,15 +96,17 @@ class BackfillCreate extends React.Component<any, Props, void> {
   }
 
   render() {
-    const { workflow, handleSubmit, error, submitting } = this.props;
+    const { workflow, classes, handleSubmit, error, submitting } = this.props;
     return (
       <Window title="Create Backfill">
-        <Field
-          name="jobs"
-          workflow={workflow}
-          component={JobsField}
-          //TODO display error inside: validate={[jobsRequired]}
-        />
+        <div className={classes.filter}>
+          <Field
+            name="jobs"
+            workflow={workflow}
+            component={JobsField}
+            //TODO display error inside: validate={[jobsRequired]}
+          />
+        </div>
         <form onSubmit={handleSubmit(this.createBackfill)}>
           <FancyTable key="properties">
             <Label name="name" />
@@ -146,7 +148,14 @@ class BackfillCreate extends React.Component<any, Props, void> {
   }
 }
 
-const styles = {};
+const styles = {
+  filter: {
+    background: "#fff",
+    height: "4em",
+    lineHeight: "4em",
+    boxShadow: "0px 1px 5px 0px #BECBD6"
+  }
+};
 
 const mapStateToProps = ({ app: { workflow, selectedJobs } }) => ({
   workflow,
