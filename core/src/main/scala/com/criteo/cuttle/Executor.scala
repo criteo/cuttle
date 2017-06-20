@@ -101,6 +101,7 @@ case class Execution[S <: Scheduling](
     if (isParked.get) {
       sys.error(s"Already parked")
     } else {
+      streams.debug(s"Execution parked for $duration")
       isParked.set(true)
       utils.Timeout(duration).andThen {
         case _ =>

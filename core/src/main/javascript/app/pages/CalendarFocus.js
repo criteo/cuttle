@@ -397,7 +397,7 @@ const styles = {
     borderTop: "1px dashed #ecf1f5",
     paddingTop: "30px",
     flex: "1",
-    overflow: "scroll"
+    overflowX: "hidden"
   },
   tooltip: {
     backgroundColor: "#2b3346 !important",
