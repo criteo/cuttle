@@ -52,11 +52,13 @@ case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Back
 
   def compareTo(other: SchedulingContext) = other match {
     case TimeSeriesContext(otherStart, _, otherBackfil) =>
-      val priority = backfill.map(_.priority).getOrElse(0) - otherBackfil.map(_.priority).getOrElse(0)
-      if (priority == 0) {
+      val priority: (Option[Backfill] => Int) = _.map(_.priority).getOrElse(0)
+      val thisBackfillPriority = priority(backfill)
+      val otherBackfillPriority = priority(otherBackfil)
+      if (thisBackfillPriority == otherBackfillPriority) {
         start.compareTo(otherStart)
       } else {
-        priority
+        thisBackfillPriority.compareTo(otherBackfillPriority)
       }
   }
 }
@@ -94,7 +96,11 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     (_state(), _running(), _backfills.snapshot)
   }
 
-  private[timeseries] def backfillJob(id: String, jobs: Set[TimeSeriesJob], start: Instant, end: Instant, priority: Int) =
+  private[timeseries] def backfillJob(id: String,
+                                      jobs: Set[TimeSeriesJob],
+                                      start: Instant,
+                                      end: Instant,
+                                      priority: Int) =
     atomic { implicit txn =>
       val newBackfill = Backfill(id, start, end, jobs, priority)
       _backfills += newBackfill
@@ -287,7 +293,4 @@ private[timeseries] object TimeSeriesUtils {
   val UTC: ZoneId = ZoneId.of("UTC")
 
   val emptyIntervalSet: IntervalSet[Instant] = IntervalSet.empty[Instant]
-
-  implicit val dateTimeOrdering: Ordering[Instant] =
-    Ordering.fromLessThan((t1: Instant, t2: Instant) => t1.isBefore(t2))
 }
