@@ -10,6 +10,7 @@ import scala.util.Try
   * Trait describing authentication methods
   */
 trait Authenticator {
+
   /**
     *
     * @param wrappedAuthedService
@@ -17,7 +18,7 @@ trait Authenticator {
     */
   def apply(wrappedAuthedService: (User) => Service): Service = (request: Request) => {
     authenticate(request)
-      .fold(user => wrappedAuthedService(user)(request), identity)
+      .fold(identity, user => wrappedAuthedService(user)(request))
   }
 
   /**
@@ -25,35 +26,40 @@ trait Authenticator {
     * @param r the request to be authenticated
     * @return either an authenticated user or a response.
     */
-  def authenticate(r: Request): Either[User, Response]
+  def authenticate(r: Request): Either[Response, User]
 }
 
 case class User(userName: String)
 
 case object NoAuth extends Authenticator {
+
   /**
     * Authenticated any user as Guest.
     * @param r request to be authenticated
     * @return Authenticated user
     */
-  override def authenticate(r: Request): Either[User, Response] = Left(User("Guest"))
+  override def authenticate(r: Request): Either[Response, User] = Right(User("Guest"))
 }
 
 /**
   * Implementation of the HTTP Basic auth.
   * @param credentialsValidator method to validate credentials.
+  * @param userVisibleRealm The user visible realm.
   */
-case class BasicAuth(credentialsValidator : ((String,String)) => Boolean) extends Authenticator {
+case class BasicAuth(
+  credentialsValidator: ((String, String)) => Boolean,
+  userVisibleRealm: String = "cuttle_users"
+) extends Authenticator {
 
   val scheme = "Basic"
-  val unauthorizedResponse = Response(401).addHeaders(h"WWW-Authenticate" -> h"""Basic realm="User Visible Realm"""")
+  val unauthorizedResponse = Response(401).addHeaders(h"WWW-Authenticate" -> HttpString(s"""Basic realm="${userVisibleRealm}""""))
 
   /**
     * HTTP Basic auth implementation.
     * @param r request to be authenticated
     * @return either an authenticated user or an unauthorized response
     */
-  override def authenticate(r: Request): Either[User, Response] =
+  override def authenticate(r: Request): Either[Response, User] =
     r.headers
       .get(h"Authorization")
       .flatMap({
@@ -64,12 +70,13 @@ case class BasicAuth(credentialsValidator : ((String,String)) => Boolean) extend
         case _ => None
       })
       .collect({
-        case (l,p)  if credentialsValidator((l,p)) => User(l)
+        case (l, p) if credentialsValidator((l, p)) => User(l)
       })
-      .toLeft(unauthorizedResponse)
+      .toRight(unauthorizedResponse)
 }
 
 object BasicAuth {
+
   /**
     * Decode base64 encoded credentials for http basic auth
     * ie "login:password" to base64.

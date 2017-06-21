@@ -8,7 +8,7 @@ class AuthenticationSpec extends FunSuite {
 
   test("NoAuth should return Guest user") {
     val actual = NoAuth.authenticate(getFakeRequest())
-    assert(actual == Left(User("Guest")))
+    assert(actual == Right(User("Guest")))
   }
 
   test("HttpAuth.decodeBase64Credentials should match valid credentials") {
@@ -24,20 +24,14 @@ class AuthenticationSpec extends FunSuite {
       .addHeaders(HttpString("Authorization") -> HttpString("NotBasic"))
 
     val actual = getBasicAuth().authenticate(request)
-    assert(actual match {
-      case Right(r) => r.status == 401 && r.headers.get(h"WWW-Authenticate") == Some(h"""Basic realm="User Visible Realm"""")
-      case _        => false
-    })
+    assertUnauthorized(actual)
   }
 
   test("HttpAuth should answer 401 without Authorization header") {
     val request = getFakeRequest()
 
     val actual = getBasicAuth().authenticate(request)
-    assert(actual match {
-      case Right(r) => r.status == 401 && r.headers.get(h"WWW-Authenticate") == Some(h"""Basic realm="User Visible Realm"""")
-      case _        => false
-    })
+    assertUnauthorized(actual)
   }
 
   test("HttpAuth should answer 401 when invalid base64 string") {
@@ -45,10 +39,7 @@ class AuthenticationSpec extends FunSuite {
       .addHeaders(h"Authorization" -> h"Basic àààààààààà")
 
     val actual = getBasicAuth().authenticate(request)
-    assert(actual match {
-      case Right(r) => r.status == 401 && r.headers.get(h"WWW-Authenticate") == Some(h"""Basic realm="User Visible Realm"""")
-      case _        => false
-    })
+    assertUnauthorized(actual)
   }
 
   test("HttpAuth should answer user with valid basic http header") {
@@ -56,7 +47,7 @@ class AuthenticationSpec extends FunSuite {
       .addHeaders(h"Authorization" -> h"Basic bG9naW46cGFzc3dvcmQK")
 
     val actual = getBasicAuth().authenticate(request)
-    assert(actual.isLeft)
+    assert(actual.isRight)
   }
 
   test("HttpAuth should answer user with valid basic http header when mnay spaces") {
@@ -64,7 +55,7 @@ class AuthenticationSpec extends FunSuite {
       .addHeaders(h"Authorization" -> h"Basic   bG9naW46cGFzc3dvcmQK")
 
     val actual = getBasicAuth().authenticate(request)
-    assert(actual.isLeft)
+    assert(actual.isRight)
   }
 
   test("HttpAuth should deny access to unauthorized user") {
@@ -73,11 +64,24 @@ class AuthenticationSpec extends FunSuite {
       .addHeaders(h"Authorization" -> h"Basic bG9naW46d3JvbmdwYXNzd29yZAo")
 
     val actual = getBasicAuth().authenticate(request)
-    assert(actual.isRight)
+    assert(actual.isLeft)
+  }
+
+  def assertUnauthorized(authResponse : Either[Response, User]) : Unit  = {
+    assert(authResponse match {
+      case Left(r) => {
+        val maybeRealm = r.headers.get(h"WWW-Authenticate")
+        r.status == 401 && maybeRealm == Some(s"""Basic Realm="${testRealm}"""")
+      }
+      case _        => false
+    })
   }
 }
 
 object SuiteUtils {
+
+  val testRealm = "myfakerealm"
+
   /**
     * GET request with no header.
     */
@@ -89,13 +93,13 @@ object SuiteUtils {
     */
   def getBasicAuth() = basicAuth
 
-  def isAuthorized(t : (String,String)) : Boolean = {
+  private def isAuthorized(t : (String,String)) : Boolean = {
     t._1 == "login" && t._2 == "password"
   }
 
-  val basicAuth = BasicAuth(isAuthorized)
+  private val basicAuth = BasicAuth(isAuthorized, testRealm)
 
-  val fakeRequest = Request(
+  private val fakeRequest = Request(
     GET,
     "",
     "http",
