@@ -112,7 +112,7 @@ case class Execution[S <: Scheduling](
 
 object Execution {
   private[cuttle] implicit val ordering: Ordering[Execution[_]] =
-    Ordering.by(e => (e.context: SchedulingContext, e.job.id))
+    Ordering.by(e => (e.context: SchedulingContext, e.job.id, e.id))
 }
 
 trait ExecutionPlatform {
