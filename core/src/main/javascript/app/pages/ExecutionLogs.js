@@ -7,6 +7,7 @@ import { connect } from "react-redux";
 import Measure from "react-measure";
 import _ from "lodash";
 import moment from "moment";
+import numeral from "numeraljs";
 import { navigate } from "redux-url";
 
 import ReactPaginate from "react-paginate";
@@ -302,7 +303,7 @@ class ExecutionLogs extends React.Component {
         let pageCount = Math.ceil(total / rowsPerPage);
         return (
           <div className={classes.footer}>
-            {`${page * rowsPerPage + 1} to ${Math.min(total, page * rowsPerPage + rowsPerPage)} of ${total} ${label} executions`}
+            {`${numeral(page * rowsPerPage + 1).format("0,0")} to ${numeral(Math.min(total, page * rowsPerPage + rowsPerPage)).format("0,0")} of ${numeral(total).format("0,0")} ${label} executions`}
             <ReactPaginate
               pageCount={pageCount}
               pageRangeDisplayed={3}
@@ -413,7 +414,9 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ project, workflow, page, selectedJobs }) => ({
+const mapStateToProps = ({
+  app: { project, workflow, page, selectedJobs }
+}) => ({
   workflow,
   page: page.page || 1,
   sort: page.sort,

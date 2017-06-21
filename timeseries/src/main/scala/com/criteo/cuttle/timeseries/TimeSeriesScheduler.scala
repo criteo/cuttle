@@ -34,57 +34,59 @@ object TimeSeriesGrid {
 
 import TimeSeriesGrid._
 
-case class Backfill(id: String, start: Instant, end: Instant, jobs: Set[Job[TimeSeriesScheduling]], priority: Int)
+case class Backfill(id: String, start: Instant, end: Instant, jobs: Set[Job[TimeSeries]], priority: Int)
 private[timeseries] object Backfill {
   implicit val encoder: Encoder[Backfill] = deriveEncoder
-  implicit def decoder(implicit jobs: Set[Job[TimeSeriesScheduling]]) =
+  implicit def decoder(implicit jobs: Set[Job[TimeSeries]]) =
     deriveDecoder[Backfill]
 }
 
 case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Backfill] = None)
     extends SchedulingContext {
-  import TimeSeriesUtils._
 
   def toJson: Json = this.asJson
 
   def log: ConnectionIO[String] = Database.serializeContext(this)
 
   def toInterval: Interval[Instant] = Interval.closedOpen(start, end)
+
+  def compareTo(other: SchedulingContext) = other match {
+    case TimeSeriesContext(otherStart, _, otherBackfil) =>
+      val priority: (Option[Backfill] => Int) = _.map(_.priority).getOrElse(0)
+      val thisBackfillPriority = priority(backfill)
+      val otherBackfillPriority = priority(otherBackfil)
+      if (thisBackfillPriority == otherBackfillPriority) {
+        start.compareTo(otherStart)
+      } else {
+        thisBackfillPriority.compareTo(otherBackfillPriority)
+      }
+  }
 }
 
 object TimeSeriesContext {
-  import TimeSeriesUtils._
-
   private[timeseries] implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
-  private[timeseries] implicit def decoder(implicit jobs: Set[Job[TimeSeriesScheduling]]): Decoder[TimeSeriesContext] =
+  private[timeseries] implicit def decoder(implicit jobs: Set[Job[TimeSeries]]): Decoder[TimeSeriesContext] =
     deriveDecoder
-
-  implicit val ordering: Ordering[TimeSeriesContext] = {
-    implicit val maybeBackfillOrdering: Ordering[Option[Backfill]] = {
-      Ordering.by(maybeBackfill => maybeBackfill.map(_.priority).getOrElse(0))
-    }
-    Ordering.by(context => (context.backfill, context.start))
-  }
 }
 
 case class TimeSeriesDependency(offset: Duration)
 
-case class TimeSeriesScheduling(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1) extends Scheduling {
+case class TimeSeries(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1) extends Scheduling {
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
 }
 
-object TimeSeriesScheduling {
+object TimeSeries {
   implicit def scheduler = TimeSeriesScheduler()
 }
 
-case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with TimeSeriesApp {
+case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesApp {
   import TimeSeriesUtils._
 
   val allContexts = Database.sqlGetContextsBetween(None, None)
 
   private val timer =
-    Job("timer", TimeSeriesScheduling(Continuous, Instant.ofEpochMilli(0)))(_ => sys.error("panic!"))
+    Job("timer", TimeSeries(Continuous, Instant.ofEpochMilli(0)))(_ => sys.error("panic!"))
 
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalSet[Instant]])
   private val _backfills = TSet.empty[Backfill]
@@ -94,17 +96,22 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     (_state(), _running(), _backfills.snapshot)
   }
 
-  private[timeseries] def backfillJob(id: String, job: TimeSeriesJob, start: Instant, end: Instant, priority: Int) =
+  private[timeseries] def backfillJob(id: String,
+                                      jobs: Set[TimeSeriesJob],
+                                      start: Instant,
+                                      end: Instant,
+                                      priority: Int) =
     atomic { implicit txn =>
-      val newBackfill = Backfill(id, start, end, Set(job), priority)
+      val newBackfill = Backfill(id, start, end, jobs, priority)
       _backfills += newBackfill
-      _state() = _state() + (job -> (_state().apply(job) - Interval.closedOpen(start, end)))
+      _state() = _state() ++ jobs.map((job: TimeSeriesJob) =>
+        job -> (_state().apply(job) - Interval.closedOpen(start, end)))
     }
 
   private def backfillDomain(backfill: Backfill) =
     backfill.jobs.map(job => job -> IntervalSet(Interval.closedOpen(backfill.start, backfill.end))).toMap
 
-  def start(workflow: Workflow[TimeSeriesScheduling], executor: Executor[TimeSeriesScheduling], xa: XA): Unit = {
+  def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA): Unit = {
     Database.doSchemaUpdates.transact(xa).unsafePerformIO
 
     Database
@@ -161,7 +168,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
         (_state(), _backfills.snapshot, _toRun)
       }
 
-      if (toRun.nonEmpty)
+      if (completed.nonEmpty || toRun.nonEmpty)
         Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
 
       val newRunning = stillRunning ++ executor.runAll(toRun).map {
@@ -225,7 +232,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
     split(start, end, tz, unit, mode, maxPeriods)
   }
 
-  private[timeseries] def next(workflow0: Workflow[TimeSeriesScheduling],
+  private[timeseries] def next(workflow0: Workflow[TimeSeries],
                                state0: State,
                                backfills: Set[Backfill],
                                running: Set[(TimeSeriesJob, TimeSeriesContext)],
@@ -278,7 +285,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeriesScheduling] with Ti
 }
 
 private[timeseries] object TimeSeriesUtils {
-  type TimeSeriesJob = Job[TimeSeriesScheduling]
+  type TimeSeriesJob = Job[TimeSeries]
   type State = Map[TimeSeriesJob, IntervalSet[Instant]]
   type Executable = (TimeSeriesJob, TimeSeriesContext)
   type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
@@ -286,7 +293,4 @@ private[timeseries] object TimeSeriesUtils {
   val UTC: ZoneId = ZoneId.of("UTC")
 
   val emptyIntervalSet: IntervalSet[Instant] = IntervalSet.empty[Instant]
-
-  implicit val dateTimeOrdering: Ordering[Instant] =
-    Ordering.fromLessThan((t1: Instant, t2: Instant) => t1.isBefore(t2))
 }

@@ -90,7 +90,7 @@ private[timeseries] object Database {
       )
     """.update.run *> Applicative[ConnectionIO].pure(context.toString)
 
-  def deserialize(implicit jobs: Set[Job[TimeSeriesScheduling]]): ConnectionIO[Option[(State, Set[Backfill])]] = {
+  def deserialize(implicit jobs: Set[Job[TimeSeries]]): ConnectionIO[Option[(State, Set[Backfill])]] = {
     implicit def intervalSetDecoder[A: Ordering](implicit decoder: Decoder[A]): Decoder[IntervalSet[A]] = {
       implicit val intervalDecoder: Decoder[Interval[A]] =
         Decoder.decodeTuple2[A, A].map(x => Interval.closedOpen(x._1, x._2))

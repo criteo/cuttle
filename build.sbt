@@ -1,12 +1,13 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.1.0-SNAPSHOT"
+val VERSION = "0.1.0"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
   scalaVersion := "2.11.11",
+  crossScalaVersions := Seq("2.11.11", "2.12.2"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
@@ -29,6 +30,29 @@ lazy val commonSettings = Seq(
     f
   },
   // Maven config
+  credentials += Credentials(
+    "Sonatype Nexus Repository Manager",
+    "oss.sonatype.org",
+    "criteo-oss",
+    sys.env.getOrElse("SONATYPE_PASSWORD", "")
+  ),
+  pgpPassphrase := sys.env.get("SONATYPE_PASSWORD").map(_.toArray),
+  pgpSecretRing := file(".travis/secring.gpg"),
+  pgpPublicRing := file(".travis/pubring.gpg"),
+  pomExtra in Global := {
+    <url>https://github.com/criteo/cuttle</url>
+    <licenses>
+      <license>
+        <name>Apache 2</name>
+        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      </license>
+    </licenses>
+    <scm>
+      <connection>scm:git:github.com/criteo/cuttle.git</connection>
+      <developerConnection>scm:git:git@github.com:criteo/cuttle.git</developerConnection>
+      <url>github.com/criteo/cuttle</url>
+    </scm>
+  },
   // Useful to run flakey tests
   commands += Command.single("repeat") { (state, arg) =>
     arg :: s"repeat $arg" :: state
@@ -138,7 +162,7 @@ lazy val cuttle =
       pomPostProcess := removeDependencies("danburkert", "org.scalatest")
     )
     .settings(addArtifact(artifact in (Compile, assembly), assembly): _*)
-    .dependsOn(continuum, localdb % "test->test")
+    .dependsOn(continuum)
 
 lazy val timeseries =
   (project in file("timeseries"))

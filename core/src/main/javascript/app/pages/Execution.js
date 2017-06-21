@@ -1,14 +1,13 @@
 // @flow
 
 import React from "react";
-import { connect } from "react-redux";
 import classNames from "classnames";
 import injectSheet from "react-jss";
-import { goBack } from "redux-url";
-import CloseIcon from "react-icons/lib/md/close";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
+import BreakIcon from "react-icons/lib/md/keyboard-control";
+import CalendarIcon from "react-icons/lib/md/date-range";
 import moment from "moment";
 
 import Window from "../components/Window";
@@ -29,8 +28,7 @@ type Line = {
 
 type Props = {
   classes: any,
-  execution: string,
-  back: () => void
+  execution: string
 };
 
 type State = {
@@ -168,20 +166,49 @@ class Execution extends React.Component {
       });
   }
 
+  renderContext(ctx) {
+    // Need to be dynamically linked with the scehduler but for now let's
+    // assume that it is a TimeseriesContext
+    let format = date => moment(date).utc().format("MMM-DD HH:mm");
+    let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
+    return (
+      <Link
+        href={`/timeseries/calendar/${URLFormat(ctx.start)}_${URLFormat(ctx.end)}`}
+      >
+        <CalendarIcon
+          style={{
+            fontSize: "1.2em",
+            verticalAlign: "middle",
+            transform: "translateY(-2px)"
+          }}
+        />
+        {" "}
+        {format(ctx.start)}
+        {" "}
+        <BreakIcon />
+        {" "}
+        {format(ctx.end)} UTC
+      </Link>
+    );
+  }
+
   render() {
-    let { classes, execution, back } = this.props;
+    let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
 
     return (
       <Window title="Execution">
-        <CloseIcon className={classes.close} onClick={back} />
         {data
           ? [
               <FancyTable key="properties">
                 <dt key="id">Id:</dt>
                 <dd key="id_">{data.id}</dd>
                 <dt key="job">Job:</dt>
-                <dd key="job_">{data.job}</dd>
+                <dd key="job_">
+                  <Link href={`/workflow/${data.job}`}>{data.job}</Link>
+                </dd>
+                <dt key="context">Context:</dt>
+                <dd key="context_">{this.renderContext(data.context)}</dd>
                 <dt key="status">Status:</dt>
                 <dd key="status_"><JobStatus status={data.status} /></dd>
                 {data.startTime
@@ -256,6 +283,21 @@ class Execution extends React.Component {
                       </li>
                     );
                   })}
+                  {data.status == "waiting" ||
+                    data.status == "throttled" ||
+                    data.status == "paused"
+                    ? <li key="waiting" className={classes.waiting}>
+                        <svg
+                          width="100%"
+                          height="2"
+                          version="1.1"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <line x1="-10" y1="0" x2="100%" y2="0" />
+                        </svg>
+                        <span>Execution is waiting</span>
+                      </li>
+                    : null}
                 </ul>
                 {this.state.fullscreen
                   ? <ExitFullscreenIcon
@@ -286,45 +328,6 @@ class Execution extends React.Component {
 }
 
 const styles = {
-  close: {
-    position: "absolute",
-    color: "#eef5fb",
-    top: ".75em",
-    right: ".5em",
-    cursor: "pointer",
-    fontSize: "20px"
-  },
-  definitions: {
-    margin: "-1em",
-    display: "flex",
-    flexFlow: "row",
-    flexWrap: "wrap",
-    fontSize: ".85em",
-    background: "rgba(189, 213, 228, 0.1)",
-    "& dt": {
-      flex: "0 0 150px",
-      textOverflow: "ellipsis",
-      overflow: "hidden",
-      padding: "0 1em",
-      boxSizing: "border-box",
-      textAlign: "right",
-      color: "#637686",
-      lineHeight: "2.75em"
-    },
-    "& dd": {
-      flex: "0 0 calc(100% - 150px)",
-      marginLeft: "auto",
-      textAlign: "left",
-      textOverflow: "ellipsis",
-      overflow: "hidden",
-      padding: "0",
-      boxSizing: "border-box",
-      lineHeight: "2.75em"
-    },
-    "& dd:nth-of-type(even), & dt:nth-of-type(even)": {
-      background: "#eef5fb"
-    }
-  },
   failedLink: {
     color: "#e91e63"
   },
@@ -332,7 +335,6 @@ const styles = {
     flex: "1",
     display: "flex",
     background: "#23252f",
-    margin: "1em -1em -1em -1em",
     position: "relative",
 
     "& ul": {
@@ -394,16 +396,28 @@ const styles = {
   },
   ERROR: {
     color: "#FF6C60 !important"
+  },
+  waiting: {
+    position: "relative",
+    margin: "5px 0",
+    "& line": {
+      stroke: "#FFFF91",
+      strokeWidth: "2px",
+      strokeDasharray: "5,5",
+      animation: "dashed 500ms linear infinite"
+    },
+    "& span": {
+      color: "#FFFF91",
+      position: "absolute",
+      textAlign: "center",
+      left: "50%",
+      top: "2px",
+      display: "inline-block",
+      width: "180px",
+      marginLeft: "-90px",
+      background: "#23252f"
+    }
   }
 };
 
-const mapStateToProps = () => ({});
-const mapDispatchToProps = dispatch => ({
-  back() {
-    dispatch(goBack());
-  }
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(Execution)
-);
+export default injectSheet(styles)(Execution);

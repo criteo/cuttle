@@ -265,7 +265,7 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ selectedJobs, project }) => ({
+const mapStateToProps = ({ app: { selectedJobs, project } }) => ({
   selectedJobs,
   envCritical: project.env.critical
 });

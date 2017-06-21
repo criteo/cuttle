@@ -91,6 +91,11 @@ const styles = {
       "&:hover": {
         background: "#26a69a",
         color: "#ffffff"
+      },
+
+      "& a": {
+        color: "inherit",
+        textDecoration: "none"
       }
     }
   },
@@ -101,7 +106,7 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ project }) => ({
+const mapStateToProps = ({ app: { project } }) => ({
   envCritical: project.env.critical
 });
 

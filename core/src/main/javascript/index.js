@@ -3,16 +3,17 @@
 import React from "react";
 
 import createHistory from "history/createBrowserHistory"; // choose a history implementation
-import { createStore, compose, applyMiddleware } from "redux";
+import { createStore, combineReducers, compose, applyMiddleware } from "redux";
 import { Provider } from "react-redux";
 import { createRouter } from "redux-url";
 import { render } from "react-dom";
 import ReduxThunk from "redux-thunk";
+import { reducer as formReducer } from "redux-form";
 
 import "../style/index.less";
 
 import App from "./App";
-import { initialState, reducers } from "./ApplicationState";
+import { appReducer } from "./ApplicationState";
 import * as Actions from "./actions";
 import type { State } from "./ApplicationState";
 import { listenEvents } from "./Utils";
@@ -37,14 +38,18 @@ const routes = {
   "/timeseries/calendar/:start_:end": ({ start, end }) =>
     openPage({ id: "timeseries/calendar/focus", start, end }),
   "/timeseries/backfills": () => openPage({ id: "timeseries/backfills" }),
+  "/timeseries/backfills/create": () =>
+    openPage({ id: "timeseries/backfills/create" }),
   "/timeseries/executions/:job/:start_:end": ({ job, start, end }) =>
     openPage({ id: "timeseries/executions", job, start, end })
 };
 
 const router = createRouter(routes, createHistory());
 const store = createStore(
-  reducers,
-  initialState,
+  combineReducers({
+    app: appReducer,
+    form: formReducer
+  }),
   compose(
     applyMiddleware(router, ReduxThunk),
     window.devToolsExtension ? window.devToolsExtension() : _ => _
@@ -55,18 +60,38 @@ router.sync();
 store.dispatch(Actions.loadAppData());
 
 // Global stats listener
-let statisticsQuery = null, statisticsListener = null;
+let statisticsQuery = null, statisticsListener = null, statisticsError = null;
 let listenForStatistics = (query: string) => {
   if (query != statisticsQuery) {
     statisticsListener && statisticsListener.close();
-    statisticsListener = listenEvents(query, stats =>
-      store.dispatch(Actions.updateStatistics(stats))
+    statisticsListener = listenEvents(
+      query,
+      stats => {
+        statisticsError && clearTimeout(statisticsError);
+        store.dispatch(Actions.updateStatistics(stats));
+      },
+      error => {
+        if (!statisticsError) {
+          statisticsError = setTimeout(
+            () =>
+              store.dispatch(
+                Actions.updateStatistics({
+                  running: 0,
+                  paused: 0,
+                  failing: 0,
+                  error: true
+                })
+              ),
+            15000
+          );
+        }
+      }
     );
     statisticsQuery = query;
   }
 };
 store.subscribe(() => {
-  let state: State = store.getState();
+  let state: State = store.getState().app;
   let jobsFilter = state.selectedJobs.length
     ? `&jobs=${state.selectedJobs.join(",")}`
     : "";

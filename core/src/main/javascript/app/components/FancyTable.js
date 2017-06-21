@@ -17,7 +17,7 @@ const FancyTableComponent = ({ classes, key, children }: Props) => (
 
 const styles = {
   definitions: {
-    margin: "-1em",
+    margin: "0",
     display: "flex",
     flexFlow: "row",
     flexWrap: "wrap",

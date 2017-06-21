@@ -1,6 +1,7 @@
 // @flow
 
 import React from "react";
+import classNames from "classnames";
 import { connect } from "react-redux";
 import injectSheet from "react-jss";
 import _ from "lodash";
@@ -19,6 +20,8 @@ import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
 import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
+import Backfills from "./app/pages/Backfills";
+import BackfillCreate from "./app/pages/BackfillCreate";
 import type { Statistics } from "./datamodel";
 
 type Props = {
@@ -95,13 +98,21 @@ class App extends React.Component {
                 end={page.end}
               />
             );
+          case "timeseries/backfills":
+            return <Backfills />;
+          case "timeseries/backfills/create":
+            return <BackfillCreate />;
           default:
             return null;
         }
       };
 
       return (
-        <div className={classes.main}>
+        <div
+          className={classNames(classes.main, {
+            [classes.connectionLost]: statistics.error
+          })}
+        >
           <section className={classes.leftpane}>
             <MenuHeader env={env} projectName={projectName} />
             <Menu active={page} statistics={statistics} />
@@ -169,16 +180,14 @@ let styles = {
   loading: {
     display: "flex",
     height: "100vh"
+  },
+  connectionLost: {
+    filter: "grayscale(100%)"
   }
 };
 
 const mapStateToProps = ({
-  page,
-  project,
-  workflow,
-  isLoading,
-  statistics,
-  selectedJobs
+  app: { page, project, workflow, isLoading, statistics, selectedJobs }
 }) => ({
   page,
   projectName: project && project.name,

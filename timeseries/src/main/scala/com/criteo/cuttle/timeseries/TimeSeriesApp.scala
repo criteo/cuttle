@@ -38,8 +38,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
     }
   }
 
-  private[cuttle] override def routes(workflow: Workflow[TimeSeriesScheduling],
-                                      executor: Executor[TimeSeriesScheduling],
+  private[cuttle] override def routes(workflow: Workflow[TimeSeries],
+                                      executor: Executor[TimeSeries],
                                       xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
@@ -95,6 +95,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val domain = StateD(
           workflow.vertices.map(job => job -> IntervalSet(Interval.atLeast(job.scheduling.start))).toMap)
         val remaining = List(complement(or(done, running)), period, domain).reduce(and[StateD])
+        val waiting = executor.platforms.flatMap(_.waiting)
         val executions = List((done, "successful"), (running, "running"), (remaining, "todo"))
           .flatMap {
             case (state, label) =>
@@ -104,7 +105,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 interval <- is
                 context <- splitInterval(job, interval, false).toList
               } yield {
-                val waiting = executor.platforms.flatMap(_.waiting)
                 val lbl =
                   if (label != "running")
                     label
@@ -211,12 +211,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       else
         Ok(getCalendar())
 
-    case POST at url"/api/timeseries/backfill?job=$id&startDate=$start&endDate=$end&priority=$priority" =>
-      val job = this.state._1.keySet.find(_.id == id).get
+    case POST at url"/api/timeseries/backfill?jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
+      val jobIds = jobsString.split(",")
+      val jobs = this.state._1.keySet.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
       val startDate = Instant.parse(start)
       val endDate = Instant.parse(end)
       val backfillId = UUID.randomUUID().toString
-      backfillJob(backfillId, job, startDate, endDate, priority.toInt)
+      backfillJob(backfillId, jobs, startDate, endDate, priority.toInt)
       Ok(
         Json.obj(
           "id" -> backfillId.asJson
