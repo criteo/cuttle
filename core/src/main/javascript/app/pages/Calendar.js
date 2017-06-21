@@ -24,7 +24,8 @@ type Props = {
 type Day = {
   date: string,
   completion: number,
-  stuck?: boolean
+  stuck?: boolean,
+  backfill?: boolean
 };
 
 type State = {
@@ -99,7 +100,7 @@ class Calendar extends React.Component {
               startDate={moment(data[0].date).startOf("month")}
               endDate={moment(data[data.length - 1].date).endOf("month")}
               mods={data
-                .map(({ date, completion, stuck }) => {
+                .map(({ date, completion, stuck, backfill }) => {
                   return {
                     date: moment(date),
                     classNames: [
@@ -112,7 +113,7 @@ class Calendar extends React.Component {
                                 : `progress-${completion
                                     .toString()
                                     .substring(2)}`
-                    ],
+                    ].concat(backfill ? ["backfill"] : []),
                     component: ["day"]
                   };
                 })
@@ -190,14 +191,13 @@ const styles = {
         left: "-4px",
         right: "-4px",
         height: "3px",
-        background: "#26a69a",
-        bottom: "-8px",
-        display: "none"
+        background: "white",
+        bottom: "-8px"
       }
     },
     "& .rc-Day:hover": {
       "&::after": {
-        display: "block"
+        background: "#26a69a"
       }
     },
     "& .rc-Day--outside": {
@@ -216,6 +216,12 @@ const styles = {
       backgroundColor: "#e91e63",
       borderColor: "#e91e63",
       color: "#fff"
+    },
+    "& .rc-Day.rc-Day--backfill": {
+      "&::after": {
+        background: "#bb65ca",
+        display: "block"
+      }
     },
     "& .rc-Day--progress-9": {
       borderColor: "rgba(98, 204, 100, 1)",
@@ -259,7 +265,7 @@ const styles = {
     }
   },
   critical: {
-    "& .rc-Day::after": {
+    "& .rc-Day::after:hover": {
       background: "#ff5722 !important"
     }
   }

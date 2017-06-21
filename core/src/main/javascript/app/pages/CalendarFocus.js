@@ -32,8 +32,8 @@ type Period = {
 };
 
 type Stats = {
-  summary: Array<[Period, [number, boolean]]>,
-  jobs: { [job: string]: Array<[Period, "done" | "running" | "todo"]> }
+  summary: Array<[Period, [number, boolean, boolean]]>,
+  jobs: { [job: string]: Array<[Period, "done" | "running" | "todo", boolean]> }
 };
 
 type State = {
@@ -129,7 +129,7 @@ class CalendarFocus extends React.Component {
 
       // Summary
       let drawSummary = root => {
-        summary.forEach(([period, [completion, error]]) => {
+        summary.forEach(([period, [completion, error, isBackfill]]) => {
           let x1 = timeScale(moment(period.start)),
             x2 = timeScale(moment(period.end));
           let g = root
@@ -162,6 +162,15 @@ class CalendarFocus extends React.Component {
             )
             .attr("stroke-width", "4")
             .attr("stroke", error ? "#e91e63" : colorScale(completion));
+          if (isBackfill) {
+            g
+              .append("rect")
+              .attr("width", x2 - x1 - MARGIN * 2)
+              .attr("height", 3)
+              .attr("fill", "#bb65ca")
+              .attr("x", -2)
+              .attr("y", ROW_HEIGHT);
+          }
         });
       };
       let summaryGroup = summarySvg
@@ -187,7 +196,7 @@ class CalendarFocus extends React.Component {
         .attr("width", width)
         .attr("height", _.entries(jobs).length * (ROW_HEIGHT + 2 * MARGIN));
       let drawJob = (root, job, jobStats) => {
-        jobStats.forEach(([period, status]) => {
+        jobStats.forEach(([period, status, isBackfill]) => {
           let x1 = timeScale(moment(period.start)),
             x2 = timeScale(moment(period.end));
           let g = root
@@ -229,6 +238,20 @@ class CalendarFocus extends React.Component {
                         ? "#ffbc5a"
                         : status == "running" ? "#49d3e4" : "#ecf1f5"
             );
+          if (isBackfill) {
+            g
+              .append("rect")
+              .attr("width", x2 - x1 - 2 * MARGIN)
+              .attr("height", 3)
+              .attr("fill", "#bb65ca")
+              .attr("y", ROW_HEIGHT - 3);
+            g
+              .append("rect")
+              .attr("fill", "white")
+              .attr("width", x2 - x1 - 2 * MARGIN)
+              .attr("y", ROW_HEIGHT - 4)
+              .attr("height", 1);
+          }
         });
       };
       let drawJobs = root => {
