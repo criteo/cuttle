@@ -52,6 +52,43 @@ lazy val commonSettings = Seq(
       <developerConnection>scm:git:git@github.com:criteo/cuttle.git</developerConnection>
       <url>github.com/criteo/cuttle</url>
     </scm>
+    <developers>
+      <developer>
+        <name>Guillaume Bort</name>
+        <email>g.bort@criteo.com</email>
+        <url>https://github.com/guillaumebort</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+      <developer>
+        <name>Adrien Surée</name>
+        <email>a.suree@criteo.com</email>
+        <url>https://github.com/haveo</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+      <developer>
+        <name>Justin coffey</name>
+        <email>j.coffey@criteo.com</email>
+        <url>https://github.com/jqcoffey</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+      <developer>
+        <name>Vincent Guerci</name>
+        <email>v.guerci@criteo.com</email>
+        <url>https://github.com/vguerci</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+      <developer>
+        <name>Alexandre Careil</name>
+        <email>a.careil@criteo.com</email>
+        <url>https://github.com/hhalex</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+    </developers>
   },
   // Useful to run flakey tests
   commands += Command.single("repeat") { (state, arg) =>
