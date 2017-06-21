@@ -68,8 +68,8 @@ lazy val commonSettings = Seq(
         <organizationUrl>http://www.criteo.com</organizationUrl>
       </developer>
       <developer>
-        <name>Justin Cofee</name>
-        <email>j.cofee@criteo.com</email>
+        <name>Justin coffey</name>
+        <email>j.coffey@criteo.com</email>
         <url>https://github.com/jqcoffey</url>
         <organization>Criteo</organization>
         <organizationUrl>http://www.criteo.com</organizationUrl>
