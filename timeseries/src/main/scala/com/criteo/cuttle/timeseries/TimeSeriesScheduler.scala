@@ -63,11 +63,13 @@ case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Back
 
   def compareTo(other: SchedulingContext) = other match {
     case TimeSeriesContext(otherStart, _, otherBackfil) =>
-      val priority = backfill.map(_.priority).getOrElse(0) - otherBackfil.map(_.priority).getOrElse(0)
-      if (priority == 0) {
+      val priority: (Option[Backfill] => Int) = _.map(_.priority).getOrElse(0)
+      val thisBackfillPriority = priority(backfill)
+      val otherBackfillPriority = priority(otherBackfil)
+      if (thisBackfillPriority == otherBackfillPriority) {
         start.compareTo(otherStart)
       } else {
-        priority
+        thisBackfillPriority.compareTo(otherBackfillPriority)
       }
   }
 }
@@ -112,16 +114,35 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     (_state(), _running(), _backfills.snapshot)
   }
 
-  private[timeseries] def backfillJob(id: String, jobs: Set[TimeSeriesJob], start: Instant, end: Instant, priority: Int) =
+  private[timeseries] def backfillJob(id: String,
+                                      jobs: Set[TimeSeriesJob],
+                                      start: Instant,
+                                      end: Instant,
+                                      priority: Int) =
     atomic { implicit txn =>
       val newBackfill = Backfill(id, start, end, jobs, priority)
-      _backfills += newBackfill
-      _state() = _state() ++ jobs.map((job: TimeSeriesJob) =>
-        job -> (_state().apply(job) - Interval.closedOpen(start, end)))
+      val newBackfillDomain = backfillDomain(newBackfill)
+      if (jobs.exists(job => newBackfill.start.isBefore(job.scheduling.start))) {
+        Left("cannot before a job's start date")
+      } else if (_backfills.exists(backfill => and(backfillDomain(backfill), newBackfillDomain) != zero[StateD])) {
+        Left("intersects with another backfill")
+      } else if (newBackfillDomain.defined.exists {
+                   case (job, is) =>
+                     is.exists(interval =>
+                       IntervalSet(splitInterval(job, interval, true).map(_.toInterval).toSeq: _*) != IntervalSet(
+                         interval))
+                 }) {
+        Left("cannot backfill partial periods")
+      } else {
+        _backfills += newBackfill
+        _state() = _state() ++ jobs.map((job: TimeSeriesJob) =>
+          job -> (_state().apply(job) - Interval.closedOpen(start, end)))
+        Right(id)
+      }
     }
 
   private def backfillDomain(backfill: Backfill) =
-    backfill.jobs.map(job => job -> IntervalSet(Interval.closedOpen(backfill.start, backfill.end))).toMap
+    StateD(backfill.jobs.map(job => job -> IntervalSet(Interval.closedOpen(backfill.start, backfill.end))).toMap)
 
   def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA): Unit = {
     Database.doSchemaUpdates.transact(xa).unsafePerformIO
@@ -162,7 +183,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       val (stateSnapshot, backfillSnapshot, toRun) = atomic { implicit txn =>
         addRuns(completed)
         _backfills.retain { bf =>
-          without(StateD(backfillDomain(bf)), StateD(_state())) =!= zero[StateD]
+          without(backfillDomain(bf), StateD(_state())) =!= zero[StateD]
         }
         val _toRun = next(
           workflow,
@@ -260,23 +281,32 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
         .toMap
     }
 
-    val _dependencies =
+    val dependencies =
       (for {
         (child, parent, TimeSeriesDependency(offset)) <- workflow.edges.toList
         is = state(parent)
-      } yield StateD(Map(child -> is.map(itvl => itvl.map(_.plus(offset)))), IntervalSet(Interval.full)))
+      } yield
+        StateD(Map(child -> is.map(itvl => itvl.map(_.plus(offset)))), IntervalSet(Interval.full))).reduce(and(_, _))
 
-    val dependencies = _dependencies.reduce(and(_, _))
+    val runningDependencies = // only needed when backfilling
+      (for {
+        (child, parent, TimeSeriesDependency(offset)) <- workflow.edges.toList
+        is = runningIntervals.get(child)
+      } yield StateD(Map(parent -> is.map(itvl => itvl.map(_.minus(offset)))), IntervalSet.empty)).reduce(or(_, _))
 
     val jobDomain = StateD(
       workflow.vertices.map(job => job -> IntervalSet(Interval.atLeast(job.scheduling.start))).toMap)
 
-    val ready = Seq(complement(runningIntervals), complement(StateD(state)), jobDomain, dependencies)
+    val ready = Seq(complement(runningIntervals),
+                    complement(StateD(state)),
+                    jobDomain,
+                    dependencies,
+                    complement(runningDependencies))
       .reduce(and(_, _))
 
     val toBackfill: Map[Backfill, StateD] =
       backfills.map { backfill =>
-        backfill -> and(ready, StateD(backfillDomain(backfill)))
+        backfill -> and(ready, backfillDomain(backfill))
       }.toMap
 
     val toRunNormally = without(ready, toBackfill.values.fold(zero[StateD])(or(_, _)))
@@ -305,7 +335,4 @@ private[timeseries] object TimeSeriesUtils {
   val UTC: ZoneId = ZoneId.of("UTC")
 
   val emptyIntervalSet: IntervalSet[Instant] = IntervalSet.empty[Instant]
-
-  implicit val dateTimeOrdering: Ordering[Instant] =
-    Ordering.fromLessThan((t1: Instant, t2: Instant) => t1.isBefore(t2))
 }

@@ -1,5 +1,5 @@
 language: scala
-script: sbt test
+script: sbt +test
 jdk:
 - oraclejdk8
 env:
@@ -21,6 +21,13 @@ before_cache:
   - find $HOME/.sbt        -name "*.lock"               -print -delete
 before_script:
   - sudo chmod +x /usr/local/bin/sbt
+deploy:
+  provider: script
+  script: sbt +publishSigned "sonatypeReleaseAll com.criteo"
+  skip_cleanup: true
+  on:
+    tags: true
+    branch: master
 cache:
   directories:
     - $HOME/.ivy2/cache
