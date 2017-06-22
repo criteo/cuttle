@@ -67,6 +67,52 @@ class AuthenticationSpec extends FunSuite {
     assert(actual.isLeft)
   }
 
+  test("Public service should be chainable with secure service") {
+    import com.criteo.cuttle.utils.PartialServiceConverter
+
+    val publicService : PartialService = {
+      case GET at "/api/public" => Ok("")
+    }
+
+    def secureService(user : User): PartialService = {
+      case GET at "/api/private" => Ok(s"hi user ${user.userName}")
+      case _ => NotFound("")
+    }
+
+    // mimic an api always authenticated
+    // with a Guest user
+    val completeApi = publicService
+        .orFinally(NoAuth(secureService))
+
+    // mimic an api non authenticated
+    val completeUnauthenticatedApi = publicService
+        .orFinally(ZeroAuth(secureService))
+
+    assert(
+      completeApi(getFakeRequest("/api/private")).value.get.get.status == 200,
+      "access to private api should be allowed when authenticated"
+    )
+    assert(
+      completeApi(getFakeRequest("/api/public")).value.get.get.status == 200,
+      "access to public api should be granted when authenticated"
+    )
+
+    assert(
+      completeUnauthenticatedApi(getFakeRequest("/api/private")).value.get.get.status == 401,
+      "access to private api should be denied")
+    assert(completeUnauthenticatedApi(
+      getFakeRequest("/api/public")).value.get.get.status == 200,
+      "access to public api should be granted even when non authenticated"
+    )
+
+    // problem here,
+    // with this solution we get only 401 as long
+    // as there is a secure api.
+    assert(
+      completeUnauthenticatedApi(getFakeRequest("/api/nonexisting")).value.get.get.status == 404
+    )
+  }
+
   def assertUnauthorized(authResponse : Either[Response, User]) : Unit  = {
     assert(authResponse match {
       case Left(r) => {
@@ -85,7 +131,13 @@ object SuiteUtils {
   /**
     * GET request with no header.
     */
-  def getFakeRequest() = fakeRequest
+  def getFakeRequest(url : String = "") = Request(
+    GET,
+    url,
+    "http",
+    Content.empty,
+    Map.empty[HttpString, HttpString]
+  )
 
   /***
     * Gets a BasicAuth allowing
@@ -99,11 +151,7 @@ object SuiteUtils {
 
   private val basicAuth = BasicAuth(isAuthorized, testRealm)
 
-  private val fakeRequest = Request(
-    GET,
-    "",
-    "http",
-    Content.empty,
-    Map.empty[HttpString, HttpString]
-  )
+  object ZeroAuth extends Authenticator {
+    override def authenticate(r: Request): Either[Response, User] = Left(Response(401))
+  }
 }
