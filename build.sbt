@@ -88,6 +88,13 @@ lazy val commonSettings = Seq(
         <organization>Criteo</organization>
         <organizationUrl>http://www.criteo.com</organizationUrl>
       </developer>
+      <developer>
+        <name>Sofian Djamaa</name>
+        <email>s.djamaa@criteo.com</email>
+        <url>https://github.com/sdjamaa</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
     </developers>
   },
   // Useful to run flakey tests
@@ -192,6 +199,13 @@ lazy val timeseries =
       )
     .dependsOn(cuttle % "compile->compile;test->test")
 
+lazy val monotonic =
+  (project in file("monotonic")).
+  settings(commonSettings: _*).
+  settings(
+  ).
+  dependsOn(cuttle % "compile->compile;test->test")
+
 lazy val examples =
   (project in file("examples"))
     .settings(commonSettings: _*)
@@ -200,7 +214,7 @@ lazy val examples =
       fork in Test := true,
       connectInput in Test := true
     )
-    .dependsOn(cuttle, timeseries, localdb)
+    .dependsOn(cuttle, timeseries, monotonic, localdb)
 
 lazy val root =
   (project in file("."))
@@ -236,4 +250,4 @@ lazy val root =
       },
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(cuttle, timeseries)
     )
-    .aggregate(cuttle, timeseries, examples, localdb)
+    .aggregate(cuttle, timeseries, monotonic, examples, localdb)
