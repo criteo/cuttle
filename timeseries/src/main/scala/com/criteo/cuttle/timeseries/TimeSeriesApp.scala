@@ -54,7 +54,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val runningExecutions = executor.runningExecutions
           .filter {
             case (e, _) =>
-              e.job.id == jobId && e.context.toInterval.intersects(requestedInterval)
+              e.job.id == jobId && e.context.toInterval.encloses(requestedInterval)
           }
           .map { case (e, status) => e.toExecutionLog(status) }
         val (done, running, _) = state
@@ -86,7 +86,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       def getFocusView(watchedValue: Any = ()) = {
         val startDate = Instant.parse(start)
         val endDate = Instant.parse(end)
-        val (_done, _running, _) = state
+        val (_done, _running, backfills) = state
+        val filteredBackfills = backfills.filter(bf => (bf.jobs.map(_.id) & filteredJobs) != Set.empty[String])
         val stucks = executor.allFailing
         val periodInterval = Interval.closedOpen(startDate, endDate)
         val period = StateD(Map.empty, IntervalSet(periodInterval))
@@ -105,6 +106,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 interval <- is
                 context <- splitInterval(job, interval, false).toList
               } yield {
+                val isInBackfill = filteredBackfills.exists(
+                  backfill =>
+                    backfill.jobs.contains(job) &&
+                      context.toInterval.intersects(Interval.closedOpen(backfill.start, backfill.end)))
                 val lbl =
                   if (label != "running")
                     label
@@ -113,11 +118,17 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                stuckCtx.toInterval.intersects(context.toInterval) && stuckJob == job
                            })
                     "failed"
-                  else if (waiting.exists(e => e.job == job && e.context == context))
+                  else if (waiting.exists { e =>
+                             e.context match {
+                               case executionContext: TimeSeriesContext =>
+                                 e.job == job && executionContext.toInterval.intersects(context.toInterval)
+                               case _ => false
+                             }
+                           })
                     "waiting"
                   else
                     "running"
-                job.id -> ((context.toInterval.intersect(periodInterval).get, lbl))
+                job.id -> ((context.toInterval.intersect(periodInterval).get, lbl, isInBackfill))
               }
           }
         val jobTimelines = executions
@@ -125,15 +136,20 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .mapValues(_.map(_._2).sortBy(_._1))
         val summary =
           (for {
-            (_, (interval, label)) <- executions
+            (_, (interval, label, _)) <- executions
             Closed(start) = interval.lower.bound
             Open(end) = interval.upper.bound
             duration = start.until(end, HOURS)
             hour <- (1L to duration).map(i => Interval.closedOpen(start.plus(i - 1, HOURS), start.plus(i, HOURS)))
           } yield (hour, label))
             .groupBy(_._1)
-            .mapValues { xs =>
-              ((xs.filter(_._2 == "successful").length.toFloat / xs.length, xs.exists(_._2 == "failed")))
+            .map {
+              case (hour, xs) =>
+                hour ->
+                  ((xs.filter(_._2 == "successful").length.toFloat / xs.length,
+                    xs.exists(_._2 == "failed"),
+                    filteredBackfills.exists(backfill =>
+                      hour.intersects(Interval.closedOpen(backfill.start, backfill.end)))))
             }
             .toList
             .sortBy(_._1)
@@ -154,10 +170,12 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .toSet
       def watchState() = Some((state, executor.allFailing))
       def getCalendar(watchedValue: Any = ()) = {
-        val (done, running) = state match {
-          case (done, running, _) =>
+        val (done, running, backfills) = state match {
+          case (done, running, backfills) =>
             val filter = (job: TimeSeriesJob) => filteredJobs.contains(job.id)
-            (done.filterKeys(filter), running.filterKeys(filter))
+            (done.filterKeys(filter),
+             running.filterKeys(filter),
+             backfills.filter(bf => (filteredJobs & bf.jobs.map(_.id)) != Set.empty[String]))
         }
         val stucks = executor.allFailing.filter(x => filteredJobs.contains(x._1.id))
         val goal = StateD(
@@ -166,13 +184,29 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             .map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start))))
             .toMap)
         val domain = and(or(StateD(done), StateD(running)), goal).defined
+        val backfillDays = backfills.flatMap { backfill =>
+          val startDate = backfill.start.atZone(ZoneId.of("UTC")).toLocalDate
+          val endDate = {
+            val d = backfill.end.atZone(ZoneId.of("UTC")).toLocalDate
+            if (d.atStartOfDay(ZoneId.of("UTC")) == backfill.end.atZone(ZoneId.of("UTC")))
+              d.minus(1, DAYS)
+            else d
+          }
+          val duration = startDate.until(endDate, DAYS)
+          (0L to duration).toList.map(i => startDate.plus(i, DAYS))
+        }
         val days = (for {
           (_, is) <- domain.toList
           interval <- is.toList
           Closed(start) = interval.lower.bound
           Open(end) = interval.upper.bound
           startDate = start.atZone(ZoneId.of("UTC")).toLocalDate
-          endDate = end.atZone(ZoneId.of("UTC")).toLocalDate
+          endDate = {
+            val d = end.atZone(ZoneId.of("UTC")).toLocalDate
+            if (d.atStartOfDay(ZoneId.of("UTC")) == end.atZone(ZoneId.of("UTC")))
+              d.minus(1, DAYS)
+            else d
+          }
           duration = startDate.until(endDate, DAYS)
           day <- (0L to duration).toList.map(i => startDate.plus(i, DAYS))
         } yield day).toSet
@@ -183,6 +217,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             and(StateD(done), StateD(Map.empty, IntervalSet(day)))
           val goalForDay = and(goal, StateD(Map.empty, IntervalSet(day)))
           val isStuck = stucks.exists(_._2.toInterval.intersects(day))
+          val isInBackfill = backfillDays.contains(d)
 
           def totalDuration(state: StateD) =
             (for {
@@ -193,16 +228,20 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               val Open(end) = interval.upper.bound
               start.until(end, SECONDS)
             }).fold(0L)(_ + _)
-          (d.toString, f"${totalDuration(doneForDay).toDouble / totalDuration(goalForDay)}%1.1f", isStuck)
+          (d.toString,
+           f"${totalDuration(doneForDay).toDouble / totalDuration(goalForDay)}%1.1f",
+           isStuck,
+           isInBackfill)
         }
         calendar.toList
           .sortBy(_._1)
           .map {
-            case (date, completion, isStuck) =>
+            case (date, completion, isStuck, isInBackfill) =>
               (Map(
                 "date" -> date.asJson,
                 "completion" -> completion.asJson
-              ) ++ (if (isStuck) Map("stuck" -> true.asJson) else Map.empty)).asJson
+              ) ++ (if (isStuck) Map("stuck" -> true.asJson) else Map.empty)
+                ++ (if (isInBackfill) Map("backfill" -> true.asJson) else Map.empty)).asJson
           }
           .asJson
       }
