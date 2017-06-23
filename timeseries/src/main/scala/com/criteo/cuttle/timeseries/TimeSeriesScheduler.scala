@@ -123,14 +123,15 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       val newBackfill = Backfill(id, start, end, jobs, priority)
       val newBackfillDomain = backfillDomain(newBackfill)
       if (jobs.exists(job => newBackfill.start.isBefore(job.scheduling.start))) {
-        Left("cannot before a job's start date")
+        Left("cannot backfill before a job's start date")
       } else if (_backfills.exists(backfill => and(backfillDomain(backfill), newBackfillDomain) != zero[StateD])) {
         Left("intersects with another backfill")
       } else if (newBackfillDomain.defined.exists {
                    case (job, is) =>
-                     is.exists(interval =>
-                       IntervalSet(splitInterval(job, interval, true).map(_.toInterval).toSeq: _*) != IntervalSet(
-                         interval))
+                     is.exists { interval =>
+                       IntervalSet(interval) -- IntervalSet(
+                         splitInterval(job, interval, true).map(_.toInterval).toSeq: _*) != IntervalSet.empty[Instant]
+                     }
                  }) {
         Left("cannot backfill partial periods")
       } else {
