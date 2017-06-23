@@ -87,6 +87,7 @@ private[cuttle] object App {
           "id" -> job.id.asJson,
           "name" -> Option(job.name).filterNot(_.isEmpty).getOrElse(job.id).asJson,
           "description" -> Option(job.description).filterNot(_.isEmpty).asJson,
+          "scheduling" -> job.scheduling.toJson,
           "tags" -> job.tags.map(_.name).asJson
         )
         .asJson

@@ -2,8 +2,10 @@
 
 import React from "react";
 import injectSheet from "react-jss";
+import ReactTooltip from "react-tooltip";
 
 import map from "lodash/map";
+import reduce from "lodash/reduce";
 import find from "lodash/find";
 import filter from "lodash/filter";
 import some from "lodash/some";
@@ -15,9 +17,12 @@ import type { Workflow, Tag, Job, Dependency } from "../../datamodel";
 import Select from "react-select";
 import { navigate } from "redux-url";
 import { connect } from "react-redux";
+import { markdown } from "markdown";
 
+import TagIcon from "react-icons/lib/md/label";
 import Dagger from "../../graph/Dagger";
 import SlidePanel from "../components/SlidePanel";
+import FancyTable from "../components/FancyTable";
 
 type Props = {
   classes: any,
@@ -59,14 +64,41 @@ class WorkflowComponent extends React.Component {
       target: d.to,
       value: 1
     }));
-    const tags: Tag[] = workflow.tags;
+
+    const tagsDictionnary = reduce(
+      workflow.tags,
+      (acc, current) => ({
+        ...acc,
+        [current.name]: current
+      }),
+      {}
+    );
+
     const startNode = find(jobs, { id: job }) || jobs[0];
+
+    ReactTooltip.rebuild();
+
+    const renderTimeSeriesSechduling = scheduling => [
+      startNode.scheduling.grid && [
+        <dt key="period">Period:</dt>,
+        <dd key="period_">{startNode.scheduling.grid.period}</dd>
+      ],
+      startNode.scheduling.start && [
+        <dt key="start">Start Date:</dt>,
+        <dd key="start_">{startNode.scheduling.start}</dd>
+      ],
+      startNode.scheduling.maxPeriods != 1 && [
+        <dt key="maxPeriods">Max Periods:</dt>,
+        <dd key="maxPeriods_">{startNode.scheduling.maxPeriods}</dd>
+      ]
+    ];
+
     return (
       <div className={classes.main}>
         <Dagger
           nodes={nodes}
           edges={edges}
-          tags={tags}
+          tags={workflow.tags}
           startNodeId={startNode.id}
           onClickNode={id => navTo("/workflow/" + id)}
         />
@@ -78,16 +110,47 @@ class WorkflowComponent extends React.Component {
         />
         <SlidePanel>
           <div className={classes.jobCard}>
-            <div className="jobTitle">
-              {startNode.name +
-                (startNode.name != startNode.id
-                  ? "(" + startNode.id + ")"
-                  : "")}
-            </div>
-            {startNode.description &&
-              <div className="jobDescription">
-                {startNode.description}
-              </div>}
+            <FancyTable>
+              <dt key="id">Id:</dt>
+              <dd key="id_">
+                {startNode.id}
+              </dd>
+              <dt key="name">Name:</dt>
+              <dd key="name_">
+                {startNode.name}
+              </dd>
+              {renderTimeSeriesSechduling(startNode.scheduling)}
+              {startNode.tags.length > 0 && [
+                <dt key="tags">Tags:</dt>,
+                <dd key="tags_" className={classes.tags}>
+                  {map(startNode.tags, t => [
+                    <span
+                      key={tagsDictionnary[t].name}
+                      className={classes.tag}
+                      data-for={"tag" + tagsDictionnary[t].name}
+                      data-tip={tagsDictionnary[t].description}
+                    >
+                      <TagIcon className="tagIcon" />
+                      {tagsDictionnary[t].name}
+                    </span>,
+                    <ReactTooltip
+                      id={"tag" + tagsDictionnary[t].name}
+                      effect="float"
+                    />
+                  ])}
+                </dd>
+              ]}
+              {startNode.description && [
+                <dt key="description">Description:</dt>,
+                <dd
+                  key="description_"
+                  className={classes.description}
+                  dangerouslySetInnerHTML={{
+                    __html: markdown.toHTML(startNode.description)
+                  }}
+                />
+              ]}
+            </FancyTable>
           </div>
         </SlidePanel>
       </div>
@@ -103,6 +166,28 @@ const styles = {
     height: "calc(100vh - 4em)",
     position: "relative"
   },
+  tags: {
+    display: "table-cell"
+  },
+  tag: {
+    cursor: "help",
+    verticalAlign: "middle",
+    border: "1px solid #999",
+    margin: "0 0.2em",
+    padding: "0.2em 0.4em",
+    borderRadius: "0.2em",
+    "& .tagIcon": {
+      marginRight: "0.4em",
+      fontSize: "1.2em"
+    }
+  },
+  description: {
+    lineHeight: "1.25em !important",
+    fontSize: "0.95em",
+    padding: "0 2em !important",
+    textAlign: "justify !important",
+    overflowY: "scroll"
+  },
   jobSelector: {
     position: "absolute",
     top: "2em",
@@ -110,7 +195,6 @@ const styles = {
     marginLeft: "-300px",
     width: "600px",
     "& .Select-control": {
-      borderRadius: "1em",
       height: "1em",
       backgroundColor: "#F5F8FA",
       "& .Select-value": {
@@ -134,18 +218,7 @@ const styles = {
     }
   },
   jobCard: {
-    padding: "1em",
-    "& .jobTitle": {
-      fontFamily: "Arial",
-      fontSize: "2em",
-      color: "black"
-    },
-    "& .jobDescription": {
-      fontFamily: "Arial",
-      fontSize: "0.9em",
-      color: "#3B4254",
-      marginTop: "1em"
-    }
+    color: "#3B4254"
   }
 };
 
