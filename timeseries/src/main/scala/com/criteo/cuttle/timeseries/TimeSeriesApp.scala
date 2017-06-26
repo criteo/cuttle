@@ -11,6 +11,7 @@ import io.circe._
 import io.circe.syntax._
 
 import algebra.lattice.Bool._
+import doobie.imports._
 
 import scala.util.{Try}
 import scala.math.Ordering.Implicits._
@@ -250,13 +251,31 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       else
         Ok(getCalendar())
 
-    case POST at url"/api/timeseries/backfill?jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
+    case GET at url"/api/timeseries/backfills" =>
+      Ok(Database.queryBackfills.list.map(_.map {
+        case
+          (id, name, description, jobs, priority, start, end, created_at, status) =>
+          Json.obj(
+            "id" -> id.asJson,
+            "name" -> name.asJson,
+            "description" -> description.asJson,
+            "jobs" -> jobs.asJson,
+            "priority" -> priority.asJson,
+            "start" -> start.asJson,
+            "end" -> end.asJson,
+            "created_at" -> created_at.asJson,
+            "status" -> status.asJson
+          )
+      }).transact(xa).unsafePerformIO
+        .asJson)
+
+    case POST at url"/api/timeseries/backfill?name=$name&description=$description&jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
       val jobIds = jobsString.split(",")
       val jobs = this.state._1.keySet.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
       val startDate = Instant.parse(start)
       val endDate = Instant.parse(end)
       val backfillId = UUID.randomUUID().toString
-      backfillJob(backfillId, jobs, startDate, endDate, priority.toInt)
+      backfillJob(backfillId, name, description, jobs, startDate, endDate, priority.toInt, xa)
       Ok(
         Json.obj(
           "id" -> backfillId.asJson
