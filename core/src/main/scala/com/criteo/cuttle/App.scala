@@ -75,8 +75,7 @@ private[cuttle] object App {
     override def apply(tag: Tag) =
       Json.obj(
         "name" -> tag.name.asJson,
-        "description" -> Option(tag.description).filterNot(_.isEmpty).asJson,
-        "color" -> Option(tag.color).filterNot(_.isEmpty).asJson
+        "description" -> Option(tag.description).filterNot(_.isEmpty).asJson
       )
   }
 

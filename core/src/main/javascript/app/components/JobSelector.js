@@ -56,9 +56,8 @@ class JobSelector extends React.Component {
             kind: "tag"
           }
         ];
-      } else {
-        return [];
       }
+      return [];
     }).concat(
       _.flatMap(_.sortBy(props.workflow.jobs, job => job.id), job => {
         let result = [
@@ -66,7 +65,7 @@ class JobSelector extends React.Component {
         ];
         let parents = props.workflow.getParents(job.id);
         let children = props.workflow.getChildren(job.id);
-        if (parents.length) {
+        if (parents.length > 0) {
           result.push({
             value: `_${job.id}-PARENTS`,
             job: job.id,
@@ -75,7 +74,7 @@ class JobSelector extends React.Component {
             kind: "parents"
           });
         }
-        if (children.length) {
+        if (children.length > 0) {
           result.push({
             value: `_${job.id}-CHILDREN`,
             job: job.id,
@@ -98,9 +97,8 @@ class JobSelector extends React.Component {
           );
         } else if (job) {
           return [{ value: job, label: job }];
-        } else {
-          return [{ value, label }];
         }
+        return [{ value, label }];
       }),
       o => o.value
     );
@@ -111,38 +109,33 @@ class JobSelector extends React.Component {
   }
 
   render() {
-    let { className, classes, placeholder, workflow } = this.props;
+    let { className, classes, placeholder } = this.props;
     let { selected } = this.state;
 
-    let renderOption = ({ value, label, kind, others }: Option) => {
-      const tag = _.find(workflow.tags, t => `_${t.name}-TAG` == value);
-      return (
-        <span>
-          {kind == "parents"
-            ? <GraphIcon
-                className={classes.optionIcon}
-                style={{ transform: "rotate(-90deg) translateX(2px)" }}
-              />
-            : kind == "children"
-                ? <GraphIcon
-                    className={classes.optionIcon}
-                    style={{ transform: "rotate(90deg) translateX(-2px)" }}
-                  />
-                : kind == "tag"
-                    ? <TagIcon
-                        className={classes.optionIcon}
-                        style={{ color: (tag && tag.color) || "#000" }}
-                      />
-                    : <JobIcon className={classes.optionIcon} />}
-          {label}
-          {others && others.length > 0
-            ? <em className={classes.more}>
+    let renderOption = ({ value, label, kind, others }: Option) => (
+      <span>
+        {kind == "parents"
+          ? <GraphIcon
+              className={classes.optionIcon}
+              style={{ transform: "rotate(-90deg) translateX(2px)" }}
+            />
+          : kind == "children"
+          ? <GraphIcon
+              className={classes.optionIcon}
+              style={{ transform: "rotate(90deg) translateX(-2px)" }}
+            />
+          : kind == "tag"
+          ? <TagIcon
+              className={classes.optionIcon}
+            />
+          : <JobIcon className={classes.optionIcon} />}
+        {label}
+        {others && others.length > 0
+          && <em className={classes.more}>
                 {`${kind != "tag" ? "+" : ""}${others.length} job${others.length > 1 ? "s" : ""}`}
-              </em>
-            : null}
-        </span>
-      );
-    };
+          </em>}
+      </span>
+    );
 
     let filterOptions = (
       options: Array<Option>,
