@@ -8,9 +8,13 @@ import injectSheet from "react-jss";
 import moment from "moment";
 import _ from "lodash";
 import * as d3 from "d3";
+
 import ChevronIcon from "react-icons/lib/md/chevron-right";
 import ToIcon from "react-icons/lib/md/arrow-forward";
 import ReactTooltip from "react-tooltip";
+
+import ArrowNext from "react-icons/lib/md/arrow-forward";
+import ArrowPrevious from "react-icons/lib/md/arrow-back";
 
 import Link from "../components/Link";
 import Spinner from "../components/Spinner";
@@ -38,7 +42,7 @@ type Stats = {
   }
 };
 
-type DataFetcher = {
+type State = {
   data: ?Stats,
   query: ?string,
   eventSource: ?any
@@ -102,7 +106,7 @@ const drawSummary = (enterSelection, periodClass, x1, x2) => {
     .append("g")
     .attr("class", classNames("periodSlot", periodClass))
     .attr("data-tip", helper.tip)
-    .attr("transform", helper.translate);;
+    .attr("transform", helper.translate);
   newPeriodSlotNode
     .append("rect")
     .attr("class", "placeholder")
@@ -124,47 +128,17 @@ const drawSummary = (enterSelection, periodClass, x1, x2) => {
       const backfillSelection = d3.select(nodes[i])
         .selectAll("rect.backfill")
         .data(backfill ? [period] : [], k => k.start);
-
       backfillSelection
         .enter()
         .call(summaryEnterBackfill, helper.width({ period }) + 4);
     });
-};
 
-const updateSummary = (updateSelection, x1, x2) => {
-  const helper = summaryPeriodHelper(x1, x2);
-  updateSelection
-    .attr("data-tip", helper.tip)
-    .attr("transform", helper.translate);
-  updateSelection
-    .select("rect.placeholder")
-    .attr("width", helper.width);
-  updateSelection
-    .select("rect.border")
-    .attr("width", helper.width)
-    .transition().delay((d, i) => i*35)
-    .attr("stroke", helper.stroke)
-    .attr("fill", helper.fill);
-  updateSelection.each(({ backfill, period }, i, nodes) => {
-    const backfillSelection = d3.select(nodes[i])
-      .selectAll("rect.backfill")
-      .data(backfill ? [period] : [], k => k.start);
-    backfillSelection
-      .enter()
-      .call(summaryEnterBackfill, helper.width({ period }) + 4);
-    backfillSelection
-      .attr("width", helper.width({ period }) + 4);
-    backfillSelection
-      .exit()
-      .transition(300).delay((d, i) => i * 50)
-      .attr("height", 0)
-      .remove();
-  });
+  return newPeriodSlotNode;
 };
 
 // drawing methods // job details
-const jobPeriodsHelper = (x1, x2, job, showExecutions) => ({
-  tip: ({ period, status }) => `<div>${job} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+const jobPeriodsHelper = (x1, x2, showExecutions) => ({
+  tip: ({ period, status, jobName }) => `<div>${jobName} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
   translate: ({ period }) => `translate(${x1(period) + MARGIN}, 0)`,
   width: ({ period }) => x2(period) - x1(period),
   fill: ({ status }) => status == "failed"
@@ -174,9 +148,9 @@ const jobPeriodsHelper = (x1, x2, job, showExecutions) => ({
     : status == "waiting"
     ? "#ffbc5a"
     : status == "running" ? "#49d3e4" : "#ecf1f5",
-  click: ({ period }) =>
+  click: ({ period, jobName }) =>
     showExecutions(
-      job,
+      jobName,
       moment.utc(period.start),
       moment.utc(period.end)
     )
@@ -193,14 +167,14 @@ const enterBackfill = (jobPeriod, width) => {
     .attr("y", ROW_HEIGHT - 3);
 };
 
-const drawJobPeriods = (enterPeriodNode, periodClass, job, x1, x2, showExecutions) => {
-  const helper = jobPeriodsHelper(x1, x2, job, showExecutions);
+const drawJobPeriods = (enterPeriodNode, periodClass, x1, x2, showExecutions) => {
+  const helper = jobPeriodsHelper(x1, x2, showExecutions);
   let newPeriodSlot = enterPeriodNode
     .append("g")
     .attr("class", classNames("periodSlot", periodClass))
     .attr("data-tip", helper.tip)
-    .attr("transform", helper.translate)
-    .on("click", helper.click);
+    .attr("transform", helper.translate);
+  newPeriodSlot.on("click", helper.click);
   newPeriodSlot
     .append("rect")
     .attr("class", "placeholder")
@@ -219,57 +193,19 @@ const drawJobPeriods = (enterPeriodNode, periodClass, job, x1, x2, showExecution
         .attr("height", ROW_HEIGHT - (backfill ? 6 : 0))
         .attr("width", width)
         .attr("fill", helper.fill);
-
-      const backfillSelection = jobPeriod
+      jobPeriod
         .selectAll("rect.backfill")
-        .data(backfill ? [period] : [], k => k.start);
-
-      backfillSelection
+        .data(backfill ? [period] : [], k => k.start)
         .enter()
         .call(enterBackfill, width);
     });
 };
 
-let updateJobPeriods = (updatePeriodNode, job, x1, x2, showExecutions) => {
-  const helper = jobPeriodsHelper(x1, x2, job, showExecutions);
-  updatePeriodNode
-    .attr("data-tip", helper.tip)
-    .attr("transform", helper.translate)
-    .on("click", helper.click);
-  updatePeriodNode.each(({ period, status, backfill }, i, nodes) => {
-    const updatedNode = d3.select(nodes[i]);
-    const innerWidth = helper.width({ period }) - 2 * MARGIN;
-    updatedNode
-      .select("rect.placeholder")
-      .attr("width", helper.width({ period }));
-    updatedNode
-      .select("rect.colored")
-      .attr("width", innerWidth)
-      .transition()
-      .attr("fill", helper.fill)
-      .attr("height", ROW_HEIGHT - (backfill ? 6 : 0));
-
-    const backfillSelection = updatedNode
-      .selectAll("rect.backfill")
-      .data(backfill ? [period] : [], k => k.start);
-
-    backfillSelection
-      .enter()
-      .call(enterBackfill, innerWidth);
-    backfillSelection
-      .selectAll("rect")
-      .attr("width", innerWidth);
-    backfillSelection
-      .exit()
-      .transition(300).delay((d, i) => i * 40)
-      .attr("y", "0")
-      .remove();
-  });
-};
 
 class CalendarFocus extends React.Component {
   props: Props;
-  dataFetcher: DataFetcher;
+  state: State;
+
   vizContainer: any;
   summarySvgContainer: any;
   detailsSvgContainer: any;
@@ -277,7 +213,7 @@ class CalendarFocus extends React.Component {
   constructor(props: Props) {
     super(props);
     
-    this.dataFetcher = {
+    this.state = {
       data: null,
       query: null,
       eventSource: null
@@ -290,20 +226,19 @@ class CalendarFocus extends React.Component {
       ? `&jobs=${props.selectedJobs.join(",")}`
       : "";
     let query = `/api/timeseries/calendar/focus?start=${moment(start).toISOString()}&end=${moment(end).toISOString()}${jobsFilter}`;
-    let { query: currentQuery, eventSource: currentEventSource } = this.dataFetcher;
+    let { query: currentQuery, eventSource: currentEventSource } = this.state;
     if (currentQuery != query) {
       currentEventSource && currentEventSource.close();
       let eventSource = listenEvents(query, this.updateData.bind(this));
-      this.dataFetcher = {
-        ...this.dataFetcher,
+      this.setState({
         data: null,
         eventSource
-      };
+      });
     }
   }
 
-  drawViz(props: Props, dataFetcher: DataFetcher) {
-    let { data } = dataFetcher;
+  drawViz(props: Props, state: State) {
+    let { data } = state;
     let { classes, start, end } = props;
     if (data && data.summary.length) {
       let { summary, jobs } = data;
@@ -313,7 +248,7 @@ class CalendarFocus extends React.Component {
         .select(this.summarySvgContainer)
         .attr("width", width)
         .attr("height", 80);
-
+      
       // compute label sizes
       let labelWidth = getMaxLabelWidth([..._.keys(jobs), globalLabel], summarySvg, classes.jobName);
 
@@ -327,6 +262,7 @@ class CalendarFocus extends React.Component {
       let timeAxis = d3.axisTop(timeScale).tickFormat(tickFormat).ticks(5);
       summarySvg
         .select("g#axisContainer")
+        .html(null)
         .attr("transform", `translate(${labelWidth}, ${ROW_HEIGHT + PADDING})`)
         .attr("class", classes.axis)
         .call(timeAxis);
@@ -337,23 +273,25 @@ class CalendarFocus extends React.Component {
       // Summary
       const summaryGroup = summarySvg
         .select("g#summary")
+        .html(null)
         .attr("transform", `translate(${labelWidth}, 35)`);
 
-      const summaryGroupSelection = summaryGroup
+      summaryGroup
         .selectAll("g.periodSlot")
-        .data(summary, k => k.period.start);
-      summaryGroupSelection
+        .data(summary, k => k.period.start)
         .enter()
-        .call(drawSummary, classes.aggregatedPeriod, x1, x2);
-      summaryGroupSelection
-        .call(updateSummary, x1, x2);
+        .call(
+          drawSummary,
+          classes.aggregatedPeriod,
+          x1,
+          x2
+        );
 
       // Breakdown
       let detailsSvg = d3
         .select(this.detailsSvgContainer)
-        .attr("width", width);
-      detailsSvg // transition needed so the svg keeps the previous height for the exit transition of jobs
-        .transition()
+        .html(null)
+        .attr("width", width)
         .attr("height", _.keys(jobs).length * (ROW_HEIGHT + 2 * MARGIN));
       
       // draw a timeline for each job selected
@@ -363,7 +301,7 @@ class CalendarFocus extends React.Component {
           .attr("class", "jobTimeline")
           .attr(
             "transform", (d, i) =>
-              `translate(${labelWidth}, ${Math.max((i-1), 0) * (ROW_HEIGHT + 2 * MARGIN)})`
+              `translate(${labelWidth}, ${i * (ROW_HEIGHT + 2 * MARGIN)})`
           );
         newJobTimeline
           .append("text")
@@ -374,45 +312,23 @@ class CalendarFocus extends React.Component {
           .text(d => d);
 
         newJobTimeline
-          .each((jobName, i, nodes) => {
-            const periodSelection = d3.select(nodes[i])
-              .selectAll("g.periodSlot")
-              .data(jobs[jobName], k => k.period.start);
-            drawJobPeriods(periodSelection.enter(), classes.period, jobName, x1, x2, this.props.showExecutions);
-          });
-        return newJobTimeline;
-      };
-
-      // update the timeline of all jobs (and their periods)
-      let updateJobs = (updateSelection, jobs) => {
-        updateSelection
-          .transition().attr(
-            "transform", (d, i) =>
-              `translate(${labelWidth}, ${i * (ROW_HEIGHT + 2 * MARGIN)})`
+          .selectAll("g.periodSlot")
+          .data(jobName => _.map(jobs[jobName], p => ({...p, jobName})), k => k.period.start)
+          .enter()
+          .call(drawJobPeriods,
+            classes.period,
+            x1,
+            x2,
+            this.props.showExecutions
           );
-        updateSelection
-          .each((jobName, i, nodes) => {
-            const periodSelection = d3.select(nodes[i])
-              .selectAll("g.periodSlot")
-              .data(jobs[jobName], k => k.period.start);
-            periodSelection
-              .enter()
-              .call(drawJobPeriods, classes.period, jobName, x1, x2);
-            periodSelection
-              .call(updateJobPeriods, jobName, x1, x2, this.props.showExecutions);
-          });
       };
 
       const allJobsData = _.sortBy(_.keys(jobs));
-      const jobsSelection = detailsSvg
+      detailsSvg
         .selectAll("g.jobTimeline")
-        .data(allJobsData, d => d);
-      drawJobs(
-        jobsSelection
-          .enter()
-      ).merge(jobsSelection)
-        .call(updateJobs, jobs);
-      jobsSelection.exit().transition().style("opacity", 0).remove();
+        .data(allJobsData, d => d)
+        .enter()
+        .call(drawJobs);
       
     }
     ReactTooltip.rebuild();
@@ -422,81 +338,92 @@ class CalendarFocus extends React.Component {
     this.listenForUpdates(this.props);
   }
 
-  shouldComponentUpdate = _.constant(false)
+  componentDidUpdate() {
+    this.drawViz(this.props, this.state);
+  }
 
   componentWillReceiveProps(nextProps: Props) {
     this.listenForUpdates(nextProps);
   }
 
   componentWillUnmount() {
-    let { eventSource } = this.dataFetcher;
+    const { eventSource } = this.state;
     eventSource && eventSource.close();
   }
 
   updateData(json) {
-    this.dataFetcher = {
-      ...this.dataFetcher,
+    this.setState({
       // TODO: simplify this step by modifying the backend directly
       data: {
         summary: _.map(json.summary, ([period, [completion, error, backfill]]) => ({ period, completion, error, backfill })),
         jobs: _.mapValues(json.jobs, v => _.map(v,  ([period, status, backfill]) => ({ period, status, backfill })))
       }
-    };
+    });
+  }
 
-    !this.vizContainer && this.forceUpdate();
-    this.vizContainer && this.drawViz(this.props, this.dataFetcher);
+  timeShift(hours: number) {
+    const { drillDown, start, end } = this.props;
+    drillDown(
+      moment.utc(start).add(hours, "hours"),
+      moment.utc(end).add(hours, "hours"),
+    );
   }
 
   render() {
     let { classes, start, end, selectedJobs } = this.props;
-    let { data } = this.dataFetcher;
+    let { data } = this.state;
     return (
       <div className={classes.container}>
-      <h1 className={classes.title}>
-      <Link href="/timeseries/calendar">Calendar</Link>
-      {" "}
-      <ChevronIcon className={classes.chevron} />
-      <span className={classes.range}>
-      {formatDate(start)}
-      {" "}
-      <ToIcon className={classes.to} />
-      {" "}
-      {formatDate(end)}
-      {" "}
-      UTC
-      </span>
-      </h1>
-      {data && data.summary.length
-        ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
-          <div className={classes.summarySvg}>
-            <svg ref={r => (this.summarySvgContainer = r)} >
-              <g id="axisContainer" />
-              <g id="summary">
-                <text className={classes.jobName} textAnchor="end" x={-(PADDING * 2)} y="14">
-                  {globalLabel}
-                </text>
-              </g>
-            </svg>  
+        <h1 className={classes.title}>
+          <Link href="/timeseries/calendar">Calendar</Link>
+          {" "}
+          <ChevronIcon className={classes.chevron} />
+          <span className={classes.range}>
+            {formatDate(start)}
+            {" "}
+            <ToIcon className={classes.to} />
+            {" "}
+            {formatDate(end)}
+            {" "}
+            UTC
+          </span>
+          <span className={classes.timeControl}>
+            <ArrowPrevious onClick={() => this.timeShift(-12)} className="button" />
+            { " 12H " }
+            <ArrowNext onClick={() => this.timeShift(12)} className="button" />
+          </span>
+        </h1>
+        {data && data.summary.length
+          ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
+            <div className={classes.summarySvg}>
+              <svg ref={r => (this.summarySvgContainer = r)}>
+                <g id="axisContainer" />
+                <g id="summary">
+                  <text className={classes.jobName} textAnchor="end" x={-(PADDING * 2)} y="14">
+                    {globalLabel}
+                  </text>
+                </g>
+              </svg>  
+            </div>
+            <div className={classes.detailsSvg} >
+              <svg ref={r => (this.detailsSvgContainer = r)} />
+            </div>
+            <ReactTooltip
+              className={classes.tooltip}
+              effect="float"
+              html={true}
+            />
           </div>
-          <div className={classes.detailsSvg} >
-            <svg ref={r => (this.detailsSvgContainer = r)}/>  
+          : data
+          ? <div className={classes.noData}>
+            <div>
+              Nothing to be done for this period
+              {selectedJobs.length
+                ? " (some may have been filtered)"
+                : ""}
+            </div>
           </div>
-          <ReactTooltip
-            className={classes.tooltip}
-            effect="float"
-            html={true}
-          />
-        </div>
-        : data
-        ? <div className={classes.noData}>
-          <div>
-            Nothing to be done for this period
-            {selectedJobs.length
-              ? " (some may have been filtered)"
-              : ""}
-          </div>
-        </div>
-        : <Spinner />}
+          : <Spinner />}
       </div>
     );
   }
@@ -515,6 +442,13 @@ const styles = {
     margin: "0 0 16px 0",
     color: "#607e96",
     fontWeight: "normal"
+  },
+  timeControl: {
+    float: "right",
+    "& .button": {
+      fontSize: "0.8em",
+      cursor: "pointer"
+    }
   },
   chevron: {
     color: "#92a2af",
