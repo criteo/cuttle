@@ -13,6 +13,8 @@ import ChevronIcon from "react-icons/lib/md/chevron-right";
 import ToIcon from "react-icons/lib/md/arrow-forward";
 import ReactTooltip from "react-tooltip";
 
+import ZoomIn from "react-icons/lib/md/zoom-in";
+import ZoomOut from "react-icons/lib/md/zoom-out";
 import ArrowNext from "react-icons/lib/md/arrow-forward";
 import ArrowPrevious from "react-icons/lib/md/arrow-back";
 
@@ -36,9 +38,18 @@ type Period = {
 };
 
 type Stats = {
-  summary: Array<{ period: Period, completion: number, error: boolean, backfill: boolean }>,
+  summary: Array<{
+    period: Period,
+    completion: number,
+    error: boolean,
+    backfill: boolean
+  }>,
   jobs: {
-    [job: string]: { period: Period, status: "done" | "running" | "todo", backfill: boolean }
+    [job: string]: {
+      period: Period,
+      status: "done" | "running" | "todo",
+      backfill: boolean
+    }
   }
 };
 
@@ -66,8 +77,8 @@ let tickFormat = date =>
   (d3.utcHour(date) < date
     ? d3.utcFormat("")
     : d3.utcDay(date) < date
-    ? d3.utcFormat("%H:00")
-    : d3.utcFormat("%Y-%m-%d"))(date);
+        ? d3.utcFormat("%H:00")
+        : d3.utcFormat("%Y-%m-%d"))(date);
 
 let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
   let g = svg.append("g").attr("id", "widthHack");
@@ -77,7 +88,7 @@ let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
   let labelWidth = g.node().getBBox().width + LEFT_MARGIN;
   svg.select("g#widthHack").remove();
   return labelWidth;
-}
+};
 
 // Drawing methods // Summary periods
 const summaryPeriodHelper = (x1, x2) => ({
@@ -85,8 +96,10 @@ const summaryPeriodHelper = (x1, x2) => ({
     `<div>${Math.ceil(completion * 100)}% complete – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
   translate: ({ period }) => `translate(${x1(period) + MARGIN + 2}, 0)`,
   width: ({ period }) => x2(period) - x1(period) - MARGIN * 2 - 4,
-  fill: ({ error, completion }) => error ? "#e91e63" : completion == 1 ? "#62cc64" : "#ecf1f5",
-  stroke: ({ error, completion }) => error ? "#e91e63" : colorScale(completion)
+  fill: ({ error, completion }) =>
+    error ? "#e91e63" : completion == 1 ? "#62cc64" : "#ecf1f5",
+  stroke: ({ error, completion }) =>
+    error ? "#e91e63" : colorScale(completion)
 });
 
 const summaryEnterBackfill = (enterBackfill, width) => {
@@ -122,38 +135,36 @@ const drawSummary = (enterSelection, periodClass, x1, x2) => {
     .attr("width", helper.width)
     .attr("stroke-width", "4")
     .attr("stroke", helper.stroke)
-    .attr("fill", helper.fill)
-  newPeriodSlotNode
-    .each(({ backfill, period }, i, nodes) => {
-      const backfillSelection = d3.select(nodes[i])
-        .selectAll("rect.backfill")
-        .data(backfill ? [period] : [], k => k.start);
-      backfillSelection
-        .enter()
-        .call(summaryEnterBackfill, helper.width({ period }) + 4);
-    });
+    .attr("fill", helper.fill);
+  newPeriodSlotNode.each(({ backfill, period }, i, nodes) => {
+    const backfillSelection = d3
+      .select(nodes[i])
+      .selectAll("rect.backfill")
+      .data(backfill ? [period] : [], k => k.start);
+    backfillSelection
+      .enter()
+      .call(summaryEnterBackfill, helper.width({ period }) + 4);
+  });
 
   return newPeriodSlotNode;
 };
 
 // drawing methods // job details
 const jobPeriodsHelper = (x1, x2, showExecutions) => ({
-  tip: ({ period, status, jobName }) => `<div>${jobName} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+  tip: ({ period, status, jobName }) =>
+    `<div>${jobName} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
   translate: ({ period }) => `translate(${x1(period) + MARGIN}, 0)`,
   width: ({ period }) => x2(period) - x1(period),
-  fill: ({ status }) => status == "failed"
-    ? "#e91e63"
-    : status == "successful"
-    ? "#62cc64"
-    : status == "waiting"
-    ? "#ffbc5a"
-    : status == "running" ? "#49d3e4" : "#ecf1f5",
+  fill: ({ status }) =>
+    status == "failed"
+      ? "#e91e63"
+      : status == "successful"
+          ? "#62cc64"
+          : status == "waiting"
+              ? "#ffbc5a"
+              : status == "running" ? "#49d3e4" : "#ecf1f5",
   click: ({ period, jobName }) =>
-    showExecutions(
-      jobName,
-      moment.utc(period.start),
-      moment.utc(period.end)
-    )
+    showExecutions(jobName, moment.utc(period.start), moment.utc(period.end))
 });
 
 const enterBackfill = (jobPeriod, width) => {
@@ -167,7 +178,13 @@ const enterBackfill = (jobPeriod, width) => {
     .attr("y", ROW_HEIGHT - 3);
 };
 
-const drawJobPeriods = (enterPeriodNode, periodClass, x1, x2, showExecutions) => {
+const drawJobPeriods = (
+  enterPeriodNode,
+  periodClass,
+  x1,
+  x2,
+  showExecutions
+) => {
   const helper = jobPeriodsHelper(x1, x2, showExecutions);
   let newPeriodSlot = enterPeriodNode
     .append("g")
@@ -181,26 +198,24 @@ const drawJobPeriods = (enterPeriodNode, periodClass, x1, x2, showExecutions) =>
     .attr("height", ROW_HEIGHT + 2 * MARGIN)
     .attr("fill", "transparent")
     .attr("width", helper.width);
-  newPeriodSlot
-    .each(({ period, backfill }, i, nodes) => {
-      const jobPeriod = d3.select(nodes[i]);
-      const width = helper.width({ period }) - 2 * MARGIN;
-      jobPeriod
-        .append("rect")
-        .attr("class", "colored")
-        .attr("y", MARGIN)
-        .attr("x", MARGIN)
-        .attr("height", ROW_HEIGHT - (backfill ? 6 : 0))
-        .attr("width", width)
-        .attr("fill", helper.fill);
-      jobPeriod
-        .selectAll("rect.backfill")
-        .data(backfill ? [period] : [], k => k.start)
-        .enter()
-        .call(enterBackfill, width);
-    });
+  newPeriodSlot.each(({ period, backfill }, i, nodes) => {
+    const jobPeriod = d3.select(nodes[i]);
+    const width = helper.width({ period }) - 2 * MARGIN;
+    jobPeriod
+      .append("rect")
+      .attr("class", "colored")
+      .attr("y", MARGIN)
+      .attr("x", MARGIN)
+      .attr("height", ROW_HEIGHT - (backfill ? 6 : 0))
+      .attr("width", width)
+      .attr("fill", helper.fill);
+    jobPeriod
+      .selectAll("rect.backfill")
+      .data(backfill ? [period] : [], k => k.start)
+      .enter()
+      .call(enterBackfill, width);
+  });
 };
-
 
 class CalendarFocus extends React.Component {
   props: Props;
@@ -212,7 +227,6 @@ class CalendarFocus extends React.Component {
 
   constructor(props: Props) {
     super(props);
-    
     this.state = {
       data: null,
       query: null,
@@ -248,9 +262,13 @@ class CalendarFocus extends React.Component {
         .select(this.summarySvgContainer)
         .attr("width", width)
         .attr("height", 80);
-      
+
       // compute label sizes
-      let labelWidth = getMaxLabelWidth([..._.keys(jobs), globalLabel], summarySvg, classes.jobName);
+      let labelWidth = getMaxLabelWidth(
+        [..._.keys(jobs), globalLabel],
+        summarySvg,
+        classes.jobName
+      );
 
       // Time axis
       let axisWidth = width - labelWidth - RIGHT_MARGIN;
@@ -266,10 +284,10 @@ class CalendarFocus extends React.Component {
         .attr("transform", `translate(${labelWidth}, ${ROW_HEIGHT + PADDING})`)
         .attr("class", classes.axis)
         .call(timeAxis);
-      
+
       let x1 = period => timeScale(moment(period.start)),
         x2 = period => timeScale(moment(period.end));
-      
+
       // Summary
       const summaryGroup = summarySvg
         .select("g#summary")
@@ -280,12 +298,7 @@ class CalendarFocus extends React.Component {
         .selectAll("g.periodSlot")
         .data(summary, k => k.period.start)
         .enter()
-        .call(
-          drawSummary,
-          classes.aggregatedPeriod,
-          x1,
-          x2
-        );
+        .call(drawSummary, classes.aggregatedPeriod, x1, x2);
 
       // Breakdown
       let detailsSvg = d3
@@ -293,14 +306,15 @@ class CalendarFocus extends React.Component {
         .html(null)
         .attr("width", width)
         .attr("height", _.keys(jobs).length * (ROW_HEIGHT + 2 * MARGIN));
-      
+
       // draw a timeline for each job selected
       let drawJobs = enterSelection => {
         let newJobTimeline = enterSelection
           .append("g")
           .attr("class", "jobTimeline")
           .attr(
-            "transform", (d, i) =>
+            "transform",
+            (d, i) =>
               `translate(${labelWidth}, ${i * (ROW_HEIGHT + 2 * MARGIN)})`
           );
         newJobTimeline
@@ -313,9 +327,13 @@ class CalendarFocus extends React.Component {
 
         newJobTimeline
           .selectAll("g.periodSlot")
-          .data(jobName => _.map(jobs[jobName], p => ({...p, jobName})), k => k.period.start)
+          .data(
+            jobName => _.map(jobs[jobName], p => ({ ...p, jobName })),
+            k => k.period.start
+          )
           .enter()
-          .call(drawJobPeriods,
+          .call(
+            drawJobPeriods,
             classes.period,
             x1,
             x2,
@@ -323,17 +341,24 @@ class CalendarFocus extends React.Component {
           );
       };
 
-      const allJobsData = _.sortBy(_.keys(jobs));
       detailsSvg
         .selectAll("g.jobTimeline")
-        .data(allJobsData, d => d)
+        .data(_.sortBy(_.keys(jobs)), d => d)
         .enter()
         .call(drawJobs);
-      
     }
     ReactTooltip.rebuild();
+
+    let doResize;
+    window.onresize = () => {
+      clearTimeout(doResize);
+      doResize = setTimeout(
+        () => this.drawViz(this.props, this.state),
+        500
+      );
+    };
   }
-  
+
   componentDidMount() {
     this.listenForUpdates(this.props);
   }
@@ -355,18 +380,67 @@ class CalendarFocus extends React.Component {
     this.setState({
       // TODO: simplify this step by modifying the backend directly
       data: {
-        summary: _.map(json.summary, ([period, [completion, error, backfill]]) => ({ period, completion, error, backfill })),
-        jobs: _.mapValues(json.jobs, v => _.map(v,  ([period, status, backfill]) => ({ period, status, backfill })))
+        summary: _.map(
+          json.summary,
+          ([period, [completion, error, backfill]]) => ({
+            period,
+            completion,
+            error,
+            backfill
+          })
+        ),
+        jobs: _.mapValues(json.jobs, v =>
+          _.map(v, ([period, status, backfill]) => ({
+            period,
+            status,
+            backfill
+          }))
+        )
       }
     });
   }
 
-  timeShift(hours: number) {
+  timeShift(nextBack: "next" | "back") {
     const { drillDown, start, end } = this.props;
-    drillDown(
-      moment.utc(start).add(hours, "hours"),
-      moment.utc(end).add(hours, "hours"),
+    const hours = Math.max(
+      6,
+      Math.floor(
+        moment.duration(moment.utc(end).diff(moment.utc(start))).asHours() / 4
+      )
     );
+    drillDown(
+      moment.utc(start).add((nextBack == "next" ? 1 : -1) * hours, "hours"),
+      moment.utc(end).add((nextBack == "next" ? 1 : -1) * hours, "hours")
+    );
+  }
+
+  zoomOut() {
+    const { drillDown, start, end } = this.props;
+    const hours = Math.max(
+      6,
+      Math.floor(
+        moment.duration(moment.utc(end).diff(moment.utc(start))).asHours() / 2
+      )
+    );
+    drillDown(
+      moment.utc(start).add(-hours, "hours"),
+      moment.utc(end).add(hours, "hours")
+    );
+  }
+
+  zoomIn() {
+    const { drillDown, start, end } = this.props;
+    const hours = Math.max(
+      6,
+      Math.floor(
+        moment.duration(moment.utc(end).diff(moment.utc(start))).asHours() / 4
+      )
+    );
+    if (hours > 6)
+      drillDown(
+        moment.utc(start).add(hours, "hours"),
+        moment.utc(end).add(-hours, "hours")
+      );
   }
 
   render() {
@@ -387,11 +461,26 @@ class CalendarFocus extends React.Component {
             {" "}
             UTC
           </span>
-          <span className={classes.timeControl}>
-            <ArrowPrevious onClick={() => this.timeShift(-12)} className="button" />
-            { " 12H " }
-            <ArrowNext onClick={() => this.timeShift(12)} className="button" />
-          </span>
+          <div className={classes.timeControl}>
+            <ArrowPrevious
+              onClick={() => this.timeShift("back")}
+              className="button"
+            />
+            <ZoomIn
+              className="button"
+              style={{ fontSize: "1.5em" }}
+              onClick={() => this.zoomIn()}
+            />
+            <ZoomOut
+              className="button"
+              style={{ fontSize: "1.5em" }}
+              onClick={() => this.zoomOut()}
+            />
+            <ArrowNext
+              onClick={() => this.timeShift("next")}
+              className="button"
+            />
+          </div>
         </h1>
         {data && data.summary.length
           ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
@@ -399,13 +488,18 @@ class CalendarFocus extends React.Component {
               <svg ref={r => (this.summarySvgContainer = r)}>
                 <g id="axisContainer" />
                 <g id="summary">
-                  <text className={classes.jobName} textAnchor="end" x={-(PADDING * 2)} y="14">
+                  <text
+                    className={classes.jobName}
+                    textAnchor="end"
+                    x={-(PADDING * 2)}
+                    y="14"
+                  >
                     {globalLabel}
                   </text>
                 </g>
-              </svg>  
+              </svg>
             </div>
-            <div className={classes.detailsSvg} >
+            <div className={classes.detailsSvg}>
               <svg ref={r => (this.detailsSvgContainer = r)} />
             </div>
             <ReactTooltip
@@ -444,10 +538,15 @@ const styles = {
     fontWeight: "normal"
   },
   timeControl: {
+    fontSize: "0.8em",
     float: "right",
+    textAlign: "right",
+    height: "30px",
+    width: "160px",
+    color: "#607e96",
     "& .button": {
-      fontSize: "0.8em",
-      cursor: "pointer"
+      cursor: "pointer",
+      margin: "0 0.5em"
     }
   },
   chevron: {
