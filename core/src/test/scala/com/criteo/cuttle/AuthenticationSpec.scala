@@ -1,5 +1,7 @@
 package com.criteo.cuttle
 
+import com.criteo.cuttle.authentication._
+import com.criteo.cuttle.authentication.authentication._
 import org.scalatest.FunSuite
 import lol.http._
 
@@ -67,25 +69,59 @@ class AuthenticationSpec extends FunSuite {
     assert(actual.isLeft)
   }
 
-  def assertUnauthorized(authResponse : Either[Response, User]) : Unit  = {
+  test("Authenticator should allow only part of the api to be authenticated") {
+    val publicApi: PartialService = {
+      case GET at "/public" => Ok("public")
+    }
+    val privateAuthenticatedApi: AuthentifiedService = {
+      case GET at "/private/authenticated" =>
+        _ =>
+          Ok("privateauthenticated")
+    }
+
+    val privateNonAuthenticatedApi: AuthentifiedService = {
+      case GET at "/private/nonauthenticated" =>
+        _ =>
+          Ok("privatenonauthenticated")
+    }
+
+    val completeApi = publicApi
+      .orElse(YesAuth(privateAuthenticatedApi))
+      .orElse(NoAuth(privateNonAuthenticatedApi))
+      .orElse(defaultWith(Response(404)))
+
+    assertOk(completeApi, "/public")
+    assertUnAuthorized(completeApi, "/private/nonauthenticated")
+    assertOk(completeApi, "/private/authenticated")
+    assertNotFound(completeApi, "/nonexistingurl")
+  }
+
+  def assertUnauthorized(authResponse: Either[Response, User]): Unit =
     assert(authResponse match {
       case Left(r) => {
         val maybeRealm = r.headers.get(h"WWW-Authenticate")
         r.status == 401 && maybeRealm == Some(s"""Basic Realm="${testRealm}"""")
       }
-      case _        => false
+      case _ => false
     })
-  }
 }
 
-object SuiteUtils {
+object SuiteUtils extends JWT {
 
   val testRealm = "myfakerealm"
+  val testAppSecret = "myappsecret"
 
   /**
     * GET request with no header.
     */
-  def getFakeRequest() = fakeRequest
+  def getFakeRequest(url: String = "") =
+    Request(
+      GET,
+      url,
+      "http",
+      Content.empty,
+      Map.empty[HttpString, HttpString]
+    )
 
   /***
     * Gets a BasicAuth allowing
@@ -93,17 +129,23 @@ object SuiteUtils {
     */
   def getBasicAuth() = basicAuth
 
-  private def isAuthorized(t : (String,String)) : Boolean = {
+  def assertCodeAtUrl(code: Int)(api: Service)(url: String): Unit =
+    assert(api(getFakeRequest("/public")).value.get.get.status == code, url)
+
+  def assertOk: (Service, String) => Unit = assertCodeAtUrl(200)(_)(_)
+  def assertUnAuthorized: (Service, String) => Unit = assertCodeAtUrl(401)(_)(_)
+  def assertNotFound: (Service, String) => Unit = assertCodeAtUrl(404)(_)(_)
+
+  private def isAuthorized(t: (String, String)): Boolean =
     t._1 == "login" && t._2 == "password"
-  }
 
   private val basicAuth = BasicAuth(isAuthorized, testRealm)
+}
 
-  private val fakeRequest = Request(
-    GET,
-    "",
-    "http",
-    Content.empty,
-    Map.empty[HttpString, HttpString]
-  )
+object YesAuth extends Authenticator {
+  override def authenticate(r: Request): Either[Response, User] = Right(User("yesuser"))
+}
+
+object NoAuth extends Authenticator {
+  override def authenticate(r: Request): Either[Response, User] = Left(Response(401))
 }
