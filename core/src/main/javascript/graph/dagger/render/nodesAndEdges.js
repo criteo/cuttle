@@ -312,6 +312,7 @@ export const drawNode = (
     .style("font-size", "14px")
     .text(nameToDisplay);
 
+  /*
   const bulletOffsetComputer = tagBulletVerticalOffset({ height });
   forEach(tags, (name, i) => {
     node
@@ -323,7 +324,7 @@ export const drawNode = (
       .style("fill", allTags[name] || "#AAA")
       .attr("x", 6)
       .attr("y", bulletOffsetComputer(i));
-  });
+  });*/
 
   node.attr(
     "transform",

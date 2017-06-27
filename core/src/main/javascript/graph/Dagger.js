@@ -4,6 +4,7 @@ import injectSheet from "react-jss";
 import React from "react";
 import reduce from "lodash/reduce";
 import map from "lodash/map";
+import constant from "lodash/constant";
 
 import { Graph } from "./dagger/dataAPI/genericGraph";
 import type { Node, Edge } from "./dagger/dataAPI/genericGraph";
@@ -21,13 +22,6 @@ type Props = {
   startNodeId: string,
   onClickNode: string => void
 };
-
-const updateDaggerDimensions = (
-  dagger: any,
-  width: number,
-  height: number,
-  startNodeId: string
-) => dagger.updateDimensions(width, height, startNodeId);
 
 const cleanDOMContainer = domNode => {
   while (domNode.firstChild)
@@ -49,9 +43,7 @@ class DaggerComponent extends React.Component {
     super(props);
   }
 
-  shouldComponentUpdate(nextProps: Props) {
-    return false;
-  }
+  shouldComponentUpdate = constant(false);
 
   componentWillReceiveProps(nextProps: Props) {
     const { nodes, edges, tags, startNodeId, onClickNode } = nextProps;

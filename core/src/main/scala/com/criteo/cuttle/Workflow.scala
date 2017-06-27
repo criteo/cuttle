@@ -42,7 +42,7 @@ sealed trait Workflow[S <: Scheduling] {
 /*
  * A tag is used to annotate a job.
  * */
-case class Tag(name: String, description: String = "", color: String = "")
+case class Tag(name: String, description: String = "")
 
 case class Job[S <: Scheduling](id: String,
                                 scheduling: S,
