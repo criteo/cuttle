@@ -344,8 +344,8 @@ const styles = {
       margin: "0",
       listStyle: "none",
       fontSize: "12px",
-      fontFamily: "Menlo, 'Lucida Console', Monaco, monospace",
-      lineHeight: "1.7em",
+      fontFamily: "Fira Mono",
+      lineHeight: "1.6em",
       whiteSpace: "nowrap"
     },
 
