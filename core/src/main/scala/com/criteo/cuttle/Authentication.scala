@@ -1,8 +1,8 @@
-package com.criteo.cuttle.authentication
+package com.criteo.cuttle
 
 import java.util.Base64
 
-import com.criteo.cuttle.authentication.authentication.AuthenticatedService
+import com.criteo.cuttle.authentication._
 import lol.http._
 
 import scala.concurrent.Future

@@ -29,11 +29,10 @@ package object utils {
     * non-further-chainable Service.
     */
   implicit class PartialServiceConverter(val service: PartialService) extends AnyVal {
-    def orFinally(finalService : Service) : Service = {
+    def orFinally(finalService: Service): Service =
       service.orElse(toPartial(finalService))
-    }
 
-    private def toPartial(service : Service) : PartialService = {
+    private def toPartial(service: Service): PartialService = {
       case e => service(e)
     }
   }

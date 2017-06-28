@@ -1,7 +1,6 @@
 package com.criteo.cuttle
 
 import com.criteo.cuttle.authentication._
-import com.criteo.cuttle.authentication.authentication.AuthenticatedService
 import org.scalatest.FunSuite
 import lol.http._
 
@@ -97,33 +96,17 @@ class AuthenticationSpec extends FunSuite {
     assertNotFound(completeApi, "/nonexistingurl")
   }
 
-  val defaultWith404 : PartialService = {
+  val defaultWith404: PartialService = {
     case _ => Response(404)
   }
 
-  def assertCodeAtUrl(code: Int)(api: Service)(url: String): Unit =
-    assert(api(getFakeRequest(url)).value.get.get.status == code, url)
-
-  def assertOk: (Service, String) => Unit = assertCodeAtUrl(200)(_)(_)
-
-  def assertUnAuthorized: (Service, String) => Unit = assertCodeAtUrl(401)(_)(_)
-
-  def assertNotFound: (Service, String) => Unit = assertCodeAtUrl(404)(_)(_)
-
-  def assertHttpBasicUnAuthorized(authResponse: Either[Response, User]): Unit =
-    assert(authResponse match {
-      case Left(r) => {
-        val maybeRealm = r.headers.get(h"WWW-Authenticate")
-        r.status == 401 && maybeRealm == Some(s"""Basic Realm="${testRealm}"""")
-      }
-      case _ => false
-    })
 }
 
 object SuiteUtils {
 
   val testRealm = "myfakerealm"
   val testAppSecret = "myappsecret"
+
   /**
     * GET request with no header.
     */
@@ -142,9 +125,26 @@ object SuiteUtils {
     */
   def getBasicAuth() = basicAuth
 
-  private def isAuthorized(t: (String, String)): Boolean = {
+  def assertCodeAtUrl(code: Int)(api: Service)(url: String): Unit =
+    assert(api(getFakeRequest(url)).value.get.get.status == code, url)
+
+  def assertOk: (Service, String) => Unit = assertCodeAtUrl(200)(_)(_)
+
+  def assertUnAuthorized: (Service, String) => Unit = assertCodeAtUrl(401)(_)(_)
+
+  def assertNotFound: (Service, String) => Unit = assertCodeAtUrl(404)(_)(_)
+
+  def assertHttpBasicUnAuthorized(authResponse: Either[Response, User]): Unit =
+    assert(authResponse match {
+      case Left(r) => {
+        val maybeRealm = r.headers.get(h"WWW-Authenticate")
+        r.status == 401 && maybeRealm == Some(s"""Basic Realm="${testRealm}"""")
+      }
+      case _ => false
+    })
+
+  private def isAuthorized(t: (String, String)): Boolean =
     t._1 == "login" && t._2 == "password"
-  }
 
   private val basicAuth = BasicAuth(isAuthorized, testRealm)
 }
