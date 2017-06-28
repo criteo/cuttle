@@ -150,11 +150,12 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
         _backfills += newBackfill
         _state() = _state() ++ jobs.map((job: TimeSeriesJob) =>
           job -> (_state().apply(job) - Interval.closedOpen(start, end)))
-        Database.createBackfill(newBackfill).transact(xa).unsafePerformIO
         Right(id)
       }
       (result, newBackfill)
     }
+    if (result.isRight)
+      Database.createBackfill(newBackfill).transact(xa).unsafePerformIO
     result
   }
 
