@@ -83,16 +83,20 @@ class BackfillCreate extends React.Component<any, Props, void> {
       `/api/timeseries/backfill?name=${name}&jobs=${jobs.join(",")}&priority=${priority}&` +
         `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
       { method: "POST" }
-    ).then(
-      (response: Response) => {
-        if (!response.ok)
-          throw new SubmissionError({ _error: response.statusText });
+    )
+      .then((response: Response) => {
+        if (!response.ok) return response.text();
         this.props.back();
-      },
-      error => {
-        throw new SubmissionError({ _error: error.message });
-      }
-    );
+        return "";
+      })
+      .then((text: string) => {
+        if (text !== undefined && text.length > 0)
+          throw new SubmissionError({ _error: text });
+      })
+      .catch((error: SubmissionError | any) => {
+        if (error instanceof SubmissionError) throw error;
+        throw new SubmissionError({ _error: error });
+      });
   }
 
   render() {
