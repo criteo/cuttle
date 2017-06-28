@@ -21,6 +21,7 @@ import doobie.imports._
 import java.time._
 import java.time.temporal.ChronoUnit._
 import java.time.temporal._
+import java.util.UUID
 
 import continuum.{Interval, IntervalSet}
 import continuum.bound._
@@ -123,8 +124,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     (_state(), _running(), _backfills.snapshot)
   }
 
-  private[timeseries] def backfillJob(id: String,
-                                      name: String,
+  private[timeseries] def backfillJob(name: String,
                                       description: String,
                                       jobs: Set[TimeSeriesJob],
                                       start: Instant,
@@ -132,12 +132,13 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
                                       priority: Int,
                                       xa: XA) = {
     val (result, newBackfill) = atomic { implicit txn =>
+      val id = UUID.randomUUID().toString
       val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING")
       val newBackfillDomain = backfillDomain(newBackfill)
       val result = if (jobs.exists(job => newBackfill.start.isBefore(job.scheduling.start))) {
-        Left("cannot backfill before a job's start date")
+        Left("Cannot backfill before a job's start date")
       } else if (_backfills.exists(backfill => and(backfillDomain(backfill), newBackfillDomain) != zero[StateD])) {
-        Left("intersects with another backfill")
+        Left("Intersects with another backfill")
       } else if (newBackfillDomain.defined.exists {
                    case (job, is) =>
                      is.exists { interval =>
@@ -145,7 +146,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
                          splitInterval(job, interval, true).map(_.toInterval).toSeq: _*) != IntervalSet.empty[Instant]
                      }
                  }) {
-        Left("cannot backfill partial periods")
+        Left("Cannot backfill partial periods")
       } else {
         _backfills += newBackfill
         _state() = _state() ++ jobs.map((job: TimeSeriesJob) =>

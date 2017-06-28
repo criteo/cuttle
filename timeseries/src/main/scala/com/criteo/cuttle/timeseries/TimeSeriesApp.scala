@@ -277,11 +277,9 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       val jobs = this.state._1.keySet.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
       val startDate = Instant.parse(start)
       val endDate = Instant.parse(end)
-      val backfillId = UUID.randomUUID().toString
-      backfillJob(backfillId, name, description, jobs, startDate, endDate, priority.toInt, xa)
-      Ok(
-        Json.obj(
-          "id" -> backfillId.asJson
-        ))
+      backfillJob(name, description, jobs, startDate, endDate, priority.toInt, xa) match {
+        case Right(id)   => Ok(Json.obj("id" -> id.asJson))
+        case Left(error) => BadRequest(error)
+      }
   }
 }
