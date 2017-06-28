@@ -153,11 +153,11 @@ private[timeseries] object Database {
                   ${backfill.end},
                   ${Instant.now()},
                   ${backfill.status}
-                 )"""
-      .update.run
+                 )""".update.run
 
-  def setBackfillStatus(ids: Set[String], status: String) = (
-    sql"UPDATE timeseries_backfills SET status = $status WHERE " ++
-      Fragments.in(fr"id", NonEmptyList.fromListUnsafe(ids.toList))
+  def setBackfillStatus(ids: Set[String], status: String) =
+    (
+      sql"UPDATE timeseries_backfills SET status = $status WHERE " ++
+        Fragments.in(fr"id", NonEmptyList.fromListUnsafe(ids.toList))
     ).update.run
 }

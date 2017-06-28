@@ -34,10 +34,11 @@ object TimeSeriesGrid {
   implicit val gridEncoder = new Encoder[TimeSeriesGrid] {
     override def apply(grid: TimeSeriesGrid) = grid match {
       case Hourly => Json.obj("period" -> "hourly".asJson)
-      case Daily(tz: ZoneId) => Json.obj(
-        "period" -> "daily".asJson,
-        "zoneId" -> tz.getId().asJson
-      )
+      case Daily(tz: ZoneId) =>
+        Json.obj(
+          "period" -> "daily".asJson,
+          "zoneId" -> tz.getId().asJson
+        )
       case Continuous => Json.obj("period" -> "continuuous".asJson)
     }
   }
@@ -45,8 +46,14 @@ object TimeSeriesGrid {
 
 import TimeSeriesGrid._
 
-case class Backfill(id: String, start: Instant, end: Instant, jobs: Set[Job[TimeSeries]], priority: Int,
-                    name: String, description: String, status: String)
+case class Backfill(id: String,
+                    start: Instant,
+                    end: Instant,
+                    jobs: Set[Job[TimeSeries]],
+                    priority: Int,
+                    name: String,
+                    description: String,
+                    status: String)
 
 private[timeseries] object Backfill {
   implicit val encoder: Encoder[Backfill] = deriveEncoder
@@ -193,8 +200,8 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       val now = Instant.now
       val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
         addRuns(completed)
-        val completedBackfills = _backfills.filter(bf =>
-          without(backfillDomain(bf), StateD(_state())) =!= zero[StateD])
+        val completedBackfills =
+          _backfills.filter(bf => without(backfillDomain(bf), StateD(_state())) =!= zero[StateD])
         _backfills --= completedBackfills
         val _toRun = next(
           workflow,

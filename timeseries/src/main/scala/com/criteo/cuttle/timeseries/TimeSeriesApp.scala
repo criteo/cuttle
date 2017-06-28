@@ -252,22 +252,25 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         Ok(getCalendar())
 
     case GET at url"/api/timeseries/backfills" =>
-      Ok(Database.queryBackfills.list.map(_.map {
-        case
-          (id, name, description, jobs, priority, start, end, created_at, status) =>
-          Json.obj(
-            "id" -> id.asJson,
-            "name" -> name.asJson,
-            "description" -> description.asJson,
-            "jobs" -> jobs.asJson,
-            "priority" -> priority.asJson,
-            "start" -> start.asJson,
-            "end" -> end.asJson,
-            "created_at" -> created_at.asJson,
-            "status" -> status.asJson
-          )
-      }).transact(xa).unsafePerformIO
-        .asJson)
+      Ok(
+        Database.queryBackfills.list
+          .map(_.map {
+            case (id, name, description, jobs, priority, start, end, created_at, status) =>
+              Json.obj(
+                "id" -> id.asJson,
+                "name" -> name.asJson,
+                "description" -> description.asJson,
+                "jobs" -> jobs.asJson,
+                "priority" -> priority.asJson,
+                "start" -> start.asJson,
+                "end" -> end.asJson,
+                "created_at" -> created_at.asJson,
+                "status" -> status.asJson
+              )
+          })
+          .transact(xa)
+          .unsafePerformIO
+          .asJson)
 
     case POST at url"/api/timeseries/backfill?name=$name&description=$description&jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
       val jobIds = jobsString.split(",")
