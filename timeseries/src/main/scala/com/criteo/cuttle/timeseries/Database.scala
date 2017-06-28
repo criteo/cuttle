@@ -6,7 +6,7 @@ import Internal._
 import java.time._
 
 import cats.Applicative
-import cats.data.OptionT
+import cats.data.{NonEmptyList, OptionT}
 import cats.implicits._
 
 import io.circe._
@@ -39,6 +39,22 @@ private[timeseries] object Database {
       ) ENGINE = INNODB;
 
       CREATE SPATIAL INDEX timeseries_contexts_by_range ON timeseries_contexts (ctx_range);
+
+      CREATE TABLE timeseries_backfills (
+        id          CHAR(36) NOT NULL,
+        name        VARCHAR(200) NOT NULL,
+        description TEXT,
+        jobs        TEXT NOT NULL,
+        priority    SMALLINT NOT NULL,
+        start       DATETIME NOT NULL,
+        end         DATETIME NOT NULL,
+        created_at  DATETIME NOT NULL,
+        status      VARCHAR(100) NOT NULL,
+        PRIMARY KEY (id)
+      ) ENGINE = INNODB;
+
+      CREATE INDEX timeseries_backfills_by_date ON timeseries_backfills (created_at);
+      CREATE INDEX timeseries_backfills_by_status ON timeseries_backfills (status);
     """.update
   )
 
@@ -90,7 +106,7 @@ private[timeseries] object Database {
       )
     """.update.run *> Applicative[ConnectionIO].pure(context.toString)
 
-  def deserialize(implicit jobs: Set[Job[TimeSeries]]): ConnectionIO[Option[(State, Set[Backfill])]] = {
+  def deserializeState(implicit jobs: Set[Job[TimeSeries]]): ConnectionIO[Option[State]] = {
     implicit def intervalSetDecoder[A: Ordering](implicit decoder: Decoder[A]): Decoder[IntervalSet[A]] = {
       implicit val intervalDecoder: Decoder[Interval[A]] =
         Decoder.decodeTuple2[A, A].map(x => Interval.closedOpen(x._1, x._2))
@@ -102,10 +118,10 @@ private[timeseries] object Database {
       sql"SELECT state FROM timeseries_state ORDER BY date DESC LIMIT 1"
         .query[Json]
         .option
-    }.map(_.as[(State, Set[Backfill])].right.get).value
+    }.map(_.as[State].right.get).value
   }
 
-  def serialize(state: State, backfills: Set[Backfill]) = {
+  def serializeState(state: State): ConnectionIO[Int] = {
     val now = Instant.now()
     implicit def intervalSetEncoder[A](implicit encoder: Encoder[A]): Encoder[IntervalSet[A]] = {
       implicit val intervalEncoder: Encoder[Interval[A]] =
@@ -118,7 +134,30 @@ private[timeseries] object Database {
     }
     implicit def jobKeyEncoder[A <: Scheduling]: KeyEncoder[Job[A]] =
       KeyEncoder.encodeKeyString.contramap(_.id)
-    val stateJson = (state, backfills).asJson
-    sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
+    sql"INSERT INTO timeseries_state (state, date) VALUES (${state.asJson}, $now)".update.run
   }
+
+  def queryBackfills =
+    sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status
+          FROM timeseries_backfills
+       """.query[(String, String, String, String, Int, Instant, Instant, Instant, String)]
+
+  def createBackfill(backfill: Backfill) =
+    sql"""INSERT INTO timeseries_backfills (id, name, description, jobs, priority, start, end, created_at, status)
+          VALUES (${backfill.id},
+                  ${backfill.name},
+                  ${backfill.description},
+                  ${backfill.jobs.map(_.id).mkString(",")},
+                  ${backfill.priority},
+                  ${backfill.start},
+                  ${backfill.end},
+                  ${Instant.now()},
+                  ${backfill.status}
+                 )""".update.run
+
+  def setBackfillStatus(ids: Set[String], status: String) =
+    (
+      sql"UPDATE timeseries_backfills SET status = $status WHERE " ++
+        Fragments.in(fr"id", NonEmptyList.fromListUnsafe(ids.toList))
+    ).update.run
 }

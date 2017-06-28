@@ -34,10 +34,11 @@ object TimeSeriesGrid {
   implicit val gridEncoder = new Encoder[TimeSeriesGrid] {
     override def apply(grid: TimeSeriesGrid) = grid match {
       case Hourly => Json.obj("period" -> "hourly".asJson)
-      case Daily(tz: ZoneId) => Json.obj(
-        "period" -> "daily".asJson,
-        "zoneId" -> tz.getId().asJson
-      )
+      case Daily(tz: ZoneId) =>
+        Json.obj(
+          "period" -> "daily".asJson,
+          "zoneId" -> tz.getId().asJson
+        )
       case Continuous => Json.obj("period" -> "continuuous".asJson)
     }
   }
@@ -45,7 +46,15 @@ object TimeSeriesGrid {
 
 import TimeSeriesGrid._
 
-case class Backfill(id: String, start: Instant, end: Instant, jobs: Set[Job[TimeSeries]], priority: Int)
+case class Backfill(id: String,
+                    start: Instant,
+                    end: Instant,
+                    jobs: Set[Job[TimeSeries]],
+                    priority: Int,
+                    name: String,
+                    description: String,
+                    status: String)
+
 private[timeseries] object Backfill {
   implicit val encoder: Encoder[Backfill] = deriveEncoder
   implicit def decoder(implicit jobs: Set[Job[TimeSeries]]) =
@@ -62,10 +71,10 @@ case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Back
   def toInterval: Interval[Instant] = Interval.closedOpen(start, end)
 
   def compareTo(other: SchedulingContext) = other match {
-    case TimeSeriesContext(otherStart, _, otherBackfil) =>
+    case TimeSeriesContext(otherStart, _, otherBackfill) =>
       val priority: (Option[Backfill] => Int) = _.map(_.priority).getOrElse(0)
       val thisBackfillPriority = priority(backfill)
-      val otherBackfillPriority = priority(otherBackfil)
+      val otherBackfillPriority = priority(otherBackfill)
       if (thisBackfillPriority == otherBackfillPriority) {
         start.compareTo(otherStart)
       } else {
@@ -115,14 +124,17 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
   }
 
   private[timeseries] def backfillJob(id: String,
+                                      name: String,
+                                      description: String,
                                       jobs: Set[TimeSeriesJob],
                                       start: Instant,
                                       end: Instant,
-                                      priority: Int) =
-    atomic { implicit txn =>
-      val newBackfill = Backfill(id, start, end, jobs, priority)
+                                      priority: Int,
+                                      xa: XA) = {
+    val (result, newBackfill) = atomic { implicit txn =>
+      val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING")
       val newBackfillDomain = backfillDomain(newBackfill)
-      if (jobs.exists(job => newBackfill.start.isBefore(job.scheduling.start))) {
+      val result = if (jobs.exists(job => newBackfill.start.isBefore(job.scheduling.start))) {
         Left("cannot backfill before a job's start date")
       } else if (_backfills.exists(backfill => and(backfillDomain(backfill), newBackfillDomain) != zero[StateD])) {
         Left("intersects with another backfill")
@@ -140,7 +152,12 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
           job -> (_state().apply(job) - Interval.closedOpen(start, end)))
         Right(id)
       }
+      (result, newBackfill)
     }
+    if (result.isRight)
+      Database.createBackfill(newBackfill).transact(xa).unsafePerformIO
+    result
+  }
 
   private def backfillDomain(backfill: Backfill) =
     StateD(backfill.jobs.map(job => job -> IntervalSet(Interval.closedOpen(backfill.start, backfill.end))).toMap)
@@ -149,16 +166,17 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     Database.doSchemaUpdates.transact(xa).unsafePerformIO
 
     Database
-      .deserialize(workflow.vertices)
+      .deserializeState(workflow.vertices)
       .transact(xa)
       .unsafePerformIO
       .foreach {
-        case (state, backfillState) =>
+        case (state) =>
           atomic { implicit txn =>
             _state() = _state() ++ state
-            _backfills ++= backfillState
           }
       }
+
+    //TODO Load uncomplete backfills > _backfills ++= backfillState
 
     atomic { implicit txn =>
       workflow.vertices.foreach { job =>
@@ -181,11 +199,11 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     def go(running: Set[Run]): Unit = {
       val (completed, stillRunning) = running.partition(_._3.isCompleted)
       val now = Instant.now
-      val (stateSnapshot, backfillSnapshot, toRun) = atomic { implicit txn =>
+      val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
         addRuns(completed)
-        _backfills.retain { bf =>
-          without(backfillDomain(bf), StateD(_state())) =!= zero[StateD]
-        }
+        val completedBackfills =
+          _backfills.filter(bf => without(backfillDomain(bf), StateD(_state())) =!= zero[StateD])
+        _backfills --= completedBackfills
         val _toRun = next(
           workflow,
           _state(),
@@ -199,11 +217,14 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
           .fold(zero[StateD])(or)
 
         _running() = or(StateD(_running()), newRunning).defined
-        (_state(), _backfills.snapshot, _toRun)
+        (_state(), completedBackfills.snapshot, _toRun)
       }
 
       if (completed.nonEmpty || toRun.nonEmpty)
-        Database.serialize(stateSnapshot, backfillSnapshot).transact(xa).unsafePerformIO
+        Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO
+
+      if (completedBackfills.nonEmpty)
+        Database.setBackfillStatus(completedBackfills.map(_.id), "COMPLETE").transact(xa).unsafePerformIO
 
       val newRunning = stillRunning ++ executor.runAll(toRun).map {
         case (execution, result) =>
