@@ -24,6 +24,7 @@ case class TestScheduling(config: Unit = ()) extends Scheduling {
   type Context = TestContext
   type DependencyDescriptor = TestDependencyDescriptor
   type Config = Unit
+  def toJson = Json.Null
 }
 
 class LangoustinePPSpec extends FunSuite {

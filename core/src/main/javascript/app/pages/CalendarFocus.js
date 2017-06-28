@@ -8,9 +8,13 @@ import injectSheet from "react-jss";
 import moment from "moment";
 import _ from "lodash";
 import * as d3 from "d3";
+
 import ChevronIcon from "react-icons/lib/md/chevron-right";
 import ToIcon from "react-icons/lib/md/arrow-forward";
 import ReactTooltip from "react-tooltip";
+
+import ArrowNext from "react-icons/lib/md/arrow-forward";
+import ArrowPrevious from "react-icons/lib/md/arrow-back";
 
 import Link from "../components/Link";
 import Spinner from "../components/Spinner";
@@ -32,8 +36,10 @@ type Period = {
 };
 
 type Stats = {
-  summary: Array<[Period, [number, boolean, boolean]]>,
-  jobs: { [job: string]: Array<[Period, "done" | "running" | "todo", boolean]> }
+  summary: Array<{ period: Period, completion: number, error: boolean, backfill: boolean }>,
+  jobs: {
+    [job: string]: { period: Period, status: "done" | "running" | "todo", backfill: boolean }
+  }
 };
 
 type State = {
@@ -42,16 +48,171 @@ type State = {
   eventSource: ?any
 };
 
+// Static/format helpers
+let globalLabel = "Workflow";
+
+let LEFT_MARGIN = 30;
+let RIGHT_MARGIN = 50;
+let ROW_HEIGHT = 20;
+let PADDING = 5;
+let MARGIN = 1;
+
 let formatDate = (date: string) =>
   moment(date).utc().format("YYYY-MM-DD HH:mm");
+
+let colorScale = d3.interpolateRgb("#ecf1f5", "#62cc64");
+
+let tickFormat = date =>
+  (d3.utcHour(date) < date
+    ? d3.utcFormat("")
+    : d3.utcDay(date) < date
+    ? d3.utcFormat("%H:00")
+    : d3.utcFormat("%Y-%m-%d"))(date);
+
+let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
+  let g = svg.append("g").attr("id", "widthHack");
+  _.forEach(jobNames, job => {
+    g.append("text").attr("class", jobNameClass).text(job);
+  });
+  let labelWidth = g.node().getBBox().width + LEFT_MARGIN;
+  svg.select("g#widthHack").remove();
+  return labelWidth;
+}
+
+// Drawing methods // Summary periods
+const summaryPeriodHelper = (x1, x2) => ({
+  tip: ({ period, completion }) =>
+    `<div>${Math.ceil(completion * 100)}% complete – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+  translate: ({ period }) => `translate(${x1(period) + MARGIN + 2}, 0)`,
+  width: ({ period }) => x2(period) - x1(period) - MARGIN * 2 - 4,
+  fill: ({ error, completion }) => error ? "#e91e63" : completion == 1 ? "#62cc64" : "#ecf1f5",
+  stroke: ({ error, completion }) => error ? "#e91e63" : colorScale(completion)
+});
+
+const summaryEnterBackfill = (enterBackfill, width) => {
+  enterBackfill
+    .append("rect")
+    .attr("class", "backfill")
+    .attr("width", width)
+    .attr("height", 3)
+    .attr("fill", "#bb65ca")
+    .attr("x", -2)
+    .attr("y", ROW_HEIGHT);
+};
+
+const drawSummary = (enterSelection, periodClass, x1, x2) => {
+  const helper = summaryPeriodHelper(x1, x2);
+  const newPeriodSlotNode = enterSelection
+    .append("g")
+    .attr("class", classNames("periodSlot", periodClass))
+    .attr("data-tip", helper.tip)
+    .attr("transform", helper.translate);
+  newPeriodSlotNode
+    .append("rect")
+    .attr("class", "placeholder")
+    .attr("y", -(ROW_HEIGHT / 2))
+    .attr("x", -4)
+    .attr("height", 1.5 * ROW_HEIGHT)
+    .attr("fill", "transparent")
+    .attr("width", helper.width);
+  newPeriodSlotNode
+    .append("rect")
+    .attr("class", "border")
+    .attr("height", ROW_HEIGHT - 4)
+    .attr("width", helper.width)
+    .attr("stroke-width", "4")
+    .attr("stroke", helper.stroke)
+    .attr("fill", helper.fill)
+  newPeriodSlotNode
+    .each(({ backfill, period }, i, nodes) => {
+      const backfillSelection = d3.select(nodes[i])
+        .selectAll("rect.backfill")
+        .data(backfill ? [period] : [], k => k.start);
+      backfillSelection
+        .enter()
+        .call(summaryEnterBackfill, helper.width({ period }) + 4);
+    });
+
+  return newPeriodSlotNode;
+};
+
+// drawing methods // job details
+const jobPeriodsHelper = (x1, x2, showExecutions) => ({
+  tip: ({ period, status, jobName }) => `<div>${jobName} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+  translate: ({ period }) => `translate(${x1(period) + MARGIN}, 0)`,
+  width: ({ period }) => x2(period) - x1(period),
+  fill: ({ status }) => status == "failed"
+    ? "#e91e63"
+    : status == "successful"
+    ? "#62cc64"
+    : status == "waiting"
+    ? "#ffbc5a"
+    : status == "running" ? "#49d3e4" : "#ecf1f5",
+  click: ({ period, jobName }) =>
+    showExecutions(
+      jobName,
+      moment.utc(period.start),
+      moment.utc(period.end)
+    )
+});
+
+const enterBackfill = (jobPeriod, width) => {
+  jobPeriod
+    .append("rect")
+    .attr("class", "backfill")
+    .attr("width", width)
+    .attr("height", 3)
+    .attr("fill", "#bb65ca")
+    .attr("x", MARGIN)
+    .attr("y", ROW_HEIGHT - 3);
+};
+
+const drawJobPeriods = (enterPeriodNode, periodClass, x1, x2, showExecutions) => {
+  const helper = jobPeriodsHelper(x1, x2, showExecutions);
+  let newPeriodSlot = enterPeriodNode
+    .append("g")
+    .attr("class", classNames("periodSlot", periodClass))
+    .attr("data-tip", helper.tip)
+    .attr("transform", helper.translate);
+  newPeriodSlot.on("click", helper.click);
+  newPeriodSlot
+    .append("rect")
+    .attr("class", "placeholder")
+    .attr("height", ROW_HEIGHT + 2 * MARGIN)
+    .attr("fill", "transparent")
+    .attr("width", helper.width);
+  newPeriodSlot
+    .each(({ period, backfill }, i, nodes) => {
+      const jobPeriod = d3.select(nodes[i]);
+      const width = helper.width({ period }) - 2 * MARGIN;
+      jobPeriod
+        .append("rect")
+        .attr("class", "colored")
+        .attr("y", MARGIN)
+        .attr("x", MARGIN)
+        .attr("height", ROW_HEIGHT - (backfill ? 6 : 0))
+        .attr("width", width)
+        .attr("fill", helper.fill);
+      jobPeriod
+        .selectAll("rect.backfill")
+        .data(backfill ? [period] : [], k => k.start)
+        .enter()
+        .call(enterBackfill, width);
+    });
+};
+
 
 class CalendarFocus extends React.Component {
   props: Props;
   state: State;
+
   vizContainer: any;
+  summarySvgContainer: any;
+  detailsSvgContainer: any;
 
   constructor(props: Props) {
     super(props);
+    
     this.state = {
       data: null,
       query: null,
@@ -61,50 +222,35 @@ class CalendarFocus extends React.Component {
 
   listenForUpdates(props: Props) {
     let { start, end } = props;
-    let jobsFilter = props.selectedJobs.length
+    let jobsFilter = props.selectedJobs.length > 0
       ? `&jobs=${props.selectedJobs.join(",")}`
       : "";
     let query = `/api/timeseries/calendar/focus?start=${moment(start).toISOString()}&end=${moment(end).toISOString()}${jobsFilter}`;
-    if (this.state.query != query) {
-      this.state.eventSource && this.state.eventSource.close();
+    let { query: currentQuery, eventSource: currentEventSource } = this.state;
+    if (currentQuery != query) {
+      currentEventSource && currentEventSource.close();
       let eventSource = listenEvents(query, this.updateData.bind(this));
       this.setState({
-        ...this.state,
         data: null,
         eventSource
       });
     }
   }
 
-  drawViz() {
-    let { data } = this.state;
-    let { classes, start, end } = this.props;
+  drawViz(props: Props, state: State) {
+    let { data } = state;
+    let { classes, start, end } = props;
     if (data && data.summary.length) {
       let { summary, jobs } = data;
 
       let width = this.vizContainer.clientWidth;
       let summarySvg = d3
-        .select(this.vizContainer)
-        .select(`div.${classes.summarySvg}`)
-        .html(null)
-        .append("svg")
+        .select(this.summarySvgContainer)
         .attr("width", width)
         .attr("height", 80);
-
-      let LEFT_MARGIN = 30;
-      let RIGHT_MARGIN = 50;
-      let ROW_HEIGHT = 20;
-      let PADDING = 5;
-      let MARGIN = 1;
-
+      
       // compute label sizes
-      let globalLabel = "Workflow";
-      let g = summarySvg.append("g");
-      _.entries(jobs).concat([[globalLabel, null]]).forEach(([job]) => {
-        g.append("text").attr("class", classes.jobName).text(job);
-      });
-      let labelWidth = g.node().getBBox().width + LEFT_MARGIN;
-      summarySvg.html(null);
+      let labelWidth = getMaxLabelWidth([..._.keys(jobs), globalLabel], summarySvg, classes.jobName);
 
       // Time axis
       let axisWidth = width - labelWidth - RIGHT_MARGIN;
@@ -112,177 +258,88 @@ class CalendarFocus extends React.Component {
         .scaleUtc()
         .domain([moment(start).toDate(), moment(end).toDate()])
         .range([0, axisWidth]);
-      let colorScale = d3.interpolateRgb("#ecf1f5", "#62cc64");
-      let tickFormat = date => {
-        return (d3.utcHour(date) < date
-          ? d3.utcFormat("")
-          : d3.utcDay(date) < date
-              ? d3.utcFormat("%H:00")
-              : d3.utcFormat("%Y-%m-%d"))(date);
-      };
+
       let timeAxis = d3.axisTop(timeScale).tickFormat(tickFormat).ticks(5);
       summarySvg
-        .append("g")
+        .select("g#axisContainer")
+        .html(null)
         .attr("transform", `translate(${labelWidth}, ${ROW_HEIGHT + PADDING})`)
         .attr("class", classes.axis)
         .call(timeAxis);
-
+      
+      let x1 = period => timeScale(moment(period.start)),
+        x2 = period => timeScale(moment(period.end));
+      
       // Summary
-      let drawSummary = root => {
-        summary.forEach(([period, [completion, error, isBackfill]]) => {
-          let x1 = timeScale(moment(period.start)),
-            x2 = timeScale(moment(period.end));
-          let g = root
-            .append("g")
-            .attr(
-              "data-tip",
-              `
-              <div>
-                ${Math.ceil(completion * 100)}% complete –
-                ${formatDate(period.start)} to ${formatDate(period.end)} UTC
-              </div>
-            `
-            )
-            .attr("class", classes.aggregatedPeriod)
-            .attr("transform", `translate(${x1 + MARGIN + 2}, 0)`);
-          g
-            .append("rect")
-            .attr("y", -(ROW_HEIGHT / 2))
-            .attr("x", -4)
-            .attr("width", x2 - x1 - MARGIN * 2 + 4)
-            .attr("height", 1.5 * ROW_HEIGHT)
-            .attr("fill", "transparent");
-          g
-            .append("rect")
-            .attr("width", x2 - x1 - MARGIN * 2 - 4)
-            .attr("height", ROW_HEIGHT - 4)
-            .attr(
-              "fill",
-              error ? "#e91e63" : completion == 1 ? "#62cc64" : "#ecf1f5"
-            )
-            .attr("stroke-width", "4")
-            .attr("stroke", error ? "#e91e63" : colorScale(completion));
-          if (isBackfill) {
-            g
-              .append("rect")
-              .attr("width", x2 - x1 - MARGIN * 2)
-              .attr("height", 3)
-              .attr("fill", "#bb65ca")
-              .attr("x", -2)
-              .attr("y", ROW_HEIGHT);
-          }
-        });
-      };
-      let summaryGroup = summarySvg
-        .append("g")
-        .attr("id", "summary")
+      const summaryGroup = summarySvg
+        .select("g#summary")
+        .html(null)
         .attr("transform", `translate(${labelWidth}, 35)`);
+
       summaryGroup
-        .append("text")
-        .attr("class", classes.jobName)
-        .attr("text-anchor", "end")
-        .attr("x", -(PADDING * 2))
-        .attr("y", 14)
-        .attr("height", 0)
-        .text(globalLabel);
-      summaryGroup.call(drawSummary);
+        .selectAll("g.periodSlot")
+        .data(summary, k => k.period.start)
+        .enter()
+        .call(
+          drawSummary,
+          classes.aggregatedPeriod,
+          x1,
+          x2
+        );
 
       // Breakdown
       let detailsSvg = d3
-        .select(this.vizContainer)
-        .select(`.${classes.detailsSvg}`)
+        .select(this.detailsSvgContainer)
         .html(null)
-        .append("svg")
         .attr("width", width)
-        .attr("height", _.entries(jobs).length * (ROW_HEIGHT + 2 * MARGIN));
-      let drawJob = (root, job, jobStats) => {
-        jobStats.forEach(([period, status, isBackfill]) => {
-          let x1 = timeScale(moment(period.start)),
-            x2 = timeScale(moment(period.end));
-          let g = root
-            .append("g")
-            .attr(
-              "data-tip",
-              `
-              <div>
-                ${job} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"}
-                – ${formatDate(period.start)} to ${formatDate(period.end)} UTC
-              </div>
-            `
-            )
-            .attr("class", classes.period)
-            .attr("transform", `translate(${x1 + MARGIN}, 0)`)
-            .on("click", () =>
-              this.props.showExecutions(
-                job,
-                moment.utc(period.start),
-                moment.utc(period.end)
-              )
-            );
-          g
-            .append("rect")
-            .attr("width", x2 - x1)
-            .attr("height", ROW_HEIGHT + 2 * MARGIN)
-            .attr("fill", "transparent");
-          g
-            .append("rect")
-            .attr("width", x2 - x1 - 2 * MARGIN)
-            .attr("height", ROW_HEIGHT)
-            .attr(
-              "fill",
-              status == "failed"
-                ? "#e91e63"
-                : status == "successful"
-                    ? "#62cc64"
-                    : status == "waiting"
-                        ? "#ffbc5a"
-                        : status == "running" ? "#49d3e4" : "#ecf1f5"
-            );
-          if (isBackfill) {
-            g
-              .append("rect")
-              .attr("width", x2 - x1 - 2 * MARGIN)
-              .attr("height", 3)
-              .attr("fill", "#bb65ca")
-              .attr("y", ROW_HEIGHT - 3);
-            g
-              .append("rect")
-              .attr("fill", "white")
-              .attr("width", x2 - x1 - 2 * MARGIN)
-              .attr("y", ROW_HEIGHT - 4)
-              .attr("height", 1);
-          }
-        });
-      };
-      let drawJobs = root => {
-        _.sortBy(_.entries(jobs), e => e[0]).forEach(([job, data], i) => {
-          let g = root
-            .append("g")
-            .attr(
-              "transform",
+        .attr("height", _.keys(jobs).length * (ROW_HEIGHT + 2 * MARGIN));
+      
+      // draw a timeline for each job selected
+      let drawJobs = enterSelection => {
+        let newJobTimeline = enterSelection
+          .append("g")
+          .attr("class", "jobTimeline")
+          .attr(
+            "transform", (d, i) =>
               `translate(${labelWidth}, ${i * (ROW_HEIGHT + 2 * MARGIN)})`
-            );
-          g
-            .append("text")
-            .attr("class", classes.jobName)
-            .attr("text-anchor", "end")
-            .attr("x", -(2 * PADDING))
-            .attr("y", 14)
-            .text(job);
-          g.call(drawJob, job, data);
-        });
+          );
+        newJobTimeline
+          .append("text")
+          .attr("class", classes.jobName)
+          .attr("text-anchor", "end")
+          .attr("x", -(2 * PADDING))
+          .attr("y", 14)
+          .text(d => d);
+
+        newJobTimeline
+          .selectAll("g.periodSlot")
+          .data(jobName => _.map(jobs[jobName], p => ({...p, jobName})), k => k.period.start)
+          .enter()
+          .call(drawJobPeriods,
+            classes.period,
+            x1,
+            x2,
+            this.props.showExecutions
+          );
       };
-      detailsSvg.append("g").attr("id", "detail").call(drawJobs);
+
+      const allJobsData = _.sortBy(_.keys(jobs));
+      detailsSvg
+        .selectAll("g.jobTimeline")
+        .data(allJobsData, d => d)
+        .enter()
+        .call(drawJobs);
+      
     }
     ReactTooltip.rebuild();
   }
-
+  
   componentDidMount() {
     this.listenForUpdates(this.props);
   }
 
   componentDidUpdate() {
-    this.drawViz();
+    this.drawViz(this.props, this.state);
   }
 
   componentWillReceiveProps(nextProps: Props) {
@@ -290,15 +347,26 @@ class CalendarFocus extends React.Component {
   }
 
   componentWillUnmount() {
-    let { eventSource } = this.state;
+    const { eventSource } = this.state;
     eventSource && eventSource.close();
   }
 
-  updateData(json: Stats) {
+  updateData(json) {
     this.setState({
-      ...this.state,
-      data: json
+      // TODO: simplify this step by modifying the backend directly
+      data: {
+        summary: _.map(json.summary, ([period, [completion, error, backfill]]) => ({ period, completion, error, backfill })),
+        jobs: _.mapValues(json.jobs, v => _.map(v,  ([period, status, backfill]) => ({ period, status, backfill })))
+      }
     });
+  }
+
+  timeShift(hours: number) {
+    const { drillDown, start, end } = this.props;
+    drillDown(
+      moment.utc(start).add(hours, "hours"),
+      moment.utc(end).add(hours, "hours"),
+    );
   }
 
   render() {
@@ -319,27 +387,43 @@ class CalendarFocus extends React.Component {
             {" "}
             UTC
           </span>
+          <span className={classes.timeControl}>
+            <ArrowPrevious onClick={() => this.timeShift(-12)} className="button" />
+            { " 12H " }
+            <ArrowNext onClick={() => this.timeShift(12)} className="button" />
+          </span>
         </h1>
         {data && data.summary.length
           ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
-              <div className={classes.summarySvg} />
-              <div className={classes.detailsSvg} />
-              <ReactTooltip
-                className={classes.tooltip}
-                effect="float"
-                html={true}
-              />
+            <div className={classes.summarySvg}>
+              <svg ref={r => (this.summarySvgContainer = r)}>
+                <g id="axisContainer" />
+                <g id="summary">
+                  <text className={classes.jobName} textAnchor="end" x={-(PADDING * 2)} y="14">
+                    {globalLabel}
+                  </text>
+                </g>
+              </svg>  
             </div>
+            <div className={classes.detailsSvg} >
+              <svg ref={r => (this.detailsSvgContainer = r)} />
+            </div>
+            <ReactTooltip
+              className={classes.tooltip}
+              effect="float"
+              html={true}
+            />
+          </div>
           : data
-              ? <div className={classes.noData}>
-                  <div>
-                    Nothing to be done for this period
-                    {selectedJobs.length
-                      ? " (some may have been filtered)"
-                      : ""}
-                  </div>
-                </div>
-              : <Spinner />}
+          ? <div className={classes.noData}>
+            <div>
+              Nothing to be done for this period
+              {selectedJobs.length
+                ? " (some may have been filtered)"
+                : ""}
+            </div>
+          </div>
+          : <Spinner />}
       </div>
     );
   }
@@ -358,6 +442,13 @@ const styles = {
     margin: "0 0 16px 0",
     color: "#607e96",
     fontWeight: "normal"
+  },
+  timeControl: {
+    float: "right",
+    "& .button": {
+      fontSize: "0.8em",
+      cursor: "pointer"
+    }
   },
   chevron: {
     color: "#92a2af",

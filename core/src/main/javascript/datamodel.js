@@ -43,10 +43,28 @@ export type Tag = { name: string, description: string };
 
 export type NodeKind = "root" | "leaf" | "common";
 
+export type Scheduling =
+  | {
+      grid: {
+        period: "daily",
+        zoneId: string
+      },
+      start: string,
+      maxPeriods: number
+    }
+  | {
+      grid: {
+        period: "hourly" | "continuous"
+      },
+      start: string,
+      maxPeriods: number
+    };
+
 export type Job = {
   id: string,
   name: string,
   description: string,
+  scheduling: Scheduling,
   tags: string[],
   kind?: NodeKind
 };

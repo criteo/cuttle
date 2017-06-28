@@ -30,6 +30,17 @@ object TimeSeriesGrid {
   case object Hourly extends TimeSeriesGrid
   case class Daily(tz: ZoneId) extends TimeSeriesGrid
   private[timeseries] case object Continuous extends TimeSeriesGrid
+
+  implicit val gridEncoder = new Encoder[TimeSeriesGrid] {
+    override def apply(grid: TimeSeriesGrid) = grid match {
+      case Hourly => Json.obj("period" -> "hourly".asJson)
+      case Daily(tz: ZoneId) => Json.obj(
+        "period" -> "daily".asJson,
+        "zoneId" -> tz.getId().asJson
+      )
+      case Continuous => Json.obj("period" -> "continuuous".asJson)
+    }
+  }
 }
 
 import TimeSeriesGrid._
@@ -72,8 +83,15 @@ object TimeSeriesContext {
 case class TimeSeriesDependency(offset: Duration)
 
 case class TimeSeries(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1) extends Scheduling {
+  import TimeSeriesGrid._
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
+  def toJson: Json =
+    Json.obj(
+      "start" -> start.asJson,
+      "maxPeriods" -> maxPeriods.asJson,
+      "grid" -> grid.asJson
+    )
 }
 
 object TimeSeries {
@@ -105,14 +123,15 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       val newBackfill = Backfill(id, start, end, jobs, priority)
       val newBackfillDomain = backfillDomain(newBackfill)
       if (jobs.exists(job => newBackfill.start.isBefore(job.scheduling.start))) {
-        Left("cannot before a job's start date")
+        Left("cannot backfill before a job's start date")
       } else if (_backfills.exists(backfill => and(backfillDomain(backfill), newBackfillDomain) != zero[StateD])) {
         Left("intersects with another backfill")
       } else if (newBackfillDomain.defined.exists {
                    case (job, is) =>
-                     is.exists(interval =>
-                       IntervalSet(splitInterval(job, interval, true).map(_.toInterval).toSeq: _*) != IntervalSet(
-                         interval))
+                     is.exists { interval =>
+                       IntervalSet(interval) -- IntervalSet(
+                         splitInterval(job, interval, true).map(_.toInterval).toSeq: _*) != IntervalSet.empty[Instant]
+                     }
                  }) {
         Left("cannot backfill partial periods")
       } else {
