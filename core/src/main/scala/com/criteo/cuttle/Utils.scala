@@ -6,6 +6,8 @@ import scala.concurrent.duration.{Duration}
 import java.util.{UUID}
 import java.util.concurrent.{Executors, TimeUnit}
 
+import lol.http.{PartialService, Service}
+
 package object utils {
 
   private[cuttle] object Timeout {
@@ -21,4 +23,17 @@ package object utils {
 
   private[cuttle] def randomUUID(): String = UUID.randomUUID().toString
 
+  /**
+    * Allows chaining of method orFinally
+    * from a PartialService that returns a
+    * non-further-chainable Service.
+    */
+  implicit class PartialServiceConverter(val service: PartialService) extends AnyVal {
+    def orFinally(finalService: Service): Service =
+      service.orElse(toPartial(finalService))
+
+    private def toPartial(service: Service): PartialService = {
+      case e => service(e)
+    }
+  }
 }
