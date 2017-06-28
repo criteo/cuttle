@@ -6,12 +6,12 @@ import injectSheet from "react-jss";
 import { compose } from "redux";
 import { goBack } from "redux-url";
 import { Field, reduxForm, SubmissionError } from "redux-form";
-import moment, { Moment } from "moment";
+import moment from "moment";
 
 import Window from "../components/Window";
 import FancyTable from "../components/FancyTable";
 import JobSelector from "../components/JobSelector";
-import type { Workflow } from "../../datamodel";
+import type { Backfill, Workflow } from "../../datamodel";
 
 type Props = {
   workflow: Workflow,
@@ -61,26 +61,20 @@ const JobsField = ({ workflow, input: { value, onChange } }: any) => (
   <JobSelector workflow={workflow} selected={value} onChange={onChange} />
 );
 
-type FormValues = {
-  jobs: Array<string>,
-  name: string,
-  start: Moment,
-  end: Moment,
-  priority: number
-};
-
 class BackfillCreate extends React.Component<any, Props, void> {
   constructor(props: Props) {
     super(props);
     (this: any).createBackfill = this.createBackfill.bind(this);
   }
 
-  createBackfill({ jobs, name, start, end, priority }: FormValues) {
+  createBackfill({ jobs, name, description, start, end, priority }: Backfill) {
     if (jobs.length <= 0)
       throw new SubmissionError({ _error: "No jobs selected" });
 
     return fetch(
-      `/api/timeseries/backfill?name=${name}&jobs=${jobs.join(",")}&priority=${priority}&` +
+      `/api/timeseries/backfill?` +
+        `name=${name}&description=${description}&` +
+        ` jobs=${jobs.join(",")}&priority=${priority}&` +
         `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
       { method: "POST" }
     )
