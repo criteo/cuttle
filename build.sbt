@@ -161,6 +161,7 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1"
       ).map(_ % "test"),
+      libraryDependencies += "com.auth0" % "java-jwt" % "2.1.0",
       // Webpack
       resourceGenerators in Compile += Def.task {
         if (devMode.value) {

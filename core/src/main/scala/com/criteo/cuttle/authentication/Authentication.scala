@@ -1,9 +1,11 @@
-package com.criteo.cuttle
+package com.criteo.cuttle.authentication
 
 import java.util.Base64
 
+import com.criteo.cuttle.authentication.authentication.AuthenticatedService
 import lol.http._
 
+import scala.concurrent.Future
 import scala.util.Try
 
 /**
@@ -11,15 +13,18 @@ import scala.util.Try
   */
 trait Authenticator {
 
-  /**
-    *
-    * @param wrappedAuthedService
-    * @return
-    */
-  def apply(wrappedAuthedService: (User) => Service): Service = (request: Request) => {
-    authenticate(request)
-      .fold(identity, user => wrappedAuthedService(user)(request))
-  }
+  def apply(s: AuthenticatedService): PartialService =
+    new PartialFunction[Request, Future[Response]] {
+      override def isDefinedAt(request: Request): Boolean =
+        s.isDefinedAt(request)
+
+      override def apply(request: Request): Future[Response] =
+        authenticate(request)
+          .fold(identity, user => {
+            // pass through when authenticated
+            s(request)(user)
+          })
+    }
 
   /**
     * Performs authentication on request.
@@ -31,7 +36,7 @@ trait Authenticator {
 
 case class User(userName: String)
 
-case object NoAuth extends Authenticator {
+case object GuestAuth extends Authenticator {
 
   /**
     * Authenticated any user as Guest.
@@ -52,7 +57,8 @@ case class BasicAuth(
 ) extends Authenticator {
 
   val scheme = "Basic"
-  val unauthorizedResponse = Response(401).addHeaders(h"WWW-Authenticate" -> HttpString(s"""Basic realm="${userVisibleRealm}""""))
+  val unauthorizedResponse =
+    Response(401).addHeaders(h"WWW-Authenticate" -> HttpString(s"""Basic realm="${userVisibleRealm}""""))
 
   /**
     * HTTP Basic auth implementation.
@@ -93,4 +99,12 @@ object BasicAuth {
           Some((splitted(0) -> splitted(1)))
         }
       })
+}
+
+package object authentication {
+  type AuthenticatedService = PartialFunction[Request, (User => Future[Response])]
+
+  def defaultWith(response: Future[Response]): PartialService = {
+    case _ => response
+  }
 }

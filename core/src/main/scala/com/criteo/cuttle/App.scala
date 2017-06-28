@@ -2,17 +2,16 @@ package com.criteo.cuttle
 
 import lol.json._
 import lol.http._
-
 import io.circe._
 import io.circe.syntax._
-
-import java.time.{Instant}
+import java.time.Instant
 
 import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import ExecutionStatus._
+import com.criteo.cuttle.authentication.authentication._
+import com.criteo.cuttle.authentication.{GuestAuth, OAuth2Authenticator, OAuth2ClientConfig}
 
 private[cuttle] object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
@@ -258,6 +257,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   }
 
   val webapp: PartialService = {
+    case GET at url"/login" =>
+      Response(302).addHeaders(h"Location" -> lol.http.HttpString(authenticator.getLoginURL().toString))
     case GET at url"/public/$file" =>
       ClasspathResource(s"/public/$file").fold(NotFound)(r => Ok(r))
 
@@ -268,10 +269,27 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       Ok(ClasspathResource(s"/public/index.html"))
   }
 
-  val routes = api
-    .orElse(scheduler.routes(workflow, executor, xa))
-    .orElse {
-      executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
-    }
-    .orElse(webapp)
+  val authenticator = new OAuth2Authenticator(
+    OAuth2ClientConfig(
+      redirectURL = "https://requestb.in/1eijudd1",
+      appSecret = "dyuivbiAFOUtVEhELlVxBlwFJ0cIteRgxUGSt2SO4qfam22Ay_J_1QfjFLuzt2O",
+      authorizeURL = "https://dufrannea.eu.auth0.com/authorize",
+      clientId = "2prHl6P475pnBXf1isMFMnpM3o3y3UKO",
+      responseType = "id_token",
+      realm = "cuttle_users"
+    ))
+
+  val authentifiedApi: AuthenticatedService = {
+    case GET at "/private" =>
+      _ =>
+        Ok("PRIVATE")
+  }
+
+  val publicApi: PartialService = {
+    case GET at "/public" => Ok("welcome this part of the site is public")
+  }
+
+  val routes = GuestAuth(authentifiedApi)
+    .orElse(publicApi)
+    .orElse(defaultWith(NotFound))
 }
