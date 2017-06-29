@@ -1,12 +1,10 @@
 // @flow
 
 import injectSheet from "react-jss";
-import classNames from "classnames";
 import React from "react";
 import { connect } from "react-redux";
 import Measure from "react-measure";
 import _ from "lodash";
-import moment from "moment";
 import numeral from "numeraljs";
 import { navigate } from "redux-url";
 
@@ -15,7 +13,6 @@ import PrevIcon from "react-icons/lib/md/navigate-before";
 import NextIcon from "react-icons/lib/md/navigate-next";
 import BreakIcon from "react-icons/lib/md/keyboard-control";
 import OpenIcon from "react-icons/lib/md/zoom-in";
-import CalendarIcon from "react-icons/lib/md/date-range";
 import PopoverMenu from "../components/PopoverMenu";
 
 import Spinner from "../components/Spinner";
@@ -23,9 +20,10 @@ import Clock from "../components/Clock";
 import Table from "../components/Table";
 import { ROW_HEIGHT } from "../components/Table";
 import Link from "../components/Link";
+import TimeRangeLink from "../components/TimeRangeLink";
 import { listenEvents } from "../../Utils";
 import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
-import { Badge } from "../components/Badge";
+import { urlFormat } from "../utils/Date";
 import JobStatus from "../components/JobStatus";
 
 type Props = {
@@ -164,32 +162,6 @@ class ExecutionLogs extends React.Component {
       }
     };
 
-    let Context = ({ ctx }) => {
-      // Need to be dynamically linked with the scehduler but for now let's
-      // assume that it is a TimeseriesContext
-      let format = date => moment(date).utc().format("MMM-DD HH:mm");
-      let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
-      return (
-        <Link
-          href={`/timeseries/calendar/${URLFormat(ctx.start)}_${URLFormat(ctx.end)}`}
-        >
-          <CalendarIcon
-            style={{
-              fontSize: "1.2em",
-              verticalAlign: "top",
-              transform: "translateY(-1px)"
-            }}
-          />
-          {" "}
-          {format(ctx.start)}
-          {" "}
-          <BreakIcon />
-          {" "}
-          {format(ctx.end)} UTC
-        </Link>
-      );
-    };
-
     let Data = () => {
       if (data && data.length) {
         return (
@@ -230,8 +202,16 @@ class ExecutionLogs extends React.Component {
               switch (column) {
                 case "job":
                   return <Link href={`/workflow/${job}`}>{jobName(job)}</Link>;
-                case "context":
-                  return <Context ctx={context} />;
+                case "context": {
+                  const { start, end } = context;
+                  return (
+                    <TimeRangeLink
+                      href={`/timeseries/calendar/${urlFormat(start)}_${urlFormat(end)}`}
+                      start={start}
+                      end={start}
+                    />
+                  );
+                }
                 case "failed": {
                   let times = (failing && failing.failedExecutions.length) || 0;
                   if (times == 1) {

@@ -203,7 +203,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
         addRuns(completed)
         val completedBackfills =
-          _backfills.filter(bf => without(backfillDomain(bf), StateD(_state())) =!= zero[StateD])
+          _backfills.filter(bf => without(backfillDomain(bf), StateD(_state())) === zero[StateD])
         _backfills --= completedBackfills
         val _toRun = next(
           workflow,

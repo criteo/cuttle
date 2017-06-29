@@ -1,5 +1,6 @@
 //@flow
 import _ from "lodash";
+import moment, { Moment } from "moment";
 
 export type Project = {
   name: string,
@@ -109,4 +110,24 @@ export const prepareWorkflow = (w: Workflow): Workflow => ({
       .filter(job => job.tags.indexOf(tag) > -1)
       .map(job => job.id);
   }
+});
+
+export type Backfill = {
+  id: string,
+  jobs: Array<string>,
+  name: string,
+  description: string,
+  start: Moment,
+  end: Moment,
+  created_at: Moment,
+  priority: number,
+  status: string
+};
+
+export const backfillFromJSON = (json: any): Backfill => ({
+  ...json,
+  jobs: json.jobs.split(","),
+  start: moment.utc(json.start),
+  end: moment.utc(json.end),
+  created_at: moment.utc(json.created_at)
 });

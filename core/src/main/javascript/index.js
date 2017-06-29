@@ -37,7 +37,8 @@ const routes = {
   "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
   "/timeseries/calendar/:start_:end": ({ start, end }) =>
     openPage({ id: "timeseries/calendar/focus", start, end }),
-  "/timeseries/backfills": () => openPage({ id: "timeseries/backfills" }),
+  "/timeseries/backfills": (_, { page, sort, order }) =>
+    openPage({ id: "timeseries/backfills", page, sort, order }),
   "/timeseries/backfills/create": () =>
     openPage({ id: "timeseries/backfills/create" }),
   "/timeseries/executions/:job/:start_:end": ({ job, start, end }) =>
