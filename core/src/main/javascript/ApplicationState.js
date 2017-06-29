@@ -48,7 +48,11 @@ export type Page =
       start: string,
       end: string
     }
-  | { id: "timeseries/backfills" }
+  | {
+      id: "timeseries/backfills",
+      sort?: string,
+      order?: "asc" | "desc"
+    }
   | { id: "timeseries/backfills/create" };
 
 export type State = {
