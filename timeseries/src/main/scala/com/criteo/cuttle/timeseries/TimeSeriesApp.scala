@@ -21,7 +21,6 @@ import continuum.bound._
 
 import java.time.{Instant, ZoneId}
 import java.time.temporal.ChronoUnit._
-import java.util.UUID
 
 import ExecutionStatus._
 
