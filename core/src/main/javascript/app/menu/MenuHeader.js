@@ -8,6 +8,7 @@ import Link from "../components/Link";
 
 type Props = {
   projectName: string,
+  projectVersion: ?string,
   env: {
     name: ?string,
     critical: boolean
@@ -16,9 +17,10 @@ type Props = {
   className: any
 };
 
-const MenuHeader = ({ classes, className, env, projectName }: Props) => (
+const MenuHeader = ({ classes, className, env, projectName, projectVersion }: Props) => (
   <Link className={classNames(classes.main, className)} href="/">
     <span className={classes.projectName}>{projectName}</span>
+    {projectVersion && <span className={classes.projectVersion}>{projectVersion}</span>}
     {env.name
       ? <Badge
           label={env.name}
@@ -50,6 +52,13 @@ const styles = {
   projectName: {
     fontWeight: "bold",
     fontSize: "1.2em"
+  },
+  projectVersion: {
+    fontSize: ".65em",
+    paddingLeft: ".5em",
+    position: "relative",
+    top: "3px",
+    opacity: ".6"
   },
   badge: {
     margin: "auto 0em auto auto",
