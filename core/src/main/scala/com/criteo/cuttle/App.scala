@@ -31,6 +31,7 @@ private[cuttle] object App {
     override def apply(project: CuttleProject[S]) =
       Json.obj(
         "name" -> project.name.asJson,
+        "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
         "description" -> Option(project.description).filterNot(_.isEmpty).asJson,
         "env" -> Json.obj(
           "name" -> Option(project.env._1).filterNot(_.isEmpty).asJson,

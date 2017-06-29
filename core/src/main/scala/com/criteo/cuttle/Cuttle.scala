@@ -5,6 +5,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class CuttleProject[S <: Scheduling] private[cuttle] (
   val name: String,
+  val version: String,
   val description: String,
   val env: (String, Boolean),
   val workflow: Workflow[S],
@@ -28,9 +29,9 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
 }
 
 object CuttleProject {
-  def apply[S <: Scheduling](name: String, description: String = "", env: (String, Boolean) = ("", false))(
+  def apply[S <: Scheduling](name: String, version: String = "", description: String = "", env: (String, Boolean) = ("", false))(
     workflow: Workflow[S])(implicit scheduler: Scheduler[S]): CuttleProject[S] =
-    new CuttleProject(name, description, env, workflow, scheduler)
+    new CuttleProject(name, version, description, env, workflow, scheduler)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import platforms._

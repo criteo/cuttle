@@ -3,7 +3,8 @@ import _ from "lodash";
 
 export type Project = {
   name: string,
-  description: string,
+  version: ?string,
+  description: ?string,
   env: {
     name: ?string,
     critical: boolean
