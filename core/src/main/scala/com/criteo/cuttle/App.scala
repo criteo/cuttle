@@ -95,7 +95,7 @@ private[cuttle] object App {
   implicit def workflowEncoder[S <: Scheduling] =
     new Encoder[Workflow[S]] {
       override def apply(workflow: Workflow[S]) = {
-        val jobs = workflow.vertices.asJson
+        val jobs = workflow.jobsInOrder.asJson
         val tags = workflow.vertices.flatMap(_.tags).asJson
         val dependencies = workflow.edges.map {
           case (to, from, _) =>

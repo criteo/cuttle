@@ -21,10 +21,13 @@ import ArrowPrevious from "react-icons/lib/md/arrow-back";
 import Link from "../components/Link";
 import Spinner from "../components/Spinner";
 
+import type { Workflow } from "../../datamodel";
+
 import { listenEvents } from "../../Utils";
 
 type Props = {
   classes: any,
+  workflow: Workflow,
   selectedJobs: Array<string>,
   start: string,
   end: string,
@@ -253,7 +256,7 @@ class CalendarFocus extends React.Component {
 
   drawViz(props: Props, state: State) {
     let { data } = state;
-    let { classes, start, end } = props;
+    let { classes, start, end, workflow } = props;
     if (data && data.summary.length) {
       let { summary, jobs } = data;
 
@@ -343,7 +346,7 @@ class CalendarFocus extends React.Component {
 
       detailsSvg
         .selectAll("g.jobTimeline")
-        .data(_.sortBy(_.keys(jobs)), d => d)
+        .data(workflow.jobs.map(job => job.id))
         .enter()
         .call(drawJobs);
     }
@@ -631,7 +634,7 @@ const styles = {
 };
 
 let f = "YYYY-MM-DDTHH";
-const mapStateToProps = ({ app: { selectedJobs } }) => ({ selectedJobs });
+const mapStateToProps = ({ app: { selectedJobs, workflow } }) => ({ selectedJobs, workflow });
 const mapDispatchToProps = dispatch => ({
   drillDown(start, end) {
     dispatch(
