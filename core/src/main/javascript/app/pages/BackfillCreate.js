@@ -74,7 +74,7 @@ class BackfillCreate extends React.Component<any, Props, void> {
     return fetch(
       `/api/timeseries/backfill?` +
         `name=${name}&description=${description}&` +
-        ` jobs=${jobs.join(",")}&priority=${priority}&` +
+        `jobs=${jobs.join(",")}&priority=${priority}&` +
         `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
       { method: "POST" }
     )
