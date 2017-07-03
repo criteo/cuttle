@@ -29,8 +29,11 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
 }
 
 object CuttleProject {
-  def apply[S <: Scheduling](name: String, version: String = "", description: String = "", env: (String, Boolean) = ("", false))(
-    workflow: Workflow[S])(implicit scheduler: Scheduler[S]): CuttleProject[S] =
+  def apply[S <: Scheduling](
+    name: String,
+    version: String = "",
+    description: String = "",
+    env: (String, Boolean) = ("", false))(workflow: Workflow[S])(implicit scheduler: Scheduler[S]): CuttleProject[S] =
     new CuttleProject(name, version, description, env, workflow, scheduler)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {

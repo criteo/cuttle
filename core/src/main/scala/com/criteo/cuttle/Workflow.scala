@@ -16,17 +16,18 @@ sealed trait Workflow[S <: Scheduling] {
   // same time it checks that there is no cycle.
   private[cuttle] lazy val jobsInOrder: List[Job[S]] = {
     val result = collection.mutable.ListBuffer.empty[Job[S]]
-    val edges = collection.mutable.Set(this.edges.toSeq:_*)
-    val set = collection.mutable.SortedSet(roots.toSeq:_*)(Ordering.by(_.id))
-    while(set.nonEmpty) {
+    val edges = collection.mutable.Set(this.edges.toSeq: _*)
+    val set = collection.mutable.SortedSet(roots.toSeq: _*)(Ordering.by(_.id))
+    while (set.nonEmpty) {
       val n = set.head
       set.remove(n)
       result.append(n)
-      edges.collect({ case edge @ (_, `n`, _) => edge }).toList.map { case edge @ (m, _, _) =>
-        edges.remove(edge)
-        if(edges.collect({ case (`m`, _, _) => () }).isEmpty) {
-          set.add(m)
-        }
+      edges.collect({ case edge @ (_, `n`, _) => edge }).toList.map {
+        case edge @ (m, _, _) =>
+          edges.remove(edge)
+          if (edges.collect({ case (`m`, _, _) => () }).isEmpty) {
+            set.add(m)
+          }
       }
     }
     require(edges.isEmpty, "Workflow has at least one cycle")
