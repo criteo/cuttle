@@ -7,19 +7,18 @@ import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
-
 import cats.implicits._
-
 import io.circe._
 import io.circe.syntax._
 import io.circe.generic.semiauto._
-
 import doobie.imports._
-
 import java.util.UUID
 import java.time._
 import java.time.temporal.ChronoUnit._
+import java.time.ZoneOffset.UTC
+import java.time.temporal.{ChronoUnit, TemporalAdjusters}
 
+import com.criteo.cuttle.timeseries.TimeSeriesGrid.{Daily, Hourly, Monthly}
 import intervals.{Bound, Interval, IntervalMap}
 import Bound.{Bottom, Finite, Top}
 
@@ -54,7 +53,14 @@ sealed trait TimeSeriesGrid {
     }
   }
 }
+
+sealed trait TimeSeriesGridView extends TimeSeriesGrid {
+  def upper(): TimeSeriesGridView
+  val aggregationFactor: Int
+}
+
 object TimeSeriesGrid {
+
   case object Hourly extends TimeSeriesGrid {
     def truncate(t: Instant) = t.truncatedTo(HOURS)
     def next(t: Instant) =
@@ -63,6 +69,11 @@ object TimeSeriesGrid {
   case class Daily(tz: ZoneId) extends TimeSeriesGrid {
     def truncate(t: Instant) = t.atZone(tz).truncatedTo(DAYS).toInstant
     def next(t: Instant) = t.atZone(tz).truncatedTo(DAYS).plus(1, DAYS).toInstant
+  }
+  case class Monthly(tz: ZoneId) extends TimeSeriesGrid {
+    private val truncateToMonth = (t: ZonedDateTime) => t.`with`(TemporalAdjusters.firstDayOfMonth()).truncatedTo(ChronoUnit.DAYS)
+    def truncate(t: Instant) = truncateToMonth(t.atZone(tz)).toInstant
+    def next(t: Instant) = truncateToMonth(t.atZone(tz)).plus(1, MONTHS).toInstant
   }
 
   implicit val gridEncoder = new Encoder[TimeSeriesGrid] {
@@ -74,6 +85,31 @@ object TimeSeriesGrid {
           "zoneId" -> tz.getId().asJson
         )
     }
+  }
+}
+
+object TimeSeriesGridView {
+  def apply(grid: TimeSeriesGrid) = grid match {
+    case TimeSeriesGrid.Hourly => new HourlyView(1)
+    case TimeSeriesGrid.Daily(tz) => new DailyView(tz, 1)
+  }
+  abstract class GenericView(n: Int, grid: TimeSeriesGrid, agg: Int) extends TimeSeriesGridView {
+    def truncate(t: Instant) = grid.truncate(t)
+    def next(t: Instant) = (1 to n).foldLeft(grid.truncate(t))((acc, _) => grid.next(acc))
+    val aggregationFactor =  agg
+    def upper(): TimeSeriesGridView
+  }
+  case class HourlyView(agg: Int) extends GenericView(1, Hourly, agg) {
+    override def upper: TimeSeriesGridView = new DailyView(UTC, agg * 24)
+  }
+  case class DailyView(tz: ZoneId, agg: Int) extends GenericView(1, Daily(tz), agg) {
+    override def upper: TimeSeriesGridView = new WeeklyView(tz, agg * 7)
+  }
+  case class WeeklyView(tz: ZoneId, agg: Int) extends GenericView(7, Daily(tz), agg) {
+    override def upper: TimeSeriesGridView = new MonthlyView(tz, agg * 4)
+  }
+  case class MonthlyView(tz: ZoneId, agg: Int) extends GenericView(1, Monthly(tz), agg) {
+    override def upper: TimeSeriesGridView = new MonthlyView(tz, 1)
   }
 }
 

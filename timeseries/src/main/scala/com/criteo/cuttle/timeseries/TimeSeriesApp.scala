@@ -6,7 +6,7 @@ import lol.http._
 import lol.json._
 import io.circe._
 import io.circe.syntax._
-
+import io.circe.generic.auto._
 import scala.util.Try
 import scala.math.Ordering.Implicits._
 import java.time.Instant
@@ -38,6 +38,41 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         "start" -> interval.lo.asJson,
         "end" -> interval.hi.asJson
       )
+  }
+
+  trait ExecutionPeriod {
+    val period: Interval[Instant]
+    val backfill: Boolean
+    val aggregated: Boolean
+  }
+
+  case class JobExecution(period: Interval[Instant], status: String, backfill: Boolean) extends ExecutionPeriod {
+    override val aggregated: Boolean = false
+  }
+
+  case class AggregatedJobExecution(period: Interval[Instant], completion: String, error: Boolean, backfill: Boolean) extends ExecutionPeriod {
+    override val aggregated: Boolean = true
+  }
+
+  case class JobTimeline(jobId: String, gridView: TimeSeriesGridView, executions: List[ExecutionPeriod])
+
+  private implicit val executionPeriodEncoder = new Encoder[ExecutionPeriod] {
+    override def apply(executionPeriod: ExecutionPeriod) = {
+      val coreFields = List(
+        "period" -> executionPeriod.period.asJson,
+        "backfill" -> executionPeriod.backfill.asJson,
+        "aggregated" -> executionPeriod.aggregated.asJson
+      )
+      val finalFields = executionPeriod match {
+        case JobExecution(_, status, _) => ("status" -> status.asJson) :: coreFields
+        case AggregatedJobExecution(_, completion, error, _) => ("completion" -> completion.asJson) :: ("error" -> error.asJson) :: coreFields
+      }
+      Json.obj(finalFields:_*)
+    }
+  }
+
+  private implicit val jobTimelineEncoder = new Encoder[JobTimeline] {
+    override def apply(jobTimeline: JobTimeline) = jobTimeline.executions.asJson
   }
 
   private[cuttle] override def publicRoutes(workflow: Workflow[TimeSeries],
@@ -104,49 +139,93 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             else
               acc
           }
-        val allRunning = executor.allRunning
+
         val allFailing = executor.allFailingExecutions
-        val jobTimelines =
-          for {
-            job <- workflow.vertices
-            if filteredJobs.contains(job.id)
-            (interval, jobState) <- state(job).intersect(period).toList
-            toSplit = jobState match {
-              case Running(_) => false
-              case _ => true
-            }
-            (lo, hi) <- {
-              if (toSplit) job.scheduling.grid.split(interval)
-              else List(interval.toPair)
-            }
-          } yield {
-            val label = jobState match {
-              case Running(e) =>
-                if (allFailing.exists(_.id == e))
-                  "failed"
-                else
-                  allRunning
-                    .find(_.id == e)
-                    .map(_.status match {
-                      case ExecutionWaiting => "waiting"
-                      case ExecutionRunning => "running"
-                      case _ => s"unknown"
-                    })
-                    .getOrElse("unknown")
-              case Todo(_) => "todo"
-              case Done => "successful"
-            }
-            val isInBackfill = backfills.exists(
-              bf =>
-                bf.jobs.contains(job) &&
-                  IntervalMap(Interval(lo, hi) -> 0)
-                    .intersect(Interval(bf.start, bf.end))
-                    .toList
-                    .nonEmpty)
-            job.id -> ((Interval(lo, hi), label, isInBackfill))
+
+        def findAggregationLevel(n: Int,
+                                 gridView: TimeSeriesGridView,
+                                 interval: Interval[Instant]): TimeSeriesGridView = {
+          val aggregatedExecutions = gridView.split(interval)
+          if (aggregatedExecutions.size <= n)
+            gridView
+          else
+            findAggregationLevel(n, gridView.upper(), interval)
+        }
+
+        def aggregateExecutions(job: TimeSeriesJob,
+                                period: Interval[Instant],
+                                gridView: TimeSeriesGridView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] = {
+          gridView
+            .split(period)
+            .map { interval =>
+              {
+                val (start, end) = interval
+                val currentlyAggregatedPeriod = state(job)
+                  .intersect(Interval(start, end))
+                  .toList
+                  .sortBy(_._1.lo)
+                currentlyAggregatedPeriod match {
+                  case Nil => None
+                  case _ => Some((Interval(start, end), currentlyAggregatedPeriod))
+                }
+              }
+            }.flatten
+        }
+
+        def getStatusLabelFromState(jobState: JobState): String =
+          jobState match {
+            case Running(e) =>
+              if (allFailing.exists(_.id == e))
+                "failed"
+              else if (executor.platforms.exists(_.waiting.exists(_.id == e)))
+                "waiting"
+              else "running"
+            case Todo(_) => "todo"
+            case Done => "successful"
           }
+
+        val jobTimelines =
+          (for { job <- workflow.vertices if filteredJobs.contains(job.id) } yield {
+            val gridView = findAggregationLevel(
+              48,
+              TimeSeriesGridView(job.scheduling.grid),
+              period
+            )
+            val jobExecutions = (for {
+                (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, gridView)
+              } yield {
+              val (intervalStart, intervalEnd) = interval.toPair
+              val inBackfill = backfills.exists(
+                bf =>
+                  bf.jobs.contains(job) &&
+                    IntervalMap(interval -> 0)
+                      .intersect(Interval(bf.start, bf.end))
+                      .toList
+                      .nonEmpty)
+              if (gridView.aggregationFactor == 1)
+                jobStatesOnIntervals match {
+                  case (executionInterval, state) :: Nil => Some(JobExecution(interval, getStatusLabelFromState(state), inBackfill))
+                  case _ => None
+                }
+              else jobStatesOnIntervals match {
+                case l => {
+                  val (duration, done, error) = l.foldLeft((0L, 0L, false))((acc, currentExecution) => {
+                    val (lo, hi) = currentExecution._1.toPair
+                    val jobStatus = getStatusLabelFromState(currentExecution._2)
+                    (acc._1 + lo.until(hi, SECONDS), acc._2 + (if (jobStatus == "successful") lo.until(hi, SECONDS) else 0), acc._3 || jobStatus == "failed")
+                  })
+                  Some (AggregatedJobExecution (interval, f"${done.toDouble / duration.toDouble}%2.2f", error, inBackfill))
+                }
+                case Nil => None
+              }
+            })
+            JobTimeline(job.id, gridView, jobExecutions.flatten)
+          }).toList
+
         Json.obj(
-          "summary" -> Hourly
+          "summary" -> jobTimelines
+            .maxBy(_.executions.size)
+            .gridView
             .split(period)
             .flatMap {
               case (lo, hi) =>
@@ -158,7 +237,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 } yield {
                   val (lo, hi) = interval.toPair
                   (lo.until(hi, SECONDS), if (jobState == Done) lo.until(hi, SECONDS) else 0, jobState match {
-                    case Running(e) => executor.allFailingExecutions.exists(_.id == e)
+                    case Running(e) => allFailing.exists(_.id == e)
                     case _ => false
                   })
                 }
@@ -166,14 +245,14 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   val (duration, done, failing) = jobSummaries
                     .reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 || b._3))
                   Some(
-                    Interval(lo, hi) ->
-                      ((f"${done.toDouble / duration.toDouble}%1.1f", failing, isInbackfill)))
+                    AggregatedJobExecution(Interval(lo, hi), f"${done.toDouble / duration.toDouble}%2.2f", failing, isInbackfill)
+                  )
                 } else {
                   None
                 }
             }
             .asJson,
-          "jobs" -> jobTimelines.groupBy(_._1).mapValues(_.map(_._2)).asJson
+          "jobs" -> jobTimelines.map(jt => (jt.jobId -> jt)).toMap.asJson
         )
       }
 
