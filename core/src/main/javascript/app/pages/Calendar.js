@@ -155,7 +155,7 @@ const styles = {
       padding: ".5em",
       maxWidth: "calc((100% - 8em) / 3)",
       borderRadius: "2px",
-      height: "225px",
+      height: "235px",
       minWidth: "275px",
       boxShadow: "0px 1px 2px #BECBD6"
     },
