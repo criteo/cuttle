@@ -9,7 +9,8 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val description: String,
   val env: (String, Boolean),
   val workflow: Workflow[S],
-  val scheduler: Scheduler[S]
+  val scheduler: Scheduler[S],
+  val authenticator : Authenticator = GuestAuth
 ) {
   def start(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
