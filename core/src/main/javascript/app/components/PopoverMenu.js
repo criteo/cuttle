@@ -86,15 +86,16 @@ const styles = {
       whiteSpace: "nowrap",
       fontSize: ".9em",
       cursor: "pointer",
-      padding: ".5em 1.5em",
 
       "&:hover": {
         background: "#26a69a",
         color: "#ffffff"
       },
 
-      "& a": {
+      "& a, & span": {
         color: "inherit",
+        display: "block",
+        padding: ".5em 1.5em",
         textDecoration: "none"
       }
     }
