@@ -7,9 +7,11 @@ import lol.http._
 class AuthenticationSpec extends FunSuite {
 
   import SuiteUtils._
-
+ 
+  val unauthorizedResponse = Response(401)
+  
   test("GuestAuth should return Guest user") {
-    val actual = GuestAuth.authenticate(getFakeRequest())
+    val actual = GuestAuth.authenticate(getFakeRequest() ,unauthorizedResponse)
     assert(actual == Right(User("Guest")))
   }
 
@@ -25,14 +27,14 @@ class AuthenticationSpec extends FunSuite {
     val request = getFakeRequest()
       .addHeaders(HttpString("Authorization") -> HttpString("NotBasic"))
 
-    val actual = getBasicAuth().authenticate(request)
+    val actual = getBasicAuth().authenticate(request,unauthorizedResponse)
     assertHttpBasicUnAuthorized(actual)
   }
 
   test("HttpAuth should answer 401 without Authorization header") {
     val request = getFakeRequest()
 
-    val actual = getBasicAuth().authenticate(request)
+    val actual = getBasicAuth().authenticate(request,unauthorizedResponse)
     assertHttpBasicUnAuthorized(actual)
   }
 
@@ -40,7 +42,7 @@ class AuthenticationSpec extends FunSuite {
     val request = getFakeRequest()
       .addHeaders(h"Authorization" -> h"Basic àààààààààà")
 
-    val actual = getBasicAuth().authenticate(request)
+    val actual = getBasicAuth().authenticate(request,unauthorizedResponse)
     assertHttpBasicUnAuthorized(actual)
   }
 
@@ -48,7 +50,7 @@ class AuthenticationSpec extends FunSuite {
     val request = getFakeRequest()
       .addHeaders(h"Authorization" -> h"Basic bG9naW46cGFzc3dvcmQK")
 
-    val actual = getBasicAuth().authenticate(request)
+    val actual = getBasicAuth().authenticate(request,unauthorizedResponse)
     assert(actual.isRight)
   }
 
@@ -56,7 +58,7 @@ class AuthenticationSpec extends FunSuite {
     val request = getFakeRequest()
       .addHeaders(h"Authorization" -> h"Basic   bG9naW46cGFzc3dvcmQK")
 
-    val actual = getBasicAuth().authenticate(request)
+    val actual = getBasicAuth().authenticate(request,unauthorizedResponse)
     assert(actual.isRight)
   }
 
@@ -65,7 +67,7 @@ class AuthenticationSpec extends FunSuite {
     val request = getFakeRequest()
       .addHeaders(h"Authorization" -> h"Basic bG9naW46d3JvbmdwYXNzd29yZAo")
 
-    val actual = getBasicAuth().authenticate(request)
+    val actual = getBasicAuth().authenticate(request,unauthorizedResponse)
     assert(actual.isLeft)
   }
 
@@ -150,9 +152,9 @@ object SuiteUtils {
 }
 
 object YesAuth extends Authenticator {
-  override def authenticate(r: Request): Either[Response, User] = Right(User("yesuser"))
+  override def authenticate(r: Request, unauthorizedResponse : Response): Either[Response, User] = Right(User("yesuser"))
 }
 
 object NoAuth extends Authenticator {
-  override def authenticate(r: Request): Either[Response, User] = Left(Response(401))
+  override def authenticate(r: Request, unauthorizedResponse : Response): Either[Response, User] = Left(Response(401))
 }

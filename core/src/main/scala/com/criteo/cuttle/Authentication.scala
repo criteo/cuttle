@@ -12,14 +12,15 @@ import scala.util.Try
   * Trait describing authentication methods
   */
 trait Authenticator {
+  val defaultUnauthorizedResponse : Response = Response(401)
 
-  def apply(s: AuthenticatedService): PartialService =
+  def apply(s: AuthenticatedService)(implicit unauthorizedResponse : Response = defaultUnauthorizedResponse): PartialService =
     new PartialFunction[Request, Future[Response]] {
       override def isDefinedAt(request: Request): Boolean =
         s.isDefinedAt(request)
 
       override def apply(request: Request): Future[Response] =
-        authenticate(request)
+        authenticate(request, unauthorizedResponse)
           .fold(identity, user => {
             // pass through when authenticated
             s(request)(user)
@@ -31,7 +32,7 @@ trait Authenticator {
     * @param r the request to be authenticated
     * @return either an authenticated user or a response.
     */
-  def authenticate(r: Request): Either[Response, User]
+  def authenticate(r: Request, unauthorizedResponse : Response): Either[Response, User]
 }
 
 case class User(userName: String)
@@ -43,7 +44,7 @@ case object GuestAuth extends Authenticator {
     * @param r request to be authenticated
     * @return Authenticated user
     */
-  override def authenticate(r: Request): Either[Response, User] = Right(User("Guest"))
+  override def authenticate(r: Request, unauthorizedResponse : Response): Either[Response, User] = Right(User("Guest"))
 }
 
 /**
@@ -65,7 +66,7 @@ case class BasicAuth(
     * @param r request to be authenticated
     * @return either an authenticated user or an unauthorized response
     */
-  override def authenticate(r: Request): Either[Response, User] =
+  override def authenticate(r: Request, u : Response): Either[Response, User] =
     r.headers
       .get(h"Authorization")
       .flatMap({

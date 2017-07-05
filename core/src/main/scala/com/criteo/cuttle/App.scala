@@ -282,6 +282,6 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     .orElse {
       executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
     }
-    .orElse(publicAssets orElse project.authenticator(index))
+    .orElse(project.authenticator(index)(Response(302).addHeaders(h"Location" -> h"/login")) orElse publicAssets)
     .orElse(notFound)
 }
