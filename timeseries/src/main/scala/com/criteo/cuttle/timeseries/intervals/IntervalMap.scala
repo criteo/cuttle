@@ -127,7 +127,7 @@ private[timeseries] object IntervalMap {
             middle ++
             (if (last == Top) List() else List(last, Top))
         }
-      val newIntervals = newBounds.grouped(2).toList.map { case List(l, h) => Interval(l, h) }
+      val newIntervals = newBounds.grouped(2).toList.collect { case List(l, h) if l != h => Interval(l, h) }
       new Impl(FingerTree((for {
         interval <- newIntervals
         m <- this.intersect(interval).toList
