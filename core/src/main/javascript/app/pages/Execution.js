@@ -75,7 +75,8 @@ class Execution extends React.Component {
       );
       streamsEventSource = listenEvents(
         `/api/executions/${execution}/streams?events=true`,
-        this.streams.bind(this)
+        this.streams.bind(this),
+        () => this.setState({...this.state, streams: []})
       );
       this.setState({
         query: newQuery,

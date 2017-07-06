@@ -222,9 +222,16 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
 
     atomic { implicit txn =>
       workflow.vertices.foreach { job =>
-        if (!_state().contains(job)) {
-          _state() = _state() + (job -> IntervalMap(Interval(Finite(job.scheduling.start), Top) -> Todo(None)))
+        val definedInterval = Interval(Finite(job.scheduling.start), Top)
+        val oldJobState = _state().getOrElse(job, IntervalMap.empty[Instant, JobState])
+        val missingIntervals = IntervalMap(definedInterval -> (()))
+          .whenIsUndef(oldJobState.intersect(definedInterval))
+          .toList
+          .map(_._1)
+        val jobState = missingIntervals.foldLeft(oldJobState) { (st, interval) =>
+          st.update(interval, Todo(None))
         }
+        _state() = _state() + (job -> jobState)
       }
     }
 
