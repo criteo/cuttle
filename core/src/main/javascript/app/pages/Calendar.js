@@ -181,8 +181,8 @@ const styles = {
       textAlign: "center",
       cursor: "pointer",
       border: "4px solid #fff",
-      marginLeft: "1px",
-      marginRight: "1px",
+      marginLeft: "2px",
+      marginRight: "2px",
       marginBottom: "10px",
       position: "relative",
       "&::after": {
