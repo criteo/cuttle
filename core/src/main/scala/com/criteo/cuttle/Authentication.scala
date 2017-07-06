@@ -9,7 +9,6 @@ import scala.concurrent.Future
 import scala.util.Try
 
 trait Authenticator {
-  val defaultUnauthorizedResponse : Response = Response(401)
 
   /**
     * Turns an AuthenticatedService into a PartialService
@@ -18,17 +17,15 @@ trait Authenticator {
     * of the AuthenticatedService, other requests are passed
     * through.
     * @param s the service to wrap.
-    * @param unauthorizedResponse default response to return
-    *                             in case of AuthN failure.
     * @return a partial service.
     */
-  def apply(s: AuthenticatedService)(implicit unauthorizedResponse : Response = defaultUnauthorizedResponse): PartialService =
+  def apply(s: AuthenticatedService): PartialService =
     new PartialFunction[Request, Future[Response]] {
       override def isDefinedAt(request: Request): Boolean =
         s.isDefinedAt(request)
 
       override def apply(request: Request): Future[Response] =
-        authenticate(request, unauthorizedResponse)
+        authenticate(request)
           .fold(identity, user => {
             // pass through when authenticated
             s(request)(user)
@@ -40,7 +37,7 @@ trait Authenticator {
     * @param r the request to be authenticated
     * @return either an authenticated user or a response.
     */
-  def authenticate(r: Request, unauthorizedResponse : Response): Either[Response, User]
+  def authenticate(r: Request): Either[Response, User]
 }
 
 case class User(userId: String)
@@ -50,7 +47,7 @@ case class User(userId: String)
   */
 case object GuestAuth extends Authenticator {
 
-  override def authenticate(r: Request, unauthorizedResponse : Response): Either[Response, User] = Right(User("Guest"))
+  override def authenticate(r: Request): Either[Response, User] = Right(User("Guest"))
 }
 
 /**
@@ -72,7 +69,7 @@ case class BasicAuth(
     * @param r request to be authenticated
     * @return either an authenticated user or an unauthorized response
     */
-  override def authenticate(r: Request, u : Response): Either[Response, User] =
+  override def authenticate(r: Request): Either[Response, User] =
     r.headers
       .get(h"Authorization")
       .flatMap({
@@ -109,6 +106,7 @@ object BasicAuth {
 }
 
 package object authentication {
+
   /**
     * PartialService with authenticated user in
     * request handler's scope.

@@ -235,49 +235,58 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       Ok(workflow.asJson)
   }
 
-  val privateApi : AuthenticatedService = {
-    case POST at url"/api/executions/$id/cancel" => _ =>
-      executor.cancelExecution(id)
-      Ok
-
-    case POST at url"/api/jobs/all/pause"=> user =>
-      executor.pauseJobs(workflow.vertices)
-      Ok
-
-    case POST at url"/api/jobs/$id/pause" => _ =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.pauseJobs(Set(job))
+  val privateApi: AuthenticatedService = {
+    case POST at url"/api/executions/$id/cancel" =>
+      _ =>
+        executor.cancelExecution(id)
         Ok
-      }
 
-    case POST at url"/api/jobs/all/unpause" => _ =>
-      executor.unpauseJobs(workflow.vertices)
-      Ok
-
-    case POST at url"/api/jobs/$id/unpause" => _ =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.unpauseJobs(Set(job))
+    case POST at url"/api/jobs/all/pause" =>
+      user =>
+        executor.pauseJobs(workflow.vertices)
         Ok
-      }
+
+    case POST at url"/api/jobs/$id/pause" =>
+      _ =>
+        workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+          executor.pauseJobs(Set(job))
+          Ok
+        }
+
+    case POST at url"/api/jobs/all/unpause" =>
+      _ =>
+        executor.unpauseJobs(workflow.vertices)
+        Ok
+
+    case POST at url"/api/jobs/$id/unpause" =>
+      _ =>
+        workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+          executor.unpauseJobs(Set(job))
+          Ok
+        }
   }
 
   val api = publicApi orElse project.authenticator(privateApi)
 
-  val publicAssets : PartialService = {
+  val publicAssets: PartialService = {
     case GET at url"/public/$file" =>
       ClasspathResource(s"/public/$file").fold(NotFound)(r => Ok(r))
   }
 
   val index: AuthenticatedService = {
-    case GET at "/public/index.html" => _ => Ok(ClasspathResource(s"/public/index.html"))
-    case GET at "/" => _ => Response(302).addHeaders(h"Location" -> h"/public/index.html")
+    case GET at "/public/index.html" =>
+      _ =>
+        Ok(ClasspathResource(s"/public/index.html"))
+    case GET at "/" =>
+      _ =>
+        Response(302).addHeaders(h"Location" -> h"/public/index.html")
   }
 
-  val routes : Service = api
+  val routes: Service = api
     .orElse(scheduler.routes(workflow, executor, xa))
     .orElse {
       executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
     }
-    .orElse(project.authenticator(index)(Response(302).addHeaders(h"Location" -> h"/login")) orElse publicAssets)
+    .orElse(project.authenticator(index) orElse publicAssets)
     .orElse(defaultWith(NotFound))
 }
