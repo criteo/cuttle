@@ -103,6 +103,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             else
               acc
           }
+        val allRunning = executor.allRunning
+        val allFailing = executor.allFailingExecutions
         val jobTimelines =
           for {
             job <- workflow.vertices
@@ -119,11 +121,14 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           } yield {
             val label = jobState match {
               case Running(e) =>
-                if (executor.allFailingExecutions.exists(_.id == e))
+                if (allFailing.exists(_.id == e))
                   "failed"
-                else if (executor.platforms.exists(_.waiting.exists(_.id == e)))
-                  "waiting"
-                else "running"
+                else
+                  allRunning.find(_.id == e).map(_.status match {
+                    case ExecutionWaiting => "waiting"
+                    case ExecutionRunning => "running"
+                    case _ => s"unknown"
+                  }).getOrElse("unknown")
               case Todo(_) => "todo"
               case Done => "successful"
             }
