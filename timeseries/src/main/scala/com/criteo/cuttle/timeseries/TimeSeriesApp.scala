@@ -208,6 +208,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           }))
           .groupBy(_._1)
           .toList
+          .sortBy(_._1)
           .map {
             case (date, set) =>
               val (total, done, stuck) = set.foldLeft((0L, 0L, false)) { (acc, exec) =>
