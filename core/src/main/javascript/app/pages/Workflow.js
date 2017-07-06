@@ -78,7 +78,7 @@ class WorkflowComponent extends React.Component {
 
     ReactTooltip.rebuild();
 
-    const renderTimeSeriesSechduling = scheduling => [
+    const renderTimeSeriesSechduling = () => [
       startNode.scheduling.grid && [
         <dt key="period">Period:</dt>,
         <dd key="period_">{startNode.scheduling.grid.period}</dd>
@@ -119,37 +119,37 @@ class WorkflowComponent extends React.Component {
               <dd key="name_">
                 {startNode.name}
               </dd>
-              {renderTimeSeriesSechduling(startNode.scheduling)}
+              {renderTimeSeriesSechduling()}
               {startNode.tags.length > 0 && [
-                <dt key="tags">Tags:</dt>,
-                <dd key="tags_" className={classes.tags}>
-                  {map(startNode.tags, t => [
-                    <span
-                      key={tagsDictionnary[t].name}
-                      className={classes.tag}
-                      data-for={"tag" + tagsDictionnary[t].name}
-                      data-tip={tagsDictionnary[t].description}
-                    >
-                      <TagIcon className="tagIcon" />
-                      {tagsDictionnary[t].name}
-                    </span>,
-                    <ReactTooltip
-                      id={"tag" + tagsDictionnary[t].name}
-                      effect="float"
-                    />
-                  ])}
-                </dd>
-              ]}
+                 <dt key="tags">Tags:</dt>,
+                 <dd key="tags_" className={classes.tags}>
+                   {map(startNode.tags, t => [
+                      <span
+                        key={tagsDictionnary[t].name}
+                        className={classes.tag}
+                        data-for={"tag" + tagsDictionnary[t].name}
+                        data-tip={tagsDictionnary[t].description}
+                      >
+                        <TagIcon className="tagIcon" />
+                        {tagsDictionnary[t].name}
+                      </span>,
+                      <ReactTooltip
+                        id={"tag" + tagsDictionnary[t].name}
+                        effect="float"
+                      />
+                    ])}
+                 </dd>
+               ]}
               {startNode.description && [
-                <dt key="description">Description:</dt>,
-                <dd
-                  key="description_"
-                  className={classes.description}
-                  dangerouslySetInnerHTML={{
-                    __html: markdown.toHTML(startNode.description)
-                  }}
-                />
-              ]}
+                 <dt key="description">Description:</dt>,
+                 <dd
+                   key="description_"
+                   className={classes.description}
+                   dangerouslySetInnerHTML={{
+                     __html: markdown.toHTML(startNode.description)
+                   }}
+                 />
+               ]}
             </FancyTable>
           </div>
         </SlidePanel>
@@ -184,7 +184,6 @@ const styles = {
   description: {
     lineHeight: "1.25em !important",
     fontSize: "0.95em",
-    padding: "0 2em !important",
     textAlign: "justify !important",
     overflowY: "scroll"
   },

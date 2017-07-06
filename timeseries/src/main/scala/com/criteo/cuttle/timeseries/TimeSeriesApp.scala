@@ -10,32 +10,37 @@ import lol.json._
 import io.circe._
 import io.circe.syntax._
 
-import algebra.lattice.Bool._
-import doobie.imports._
-
-import scala.util.{Try}
+import scala.util.Try
 import scala.math.Ordering.Implicits._
 
-import continuum._
-import continuum.bound._
-
-import java.time.{Instant, ZoneId}
+import java.time.Instant
 import java.time.temporal.ChronoUnit._
 
+import doobie.imports._
+
+import intervals._
+
+import Bound.{Bottom, Finite, Top}
 import ExecutionStatus._
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   import App._
+  import TimeSeriesGrid._
+  import JobState._
 
   private implicit val intervalEncoder = new Encoder[Interval[Instant]] {
-    override def apply(interval: Interval[Instant]) = {
-      val Closed(start) = interval.lower.bound
-      val Open(end) = interval.upper.bound
-      Json.obj(
-        "start" -> start.asJson,
-        "end" -> end.asJson
-      )
+    implicit val boundEncoder = new Encoder[Bound[Instant]] {
+      override def apply(bound: Bound[Instant]) = bound match {
+        case Bottom => "-oo".asJson
+        case Top => "+oo".asJson
+        case Finite(t) => t.asJson
+      }
     }
+    override def apply(interval: Interval[Instant]) =
+      Json.obj(
+        "start" -> interval.lo.asJson,
+        "end" -> interval.hi.asJson
+      )
   }
 
   private[cuttle] override def routes(workflow: Workflow[TimeSeries],
@@ -46,27 +51,30 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       def watchState() = Some((state, executor.allFailing))
       def getExecutions(watchedValue: Any = ()) = {
         val job = workflow.vertices.find(_.id == jobId).get
+        val grid = job.scheduling.grid
         val startDate = Instant.parse(start)
         val endDate = Instant.parse(end)
-        val requestedInterval = Interval.closedOpen(startDate, endDate)
+        val requestedInterval = Interval(startDate, endDate)
         val contextQuery = Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
         val archivedExecutions = executor.archivedExecutions(contextQuery, Set(jobId), "", true, 0, Int.MaxValue)
         val runningExecutions = executor.runningExecutions
           .filter {
             case (e, _) =>
-              e.job.id == jobId && e.context.toInterval.encloses(requestedInterval)
+              e.job.id == jobId && e.context.toInterval.intersects(requestedInterval)
           }
           .map { case (e, status) => e.toExecutionLog(status) }
-        val (done, running, _) = state
-        val scheduledPeriods = done(job) ++ running(job)
-        val remainingPeriods =
-          scheduledPeriods.complement.intersect(Interval.atLeast(job.scheduling.start)).intersect(requestedInterval)
-        val remainingContexts: Seq[TimeSeriesContext] = for {
-          interval <- remainingPeriods.toSeq
-          context <- splitInterval(job, interval, false)
-        } yield context
+        val (state, _) = this.state
         val remainingExecutions =
-          remainingContexts.map(ctx => ExecutionLog("", job.id, None, None, ctx.asJson, ExecutionTodo, None))
+          for {
+            (interval, maybeBackfill) <- state(job)
+              .intersect(Interval(startDate, endDate))
+              .toList
+              .collect { case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill) }
+            (lo, hi) <- grid.split(interval)
+          } yield {
+            val context = TimeSeriesContext(grid.truncate(lo), grid.ceil(hi), maybeBackfill)
+            ExecutionLog("", job.id, None, None, context.asJson, ExecutionTodo, None)
+          }
         val throttledExecutions = executor.allFailingExecutions
           .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))
           .map(_.toExecutionLog(ExecutionThrottled))
@@ -86,76 +94,75 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       def getFocusView(watchedValue: Any = ()) = {
         val startDate = Instant.parse(start)
         val endDate = Instant.parse(end)
-        val (_done, _running, backfills) = state
-        val filteredBackfills = backfills.filter(bf => (bf.jobs.map(_.id) & filteredJobs) != Set.empty[String])
-        val stucks = executor.allFailing
-        val periodInterval = Interval.closedOpen(startDate, endDate)
-        val period = StateD(Map.empty, IntervalSet(periodInterval))
-        val done = and(StateD(_done), period)
-        val running = and(StateD(_running), period)
-        val domain = StateD(
-          workflow.vertices.map(job => job -> IntervalSet(Interval.atLeast(job.scheduling.start))).toMap)
-        val remaining = List(complement(or(done, running)), period, domain).reduce(and[StateD])
-        val waiting = executor.platforms.flatMap(_.waiting)
-        val executions = List((done, "successful"), (running, "running"), (remaining, "todo"))
-          .flatMap {
-            case (state, label) =>
-              for {
-                (job, is) <- state.defined.toList
-                if filteredJobs.contains(job.id)
-                interval <- is
-                context <- splitInterval(job, interval, false).toList
-              } yield {
-                val isInBackfill = filteredBackfills.exists(
-                  backfill =>
-                    backfill.jobs.contains(job) &&
-                      context.toInterval.intersects(Interval.closedOpen(backfill.start, backfill.end)))
-                val lbl =
-                  if (label != "running")
-                    label
-                  else if (stucks.exists {
-                             case (stuckJob, stuckCtx) =>
-                               stuckCtx.toInterval.intersects(context.toInterval) && stuckJob == job
-                           })
-                    "failed"
-                  else if (waiting.exists { e =>
-                             e.context match {
-                               case executionContext: TimeSeriesContext =>
-                                 e.job == job && executionContext.toInterval.intersects(context.toInterval)
-                               case _ => false
-                             }
-                           })
-                    "waiting"
-                  else
-                    "running"
-                job.id -> ((context.toInterval.intersect(periodInterval).get, lbl, isInBackfill))
-              }
+        val period = Interval(startDate, endDate)
+        val (state, backfills) = this.state
+        val backfillDomain =
+          backfills.foldLeft(IntervalMap.empty[Instant, Unit]) { (acc, bf) =>
+            if (bf.jobs.map(_.id).intersect(filteredJobs).nonEmpty)
+              acc.update(Interval(bf.start, bf.end), ())
+            else
+              acc
           }
-        val jobTimelines = executions
-          .groupBy(_._1)
-          .mapValues(_.map(_._2).sortBy(_._1))
-        val summary =
-          (for {
-            (_, (interval, label, _)) <- executions
-            Closed(start) = interval.lower.bound
-            Open(end) = interval.upper.bound
-            duration = start.until(end, HOURS)
-            hour <- (1L to duration).map(i => Interval.closedOpen(start.plus(i - 1, HOURS), start.plus(i, HOURS)))
-          } yield (hour, label))
-            .groupBy(_._1)
-            .map {
-              case (hour, xs) =>
-                hour ->
-                  ((xs.filter(_._2 == "successful").length.toFloat / xs.length,
-                    xs.exists(_._2 == "failed"),
-                    filteredBackfills.exists(backfill =>
-                      hour.intersects(Interval.closedOpen(backfill.start, backfill.end)))))
+        val allRunning = executor.allRunning
+        val allFailing = executor.allFailingExecutions
+        val jobTimelines =
+          for {
+            job <- workflow.vertices
+            if filteredJobs.contains(job.id)
+            (interval, jobState) <- state(job).intersect(period).toList
+            toSplit = jobState match {
+              case Running(_) => false
+              case _ => true
             }
-            .toList
-            .sortBy(_._1)
+            (lo, hi) <- {
+              if (toSplit) job.scheduling.grid.split(interval)
+              else List(interval.toPair)
+            }
+          } yield {
+            val label = jobState match {
+              case Running(e) =>
+                if (allFailing.exists(_.id == e))
+                  "failed"
+                else
+                  allRunning.find(_.id == e).map(_.status match {
+                    case ExecutionWaiting => "waiting"
+                    case ExecutionRunning => "running"
+                    case _ => s"unknown"
+                  }).getOrElse("unknown")
+              case Todo(_) => "todo"
+              case Done => "successful"
+            }
+            val isInBackfill = backfills.exists(
+              bf =>
+                bf.jobs.contains(job) &&
+                  IntervalMap(Interval(lo, hi) -> 0)
+                    .intersect(Interval(bf.start, bf.end))
+                    .toList
+                    .nonEmpty)
+            job.id -> ((Interval(lo, hi), label, isInBackfill))
+          }
         Json.obj(
-          "summary" -> summary.asJson,
-          "jobs" -> jobTimelines.asJson
+          "summary" -> Hourly
+            .split(period)
+            .map {
+              case (lo, hi) =>
+                val isInbackfill = backfillDomain.intersect(Interval(lo, hi)).toList.nonEmpty
+                val (duration, done, failing) = (for {
+                  job <- workflow.vertices
+                  if filteredJobs.contains(job.id)
+                  (interval, jobState) <- state(job).intersect(Interval(lo, hi)).toList
+                } yield {
+                  val (lo, hi) = interval.toPair
+                  (lo.until(hi, SECONDS), if (jobState == Done) lo.until(hi, SECONDS) else 0, jobState match {
+                    case Running(e) => executor.allFailingExecutions.exists(_.id == e)
+                    case _ => false
+                  })
+                }).reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 || b._3))
+                Interval(lo, hi) ->
+                  ((f"${done.toDouble / duration.toDouble}%1.1f", failing, isInbackfill))
+            }
+            .asJson,
+          "jobs" -> jobTimelines.groupBy(_._1).mapValues(_.map(_._2)).asJson
         )
       }
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
@@ -170,80 +177,45 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .toSet
       def watchState() = Some((state, executor.allFailing))
       def getCalendar(watchedValue: Any = ()) = {
-        val (done, running, backfills) = state match {
-          case (done, running, backfills) =>
-            val filter = (job: TimeSeriesJob) => filteredJobs.contains(job.id)
-            (done.filterKeys(filter),
-             running.filterKeys(filter),
-             backfills.filter(bf => (filteredJobs & bf.jobs.map(_.id)) != Set.empty[String]))
-        }
-        val stucks = executor.allFailing.filter(x => filteredJobs.contains(x._1.id))
-        val goal = StateD(
-          workflow.vertices
-            .filter(job => filteredJobs.contains(job.id))
-            .map(job => (job -> IntervalSet(Interval.atLeast(job.scheduling.start))))
-            .toMap)
-        val domain = and(or(StateD(done), StateD(running)), goal).defined
-        val backfillDays = backfills.flatMap { backfill =>
-          val startDate = backfill.start.atZone(ZoneId.of("UTC")).toLocalDate
-          val endDate = {
-            val d = backfill.end.atZone(ZoneId.of("UTC")).toLocalDate
-            if (d.atStartOfDay(ZoneId.of("UTC")) == backfill.end.atZone(ZoneId.of("UTC")))
-              d.minus(1, DAYS)
-            else d
+        val (state, backfills) = this.state
+        val backfillDomain =
+          backfills.foldLeft(IntervalMap.empty[Instant, Unit]) { (acc, bf) =>
+            if (bf.jobs.map(_.id).intersect(filteredJobs).nonEmpty)
+              acc.update(Interval(bf.start, bf.end), ())
+            else
+              acc
           }
-          val duration = startDate.until(endDate, DAYS)
-          (0L to duration).toList.map(i => startDate.plus(i, DAYS))
-        }
-        val days = (for {
-          (_, is) <- domain.toList
-          interval <- is.toList
-          Closed(start) = interval.lower.bound
-          Open(end) = interval.upper.bound
-          startDate = start.atZone(ZoneId.of("UTC")).toLocalDate
-          endDate = {
-            val d = end.atZone(ZoneId.of("UTC")).toLocalDate
-            if (d.atStartOfDay(ZoneId.of("UTC")) == end.atZone(ZoneId.of("UTC")))
-              d.minus(1, DAYS)
-            else d
-          }
-          duration = startDate.until(endDate, DAYS)
-          day <- (0L to duration).toList.map(i => startDate.plus(i, DAYS))
-        } yield day).toSet
-        val calendar = days.map { d =>
-          val start = d.atStartOfDay(ZoneId.of("UTC")).toInstant
-          val day = Interval.closedOpen(start, start.plus(1, DAYS))
-          val doneForDay =
-            and(StateD(done), StateD(Map.empty, IntervalSet(day)))
-          val goalForDay = and(goal, StateD(Map.empty, IntervalSet(day)))
-          val isStuck = stucks.exists(_._2.toInterval.intersects(day))
-          val isInBackfill = backfillDays.contains(d)
-
-          def totalDuration(state: StateD) =
-            (for {
-              (_, is) <- state.defined.toList
-              interval <- is
-            } yield {
-              val Closed(start) = interval.lower.bound
-              val Open(end) = interval.upper.bound
-              start.until(end, SECONDS)
-            }).fold(0L)(_ + _)
-          (d.toString,
-           f"${totalDuration(doneForDay).toDouble / totalDuration(goalForDay)}%1.1f",
-           isStuck,
-           isInBackfill)
-        }
-        calendar.toList
-          .sortBy(_._1)
+        val upToNow = Interval(Bottom, Finite(Instant.now))
+        (for {
+          job <- workflow.vertices
+          if filteredJobs.contains(job.id)
+          (interval, jobState) <- state(job).intersect(upToNow).toList
+          (start, end) <- Daily(UTC).split(interval)
+        } yield
+          (Daily(UTC).truncate(start), start.until(end, SECONDS), jobState == Done, jobState match {
+            case Running(exec) => executor.allFailingExecutions.exists(_.id == exec)
+            case _ => false
+          }))
+          .groupBy(_._1)
+          .toList
           .map {
-            case (date, completion, isStuck, isInBackfill) =>
-              (Map(
+            case (date, set) =>
+              val (total, done, stuck) = set.foldLeft((0L, 0L, false)) { (acc, exec) =>
+                val (totalDuration, doneDuration, isAnyStuck) = acc
+                val (_, duration, isDone, isStuck) = exec
+                val newDone = if (isDone) duration else 0L
+                (totalDuration + duration, doneDuration + newDone, isAnyStuck || isStuck)
+              }
+              Map(
                 "date" -> date.asJson,
-                "completion" -> completion.asJson
-              ) ++ (if (isStuck) Map("stuck" -> true.asJson) else Map.empty)
-                ++ (if (isInBackfill) Map("backfill" -> true.asJson) else Map.empty)).asJson
+                "completion" -> f"${done.toDouble / total.toDouble}%1.1f".asJson
+              ) ++ (if (stuck) Map("stuck" -> true.asJson) else Map.empty) ++
+                (if (backfillDomain.intersect(Interval(date, Daily(UTC).next(date))).toList.nonEmpty)
+                   Map("backfill" -> true.asJson)
+                 else Map.empty)
           }
           .asJson
+
       }
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
         sse(watchState, getCalendar)
@@ -273,12 +245,12 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
     case POST at url"/api/timeseries/backfill?name=$name&description=$description&jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
       val jobIds = jobsString.split(",")
-      val jobs = this.state._1.keySet.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
+      val jobs = workflow.vertices.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
       val startDate = Instant.parse(start)
       val endDate = Instant.parse(end)
-      backfillJob(name, description, jobs, startDate, endDate, priority.toInt, xa) match {
-        case Right(id)   => Ok(Json.obj("id" -> id.asJson))
-        case Left(error) => BadRequest(error)
-      }
+      if (backfillJob(name, description, jobs, startDate, endDate, priority.toInt, xa))
+        Ok("ok".asJson)
+      else
+        BadRequest("invalid backfill")
   }
 }

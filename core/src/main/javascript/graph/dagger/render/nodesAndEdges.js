@@ -16,11 +16,10 @@ const computeNewWidth = (
   widthMin: number
 ) => {
   const labelLength = Array.from(label).length;
-  const maxUsableWidth =
-    pixelWidthReference *
-    Math.max(Math.min(labelLength, widthMax), widthMin) /
-    widthReference;
-
+  const pixelsPerLetter = pixelWidthReference / stringLengthReference;
+  const maxUsableWidth = pixelWidthReference
+    + (Math.max(Math.min(labelLength + 2, widthMax), widthMin) - widthReference) * pixelsPerLetter
+    + 2 * pixelsPerLetter;
   return maxUsableWidth;
 };
 
@@ -29,14 +28,14 @@ const computeNewLabel = (label: string, widthMax: number) => {
   const overflowCharacters = Math.max(labelLength - widthMax, 0);
 
   const labelToDisplay = overflowCharacters > 0
-    ? label.substring(0, labelLength - overflowCharacters - 3) + "..."
+    ? label.substring(0, labelLength - overflowCharacters - 4) + "..."
     : label;
   return labelToDisplay;
 };
 
-const widthReference = 30;
-const widthMax = 1.3 * widthReference;
-const widthMin = 0.7 * widthReference;
+const widthReference = 26;
+const widthMax = 1 * widthReference;
+const widthMin = 0.3 * widthReference;
 
 let realWidths = {};
 
@@ -304,8 +303,8 @@ export const drawNode = (
     .attr("x", truncate(newWidth / 2))
     .attr("y", truncate(height / 2))
     .style("fill", "black")
-    .style("font-family", "Arial")
-    .style("font-weight", "bold")
+    .style("font-family", "Fira Mono")
+    .style("font-weight", "500")
     .style("alignment-baseline", "middle")
     .style("pointer-events", "none")
     .style("text-anchor", "middle")
