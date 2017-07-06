@@ -273,15 +273,11 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at "/" => _ => Response(302).addHeaders(h"Location" -> h"/public/index.html")
   }
 
-  val notFound : PartialService = {
-    case _ => NotFound
-  }
-  
   val routes : Service = api
     .orElse(scheduler.routes(workflow, executor, xa))
     .orElse {
       executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
     }
     .orElse(project.authenticator(index)(Response(302).addHeaders(h"Location" -> h"/login")) orElse publicAssets)
-    .orElse(notFound)
+    .orElse(defaultWith(NotFound))
 }
