@@ -14,13 +14,12 @@ import io.circe.syntax._
 
 import doobie.imports._
 
-import continuum.bound._
-import continuum.{Interval, IntervalSet}
-
 private[timeseries] object Database {
   import TimeSeriesUtils._
   import com.criteo.cuttle.Database._
   import com.criteo.cuttle.NoUpdate
+
+  import intervals.{Interval, IntervalMap}
 
   val schema = List(
     sql"""
@@ -107,34 +106,22 @@ private[timeseries] object Database {
     """.update.run *> Applicative[ConnectionIO].pure(context.toString)
 
   def deserializeState(implicit jobs: Set[Job[TimeSeries]]): ConnectionIO[Option[State]] = {
-    implicit def intervalSetDecoder[A: Ordering](implicit decoder: Decoder[A]): Decoder[IntervalSet[A]] = {
-      implicit val intervalDecoder: Decoder[Interval[A]] =
-        Decoder.decodeTuple2[A, A].map(x => Interval.closedOpen(x._1, x._2))
-      Decoder.decodeList[Interval[A]].map(IntervalSet(_: _*))
-    }
-    implicit def jobKeyDecoder[A <: Scheduling](implicit js: Set[Job[A]]): KeyDecoder[Job[A]] =
-      KeyDecoder.decodeKeyString.map(id => js.find(_.id == id).get)
+    type StoredState = List[(String, List[(Interval[Instant], JobState)])]
     OptionT {
       sql"SELECT state FROM timeseries_state ORDER BY date DESC LIMIT 1"
         .query[Json]
         .option
-    }.map(_.as[State].right.get).value
+    }.map(_.as[StoredState].right.get.map {
+        case (jobId, st) =>
+          jobs.find(_.id == jobId).get -> IntervalMap(st: _*)
+      }.toMap)
+      .value
   }
 
   def serializeState(state: State): ConnectionIO[Int] = {
     val now = Instant.now()
-    implicit def intervalSetEncoder[A](implicit encoder: Encoder[A]): Encoder[IntervalSet[A]] = {
-      implicit val intervalEncoder: Encoder[Interval[A]] =
-        Encoder.encodeTuple2[A, A].contramap { interval =>
-          val Closed(start) = interval.lower.bound
-          val Open(end) = interval.upper.bound
-          (start, end)
-        }
-      Encoder.encodeList[Interval[A]].contramap(_.toList)
-    }
-    implicit def jobKeyEncoder[A <: Scheduling]: KeyEncoder[Job[A]] =
-      KeyEncoder.encodeKeyString.contramap(_.id)
-    sql"INSERT INTO timeseries_state (state, date) VALUES (${state.asJson}, $now)".update.run
+    val stateJson = state.toList.map { case (job, im) => (job.id, im.toList) }.asJson
+    sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
   }
 
   def queryBackfills =
