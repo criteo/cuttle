@@ -117,10 +117,6 @@ def removeDependencies(groups: String*)(xml: scala.xml.Node) = {
   ))(xml)
 }
 
-lazy val continuum = {
-  ProjectRef(uri("git://github.com/danburkert/continuum.git#b2122f1980fb69eb0d047e47e9d7de730ccbd448"), "continuum")
-}
-
 lazy val localdb = {
   (project in file("localdb"))
     .settings(commonSettings: _*)
@@ -144,10 +140,10 @@ lazy val cuttle =
       libraryDependencies ++= Seq("core", "generic", "parser")
         .map(module => "io.circe" %% s"circe-${module}" % "0.7.1"),
       libraryDependencies ++= Seq(
+        "de.sciss" %% "fingertree" % "1.5.2",
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % "2.11.9",
         "org.typelevel" %% "cats" % "0.9.0",
-        "org.typelevel" %% "algebra" % "0.7.0",
         "codes.reactive" %% "scala-time" % "0.4.1",
         "com.zaxxer" % "nuprocess" % "1.1.0"
       ),
@@ -186,20 +182,8 @@ lazy val cuttle =
           listFiles(webpackOutputDir)
         }
       }.taskValue,
-      cleanFiles += (file(".") / "node_modules"),
-      // Assembly
-      assemblyExcludedJars in assembly := (fullClasspath in assembly).value,
-      assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
-      publishArtifact in (Compile, packageBin) := false,
-      artifact in (Compile, assembly) := {
-        val core = (artifact in (Compile, packageBin)).value
-        val vendorised = (artifact in (Compile, assembly)).value
-        vendorised
-      },
-      pomPostProcess := removeDependencies("danburkert", "org.scalatest")
+      cleanFiles += (file(".") / "node_modules")
     )
-    .settings(addArtifact(artifact in (Compile, assembly), assembly): _*)
-    .dependsOn(continuum)
 
 lazy val timeseries =
   (project in file("timeseries"))
