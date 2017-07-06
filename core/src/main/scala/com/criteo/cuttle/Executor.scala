@@ -113,6 +113,8 @@ case class Execution[S <: Scheduling](
 object Execution {
   private[cuttle] implicit val ordering: Ordering[Execution[_]] =
     Ordering.by(e => (e.context: SchedulingContext, e.job.id, e.id))
+  private[cuttle] implicit def ordering0[S<:Scheduling]: Ordering[Execution[S]] =
+    ordering.asInstanceOf[Ordering[Execution[S]]]
 }
 
 trait ExecutionPlatform {
@@ -182,10 +184,10 @@ class Executor[S <: Scheduling] private[cuttle] (
       .map(flagWaitingExecutions)
       .map { executions =>
         sort match {
-          case "job" => executions.sortBy(_._1.job.id)
-          case "startTime" => executions.sortBy(_._1.startTime.toString)
-          case "status" => executions.sortBy(_._2.toString)
-          case _ => executions.sortBy(_._1.context)
+          case "job" => executions.sortBy(x => (x._1.job.id, x._1))
+          case "startTime" => executions.sortBy(x => (x._1.startTime.toString, x._1.id))
+          case "status" => executions.sortBy(x => (x._2.toString, x._1))
+          case _ => executions.sortBy(_._1)
         }
       }
       .map { executions =>
@@ -207,9 +209,9 @@ class Executor[S <: Scheduling] private[cuttle] (
     Seq(pausedState.single.values.flatMap(_.keys).toSeq.filter(e => filteredJobs.contains(e.job.id)))
       .map { executions =>
         sort match {
-          case "job" => executions.sortBy(_.job.id)
-          case "startTime" => executions.sortBy(_.startTime.toString)
-          case _ => executions.sortBy(_.context)
+          case "job" => executions.sortBy(e => (e.job.id, e))
+          case "startTime" => executions.sortBy(e => (e.startTime.toString, e))
+          case _ => executions.sorted
         }
       }
       .map { executions =>
@@ -232,11 +234,11 @@ class Executor[S <: Scheduling] private[cuttle] (
     Seq(throttledState.single.toSeq.filter(x => filteredJobs.contains(x._1.job.id)))
       .map { executions =>
         sort match {
-          case "job" => executions.sortBy(_._1.job.id)
-          case "startTime" => executions.sortBy(_._1.startTime.toString)
-          case "failed" => executions.sortBy(_._2._2.failedExecutions.size)
-          case "retry" => executions.sortBy(_._2._2.nextRetry.map(_.toString))
-          case _ => executions.sortBy(_._1.context)
+          case "job" => executions.sortBy(x => (x._1.job.id, x._1))
+          case "startTime" => executions.sortBy(x => (x._1.startTime.toString, x._1))
+          case "failed" => executions.sortBy(x => (x._2._2.failedExecutions.size, x._1))
+          case "retry" => executions.sortBy(x => (x._2._2.nextRetry.map(_.toString), x._1))
+          case _ => executions.sortBy(_._1)
         }
       }
       .map { executions =>
