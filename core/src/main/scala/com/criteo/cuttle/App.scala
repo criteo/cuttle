@@ -283,9 +283,12 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   }
 
   val routes: Service = api
-    .orElse(scheduler.routes(workflow, executor, xa))
+    .orElse(scheduler.publicRoutes(workflow, executor, xa))
+    .orElse(project.authenticator(scheduler.privateRoutes(workflow, executor, xa)))
     .orElse {
-      executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
+      executor.platforms.foldLeft(PartialFunction.empty: PartialService) {
+        case (s, p) => s.orElse(p.publicRoutes).orElse(project.authenticator(p.privateRoutes))
+      }
     }
     .orElse(project.authenticator(index) orElse publicAssets)
     .orElse(defaultWith(NotFound))

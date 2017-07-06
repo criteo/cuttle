@@ -2,7 +2,7 @@ package com.criteo.cuttle
 
 import java.io.{PrintWriter, StringWriter}
 import java.util.{Timer, TimerTask}
-import java.util.concurrent.atomic.{AtomicBoolean}
+import java.util.concurrent.atomic.AtomicBoolean
 import java.time.{Duration, Instant, ZoneId}
 
 import scala.util.{Failure, Success}
@@ -11,13 +11,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.duration._
-import scala.reflect.{classTag, ClassTag}
-
-import lol.http.{PartialService}
-
+import scala.reflect.{ClassTag, classTag}
+import lol.http.PartialService
 import doobie.imports._
 import cats.implicits._
-
+import com.criteo.cuttle.authentication.AuthenticatedService
 import io.circe._
 
 trait RetryStrategy {
@@ -116,7 +114,8 @@ object Execution {
 }
 
 trait ExecutionPlatform {
-  def routes: PartialService = PartialFunction.empty
+  def publicRoutes: PartialService = PartialFunction.empty
+  def privateRoutes: AuthenticatedService = PartialFunction.empty
   def waiting: Set[Execution[_]]
 }
 
