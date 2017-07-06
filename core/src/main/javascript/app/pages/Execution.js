@@ -377,7 +377,7 @@ const styles = {
     color: "#fff",
     fontSize: "22px",
     position: "absolute",
-    right: "10px",
+    right: "20px",
     top: "10px"
   },
   autoScrollButton: {
@@ -385,7 +385,7 @@ const styles = {
     color: "#fff",
     fontSize: "22px",
     position: "absolute",
-    right: "36px",
+    right: "46px",
     top: "10px"
   },
   activeAutoScroll: {
