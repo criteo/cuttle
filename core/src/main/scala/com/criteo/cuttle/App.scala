@@ -122,11 +122,12 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   val publicApi: PartialService = {
 
     case GET at url"/api/status" =>
-      Ok(Json.obj(
-        "project" -> project.name.asJson,
-        "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
-        "status" -> "ok".asJson
-      ))
+      Ok(
+        Json.obj(
+          "project" -> project.name.asJson,
+          "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
+          "status" -> "ok".asJson
+        ))
 
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
@@ -281,12 +282,12 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   }
 
   val index: AuthenticatedService = {
-    case GET at "/public/index.html" =>
+    case req if req.url.startsWith("/api/") =>
+      _ =>
+        NotFound
+    case _ =>
       _ =>
         Ok(ClasspathResource(s"/public/index.html"))
-    case GET at "/" =>
-      _ =>
-        Response(302).addHeaders(h"Location" -> h"/public/index.html")
   }
 
   val routes: Service = api
@@ -297,6 +298,5 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         case (s, p) => s.orElse(p.publicRoutes).orElse(project.authenticator(p.privateRoutes))
       }
     }
-    .orElse(project.authenticator(index) orElse publicAssets)
-    .orElse(defaultWith(NotFound))
+    .orElse(publicAssets orElse project.authenticator(index))
 }
