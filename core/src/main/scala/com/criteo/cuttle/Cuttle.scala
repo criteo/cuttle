@@ -9,7 +9,8 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val description: String,
   val env: (String, Boolean),
   val workflow: Workflow[S],
-  val scheduler: Scheduler[S]
+  val scheduler: Scheduler[S],
+  val authenticator: Authenticator
 ) {
   def start(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
@@ -29,12 +30,13 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
 }
 
 object CuttleProject {
-  def apply[S <: Scheduling](
-    name: String,
-    version: String = "",
-    description: String = "",
-    env: (String, Boolean) = ("", false))(workflow: Workflow[S])(implicit scheduler: Scheduler[S]): CuttleProject[S] =
-    new CuttleProject(name, version, description, env, workflow, scheduler)
+  def apply[S <: Scheduling](name: String,
+                             version: String = "",
+                             description: String = "",
+                             env: (String, Boolean) = ("", false),
+                             authenticator: Authenticator = GuestAuth)(workflow: Workflow[S])(
+    implicit scheduler: Scheduler[S]): CuttleProject[S] =
+    new CuttleProject(name, version, description, env, workflow, scheduler, authenticator)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import platforms._

@@ -30,7 +30,7 @@ case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, Htt
   override def waiting: Set[Execution[_]] =
     rateLimiters.map(_._2).foldLeft(pool.waiting)(_ ++ _.waiting)
 
-  override lazy val routes: PartialService = pool.routes
+  override lazy val publicRoutes: PartialService = pool.routes
 }
 
 object HttpPlatform {
