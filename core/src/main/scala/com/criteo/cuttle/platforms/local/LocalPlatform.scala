@@ -16,7 +16,7 @@ case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
   override def waiting: Set[Execution[_]] =
     pool.waiting
 
-  override lazy val routes: PartialService =
+  override lazy val publicRoutes: PartialService =
     pool.routes
 }
 
