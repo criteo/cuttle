@@ -1,29 +1,25 @@
 package com.criteo.cuttle.timeseries
 
 import TimeSeriesUtils._
-
 import com.criteo.cuttle._
-
 import lol.http._
 import lol.json._
-
 import io.circe._
 import io.circe.syntax._
 
 import scala.util.Try
 import scala.math.Ordering.Implicits._
-
 import java.time.Instant
 import java.time.temporal.ChronoUnit._
 
 import doobie.imports._
-
 import intervals._
-
 import Bound.{Bottom, Finite, Top}
 import ExecutionStatus._
+import com.criteo.cuttle.authentication.AuthenticatedService
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
+
   import App._
   import TimeSeriesGrid._
   import JobState._
@@ -36,6 +32,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         case Finite(t) => t.asJson
       }
     }
+
     override def apply(interval: Interval[Instant]) =
       Json.obj(
         "start" -> interval.lo.asJson,
@@ -43,12 +40,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       )
   }
 
-  private[cuttle] override def routes(workflow: Workflow[TimeSeries],
-                                      executor: Executor[TimeSeries],
-                                      xa: XA): PartialService = {
+  private[cuttle] override def publicRoutes(workflow: Workflow[TimeSeries],
+                                            executor: Executor[TimeSeries],
+                                            xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
       def watchState() = Some((state, executor.allFailing))
+
       def getExecutions(watchedValue: Any = ()) = {
         val job = workflow.vertices.find(_.id == jobId).get
         val grid = job.scheduling.grid
@@ -80,6 +78,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .map(_.toExecutionLog(ExecutionThrottled))
         (archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions).asJson
       }
+
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
         sse(watchState, getExecutions)
       else
@@ -90,7 +89,9 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .filter(_.nonEmpty)
         .getOrElse(workflow.vertices.map(_.id))
         .toSet
+
       def watchState() = Some((state, executor.allFailing))
+
       def getFocusView(watchedValue: Any = ()) = {
         val startDate = Instant.parse(start)
         val endDate = Instant.parse(end)
@@ -103,6 +104,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             else
               acc
           }
+        val allRunning = executor.allRunning
+        val allFailing = executor.allFailingExecutions
         val jobTimelines =
           for {
             job <- workflow.vertices
@@ -119,11 +122,17 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           } yield {
             val label = jobState match {
               case Running(e) =>
-                if (executor.allFailingExecutions.exists(_.id == e))
+                if (allFailing.exists(_.id == e))
                   "failed"
-                else if (executor.platforms.exists(_.waiting.exists(_.id == e)))
-                  "waiting"
-                else "running"
+                else
+                  allRunning
+                    .find(_.id == e)
+                    .map(_.status match {
+                      case ExecutionWaiting => "waiting"
+                      case ExecutionRunning => "running"
+                      case _ => s"unknown"
+                    })
+                    .getOrElse("unknown")
               case Todo(_) => "todo"
               case Done => "successful"
             }
@@ -139,10 +148,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         Json.obj(
           "summary" -> Hourly
             .split(period)
-            .map {
+            .flatMap {
               case (lo, hi) =>
                 val isInbackfill = backfillDomain.intersect(Interval(lo, hi)).toList.nonEmpty
-                val (duration, done, failing) = (for {
+                val jobSummaries = for {
                   job <- workflow.vertices
                   if filteredJobs.contains(job.id)
                   (interval, jobState) <- state(job).intersect(Interval(lo, hi)).toList
@@ -152,14 +161,22 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                     case Running(e) => executor.allFailingExecutions.exists(_.id == e)
                     case _ => false
                   })
-                }).reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 || b._3))
-                Interval(lo, hi) ->
-                  ((f"${done.toDouble / duration.toDouble}%1.1f", failing, isInbackfill))
+                }
+                if (jobSummaries.nonEmpty) {
+                  val (duration, done, failing) = jobSummaries
+                    .reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 || b._3))
+                  Some(
+                    Interval(lo, hi) ->
+                      ((f"${done.toDouble / duration.toDouble}%1.1f", failing, isInbackfill)))
+                } else {
+                  None
+                }
             }
             .asJson,
           "jobs" -> jobTimelines.groupBy(_._1).mapValues(_.map(_._2)).asJson
         )
       }
+
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
         sse(watchState, getFocusView)
       else
@@ -170,7 +187,9 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .filter(_.nonEmpty)
         .getOrElse(workflow.vertices.map(_.id))
         .toSet
+
       def watchState() = Some((state, executor.allFailing))
+
       def getCalendar(watchedValue: Any = ()) = {
         val (state, backfills) = this.state
         val backfillDomain =
@@ -193,6 +212,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           }))
           .groupBy(_._1)
           .toList
+          .sortBy(_._1)
           .map {
             case (date, set) =>
               val (total, done, stuck) = set.foldLeft((0L, 0L, false)) { (acc, exec) =>
@@ -212,6 +232,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .asJson
 
       }
+
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
         sse(watchState, getCalendar)
       else
@@ -237,15 +258,20 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .transact(xa)
           .unsafePerformIO
           .asJson)
+  }
 
+  private[cuttle] override def privateRoutes(workflow: Workflow[TimeSeries],
+                                             executor: Executor[TimeSeries],
+                                             xa: XA): AuthenticatedService = {
     case POST at url"/api/timeseries/backfill?name=$name&description=$description&jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
-      val jobIds = jobsString.split(",")
-      val jobs = workflow.vertices.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
-      val startDate = Instant.parse(start)
-      val endDate = Instant.parse(end)
-      if (backfillJob(name, description, jobs, startDate, endDate, priority.toInt, xa))
-        Ok("ok".asJson)
-      else
-        BadRequest("invalid backfill")
+      _ =>
+        val jobIds = jobsString.split(",")
+        val jobs = workflow.vertices.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
+        val startDate = Instant.parse(start)
+        val endDate = Instant.parse(end)
+        if (backfillJob(name, description, jobs, startDate, endDate, priority.toInt, xa))
+          Ok("ok".asJson)
+        else
+          BadRequest("invalid backfill")
   }
 }

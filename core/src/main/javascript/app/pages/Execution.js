@@ -75,7 +75,8 @@ class Execution extends React.Component {
       );
       streamsEventSource = listenEvents(
         `/api/executions/${execution}/streams?events=true`,
-        this.streams.bind(this)
+        this.streams.bind(this),
+        () => this.setState({...this.state, streams: []})
       );
       this.setState({
         query: newQuery,
@@ -84,7 +85,7 @@ class Execution extends React.Component {
         eventSource,
         streamsEventSource,
         fullscreen: false,
-        autoScroll: false
+        autoScroll: true
       });
     }
   }
@@ -97,8 +98,8 @@ class Execution extends React.Component {
 
   updateData(json: ExecutionLog) {
     this.setState({
-      data: json,
-      autoScroll: this.state.autoScroll || json.status == "running"
+      ...this.state,
+      data: json
     });
   }
 

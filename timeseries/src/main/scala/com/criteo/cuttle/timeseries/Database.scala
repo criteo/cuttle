@@ -111,16 +111,28 @@ private[timeseries] object Database {
       sql"SELECT state FROM timeseries_state ORDER BY date DESC LIMIT 1"
         .query[Json]
         .option
-    }.map(_.as[StoredState].right.get.map {
+    }.map(_.as[StoredState].right.get.flatMap {
         case (jobId, st) =>
-          jobs.find(_.id == jobId).get -> IntervalMap(st: _*)
+          jobs.find(_.id == jobId).map(job => job -> IntervalMap(st: _*))
       }.toMap)
       .value
   }
 
   def serializeState(state: State): ConnectionIO[Int] = {
+    import JobState.{Done, Todo}
+
     val now = Instant.now()
-    val stateJson = state.toList.map { case (job, im) => (job.id, im.toList) }.asJson
+    val stateJson = state.toList.map {
+      case (job, im) =>
+        (job.id, im.toList.filter {
+          case (interval, jobState) =>
+            jobState match {
+              case Done => true
+              case Todo(_) => true
+              case _ => false
+            }
+        })
+    }.asJson
     sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
   }
 
