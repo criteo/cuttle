@@ -11,13 +11,13 @@ import com.criteo.cuttle.platforms.ExecutionPool
 import lol.http.PartialService
 
 case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
-  private[local] val pool = new ExecutionPool(name = "local", concurrencyLimit = maxForkedProcesses)
+  private[local] val pool = new ExecutionPool(concurrencyLimit = maxForkedProcesses)
 
   override def waiting: Set[Execution[_]] =
     pool.waiting
 
   override lazy val publicRoutes: PartialService =
-    pool.routes
+    pool.routes("/api/platforms/local/pool")
 }
 
 object LocalPlatform {
@@ -41,7 +41,7 @@ class LocalProcess(private val process: NuProcessBuilder) {
       .lookup[LocalPlatform]
       .getOrElse(sys.error("No local execution platform configured"))
       .pool
-      .run(execution) { () =>
+      .run(execution, debug = this.toString) { () =>
         val result = Promise[Unit]()
         val handler = new NuAbstractProcessHandler() {
           override def onStdout(buffer: ByteBuffer, closed: Boolean) = {
