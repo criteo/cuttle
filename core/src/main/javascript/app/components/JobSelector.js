@@ -18,12 +18,12 @@ type Props = {
   className?: string,
   workflow: Workflow,
   placeholder?: any,
-  onChange: (jobs: Array<string>) => void,
-  selected: Array<string>
+  onChange: (jobs: string[]) => void,
+  selectedJobIds: string[]
 };
 
 type State = {
-  selected: Array<Option>
+  selectedOptions: Option[]
 };
 
 type Option = {
@@ -31,23 +31,35 @@ type Option = {
   label: string,
   kind?: "job" | "parents" | "children" | "tag",
   job?: string,
-  others?: Array<string>
+  others?: string[]
 };
+
+const optionsFromJobIds = (jobIds: string[], workflow: Workflow): Option[] =>
+  _.reduce(
+    jobIds,
+    (acc, selectedJobId) => {
+      const job = _.find(workflow.jobs, { id: selectedJobId });
+      return job ? [...acc, { label: job.name, value: job.id }] : acc;
+    },
+    []
+  );
 
 class JobSelector extends React.Component {
   props: Props;
   state: State;
-  options: Array<Option>;
+  options: Option[];
 
   constructor(props: Props) {
     super(props);
+
+    const { workflow, selectedJobIds } = props;
     this.state = {
       focused: false,
-      selected: props.selected.map(job => ({ value: job, label: job }))
+      selectedOptions: optionsFromJobIds(selectedJobIds, workflow)
     };
-    this.options = _.flatMap(props.workflow.tags, ({ name }) => {
-      let tagged = props.workflow.getTagged(name);
-      if (tagged.length) {
+    this.options = _.flatMap(workflow.tags, ({ name }) => {
+      let tagged = workflow.getTagged(name);
+      if (tagged.length > 0) {
         return [
           {
             value: `_${name}-TAG`,
@@ -59,12 +71,12 @@ class JobSelector extends React.Component {
       }
       return [];
     }).concat(
-      _.flatMap(_.sortBy(props.workflow.jobs, job => job.id), job => {
+      _.flatMap(_.sortBy(workflow.jobs, job => job.name), job => {
         let result = [
           { value: `_${job.id}`, job: job.id, label: job.name, kind: "job" }
         ];
-        let parents = props.workflow.getParents(job.id);
-        let children = props.workflow.getChildren(job.id);
+        let parents = workflow.getParents(job.id);
+        let children = workflow.getChildren(job.id);
         if (parents.length > 0) {
           result.push({
             value: `_${job.id}-PARENTS`,
@@ -88,31 +100,32 @@ class JobSelector extends React.Component {
     );
   }
 
-  onSelectItem(selected: Array<Option>) {
+  onSelectItem(selectedOptions: Option[]) {
     let newSelected = _.uniqBy(
-      _.flatMap(selected, ({ value, label, job, others }) => {
-        if (others && others.length) {
-          return (job ? [{ value: job, label: job }] : []).concat(
-            others.map(job => ({ value: job, label: job }))
+      _.flatMap(selectedOptions, ({ value, label, job, others }) => {
+        if (others && others.length > 0) {
+          return optionsFromJobIds(
+            [...(job ? [job] : []), ...others],
+            this.props.workflow
           );
         } else if (job) {
-          return [{ value: job, label: job }];
+          return optionsFromJobIds([job], this.props.workflow);
         }
         return [{ value, label }];
       }),
       o => o.value
     );
     this.setState({
-      selected: newSelected
+      selectedOptions: newSelected
     });
     this.props.onChange(newSelected.map(s => s.value));
   }
 
   render() {
     let { className, classes, placeholder } = this.props;
-    let { selected } = this.state;
+    let { selectedOptions } = this.state;
 
-    let renderOption = ({ value, label, kind, others }: Option) => (
+    let renderOption = ({ label, kind, others }: Option) => (
       <span>
         {kind == "parents"
           ? <GraphIcon
@@ -137,9 +150,9 @@ class JobSelector extends React.Component {
     );
 
     let filterOptions = (
-      options: Array<Option>,
+      options: Option[],
       filter: string,
-      currentValues: Array<Option>
+      currentValues: Option[]
     ) => {
       let tokenize = (text: string) =>
         unorm
@@ -148,20 +161,20 @@ class JobSelector extends React.Component {
           .replace(/\W/g, " ")
           .toLowerCase()
           .split(" ");
-      let currentJobs = currentValues.map(v => v.value);
+      let currentJobIds = currentValues.map(v => v.value);
       let availableOptions = options.filter(o => {
-        let jobAlreadySelected = _.indexOf(currentJobs, o.job) > -1;
+        let jobAlreadySelected = _.includes(currentJobIds, o.job);
         let allOthersAlreadySelected =
           o.others &&
           o.others.length &&
-          o.others.every(j => _.indexOf(currentJobs, j) > -1);
+          o.others.every(j => _.includes(currentJobIds, j));
         return !jobAlreadySelected && !allOthersAlreadySelected;
       });
       let filterTokens = tokenize(filter);
       let filteredOptions = availableOptions.filter(({ label }) => {
         let labelTokens = tokenize(label);
         return _.every(filterTokens, t =>
-          _.some(labelTokens, l => l.indexOf(t) > -1)
+          _.some(labelTokens, l => _.includes(l, t))
         );
       });
       return filteredOptions;
@@ -178,7 +191,7 @@ class JobSelector extends React.Component {
             </span>
         }
         className={classNames(className, classes.select)}
-        value={selected}
+        value={selectedOptions}
         options={this.options}
         onChange={this.onSelectItem.bind(this)}
         optionRenderer={renderOption}

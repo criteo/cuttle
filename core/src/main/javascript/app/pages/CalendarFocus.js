@@ -326,12 +326,12 @@ class CalendarFocus extends React.Component {
           .attr("text-anchor", "end")
           .attr("x", -(2 * PADDING))
           .attr("y", 14)
-          .text(d => d);
+          .text(d => d.name);
 
         newJobTimeline
           .selectAll("g.periodSlot")
           .data(
-            jobName => _.map(jobs[jobName], p => ({ ...p, jobName })),
+            job => _.map(jobs[job.id], p => ({ ...p, jobName: job.name })),
             k => k.period.start
           )
           .enter()
@@ -344,9 +344,13 @@ class CalendarFocus extends React.Component {
           );
       };
 
+      const jobInfos = _.sortBy(
+        _.map(_.keys(jobs), j => _.find(workflow.jobs, { id: j })),
+        "name"
+      );
       detailsSvg
         .selectAll("g.jobTimeline")
-        .data(workflow.jobs.map(job => job.id))
+        .data(jobInfos, job => job.id)
         .enter()
         .call(drawJobs);
     }
