@@ -3,12 +3,15 @@ package com.criteo.cuttle
 import lol.http.PartialService
 import io.circe.Json
 import doobie.imports._
+import java.util.Comparator
 
-import java.util.{Comparator}
+import com.criteo.cuttle.authentication.AuthenticatedService
 
 trait Scheduler[S <: Scheduling] {
   def start(workflow: Workflow[S], executor: Executor[S], xa: XA): Unit
-  private[cuttle] def routes(workflow: Workflow[S], executor: Executor[S], xa: XA): PartialService =
+  private[cuttle] def publicRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): PartialService =
+    PartialFunction.empty
+  private[cuttle] def privateRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): AuthenticatedService =
     PartialFunction.empty
   val allContexts: Fragment
 }

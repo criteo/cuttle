@@ -8,11 +8,17 @@ import lol.http._
 import scala.concurrent.Future
 import scala.util.Try
 
-/**
-  * Trait describing authentication methods
-  */
 trait Authenticator {
 
+  /**
+    * Turns an AuthenticatedService into a PartialService
+    * with embedded authentication
+    * Will try to authenticate *only* requests in the domain
+    * of the AuthenticatedService, other requests are passed
+    * through.
+    * @param s the service to wrap.
+    * @return a partial service.
+    */
   def apply(s: AuthenticatedService): PartialService =
     new PartialFunction[Request, Future[Response]] {
       override def isDefinedAt(request: Request): Boolean =
@@ -34,21 +40,19 @@ trait Authenticator {
   def authenticate(r: Request): Either[Response, User]
 }
 
-case class User(userName: String)
+case class User(userId: String)
 
+/**
+  * Authenticates every request with a Guest user
+  */
 case object GuestAuth extends Authenticator {
 
-  /**
-    * Authenticated any user as Guest.
-    * @param r request to be authenticated
-    * @return Authenticated user
-    */
   override def authenticate(r: Request): Either[Response, User] = Right(User("Guest"))
 }
 
 /**
   * Implementation of the HTTP Basic auth.
-  * @param credentialsValidator method to validate credentials.
+  * @param credentialsValidator function to validate credentials.
   * @param userVisibleRealm The user visible realm.
   */
 case class BasicAuth(
@@ -102,6 +106,11 @@ object BasicAuth {
 }
 
 package object authentication {
+
+  /**
+    * PartialService with authenticated user in
+    * request handler's scope.
+    */
   type AuthenticatedService = PartialFunction[Request, (User => Future[Response])]
 
   def defaultWith(response: Future[Response]): PartialService = {
