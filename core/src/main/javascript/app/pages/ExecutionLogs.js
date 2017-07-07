@@ -208,7 +208,7 @@ class ExecutionLogs extends React.Component {
                     <TimeRangeLink
                       href={`/timeseries/calendar/${urlFormat(start)}_${urlFormat(end)}`}
                       start={start}
-                      end={start}
+                      end={end}
                     />
                   );
                 }
