@@ -1,15 +1,12 @@
 package com.criteo.cuttle.platforms
 
-import com.criteo.cuttle._
-
 import scala.concurrent.stm._
 
 import lol.http._
 import lol.json._
 
+import io.circe._
 import io.circe.syntax._
-
-import App._
 
 /**
   * A thread safe execution pool backed by a priority queue.
@@ -19,18 +16,17 @@ import App._
   * @param name a globally unique name for this queue.
   * @param concurrencyLimit
   * @param contextOrdering
-  * @tparam S
   */
-private[cuttle] class ExecutionPool(name: String, concurrencyLimit: Int) extends WaitingExecutionQueue {
+private[cuttle] class ExecutionPool(concurrencyLimit: Int) extends WaitingExecutionQueue {
   def canRunNextCondition(implicit txn: InTxn) = _running().size < concurrencyLimit
   def doRunNext()(implicit txn: InTxn): Unit = ()
 
-  lazy val routes: PartialService = {
-    case GET at url"/api/$name/tasks/_running" =>
-      Ok(this._running.single.get.toSeq.map(_.toExecutionLog(ExecutionStatus.ExecutionRunning)).asJson)
-
-    case GET at url"/api/$name/tasks/_waiting" =>
-      Ok(this._waiting.single.get.toSeq.map(_._1.toExecutionLog(ExecutionStatus.ExecutionWaiting)).asJson)
-  }
-
+  override def routes(urlPrefix: String) = ({
+    case req if req.url == urlPrefix =>
+      Ok(Json.obj(
+        "concurrencyLimit" -> concurrencyLimit.asJson,
+        "running" -> running.size.asJson,
+        "waiting" -> waiting.size.asJson
+      ))
+  }: PartialService).orElse(super.routes(urlPrefix))
 }
