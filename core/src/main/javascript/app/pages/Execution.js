@@ -85,7 +85,7 @@ class Execution extends React.Component {
         eventSource,
         streamsEventSource,
         fullscreen: false,
-        autoScroll: false
+        autoScroll: true
       });
     }
   }
@@ -98,8 +98,8 @@ class Execution extends React.Component {
 
   updateData(json: ExecutionLog) {
     this.setState({
-      data: json,
-      autoScroll: this.state.autoScroll || json.status == "running"
+      ...this.state,
+      data: json
     });
   }
 
