@@ -12,6 +12,7 @@ import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import authentication._
 import ExecutionStatus._
 
 private[cuttle] object App {
@@ -118,14 +119,15 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   import App._
   import project.{scheduler, workflow}
 
-  val api: PartialService = {
+  val publicApi: PartialService = {
 
     case GET at url"/api/status" =>
-      Ok(Json.obj(
-        "project" -> project.name.asJson,
-        "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
-        "status" -> "ok".asJson
-      ))
+      Ok(
+        Json.obj(
+          "project" -> project.name.asJson,
+          "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
+          "status" -> "ok".asJson
+        ))
 
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
@@ -211,10 +213,6 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
           getExecution().map(e => Ok(e.asJson)).getOrElse(NotFound)
       }
 
-    case POST at url"/api/executions/$id/cancel" =>
-      executor.cancelExecution(id)
-      Ok
-
     case GET at url"/api/executions/$id/streams?events=$events" =>
       lazy val streams = executor.openStreams(id)
       events match {
@@ -238,26 +236,6 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at url"/api/jobs/paused" =>
       Ok(executor.pausedJobs.asJson)
 
-    case POST at url"/api/jobs/all/pause" =>
-      executor.pauseJobs(workflow.vertices)
-      Ok
-
-    case POST at url"/api/jobs/$id/pause" =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.pauseJobs(Set(job))
-        Ok
-      }
-
-    case POST at url"/api/jobs/all/unpause" =>
-      executor.unpauseJobs(workflow.vertices)
-      Ok
-
-    case POST at url"/api/jobs/$id/unpause" =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.unpauseJobs(Set(job))
-        Ok
-      }
-
     case GET at "/api/project_definition" =>
       Ok(project.asJson)
 
@@ -265,21 +243,60 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       Ok(workflow.asJson)
   }
 
-  val webapp: PartialService = {
-    case GET at url"/public/$file" =>
-      ClasspathResource(s"/public/$file").fold(NotFound)(r => Ok(r))
+  val privateApi: AuthenticatedService = {
+    case POST at url"/api/executions/$id/cancel" =>
+      _ =>
+        executor.cancelExecution(id)
+        Ok
 
-    case req if req.url.startsWith("/api/") =>
-      NotFound
+    case POST at url"/api/jobs/all/pause" =>
+      user =>
+        executor.pauseJobs(workflow.vertices)
+        Ok
 
-    case _ =>
-      Ok(ClasspathResource(s"/public/index.html"))
+    case POST at url"/api/jobs/$id/pause" =>
+      _ =>
+        workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+          executor.pauseJobs(Set(job))
+          Ok
+        }
+
+    case POST at url"/api/jobs/all/unpause" =>
+      _ =>
+        executor.unpauseJobs(workflow.vertices)
+        Ok
+
+    case POST at url"/api/jobs/$id/unpause" =>
+      _ =>
+        workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+          executor.unpauseJobs(Set(job))
+          Ok
+        }
   }
 
-  val routes = api
-    .orElse(scheduler.routes(workflow, executor, xa))
+  val api = publicApi orElse project.authenticator(privateApi)
+
+  val publicAssets: PartialService = {
+    case GET at url"/public/$file" =>
+      ClasspathResource(s"/public/$file").fold(NotFound)(r => Ok(r))
+  }
+
+  val index: AuthenticatedService = {
+    case req if req.url.startsWith("/api/") =>
+      _ =>
+        NotFound
+    case _ =>
+      _ =>
+        Ok(ClasspathResource(s"/public/index.html"))
+  }
+
+  val routes: Service = api
+    .orElse(scheduler.publicRoutes(workflow, executor, xa))
+    .orElse(project.authenticator(scheduler.privateRoutes(workflow, executor, xa)))
     .orElse {
-      executor.platforms.foldLeft(PartialFunction.empty: PartialService) { case (s, p) => s.orElse(p.routes) }
+      executor.platforms.foldLeft(PartialFunction.empty: PartialService) {
+        case (s, p) => s.orElse(p.publicRoutes).orElse(project.authenticator(p.privateRoutes))
+      }
     }
-    .orElse(webapp)
+    .orElse(publicAssets orElse project.authenticator(index))
 }
