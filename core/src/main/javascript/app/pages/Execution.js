@@ -74,9 +74,8 @@ class Execution extends React.Component {
         this.notFound.bind(this)
       );
       streamsEventSource = listenEvents(
-        `/api/executions/${execution}/streams?events=true`,
-        this.streams.bind(this),
-        () => this.setState({...this.state, streams: []})
+        `/api/executions/${execution}/streams`,
+        this.streams.bind(this)
       );
       this.setState({
         query: newQuery,
@@ -107,7 +106,13 @@ class Execution extends React.Component {
     let { streamsEventSource } = this.state;
     if (json == "EOS" && streamsEventSource) {
       streamsEventSource.close();
-    } else {
+    }
+    else if (json == "BOS" && streamsEventSource) {
+      this.setState({
+        streams: []
+      });
+    }
+    else {
       let lines = [];
       json.forEach(line => {
         let groups = /([^ ]+) ([^ ]+)\s+- (.*)/.exec(line);
