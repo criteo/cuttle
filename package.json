@@ -31,6 +31,7 @@
     "webpack": "^2.2.1"
   },
   "dependencies": {
+    "autolinker": "^1.4.3",
     "classnames": "^2.2.5",
     "css.escape": "^1.5.1",
     "cytoscape": "^2.7.15",
