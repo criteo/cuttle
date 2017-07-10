@@ -1,14 +1,15 @@
 package com.criteo.cuttle.platforms.local
 
 import java.nio.ByteBuffer
-
-import com.zaxxer.nuprocess._
 import java.util.UUID
 
-import scala.concurrent.{Future, Promise}
 import com.criteo.cuttle._
 import com.criteo.cuttle.platforms.ExecutionPool
+import com.zaxxer.nuprocess._
 import lol.http.PartialService
+
+import scala.collection.JavaConverters._
+import scala.concurrent.{Future, Promise}
 
 case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
   private[local] val pool = new ExecutionPool(concurrencyLimit = maxForkedProcesses)
@@ -21,18 +22,13 @@ case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
 }
 
 object LocalPlatform {
-  def fork(command: String) = {
-    val script = command.stripMargin('|')
-    new LocalProcess(new NuProcessBuilder("sh", "-ce", script)) {
-      override def toString = script
-    }
-  }
+  def fork(command: String) = new LocalProcess(List("sh", "-ce", command))
 }
 
-class LocalProcess(private val process: NuProcessBuilder) {
+class LocalProcess(command: List[String]) {
   val id = UUID.randomUUID().toString
 
-  def exec[S <: Scheduling]()(implicit execution: Execution[S]): Future[Unit] = {
+  def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Unit] = {
     val streams = execution.streams
     streams.debug(s"Forking:")
     streams.debug(this.toString)
@@ -62,6 +58,7 @@ class LocalProcess(private val process: NuProcessBuilder) {
                 result.failure(new Exception(s"Process exited with code $n"))
             }
         }
+        val process = new NuProcessBuilder(command.asJava, env.asJava)
         process.setProcessListener(handler)
         val fork = process.start()
         streams.debug(s"forked with PID ${fork.getPID}")
@@ -71,4 +68,5 @@ class LocalProcess(private val process: NuProcessBuilder) {
         result.future
       }
   }
+  override def toString = command.toString
 }
