@@ -387,7 +387,8 @@ const styles = {
     fontSize: "22px",
     position: "absolute",
     right: "20px",
-    top: "10px"
+    top: "10px",
+    background: "rgba(35, 37, 47, 0.65)"
   },
   autoScrollButton: {
     cursor: "pointer",
@@ -395,7 +396,8 @@ const styles = {
     fontSize: "22px",
     position: "absolute",
     right: "46px",
-    top: "10px"
+    top: "10px",
+    background: "rgba(35, 37, 47, 0.65)"
   },
   activeAutoScroll: {
     color: "#66cb63"
