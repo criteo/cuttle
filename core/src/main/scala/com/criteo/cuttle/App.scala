@@ -213,19 +213,20 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
           getExecution().map(e => Ok(e.asJson)).getOrElse(NotFound)
       }
 
-    case GET at url"/api/executions/$id/streams?events=$events" =>
+    case req @ GET at url"/api/executions/$id/streams" =>
       lazy val streams = executor.openStreams(id)
-      events match {
-        case "true" | "yes" =>
+      req.headers.get(h"Accept").exists(_ == h"text/event-stream") match {
+        case true =>
           Ok(
+            fs2.Stream(ServerSentEvents.Event("BOS".asJson)) ++
             streams
               .through(fs2.text.utf8Decode)
               .through(fs2.text.lines)
               .chunks
               .map(chunk => ServerSentEvents.Event(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)))) ++
-              fs2.Stream(ServerSentEvents.Event("EOS".asJson))
+            fs2.Stream(ServerSentEvents.Event("EOS".asJson))
           )
-        case _ =>
+        case false =>
           Ok(
             Content(
               stream = streams,
