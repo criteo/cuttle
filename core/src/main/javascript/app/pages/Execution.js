@@ -115,7 +115,7 @@ class Execution extends React.Component {
         if (groups) {
           let [_, timestamp, level, message] = groups;
           lines.push({
-            timestamp: moment(timestamp).format("YYYY-MM-DD HH:mm:ss"),
+            timestamp: moment.utc(timestamp).format("YYYY-MM-DD HH:mm:ss"),
             level,
             message
           });
