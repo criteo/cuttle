@@ -16,7 +16,7 @@ type Match = {
 };
 
 const styles = {
-    color: 'lightcyan'
+    color: 'inherit'
 };
 
 const buildLinkTag = (m: Match): any => {
