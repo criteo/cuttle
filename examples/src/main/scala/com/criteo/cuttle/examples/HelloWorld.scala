@@ -17,6 +17,7 @@ object HelloWorld {
       Job("hello1", hourly(start)) { implicit e =>
         sh"""
           echo "Hello 1"
+          echo check my project page https://github.com/criteo/cuttle
           sleep 1
         """.exec()
       }

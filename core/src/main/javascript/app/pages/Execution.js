@@ -19,6 +19,7 @@ import Link from "../components/Link";
 import JobStatus from "../components/JobStatus";
 import { listenEvents } from "../../Utils";
 import type { ExecutionLog } from "../../datamodel";
+import { highlightURLs } from "../utils/URLHighlighter";
 
 type Line = {
   timestamp: string,
@@ -285,7 +286,9 @@ class Execution extends React.Component {
                     return (
                       <li key={i}>
                         <span>{timestamp}</span>
-                        <p className={classes[level]}>{message}</p>
+                        <p className={classes[level]}>
+                          {highlightURLs(message)}
+                        </p>
                       </li>
                     );
                   })}
