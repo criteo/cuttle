@@ -17,9 +17,11 @@ const computeNewWidth = (
 ) => {
   const labelLength = Array.from(label).length;
   const pixelsPerLetter = pixelWidthReference / stringLengthReference;
-  const maxUsableWidth = pixelWidthReference
-    + (Math.max(Math.min(labelLength + 2, widthMax), widthMin) - widthReference) * pixelsPerLetter
-    + 2 * pixelsPerLetter;
+  const maxUsableWidth =
+    pixelWidthReference +
+    (Math.max(Math.min(labelLength + 2, widthMax), widthMin) - widthReference) *
+      pixelsPerLetter +
+    2 * pixelsPerLetter;
   return maxUsableWidth;
 };
 

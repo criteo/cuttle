@@ -121,35 +121,35 @@ class WorkflowComponent extends React.Component {
               </dd>
               {renderTimeSeriesSechduling()}
               {startNode.tags.length > 0 && [
-                 <dt key="tags">Tags:</dt>,
-                 <dd key="tags_" className={classes.tags}>
-                   {map(startNode.tags, t => [
-                      <span
-                        key={tagsDictionnary[t].name}
-                        className={classes.tag}
-                        data-for={"tag" + tagsDictionnary[t].name}
-                        data-tip={tagsDictionnary[t].description}
-                      >
-                        <TagIcon className="tagIcon" />
-                        {tagsDictionnary[t].name}
-                      </span>,
-                      <ReactTooltip
-                        id={"tag" + tagsDictionnary[t].name}
-                        effect="float"
-                      />
-                    ])}
-                 </dd>
-               ]}
+                <dt key="tags">Tags:</dt>,
+                <dd key="tags_" className={classes.tags}>
+                  {map(startNode.tags, t => [
+                    <span
+                      key={tagsDictionnary[t].name}
+                      className={classes.tag}
+                      data-for={"tag" + tagsDictionnary[t].name}
+                      data-tip={tagsDictionnary[t].description}
+                    >
+                      <TagIcon className="tagIcon" />
+                      {tagsDictionnary[t].name}
+                    </span>,
+                    <ReactTooltip
+                      id={"tag" + tagsDictionnary[t].name}
+                      effect="float"
+                    />
+                  ])}
+                </dd>
+              ]}
               {startNode.description && [
-                 <dt key="description">Description:</dt>,
-                 <dd
-                   key="description_"
-                   className={classes.description}
-                   dangerouslySetInnerHTML={{
-                     __html: markdown.toHTML(startNode.description)
-                   }}
-                 />
-               ]}
+                <dt key="description">Description:</dt>,
+                <dd
+                  key="description_"
+                  className={classes.description}
+                  dangerouslySetInnerHTML={{
+                    __html: markdown.toHTML(startNode.description)
+                  }}
+                />
+              ]}
             </FancyTable>
           </div>
         </SlidePanel>

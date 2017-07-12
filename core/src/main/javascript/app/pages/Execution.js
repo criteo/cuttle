@@ -107,13 +107,11 @@ class Execution extends React.Component {
     let { streamsEventSource } = this.state;
     if (json == "EOS" && streamsEventSource) {
       streamsEventSource.close();
-    }
-    else if (json == "BOS" && streamsEventSource) {
+    } else if (json == "BOS" && streamsEventSource) {
       this.setState({
         streams: []
       });
-    }
-    else {
+    } else {
       let lines = [];
       json.forEach(line => {
         let groups = /([^ ]+) ([^ ]+)\s+- (.*)/.exec(line);
