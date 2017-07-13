@@ -466,7 +466,11 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
       let jobsFilter = selectedJobs.length
         ? `&jobs=${selectedJobs.join(",")}`
         : "";
-      let pauseAll = () => fetch("/api/jobs/all/pause", { method: "POST",   credentials: 'include'  });
+      let pauseAll = () =>
+        fetch("/api/jobs/all/pause", {
+          method: "POST",
+          credentials: "include"
+        });
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Started executions</h1>
@@ -510,7 +514,11 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
       let jobsFilter = selectedJobs.length
         ? `&jobs=${selectedJobs.join(",")}`
         : "";
-      let unpauseAll = () => fetch("/api/jobs/all/unpause", { method: "POST",   credentials: 'include'  });
+      let unpauseAll = () =>
+        fetch("/api/jobs/all/unpause", {
+          method: "POST",
+          credentials: "include"
+        });
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Paused executions</h1>

@@ -12,18 +12,17 @@ import _ from "lodash";
 import Window from "../components/Window";
 import Table from "../components/Table";
 import FancyTable from "../components/FancyTable";
-import Error from "../components/Error";
 import Spinner from "../components/Spinner";
 import Link from "../components/Link";
 import Clock from "../components/Clock";
 import JobStatus from "../components/JobStatus";
-import { listenEvents, getBoundingClientRect } from "../../Utils";
-import type { ExecutionLog } from "../../datamodel";
+import { listenEvents } from "../../Utils";
+import type { ExecutionLog, Job } from "../../datamodel";
 
 type Props = {
   classes: any,
   envCritical: boolean,
-  job: string,
+  job: Job,
   start: string,
   end: string
 };
@@ -62,7 +61,7 @@ class TimeSeriesExecutions extends React.Component {
   listen() {
     let { query, eventSource } = this.state;
     let { job, start, end } = this.props;
-    let newQuery = `/api/timeseries/executions?job=${job}&start=${moment(start).toISOString()}&end=${moment(end).toISOString()}`;
+    let newQuery = `/api/timeseries/executions?job=${job.id}&start=${moment(start).toISOString()}&end=${moment(end).toISOString()}`;
     if (newQuery != query) {
       eventSource && eventSource.close();
       eventSource = listenEvents(newQuery, this.updateData.bind(this));
@@ -123,7 +122,6 @@ class TimeSeriesExecutions extends React.Component {
 
   sortBy(column) {
     this.setState({
-      ...this.state,
       sort: {
         column,
         order: this.state.sort.column == column &&
@@ -156,7 +154,9 @@ class TimeSeriesExecutions extends React.Component {
           ? [
               <FancyTable key="properties">
                 <dt key="job">Job:</dt>
-                <dd key="job_"><Link href={`/workflow/${job}`}>{job}</Link></dd>
+                <dd key="job_">
+                  <Link href={`/workflow/${job.id}`}>{job.name}</Link>
+                </dd>
                 <dt key="start">Period start:</dt>
                 <dd key="start_">{formatDate(start)} UTC</dd>
                 <dt key="end">Period end:</dt>

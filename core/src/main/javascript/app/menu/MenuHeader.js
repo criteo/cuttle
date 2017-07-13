@@ -17,10 +17,17 @@ type Props = {
   className: any
 };
 
-const MenuHeader = ({ classes, className, env, projectName, projectVersion }: Props) => (
+const MenuHeader = ({
+  classes,
+  className,
+  env,
+  projectName,
+  projectVersion
+}: Props) => (
   <Link className={classNames(classes.main, className)} href="/">
     <span className={classes.projectName}>{projectName}</span>
-    {projectVersion && <span className={classes.projectVersion}>{projectVersion}</span>}
+    {projectVersion &&
+      <span className={classes.projectVersion}>{projectVersion}</span>}
     {env.name
       ? <Badge
           label={env.name}

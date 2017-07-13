@@ -10,7 +10,6 @@ import FilterIcon from "react-icons/lib/md/search";
 import MenuHeader from "./app/menu/MenuHeader";
 import Spinner from "./app/components/Spinner";
 import Menu from "./app/menu/Menu";
-import Link from "./app/components/Link";
 import JobSelector from "./app/components/JobSelector";
 import type { Page } from "./ApplicationState";
 import * as Actions from "./actions";
@@ -95,7 +94,7 @@ class App extends React.Component {
           case "timeseries/executions":
             return (
               <TimeSeriesExecutions
-                job={page.job}
+                job={_.find(workflow.jobs, { id: page.job })}
                 start={page.start}
                 end={page.end}
               />
@@ -116,7 +115,11 @@ class App extends React.Component {
           })}
         >
           <section className={classes.leftpane}>
-            <MenuHeader env={env} projectName={projectName} projectVersion={projectVersion} />
+            <MenuHeader
+              env={env}
+              projectName={projectName}
+              projectVersion={projectVersion}
+            />
             <Menu active={page} statistics={statistics} />
           </section>
           <section className={classes.rightpane}>

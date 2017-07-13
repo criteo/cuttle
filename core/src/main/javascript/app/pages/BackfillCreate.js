@@ -76,7 +76,7 @@ class BackfillCreate extends React.Component<any, Props, void> {
         `name=${name}&description=${description}&` +
         `jobs=${jobs.join(",")}&priority=${priority}&` +
         `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
-      { method: "POST",   credentials: 'include'  }
+      { method: "POST", credentials: "include" }
     )
       .then((response: Response) => {
         if (!response.ok) return response.text();

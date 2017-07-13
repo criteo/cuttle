@@ -166,8 +166,8 @@ const jobPeriodsHelper = (x1, x2, showExecutions) => ({
           : status == "waiting"
               ? "#ffbc5a"
               : status == "running" ? "#49d3e4" : "#ecf1f5",
-  click: ({ period, jobName }) =>
-    showExecutions(jobName, moment.utc(period.start), moment.utc(period.end))
+  click: ({ period, jobId }) =>
+    showExecutions(jobId, moment.utc(period.start), moment.utc(period.end))
 });
 
 const enterBackfill = (jobPeriod, width) => {
@@ -331,7 +331,12 @@ class CalendarFocus extends React.Component {
         newJobTimeline
           .selectAll("g.periodSlot")
           .data(
-            job => _.map(jobs[job.id], p => ({ ...p, jobName: job.name })),
+            job =>
+              _.map(jobs[job.id], p => ({
+                ...p,
+                jobName: job.name,
+                jobId: job.id
+              })),
             k => k.period.start
           )
           .enter()
@@ -344,10 +349,10 @@ class CalendarFocus extends React.Component {
           );
       };
 
-      const jobInfos = _.sortBy(
-        _.map(_.keys(jobs), j => _.find(workflow.jobs, { id: j })),
-        "name"
+      const jobInfos = _.filter(workflow.jobs, j =>
+        _.includes(_.keys(jobs), j.id)
       );
+
       detailsSvg
         .selectAll("g.jobTimeline")
         .data(jobInfos, job => job.id)
@@ -359,10 +364,7 @@ class CalendarFocus extends React.Component {
     let doResize;
     window.onresize = () => {
       clearTimeout(doResize);
-      doResize = setTimeout(
-        () => this.drawViz(this.props, this.state),
-        500
-      );
+      doResize = setTimeout(() => this.drawViz(this.props, this.state), 500);
     };
   }
 
@@ -491,40 +493,40 @@ class CalendarFocus extends React.Component {
         </h1>
         {data && data.summary.length
           ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
-            <div className={classes.summarySvg}>
-              <svg ref={r => (this.summarySvgContainer = r)}>
-                <g id="axisContainer" />
-                <g id="summary">
-                  <text
-                    className={classes.jobName}
-                    textAnchor="end"
-                    x={-(PADDING * 2)}
-                    y="14"
-                  >
-                    {globalLabel}
-                  </text>
-                </g>
-              </svg>
+              <div className={classes.summarySvg}>
+                <svg ref={r => (this.summarySvgContainer = r)}>
+                  <g id="axisContainer" />
+                  <g id="summary">
+                    <text
+                      className={classes.jobName}
+                      textAnchor="end"
+                      x={-(PADDING * 2)}
+                      y="14"
+                    >
+                      {globalLabel}
+                    </text>
+                  </g>
+                </svg>
+              </div>
+              <div className={classes.detailsSvg}>
+                <svg ref={r => (this.detailsSvgContainer = r)} />
+              </div>
+              <ReactTooltip
+                className={classes.tooltip}
+                effect="float"
+                html={true}
+              />
             </div>
-            <div className={classes.detailsSvg}>
-              <svg ref={r => (this.detailsSvgContainer = r)} />
-            </div>
-            <ReactTooltip
-              className={classes.tooltip}
-              effect="float"
-              html={true}
-            />
-          </div>
           : data
-          ? <div className={classes.noData}>
-            <div>
-              Nothing to be done for this period
-              {selectedJobs.length
-                ? " (some may have been filtered)"
-                : ""}
-            </div>
-          </div>
-          : <Spinner />}
+              ? <div className={classes.noData}>
+                  <div>
+                    Nothing to be done for this period
+                    {selectedJobs.length
+                      ? " (some may have been filtered)"
+                      : ""}
+                  </div>
+                </div>
+              : <Spinner />}
       </div>
     );
   }
@@ -638,7 +640,10 @@ const styles = {
 };
 
 let f = "YYYY-MM-DDTHH";
-const mapStateToProps = ({ app: { selectedJobs, workflow } }) => ({ selectedJobs, workflow });
+const mapStateToProps = ({ app: { selectedJobs, workflow } }) => ({
+  selectedJobs,
+  workflow
+});
 const mapDispatchToProps = dispatch => ({
   drillDown(start, end) {
     dispatch(
