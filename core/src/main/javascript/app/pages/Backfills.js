@@ -17,7 +17,7 @@ import Spinner from "../components/Spinner";
 import Table from "../components/Table";
 import { urlFormat } from "../utils/Date";
 
-import type { Backfill } from "../../datamodel";
+import type { Backfill, Statistics } from "../../datamodel";
 import { backfillFromJSON } from "../../datamodel";
 
 type Sort = {
@@ -30,11 +30,13 @@ type Props = {
   envCritical: boolean,
   sort: Sort,
   open: (link: string, replace: boolean) => void,
+  statistics: Statistics,
   selectedJobs: Array<string> //TODO jobs filtering
 };
 
 type State = {
-  data: ?Array<Backfill>
+  data: ?Array<Backfill>,
+  backfills: number
 };
 
 type BackfillSortFunction = (Backfill, Backfill) => number;
@@ -47,8 +49,7 @@ class Backfills extends React.Component {
     super(props);
     this.state = {
       data: null,
-      query: null,
-      eventSource: null
+      backfills: 0
     };
   }
 
@@ -67,6 +68,17 @@ class Backfills extends React.Component {
 
   componentWillMount() {
     this.loadBackfills();
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    let nextScheduler = nextProps.statistics.scheduler;
+    let scheduler = this.props.statistics.scheduler;
+    if (
+      nextScheduler &&
+      scheduler &&
+      nextScheduler.backfills !== scheduler.backfills
+    )
+      this.loadBackfills();
   }
 
   qs = (sort: string, order: "asc" | "desc") => `?sort=${sort}&order=${order}`;
@@ -252,13 +264,14 @@ const styles = {
 };
 
 const mapStateToProps = ({
-  app: { project, page: { sort, order }, selectedJobs }
+  app: { project, page: { sort, order }, statistics, selectedJobs }
 }) => ({
   sort: {
     column: sort || "created",
     order: order || "asc"
   },
-  selectedJobs: selectedJobs,
+  statistics,
+  selectedJobs,
   envCritical: project.env.critical
 });
 const mapDispatchToProps = dispatch => ({

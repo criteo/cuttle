@@ -36,7 +36,7 @@ export type Statistics = {
   running: number,
   paused: number,
   failing: number,
-  scheduler: any,
+  scheduler?: any,
   error?: boolean
 };
 
