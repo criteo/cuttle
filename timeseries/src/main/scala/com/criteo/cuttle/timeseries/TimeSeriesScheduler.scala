@@ -251,10 +251,9 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
           val itvl = Interval(bf.start, bf.end)
           !bf.jobs.forall(job => _state().apply(job).intersect(itvl).toList.forall(_._2 == Done))
         }
-
         val _toRun = next(workflow, _state(), now)
 
-        (_state(), _backfills.snapshot -- oldBackfills, _toRun)
+        (_state(), oldBackfills -- _backfills.snapshot, _toRun)
       }
 
       val newExecutions = executor.runAll(toRun)
