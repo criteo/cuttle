@@ -240,7 +240,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
     case GET at url"/api/timeseries/backfills" =>
       Ok(
-        Database.queryBackfills.list
+        Database.queryBackfills().list
           .map(_.map {
             case (id, name, description, jobs, priority, start, end, created_at, status) =>
               Json.obj(

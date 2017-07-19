@@ -136,10 +136,14 @@ private[timeseries] object Database {
     sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
   }
 
-  def queryBackfills =
-    sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status
-          FROM timeseries_backfills
-       """.query[(String, String, String, String, Int, Instant, Instant, Instant, String)]
+  def queryBackfills(where: Option[Fragment] = None) = {
+    val select =
+      sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status
+            FROM timeseries_backfills"""
+    where.map(select ++ sql" WHERE " ++ _)
+      .getOrElse(select)
+      .query[(String, String, String, String, Int, Instant, Instant, Instant, String)]
+  }
 
   def createBackfill(backfill: Backfill) =
     sql"""INSERT INTO timeseries_backfills (id, name, description, jobs, priority, start, end, created_at, status)
