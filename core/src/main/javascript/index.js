@@ -80,6 +80,7 @@ let listenForStatistics = (query: string) => {
                   running: 0,
                   paused: 0,
                   failing: 0,
+                  scheduler: null,
                   error: true
                 })
               ),

@@ -73,7 +73,8 @@ const initialState: State = {
   statistics: {
     running: 0,
     paused: 0,
-    failing: 0
+    failing: 0,
+    scheduler: null
   },
   selectedJobs: []
 };

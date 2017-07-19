@@ -324,6 +324,17 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     }).flatten
 
   }
+
+  override def getStats(jobs: Set[String]) = {
+    val runningBackfills = state match {
+      case (_, backfills) =>
+        backfills.filter(bf =>
+          bf.status == "RUNNING" &&
+            bf.jobs.map(_.id).intersect(jobs).nonEmpty
+        )
+    }
+    Map("backfills" -> runningBackfills.size).asJson
+  }
 }
 
 private[timeseries] object TimeSeriesUtils {

@@ -97,6 +97,13 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
           active={active.id === "timeseries/backfills"}
           label="Backfills"
           link="/timeseries/backfills"
+          badges={[
+            statistics.scheduler &&
+            statistics.scheduler.backfills && {
+              label: statistics.scheduler.backfills,
+              kind: "alt"
+            }
+          ]}
         />
       ]}
     />
