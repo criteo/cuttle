@@ -98,13 +98,13 @@ class Backfills extends React.Component {
         case "name":
           return (a, b) => a.name.localeCompare(b.name);
         case "jobs":
-          return (a, b) => a.jobs.length - b.jobs.length;
+          return (a, b) => b.jobs.length - a.jobs.length;
         case "period":
-          return (a, b) => a.start.unix() - b.start.unix();
+          return (a, b) => b.start.unix() - a.start.unix();
         case "status":
-          return (a, b) => a.status.localeCompare(b.status);
+          return (a, b) => b.status.localeCompare(a.status);
         default:
-          return (a, b) => a.created_at.unix() - b.created_at.unix();
+          return (a, b) => b.created_at.unix() - a.created_at.unix();
       }
     };
     return sort.order === "desc" ? (a, b) => -sortFn(sort)(a, b) : sortFn(sort);
@@ -246,6 +246,9 @@ const styles = {
   data: {
     display: "flex",
     flex: "1"
+  },
+  time: {
+    color: "#8089a2"
   },
   noData: {
     flex: "1",
