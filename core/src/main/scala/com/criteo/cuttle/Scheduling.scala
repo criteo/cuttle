@@ -14,6 +14,7 @@ trait Scheduler[S <: Scheduling] {
   private[cuttle] def privateRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): AuthenticatedService =
     PartialFunction.empty
   val allContexts: Fragment
+  def getStats(jobs: Set[String]): Json
 }
 
 trait SchedulingContext {

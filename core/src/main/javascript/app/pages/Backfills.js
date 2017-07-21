@@ -17,7 +17,7 @@ import Spinner from "../components/Spinner";
 import Table from "../components/Table";
 import { urlFormat } from "../utils/Date";
 
-import type { Backfill } from "../../datamodel";
+import type { Backfill, Statistics } from "../../datamodel";
 import { backfillFromJSON } from "../../datamodel";
 
 type Sort = {
@@ -30,11 +30,13 @@ type Props = {
   envCritical: boolean,
   sort: Sort,
   open: (link: string, replace: boolean) => void,
+  statistics: Statistics,
   selectedJobs: Array<string> //TODO jobs filtering
 };
 
 type State = {
-  data: ?Array<Backfill>
+  data: ?Array<Backfill>,
+  backfills: number
 };
 
 type BackfillSortFunction = (Backfill, Backfill) => number;
@@ -47,8 +49,7 @@ class Backfills extends React.Component {
     super(props);
     this.state = {
       data: null,
-      query: null,
-      eventSource: null
+      backfills: 0
     };
   }
 
@@ -69,6 +70,17 @@ class Backfills extends React.Component {
     this.loadBackfills();
   }
 
+  componentWillReceiveProps(nextProps: Props) {
+    let nextScheduler = nextProps.statistics.scheduler;
+    let scheduler = this.props.statistics.scheduler;
+    if (
+      nextScheduler &&
+      scheduler &&
+      nextScheduler.backfills !== scheduler.backfills
+    )
+      this.loadBackfills();
+  }
+
   qs = (sort: string, order: "asc" | "desc") => `?sort=${sort}&order=${order}`;
 
   sortBy(column: string) {
@@ -86,13 +98,13 @@ class Backfills extends React.Component {
         case "name":
           return (a, b) => a.name.localeCompare(b.name);
         case "jobs":
-          return (a, b) => a.jobs.length - b.jobs.length;
+          return (a, b) => b.jobs.length - a.jobs.length;
         case "period":
-          return (a, b) => a.start.unix() - b.start.unix();
+          return (a, b) => b.start.unix() - a.start.unix();
         case "status":
-          return (a, b) => a.status.localeCompare(b.status);
+          return (a, b) => b.status.localeCompare(a.status);
         default:
-          return (a, b) => a.created_at.unix() - b.created_at.unix();
+          return (a, b) => b.created_at.unix() - a.created_at.unix();
       }
     };
     return sort.order === "desc" ? (a, b) => -sortFn(sort)(a, b) : sortFn(sort);
@@ -235,6 +247,9 @@ const styles = {
     display: "flex",
     flex: "1"
   },
+  time: {
+    color: "#8089a2"
+  },
   noData: {
     flex: "1",
     textAlign: "center",
@@ -252,13 +267,14 @@ const styles = {
 };
 
 const mapStateToProps = ({
-  app: { project, page: { sort, order }, selectedJobs }
+  app: { project, page: { sort, order }, statistics, selectedJobs }
 }) => ({
   sort: {
     column: sort || "created",
     order: order || "asc"
   },
-  selectedJobs: selectedJobs,
+  statistics,
+  selectedJobs,
   envCritical: project.env.critical
 });
 const mapDispatchToProps = dispatch => ({

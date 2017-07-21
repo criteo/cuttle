@@ -218,9 +218,21 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
         }
       }
 
-    //TODO Load uncomplete backfills > _backfills ++= backfillState
-
     atomic { implicit txn =>
+      val uncompletedBackfills = Database
+        .queryBackfills(Some(sql"""status = 'RUNNING'"""))
+        .list
+        .map(_.map {
+          case (id, name, description, jobsIdsString, priority, start, end, created_at, status) =>
+            val jobsIds = jobsIdsString.split(",")
+            val jobs = workflow.vertices.filter { job => jobsIds.contains(job.id) }
+            Backfill(id, start, end, jobs, priority, name, description, status)
+        })
+        .transact(xa)
+        .unsafePerformIO
+
+      _backfills ++= uncompletedBackfills
+
       workflow.vertices.foreach { job =>
         val definedInterval = Interval(Finite(job.scheduling.start), Top)
         val oldJobState = _state().getOrElse(job, IntervalMap.empty[Instant, JobState])
@@ -323,6 +335,17 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       }
     }).flatten
 
+  }
+
+  override def getStats(jobs: Set[String]) = {
+    val runningBackfills = state match {
+      case (_, backfills) =>
+        backfills.filter(bf =>
+          bf.status == "RUNNING" &&
+            bf.jobs.map(_.id).intersect(jobs).nonEmpty
+        )
+    }
+    Map("backfills" -> runningBackfills.size).asJson
   }
 }
 

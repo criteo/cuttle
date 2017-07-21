@@ -145,7 +145,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
             "running" -> running.asJson,
             "waiting" -> waiting.asJson,
             "paused" -> paused.asJson,
-            "failing" -> failing.asJson
+            "failing" -> failing.asJson,
+            "scheduler" -> scheduler.getStats(filteredJobs)
           )
       }
       events match {

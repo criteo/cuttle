@@ -29,6 +29,8 @@ const colors = (kind: BadgeKind): string => {
       return "#00BCD4";
     case "warning":
       return "#ff9800";
+    case "alt":
+      return "#bb66ca";
     default:
       return "#4c515f";
   }
