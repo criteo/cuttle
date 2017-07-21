@@ -34,6 +34,7 @@ export type Paginated<A> = {
 
 export type Statistics = {
   running: number,
+  waiting: number,
   paused: number,
   failing: number,
   scheduler?: any,

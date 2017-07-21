@@ -72,6 +72,7 @@ const initialState: State = {
   workflow: null,
   statistics: {
     running: 0,
+    waiting: 0,
     paused: 0,
     failing: 0
   },
