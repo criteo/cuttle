@@ -18,7 +18,6 @@
     "eslint-plugin-prettier": "^2.0.1",
     "eslint-plugin-promise": "^3.5.0",
     "eslint-plugin-react": "^6.10.3",
-    "favicons-webpack-plugin": "^0.0.7",
     "file-loader": "^0.10.0",
     "flow-bin": "^0.43.1",
     "flow-status-webpack-plugin": "^0.1.7",
@@ -32,6 +31,7 @@
   },
   "dependencies": {
     "autolinker": "^1.4.3",
+    "canvas-rounded-rectangle": "^0.0.2",
     "classnames": "^2.2.5",
     "css.escape": "^1.5.1",
     "cytoscape": "^2.7.15",

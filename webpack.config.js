@@ -1,6 +1,5 @@
 let path = require('path');
 let HtmlWebpackPlugin = require('html-webpack-plugin');
-let FaviconsWebpackPlugin = require('favicons-webpack-plugin');
 let FlowStatusWebpackPlugin = require('flow-status-webpack-plugin');
 
 module.exports = {
@@ -46,21 +45,6 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, 'core/src/main/html/index.html'),
       inject: 'body'
-    }),
-    new FaviconsWebpackPlugin({
-      logo: path.resolve(__dirname, 'core/src/main/style/images/favicon.png'),
-      icons: {
-        android: false,
-        appleIcon: false,
-        appleStartup: false,
-        coast: false,
-        favicons: true,
-        firefox: false,
-        opengraph: false,
-        twitter: false,
-        yandex: false,
-        windows: false
-      }
     }),
     new FlowStatusWebpackPlugin({
       binaryPath: path.resolve(__dirname, 'node_modules/.bin/flow'),

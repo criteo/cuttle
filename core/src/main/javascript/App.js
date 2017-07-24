@@ -21,6 +21,7 @@ import Execution from "./app/pages/Execution";
 import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
 import Backfills from "./app/pages/Backfills";
 import BackfillCreate from "./app/pages/BackfillCreate";
+import Favicon from "./app/components/Favicon";
 import type { Statistics } from "./datamodel";
 
 type Props = {
@@ -114,6 +115,7 @@ class App extends React.Component {
             [classes.connectionLost]: statistics.error
           })}
         >
+          <Favicon statistics={statistics} />
           <section className={classes.leftpane}>
             <MenuHeader
               env={env}

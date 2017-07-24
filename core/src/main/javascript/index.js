@@ -80,6 +80,7 @@ let listenForStatistics = (query: string) => {
                   running: 0,
                   paused: 0,
                   failing: 0,
+                  waiting: 0,
                   scheduler: null,
                   error: true
                 })
@@ -98,6 +99,14 @@ store.subscribe(() => {
     ? `&jobs=${state.selectedJobs.join(",")}`
     : "";
   listenForStatistics(`/api/statistics?events=true${jobsFilter}`);
+  if (state.project && state.project.name) {
+    if(state.project.env.name) {
+      document.title = `${state.project.name} – ${state.project.env.name}`;
+    }
+    else {
+      document.title = state.project.name;
+    }
+  }
 });
 
 render(
