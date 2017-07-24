@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.1.5"
+val VERSION = "0.1.6"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -136,7 +136,7 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "lolhttp",
         "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml"
-      ).map(_ % "0.4.3"),
+      ).map(_ % "0.5.1"),
       libraryDependencies ++= Seq("core", "generic", "parser")
         .map(module => "io.circe" %% s"circe-${module}" % "0.7.1"),
       libraryDependencies ++= Seq(
