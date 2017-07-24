@@ -25,6 +25,21 @@ const buildLinkTag = (m: Match): any => {
   return m.getMatchedText();
 };
 
+const autolinker = new AutoLinker({
+    urls : {
+        schemeMatches : true,
+        wwwMatches    : false,
+        tldMatches    : false
+    },
+    email       : false,
+    phone       : false,
+    mention     : false,
+    hashtag     : false,
+    stripPrefix : true,
+    stripTrailingSlash : true,
+    newWindow   : true
+});
+
 /**
  * Inlines <a> elements in a string whenever a url is matched
  * 
@@ -34,7 +49,7 @@ export const highlightURLs = (text: string): any[] => {
   if (!text) {
     return [];
   }
-  const matches: Match[] = AutoLinker.parse(text), newHtml = [];
+  const matches: Match[] = autolinker.parse(text), newHtml = [];
 
   let lastIndex = 0;
 
