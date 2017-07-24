@@ -15,6 +15,7 @@ import BreakIcon from "react-icons/lib/md/keyboard-control";
 import OpenIcon from "react-icons/lib/md/zoom-in";
 import PopoverMenu from "../components/PopoverMenu";
 
+import { Badge } from "../components/Badge";
 import Spinner from "../components/Spinner";
 import Clock from "../components/Clock";
 import Table from "../components/Table";
@@ -46,6 +47,7 @@ type Props = {
       | "endTime"
       | "status"
       | "detail"
+      | "lastFailure"
   >,
   label: string,
   page: number,
@@ -190,6 +192,8 @@ class ExecutionLogs extends React.Component {
                   };
                 case "detail":
                   return { id: "detail", width: 40 };
+                case "lastFailure":
+                  return { id : "lastFailure", label : "Last failure" };
               }
             })}
             onSortBy={this.sortBy.bind(this)}
@@ -254,6 +258,14 @@ class ExecutionLogs extends React.Component {
                       <OpenIcon />
                     </Link>
                   );
+              case "lastFailure" :
+                const lastFailedUrl = `/executions/${ failing.failedExecutions[failing.failedExecutions.length - 1].id }`;
+
+                return (
+                  <Link href={lastFailedUrl}>
+                    <Badge label="FAILED" kind="error" width={75} />
+                  </Link>
+                )
               }
             }}
           />
@@ -581,7 +593,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
             open={open}
             page={page}
             workflow={workflow}
-            columns={["job", "context", "failed", "retry", "status", "detail"]}
+            columns={["job", "context", "failed", "retry", "lastFailure", "status", "detail"]}
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label="stuck"
