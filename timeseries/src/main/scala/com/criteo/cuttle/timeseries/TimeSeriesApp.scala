@@ -321,7 +321,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       Ok(
         Database.queryBackfills().list
           .map(_.map {
-            case (id, name, description, jobs, priority, start, end, created_at, status) =>
+            case (id, name, description, jobs, priority, start, end, created_at, status, created_by) =>
               Json.obj(
                 "id" -> id.asJson,
                 "name" -> name.asJson,
@@ -331,7 +331,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 "start" -> start.asJson,
                 "end" -> end.asJson,
                 "created_at" -> created_at.asJson,
-                "status" -> status.asJson
+                "status" -> status.asJson,
+                "created_by" -> created_by.asJson
               )
           })
           .transact(xa)
@@ -343,7 +344,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                              executor: Executor[TimeSeries],
                                              xa: XA): AuthenticatedService = {
     case POST at url"/api/timeseries/backfill?name=$name&description=$description&jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
-      _ =>
+      implicit user_ =>
         val jobIds = jobsString.split(",")
         val jobs = workflow.vertices.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
         val startDate = Instant.parse(start)

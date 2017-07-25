@@ -54,6 +54,11 @@ private[timeseries] object Database {
 
       CREATE INDEX timeseries_backfills_by_date ON timeseries_backfills (created_at);
       CREATE INDEX timeseries_backfills_by_status ON timeseries_backfills (status);
+    """.update,
+
+    sql"""
+      ALTER TABLE timeseries_backfills
+      ADD created_by VARCHAR(100) NOT NULL DEFAULT 'cuttle'
     """.update
   )
 
@@ -138,15 +143,15 @@ private[timeseries] object Database {
 
   def queryBackfills(where: Option[Fragment] = None) = {
     val select =
-      sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status
+      sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status, created_by
             FROM timeseries_backfills"""
     where.map(select ++ sql" WHERE " ++ _)
       .getOrElse(select)
-      .query[(String, String, String, String, Int, Instant, Instant, Instant, String)]
+      .query[(String, String, String, String, Int, Instant, Instant, Instant, String, String)]
   }
 
   def createBackfill(backfill: Backfill) =
-    sql"""INSERT INTO timeseries_backfills (id, name, description, jobs, priority, start, end, created_at, status)
+    sql"""INSERT INTO timeseries_backfills (id, name, description, jobs, priority, start, end, created_at, status, created_by)
           VALUES (${backfill.id},
                   ${backfill.name},
                   ${backfill.description},
@@ -155,7 +160,8 @@ private[timeseries] object Database {
                   ${backfill.start},
                   ${backfill.end},
                   ${Instant.now()},
-                  ${backfill.status}
+                  ${backfill.status},
+                  ${backfill.createdBy}
                  )""".update.run
 
   def setBackfillStatus(ids: Set[String], status: String) =
