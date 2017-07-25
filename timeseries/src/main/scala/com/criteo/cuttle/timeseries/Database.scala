@@ -48,17 +48,13 @@ private[timeseries] object Database {
         start       DATETIME NOT NULL,
         end         DATETIME NOT NULL,
         created_at  DATETIME NOT NULL,
+        created_by VARCHAR(100) NOT NULL,
         status      VARCHAR(100) NOT NULL,
         PRIMARY KEY (id)
       ) ENGINE = INNODB;
 
       CREATE INDEX timeseries_backfills_by_date ON timeseries_backfills (created_at);
       CREATE INDEX timeseries_backfills_by_status ON timeseries_backfills (status);
-    """.update,
-
-    sql"""
-      ALTER TABLE timeseries_backfills
-      ADD created_by VARCHAR(100) NOT NULL DEFAULT 'cuttle'
     """.update
   )
 
