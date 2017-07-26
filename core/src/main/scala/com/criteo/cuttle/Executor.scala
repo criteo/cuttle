@@ -78,9 +78,9 @@ case class Execution[S <: Scheduling](
     case Success(_) =>
       sys.error("Panic, the cancelled future can never succeed!")
   }
-  def cancel(): Boolean =
+  def cancel()(implicit user: User): Boolean =
     if (cancelSignal.tryFailure(ExecutionCancelledException)) {
-      streams.debug(s"Execution has been cancelled.")
+      streams.debug(s"Execution has been cancelled by user ${user.userId}.")
       true
     } else false
 
@@ -262,7 +262,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private[cuttle] def pausedJobs: Seq[String] =
     pausedState.single.keys.toSeq
 
-  private[cuttle] def cancelExecution(executionId: String): Unit = {
+  private[cuttle] def cancelExecution(executionId: String)(implicit user: User): Unit = {
     val toCancel = atomic { implicit tx =>
       (runningState.keys ++ pausedState.values.flatMap(_.keys) ++ throttledState.keys).find(_.id == executionId)
     }
@@ -288,7 +288,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private[cuttle] def openStreams(executionId: String): fs2.Stream[fs2.Task, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
-  private[cuttle] def unpauseJobs(jobs: Set[Job[S]]): Unit = {
+  private[cuttle] def unpauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val executionsToResume = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit tx: InTxnEnd): Boolean = {
@@ -307,12 +307,12 @@ class Executor[S <: Scheduling] private[cuttle] (
     }
     executionsToResume.toList.sortBy(_._1.context).foreach {
       case (execution, promise) =>
-        execution.streams.debug(s"Job has been unpaused.")
+        execution.streams.debug(s"Job has been unpaused by user ${user.userId}.")
         unsafeDoRun(execution, promise)
     }
   }
 
-  private[cuttle] def pauseJobs(jobs: Set[Job[S]]): Unit = {
+  private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val executionsToCancel = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit txn: InTxnEnd): Boolean = {
@@ -326,7 +326,7 @@ class Executor[S <: Scheduling] private[cuttle] (
       }
     }
     executionsToCancel.toList.sortBy(_.context).reverse.foreach { execution =>
-      execution.streams.debug(s"Job has been paused")
+      execution.streams.debug(s"Job has been paused by user ${user.userId}")
       execution.cancel()
     }
   }

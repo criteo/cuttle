@@ -114,7 +114,7 @@ class Backfills extends React.Component {
     let { sort, classes, selectedJobs, envCritical } = this.props;
     let { data } = this.state;
 
-    let columns = ["name", "jobs", "period", "created", "status", "detail"];
+    let columns = ["name", "jobs", "period", "created", "created_by", "status", "detail"];
     let Data = () => {
       if (data && data.length) {
         const sortedData = [...data].sort(Backfills.sortFunction(sort));
@@ -131,6 +131,8 @@ class Backfills extends React.Component {
                   return { id: "period", label: "Period", sortable: true };
                 case "created":
                   return { id: "created", label: "Created", sortable: true };
+                case "created_by":
+                  return { id: "created_by", label: "Created By", sortable: true };
                 case "status":
                   return {
                     id: "status",
@@ -147,7 +149,7 @@ class Backfills extends React.Component {
             data={sortedData}
             render={(
               column,
-              { id, name, jobs, start, end, created_at, status }: Backfill
+              { id, name, jobs, start, end, created_at, created_by, status }: Backfill
             ) => {
               switch (column) {
                 case "name":
@@ -166,6 +168,8 @@ class Backfills extends React.Component {
                   return (
                     <Clock className={classes.time} time={created_at || ""} />
                   );
+                case "created_by":
+                  return <span>{created_by}</span>
                 case "status":
                   return (
                     <Link
