@@ -22,10 +22,10 @@ case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
 }
 
 object LocalPlatform {
-  def fork(command: String) = new LocalProcess(List("sh", "-ce", command))
+  def fork(command: String) = new LocalProcess(command)
 }
 
-class LocalProcess(command: List[String]) {
+class LocalProcess(command: String) {
   val id = UUID.randomUUID().toString
 
   def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Unit] = {
@@ -58,7 +58,7 @@ class LocalProcess(command: List[String]) {
                 result.failure(new Exception(s"Process exited with code $n"))
             }
         }
-        val process = new NuProcessBuilder(command.asJava, env.asJava)
+        val process = new NuProcessBuilder(List("sh", "-ce", command).asJava, env.asJava)
         process.setProcessListener(handler)
         val fork = process.start()
         streams.debug(s"forked with PID ${fork.getPID}")
@@ -68,5 +68,5 @@ class LocalProcess(command: List[String]) {
         result.future
       }
   }
-  override def toString = command.toString
+  override def toString = command
 }
