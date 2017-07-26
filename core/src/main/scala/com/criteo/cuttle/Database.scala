@@ -62,6 +62,7 @@ private[cuttle] object Database {
         end_time    DATETIME NOT NULL,
         context_id  VARCHAR(1000) NOT NULL,
         success     BOOLEAN NOT NULL,
+        waiting_seconds INT NOT NULL,
         PRIMARY KEY (id)
       ) ENGINE = INNODB;
 
@@ -128,8 +129,8 @@ private[cuttle] trait Queries {
     for {
       contextId <- logContext
       result <- sql"""
-        INSERT INTO executions (id, job, start_time, end_time, success, context_id)
-        VALUES (${e.id}, ${e.job}, ${e.startTime}, ${e.endTime}, ${e.status}, ${contextId})
+        INSERT INTO executions (id, job, start_time, end_time, success, context_id, waiting_seconds)
+        VALUES (${e.id}, ${e.job}, ${e.startTime}, ${e.endTime}, ${e.status}, ${contextId}, ${e.waitingSeconds})
         """.update.run
     } yield result
 
@@ -158,29 +159,29 @@ private[cuttle] trait Queries {
       case _ => sql"ORDER BY end_time, id DESC"
     }
     (sql"""
-      SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
+      SELECT executions.id, job, start_time, end_time, contexts.json AS context, success, executions.waiting_seconds
       FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
       ON executions.context_id = contexts.id WHERE """ ++ Fragments.in(
       fr"job",
       NonEmptyList.fromListUnsafe(jobs.toList)) ++ orderBy ++ sql""" LIMIT $limit OFFSET $offset""")
-      .query[(String, String, Instant, Instant, Json, ExecutionStatus)]
+      .query[(String, String, Instant, Instant, Json, ExecutionStatus, Int)]
       .list
       .map(_.map {
-        case (id, job, startTime, endTime, context, status) =>
-          ExecutionLog(id, job, Some(startTime), Some(endTime), context, status)
+        case (id, job, startTime, endTime, context, status, waitingSeconds) =>
+          ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
       })
   }
 
   def getExecutionById(contextQuery: Fragment, id: String): ConnectionIO[Option[ExecutionLog]] =
     (sql"""
-      SELECT executions.id, job, start_time, end_time, contexts.json AS context, success
+      SELECT executions.id, job, start_time, end_time, contexts.json AS context, success, executions.waiting_seconds
       FROM executions INNER JOIN (""" ++ contextQuery ++ sql""") contexts
       ON executions.context_id = contexts.id WHERE executions.id = $id""")
-      .query[(String, String, Instant, Instant, Json, ExecutionStatus)]
+      .query[(String, String, Instant, Instant, Json, ExecutionStatus, Int)]
       .option
       .map(_.map {
-        case (id, job, startTime, endTime, context, status) =>
-          ExecutionLog(id, job, Some(startTime), Some(endTime), context, status)
+        case (id, job, startTime, endTime, context, status, waitingSeconds) =>
+          ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
       })
 
   def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =

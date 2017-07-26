@@ -106,7 +106,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             (lo, hi) <- grid.split(interval)
           } yield {
             val context = TimeSeriesContext(grid.truncate(lo), grid.ceil(hi), maybeBackfill)
-            ExecutionLog("", job.id, None, None, context.asJson, ExecutionTodo, None)
+            ExecutionLog("", job.id, None, None, context.asJson, ExecutionTodo, None, 0)
           }
         val throttledExecutions = executor.allFailingExecutions
           .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))

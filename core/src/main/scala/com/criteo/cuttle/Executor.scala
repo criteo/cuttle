@@ -55,7 +55,8 @@ private[cuttle] case class ExecutionLog(
   endTime: Option[Instant],
   context: Json,
   status: ExecutionStatus,
-  failing: Option[FailingJob] = None
+  failing: Option[FailingJob] = None,
+  waitingSeconds : Int
 )
 
 private object ExecutionCancelledException extends RuntimeException("Execution cancelled")
@@ -72,6 +73,7 @@ case class Execution[S <: Scheduling](
   private[cuttle] val cancelSignal = Promise[Nothing]
   def isCancelled = cancelSignal.isCompleted
   val cancelled = cancelSignal.future
+  var waitingSeconds = 0
   def onCancelled(thunk: () => Unit) = cancelled.andThen {
     case Failure(_) =>
       thunk()
@@ -91,10 +93,13 @@ case class Execution[S <: Scheduling](
       startTime,
       None,
       context.toJson,
-      status
+      status,
+      waitingSeconds = waitingSeconds
     )
-
   private[cuttle] val isParked = new AtomicBoolean(false)
+  private[cuttle] def updateWaitingTime(seconds : Int): Unit = {
+    waitingSeconds += seconds
+  }
   def park(duration: FiniteDuration): Future[Unit] =
     if (isParked.get) {
       sys.error(s"Already parked")
@@ -127,7 +132,7 @@ private[cuttle] object ExecutionPlatform {
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
-class Executor[S <: Scheduling] private[cuttle] (
+private[cuttle] class Executor[S <: Scheduling] (
   val platforms: Seq[ExecutionPlatform],
   xa: XA,
   queries: Queries = new Queries {})(implicit retryStrategy: RetryStrategy) {
