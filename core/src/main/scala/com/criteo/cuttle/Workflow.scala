@@ -62,6 +62,13 @@ sealed trait Workflow[S <: Scheduling] {
   }
 }
 
+object Workflow {
+  def empty[S <: Scheduling] = new Workflow[S] {
+    private[cuttle] def vertices = Set.empty
+    private[cuttle] def edges = Set.empty
+  }
+}
+
 /*
  * A tag is used to annotate a job.
  * */

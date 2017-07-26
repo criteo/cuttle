@@ -124,6 +124,7 @@ export type Backfill = {
   start: Moment,
   end: Moment,
   created_at: Moment,
+  created_by: string,
   priority: number,
   status: string
 };

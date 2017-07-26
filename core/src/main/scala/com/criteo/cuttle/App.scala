@@ -247,34 +247,32 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   }
 
   val privateApi: AuthenticatedService = {
-    case POST at url"/api/executions/$id/cancel" =>
-      _ =>
-        executor.cancelExecution(id)
+    case POST at url"/api/executions/$id/cancel" => { implicit user =>
+      executor.cancelExecution(id)
+      Ok
+    }
+
+    case POST at url"/api/jobs/all/pause" => { implicit user =>
+      executor.pauseJobs(workflow.vertices)
+      Ok
+    }
+
+    case POST at url"/api/jobs/$id/pause" => { implicit user =>
+      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+        executor.pauseJobs(Set(job))
         Ok
-
-    case POST at url"/api/jobs/all/pause" =>
-      user =>
-        executor.pauseJobs(workflow.vertices)
+      }
+    }
+    case POST at url"/api/jobs/all/unpause" => { implicit user =>
+      executor.unpauseJobs(workflow.vertices)
+      Ok
+    }
+    case POST at url"/api/jobs/$id/unpause" => { implicit user =>
+      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+        executor.unpauseJobs(Set(job))
         Ok
-
-    case POST at url"/api/jobs/$id/pause" =>
-      _ =>
-        workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-          executor.pauseJobs(Set(job))
-          Ok
-        }
-
-    case POST at url"/api/jobs/all/unpause" =>
-      _ =>
-        executor.unpauseJobs(workflow.vertices)
-        Ok
-
-    case POST at url"/api/jobs/$id/unpause" =>
-      _ =>
-        workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-          executor.unpauseJobs(Set(job))
-          Ok
-        }
+      }
+    }
   }
 
   val api = publicApi orElse project.authenticator(privateApi)
