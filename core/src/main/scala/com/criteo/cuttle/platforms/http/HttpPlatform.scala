@@ -37,15 +37,17 @@ case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, Htt
     pool.routes("/api/platforms/http/pool").orElse {
       val index: PartialService = {
         case GET at url"/api/platforms/http/rate-limiters" =>
-          Ok(Json.obj(
-            rateLimiters.zipWithIndex.map { case ((pattern, rateLimiter), i) =>
-              i.toString -> Json.obj(
-                "pattern" -> pattern.asJson,
-                "running" -> rateLimiter.running.size.asJson,
-                "waiting" -> rateLimiter.waiting.size.asJson
-              )
-            }:_*
-          ))
+          Ok(
+            Json.obj(
+              rateLimiters.zipWithIndex.map {
+                case ((pattern, rateLimiter), i) =>
+                  i.toString -> Json.obj(
+                    "pattern" -> pattern.asJson,
+                    "running" -> rateLimiter.running.size.asJson,
+                    "waiting" -> rateLimiter.waiting.size.asJson
+                  )
+              }: _*
+            ))
       }
       rateLimiters.zipWithIndex.foldLeft(index) {
         case (routes, ((pattern, rateLimiter), i)) =>

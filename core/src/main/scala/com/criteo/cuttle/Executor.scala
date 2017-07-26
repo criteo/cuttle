@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.duration._
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 import lol.http.PartialService
 import doobie.imports._
 import cats.implicits._
@@ -111,7 +111,7 @@ case class Execution[S <: Scheduling](
 object Execution {
   private[cuttle] implicit val ordering: Ordering[Execution[_]] =
     Ordering.by(e => (e.context: SchedulingContext, e.job.id, e.id))
-  private[cuttle] implicit def ordering0[S<:Scheduling]: Ordering[Execution[S]] =
+  private[cuttle] implicit def ordering0[S <: Scheduling]: Ordering[Execution[S]] =
     ordering.asInstanceOf[Ordering[Execution[S]]]
 }
 
