@@ -120,7 +120,8 @@ case class Backfill(id: String,
                     priority: Int,
                     name: String,
                     description: String,
-                    status: String)
+                    status: String,
+                    createdBy: String)
 
 private[timeseries] object Backfill {
   implicit val encoder: Encoder[Backfill] = deriveEncoder
@@ -206,10 +207,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
                                       start: Instant,
                                       end: Instant,
                                       priority: Int,
-                                      xa: XA) = {
+                                      xa: XA)(implicit user : User) = {
     val (isValid, newBackfill) = atomic { implicit txn =>
       val id = UUID.randomUUID().toString
-      val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING")
+      val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING", user.userId)
 
       val valid = for {
         job <- jobs
@@ -259,10 +260,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
         .queryBackfills(Some(sql"""status = 'RUNNING'"""))
         .list
         .map(_.map {
-          case (id, name, description, jobsIdsString, priority, start, end, created_at, status) =>
+          case (id, name, description, jobsIdsString, priority, start, end, created_at, status, created_by) =>
             val jobsIds = jobsIdsString.split(",")
             val jobs = workflow.vertices.filter { job => jobsIds.contains(job.id) }
-            Backfill(id, start, end, jobs, priority, name, description, status)
+            Backfill(id, start, end, jobs, priority, name, description, status, created_by)
         })
         .transact(xa)
         .unsafePerformIO
