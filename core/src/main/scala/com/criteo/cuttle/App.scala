@@ -74,6 +74,25 @@ private[cuttle] object App {
       )
   }
 
+  implicit val executionStatEncoder: Encoder[ExecutionStat] = new Encoder[ExecutionStat] {
+    override def apply(execution: ExecutionStat) : Json =
+      Json.obj(
+        "startTime" -> execution.startTime.asJson,
+        "endTime" -> execution.endTime.asJson,
+        "durationSeconds" -> execution.durationSeconds.asJson,
+        "waitingSeconds" -> execution.waitingSeconds.asJson,
+        "status" -> (execution.status match {
+          case ExecutionSuccessful => "successful"
+          case ExecutionFailed => "failed"
+          case ExecutionRunning => "running"
+          case ExecutionWaiting => "waiting"
+          case ExecutionPaused => "paused"
+          case ExecutionThrottled => "throttled"
+          case ExecutionTodo => "todo"
+        }).asJson
+      )
+  }
+
   implicit val tagEncoder = new Encoder[Tag] {
     override def apply(tag: Tag) =
       Json.obj(
@@ -156,6 +175,9 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         case _ =>
           Ok(asJson(getStats().get))
       }
+
+    case GET at url"/api/statitics/$jobName" =>
+      Ok(executor.jobExecutionsSince(jobName).asJson)
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)

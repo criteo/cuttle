@@ -3,6 +3,7 @@
 import React from "react";
 import injectSheet from "react-jss";
 import ReactTooltip from "react-tooltip";
+import {createClassFromLiteSpec} from 'react-vega-lite';
 
 import map from "lodash/map";
 import reduce from "lodash/reduce";
@@ -32,8 +33,117 @@ type Props = {
   navTo: () => void
 };
 
+type State = {
+  data : any[];
+}
+
+const RuntimeChart = createClassFromLiteSpec('BarChart', {
+                   "width" : "500",
+                   "title": "Runtime of jobs across time",
+                   "mark": "area",
+                   "transform" : [
+                      { "calculate": "datum.kind == 'run' ? 'Running' : 'Waiting'", "as": "runningState" }
+                   ],
+                   "encoding": {
+                     "x": {
+                       "field": "startTime",
+                       "type": "temporal",
+                       "axis" : {
+                        "title" : null,
+                        "format": "%d/%m",
+                        "labelAngle": -45
+                       }
+                     },
+                     "y": {
+                       "field" : "seconds",
+                       "type": "quantitative",
+                       "aggregate" : "sum",
+                       "axis" : {
+                        "title" : "Duration (s)"
+                       }
+                     },
+                     "color" : {
+                       "field" : "runningState",
+                       "scale": {
+                      //   "domain": ["Running", "Waiting"],
+                         "range": [ "#00BCD4","#ff9800"]
+                       },
+                       "legend": {"title": null  }
+                     }
+                   }
+                 });
+
+const FailuresChart = createClassFromLiteSpec('BarChart', {
+                   "width" : "600",
+                   "title": "Failures across time.",
+                   "mark": "line",
+                   "transform" : [
+                     {
+                       "filter": {
+                         "field": "status",
+                         "equal": "failed"
+                       }
+                     }
+                   ],
+                   "encoding": {
+                     "x": {
+                       "field": "startTime",
+                       "type": "temporal",
+                          "axis" : {
+                            "title" : null,
+                            "format": "%d/%m",
+                            "labelAngle": -45
+                         }
+                     },
+                     "y": {
+                       "type": "quantitative",
+                       "aggregate" : "count"
+                     }
+                   }
+                 });
+
+const unPivotDataSet = (data : any[]) =>
+  data.reduce((p,c) => p.concat([
+    {
+      startTime : c.startTime,
+      seconds : c.waitingSeconds,
+      kind : "wait"
+    },
+    {
+      startTime : c.startTime,
+      seconds : c.durationSeconds - c.waitingSeconds,
+      kind : "run"
+    }
+  ]),[]);
+
 class WorkflowComponent extends React.Component {
   props: Props;
+  state: State;
+
+  constructor(props){
+    super(props);
+
+    this.updateCharts(props);
+
+    this.state = {
+      data : []
+    };
+  }
+
+  componentWillReceiveProps(nextProps : Props){
+    this.updateCharts(nextProps);
+  }
+
+  updateCharts(nextProps : Props) {
+        fetch(`/api/statitics/${nextProps.job}`)
+          .then(data => data.json())
+          .then(json => {
+
+            this.setState({
+              data : json
+            });
+          });
+      }
 
   render() {
     const {
@@ -152,6 +262,8 @@ class WorkflowComponent extends React.Component {
               ]}
             </FancyTable>
           </div>
+          <RuntimeChart  style={{ textAlign : "center", marginTop : "50px"  }} data={{ values : unPivotDataSet(this.state.data) }}/>
+          <FailuresChart style={{ textAlign : "center", marginTop : "50px" }} data={{ values : this.state.data }}/>
         </SlidePanel>
       </div>
     );

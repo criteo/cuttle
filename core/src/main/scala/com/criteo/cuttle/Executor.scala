@@ -59,6 +59,14 @@ private[cuttle] case class ExecutionLog(
   waitingSeconds : Int
 )
 
+private[cuttle] class ExecutionStat(
+   val startTime : Instant,
+   val endTime : Instant,
+   val durationSeconds : Int,
+   val waitingSeconds : Int,
+   val status : ExecutionStatus
+)
+
 private object ExecutionCancelledException extends RuntimeException("Execution cancelled")
 
 case class Execution[S <: Scheduling](
@@ -165,6 +173,9 @@ private[cuttle] class Executor[S <: Scheduling] (
       case (execution, status) =>
         execution.toExecutionLog(status)
     }
+
+  private[cuttle] def jobExecutionsSince(jobId : String) : Seq[ExecutionStat] =
+    queries.getJobDurationsSince(jobId).transact(xa).unsafePerformIO
 
   private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
     flagWaitingExecutions(runningState.single.keys.toSeq)

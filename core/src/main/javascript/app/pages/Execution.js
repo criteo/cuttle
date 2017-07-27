@@ -295,6 +295,7 @@ class Execution extends React.Component {
                               )
                               .format("HH:mm:ss"),
                                 <ProgressBar
+                                  key="execution-progress-bar"
                                   totalTimeSeconds={moment(data.endTime).diff(moment(data.startTime)) / 1000}
                                   waitingTimeSeconds={data.waitingSeconds} />]
                           : <Clock time={data.startTime} humanize={false} />}
