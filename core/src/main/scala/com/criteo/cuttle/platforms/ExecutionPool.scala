@@ -21,12 +21,14 @@ private[cuttle] class ExecutionPool(concurrencyLimit: Int) extends WaitingExecut
   def canRunNextCondition(implicit txn: InTxn) = _running().size < concurrencyLimit
   def doRunNext()(implicit txn: InTxn): Unit = ()
 
-  override def routes(urlPrefix: String) = ({
-    case req if req.url == urlPrefix =>
-      Ok(Json.obj(
-        "concurrencyLimit" -> concurrencyLimit.asJson,
-        "running" -> running.size.asJson,
-        "waiting" -> waiting.size.asJson
-      ))
-  }: PartialService).orElse(super.routes(urlPrefix))
+  override def routes(urlPrefix: String) =
+    ({
+      case req if req.url == urlPrefix =>
+        Ok(
+          Json.obj(
+            "concurrencyLimit" -> concurrencyLimit.asJson,
+            "running" -> running.size.asJson,
+            "waiting" -> waiting.size.asJson
+          ))
+    }: PartialService).orElse(super.routes(urlPrefix))
 }

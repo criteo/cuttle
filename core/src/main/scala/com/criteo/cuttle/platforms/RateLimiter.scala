@@ -36,14 +36,16 @@ private[cuttle] class RateLimiter(tokens: Int, refillRateInMs: Int) extends Wait
   def canRunNextCondition(implicit txn: InTxn) = _tokens() >= 1
   def doRunNext()(implicit txn: InTxn) = _tokens() = _tokens() - 1
 
-  override def routes(urlPrefix: String) = ({
-    case req if req.url == urlPrefix =>
-      Ok(Json.obj(
-        "max_tokens" -> tokens.asJson,
-        "available_tokens" -> _tokens.single.get.asJson,
-        "refill_rate_in_ms" -> refillRateInMs.asJson,
-        "last_refill" -> _lastRefill.single.get.asJson
-      ))
-  }: PartialService).orElse(super.routes(urlPrefix))
+  override def routes(urlPrefix: String) =
+    ({
+      case req if req.url == urlPrefix =>
+        Ok(
+          Json.obj(
+            "max_tokens" -> tokens.asJson,
+            "available_tokens" -> _tokens.single.get.asJson,
+            "refill_rate_in_ms" -> refillRateInMs.asJson,
+            "last_refill" -> _lastRefill.single.get.asJson
+          ))
+    }: PartialService).orElse(super.routes(urlPrefix))
 
 }

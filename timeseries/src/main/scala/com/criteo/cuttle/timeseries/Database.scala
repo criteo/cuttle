@@ -141,7 +141,8 @@ private[timeseries] object Database {
     val select =
       sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status, created_by
             FROM timeseries_backfills"""
-    where.map(select ++ sql" WHERE " ++ _)
+    where
+      .map(select ++ sql" WHERE " ++ _)
       .getOrElse(select)
       .query[(String, String, String, String, Int, Instant, Instant, Instant, String, String)]
   }
