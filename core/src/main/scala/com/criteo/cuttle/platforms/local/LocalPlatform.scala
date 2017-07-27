@@ -28,7 +28,11 @@ object LocalPlatform {
 class LocalProcess(command: String) {
   val id = UUID.randomUUID().toString
 
-  def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Unit] = {
+  private def exec0[S <: Scheduling](
+    env: Map[String, String] = sys.env,
+    outLogger: (String) => Unit,
+    errLogger: (String) => Unit
+  )(implicit execution: Execution[S]): Future[Unit] = {
     val streams = execution.streams
     streams.debug(s"Forking:")
     streams.debug(this.toString)
@@ -43,12 +47,16 @@ class LocalProcess(command: String) {
           override def onStdout(buffer: ByteBuffer, closed: Boolean) = {
             val bytes = Array.ofDim[Byte](buffer.remaining)
             buffer.get(bytes)
-            streams.info(new String(bytes))
+            val str = new String(bytes)
+            streams.info(str)
+            outLogger(str)
           }
           override def onStderr(buffer: ByteBuffer, closed: Boolean) = {
             val bytes = Array.ofDim[Byte](buffer.remaining)
             buffer.get(bytes)
-            streams.error(new String(bytes))
+            val str = new String(bytes)
+            streams.error(str)
+            errLogger(str)
           }
           override def onExit(statusCode: Int) =
             statusCode match {
@@ -68,5 +76,15 @@ class LocalProcess(command: String) {
         result.future
       }
   }
+
+  def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Unit] =
+    exec0(env, _ => (), _ => ())
+
+  def execAndRetrieveOutput[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[(String,String)] = {
+    val out = new StringBuffer
+    val err = new StringBuffer
+    exec0(env, x => out.append(x), x => err.append(x)).map(_ => (out.toString, err.toString))
+  }
+
   override def toString = command
 }
