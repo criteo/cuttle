@@ -50,7 +50,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
     override val aggregated: Boolean = false
   }
 
-  case class AggregatedJobExecution(period: Interval[Instant], completion: String, error: Boolean, backfill: Boolean) extends ExecutionPeriod {
+  case class AggregatedJobExecution(period: Interval[Instant], completion: String, error: Boolean, backfill: Boolean)
+      extends ExecutionPeriod {
     override val aggregated: Boolean = true
   }
 
@@ -65,9 +66,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       )
       val finalFields = executionPeriod match {
         case JobExecution(_, status, _) => ("status" -> status.asJson) :: coreFields
-        case AggregatedJobExecution(_, completion, error, _) => ("completion" -> completion.asJson) :: ("error" -> error.asJson) :: coreFields
+        case AggregatedJobExecution(_, completion, error, _) =>
+          ("completion" -> completion.asJson) :: ("error" -> error.asJson) :: coreFields
       }
-      Json.obj(finalFields:_*)
+      Json.obj(finalFields: _*)
     }
   }
 
@@ -152,9 +154,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             findAggregationLevel(n, gridView.upper(), interval)
         }
 
-        def aggregateExecutions(job: TimeSeriesJob,
-                                period: Interval[Instant],
-                                gridView: TimeSeriesGridView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] = {
+        def aggregateExecutions(
+          job: TimeSeriesJob,
+          period: Interval[Instant],
+          gridView: TimeSeriesGridView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
           gridView
             .split(period)
             .map { interval =>
@@ -169,8 +172,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   case _ => Some((Interval(start, end), currentlyAggregatedPeriod))
                 }
               }
-            }.flatten
-        }
+            }
+            .flatten
 
         def getStatusLabelFromState(jobState: JobState): String =
           jobState match {
@@ -192,8 +195,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               period
             )
             val jobExecutions = (for {
-                (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, gridView)
-              } yield {
+              (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, gridView)
+            } yield {
               val (intervalStart, intervalEnd) = interval.toPair
               val inBackfill = backfills.exists(
                 bf =>
@@ -204,20 +207,27 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                       .nonEmpty)
               if (gridView.aggregationFactor == 1)
                 jobStatesOnIntervals match {
-                  case (executionInterval, state) :: Nil => Some(JobExecution(interval, getStatusLabelFromState(state), inBackfill))
+                  case (executionInterval, state) :: Nil =>
+                    Some(JobExecution(interval, getStatusLabelFromState(state), inBackfill))
                   case _ => None
+                } else
+                jobStatesOnIntervals match {
+                  case l => {
+                    val (duration, done, error) = l.foldLeft((0L, 0L, false))((acc, currentExecution) => {
+                      val (lo, hi) = currentExecution._1.toPair
+                      val jobStatus = getStatusLabelFromState(currentExecution._2)
+                      (acc._1 + lo.until(hi, SECONDS),
+                       acc._2 + (if (jobStatus == "successful") lo.until(hi, SECONDS) else 0),
+                       acc._3 || jobStatus == "failed")
+                    })
+                    Some(
+                      AggregatedJobExecution(interval,
+                                             f"${done.toDouble / duration.toDouble}%2.2f",
+                                             error,
+                                             inBackfill))
+                  }
+                  case Nil => None
                 }
-              else jobStatesOnIntervals match {
-                case l => {
-                  val (duration, done, error) = l.foldLeft((0L, 0L, false))((acc, currentExecution) => {
-                    val (lo, hi) = currentExecution._1.toPair
-                    val jobStatus = getStatusLabelFromState(currentExecution._2)
-                    (acc._1 + lo.until(hi, SECONDS), acc._2 + (if (jobStatus == "successful") lo.until(hi, SECONDS) else 0), acc._3 || jobStatus == "failed")
-                  })
-                  Some (AggregatedJobExecution (interval, f"${done.toDouble / duration.toDouble}%2.2f", error, inBackfill))
-                }
-                case Nil => None
-              }
             })
             JobTimeline(job.id, gridView, jobExecutions.flatten)
           }).toList
@@ -245,7 +255,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   val (duration, done, failing) = jobSummaries
                     .reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 || b._3))
                   Some(
-                    AggregatedJobExecution(Interval(lo, hi), f"${done.toDouble / duration.toDouble}%2.2f", failing, isInbackfill)
+                    AggregatedJobExecution(Interval(lo, hi),
+                                           f"${done.toDouble / duration.toDouble}%2.2f",
+                                           failing,
+                                           isInbackfill)
                   )
                 } else {
                   None
@@ -319,7 +332,9 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
     case GET at url"/api/timeseries/backfills" =>
       Ok(
-        Database.queryBackfills().list
+        Database
+          .queryBackfills()
+          .list
           .map(_.map {
             case (id, name, description, jobs, priority, start, end, created_at, status, created_by) =>
               Json.obj(

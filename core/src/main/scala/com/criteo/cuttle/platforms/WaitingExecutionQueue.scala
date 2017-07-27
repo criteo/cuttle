@@ -19,12 +19,11 @@ import io.circe.syntax._
 import App._
 
 private[cuttle] trait WaitingExecutionQueue {
-  case class DelayedResult[A](
-    effect: () => Future[A],
-    effectDebug: String,
-    promise: Promise[A],
-    submitted: Instant,
-    started: Ref[Option[Instant]] = Ref(None))
+  case class DelayedResult[A](effect: () => Future[A],
+                              effectDebug: String,
+                              promise: Promise[A],
+                              submitted: Instant,
+                              started: Ref[Option[Instant]] = Ref(None))
 
   implicit def taskEncoder[A] = new Encoder[DelayedResult[A]] {
     override def apply(task: DelayedResult[A]) =
@@ -98,18 +97,20 @@ private[cuttle] trait WaitingExecutionQueue {
 
   def routes(urlPrefix: String): PartialService = {
     case req if req.url == s"$urlPrefix/running" =>
-      Ok(this._running.single.get.toSeq.map { case (execution, task) =>
-        Json.obj(
-          "execution" -> execution.toExecutionLog(ExecutionStatus.ExecutionRunning).asJson,
-          "task" -> task.asJson
-        )
+      Ok(this._running.single.get.toSeq.map {
+        case (execution, task) =>
+          Json.obj(
+            "execution" -> execution.toExecutionLog(ExecutionStatus.ExecutionRunning).asJson,
+            "task" -> task.asJson
+          )
       }.asJson)
     case req if req.url == s"$urlPrefix/waiting" =>
-      Ok(this._waiting.single.get.toSeq.map { case (execution, task) =>
-        Json.obj(
-          "execution" -> execution.toExecutionLog(ExecutionStatus.ExecutionWaiting).asJson,
-          "task" -> task.asJson
-        )
+      Ok(this._waiting.single.get.toSeq.map {
+        case (execution, task) =>
+          Json.obj(
+            "execution" -> execution.toExecutionLog(ExecutionStatus.ExecutionWaiting).asJson,
+            "task" -> task.asJson
+          )
       }.asJson)
   }
 }
