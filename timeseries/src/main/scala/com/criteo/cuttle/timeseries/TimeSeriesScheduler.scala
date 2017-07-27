@@ -71,7 +71,8 @@ object TimeSeriesGrid {
     def next(t: Instant) = t.atZone(tz).truncatedTo(DAYS).plus(1, DAYS).toInstant
   }
   case class Monthly(tz: ZoneId) extends TimeSeriesGrid {
-    private val truncateToMonth = (t: ZonedDateTime) => t.`with`(TemporalAdjusters.firstDayOfMonth()).truncatedTo(ChronoUnit.DAYS)
+    private val truncateToMonth = (t: ZonedDateTime) =>
+      t.`with`(TemporalAdjusters.firstDayOfMonth()).truncatedTo(ChronoUnit.DAYS)
     def truncate(t: Instant) = truncateToMonth(t.atZone(tz)).toInstant
     def next(t: Instant) = truncateToMonth(t.atZone(tz)).plus(1, MONTHS).toInstant
   }
@@ -96,7 +97,7 @@ object TimeSeriesGridView {
   abstract class GenericView(n: Int, grid: TimeSeriesGrid, agg: Int) extends TimeSeriesGridView {
     def truncate(t: Instant) = grid.truncate(t)
     def next(t: Instant) = (1 to n).foldLeft(grid.truncate(t))((acc, _) => grid.next(acc))
-    val aggregationFactor =  agg
+    val aggregationFactor = agg
     def upper(): TimeSeriesGridView
   }
   case class HourlyView(agg: Int) extends GenericView(1, Hourly, agg) {
@@ -207,7 +208,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
                                       start: Instant,
                                       end: Instant,
                                       priority: Int,
-                                      xa: XA)(implicit user : User) = {
+                                      xa: XA)(implicit user: User) = {
     val (isValid, newBackfill) = atomic { implicit txn =>
       val id = UUID.randomUUID().toString
       val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING", user.userId)
@@ -262,7 +263,9 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
         .map(_.map {
           case (id, name, description, jobsIdsString, priority, start, end, created_at, status, created_by) =>
             val jobsIds = jobsIdsString.split(",")
-            val jobs = workflow.vertices.filter { job => jobsIds.contains(job.id) }
+            val jobs = workflow.vertices.filter { job =>
+              jobsIds.contains(job.id)
+            }
             Backfill(id, start, end, jobs, priority, name, description, status, created_by)
         })
         .transact(xa)
@@ -377,10 +380,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
   override def getStats(jobs: Set[String]) = {
     val runningBackfills = state match {
       case (_, backfills) =>
-        backfills.filter(bf =>
-          bf.status == "RUNNING" &&
-            bf.jobs.map(_.id).intersect(jobs).nonEmpty
-        )
+        backfills.filter(
+          bf =>
+            bf.status == "RUNNING" &&
+              bf.jobs.map(_.id).intersect(jobs).nonEmpty)
     }
     Map("backfills" -> runningBackfills.size).asJson
   }
