@@ -3,7 +3,7 @@
 import React from "react";
 import injectSheet from "react-jss";
 import ReactTooltip from "react-tooltip";
-import {createClassFromLiteSpec} from 'react-vega-lite';
+import { createClassFromLiteSpec } from "react-vega-lite";
 
 import map from "lodash/map";
 import reduce from "lodash/reduce";
@@ -34,106 +34,111 @@ type Props = {
 };
 
 type State = {
-  data : any[];
-}
+  data: any[]
+};
 
-const AverageRunWaitChart = createClassFromLiteSpec('AverageRunWaitChart', {
-                   "width" : "550",
-                   "title": "Runtime of jobs across time",
-                   "mark": "area",
-                   "transform" : [
-                      { "calculate": "datum.kind == 'run' ? 'Running' : 'Waiting'", "as": "runningSeconds" }
-                   ],
-                   "encoding": {
-                     "x": {
-                       "field": "startTime",
-                       "type": "temporal",
-                       "axis" : {
-                        "title" : null,
-                        "format": "%d/%m %H:%M",
-                        "labelAngle": -45
-                       }
-                     },
-                     "y": {
-                       "field" : "seconds",
-                       "type": "quantitative",
-                       "aggregate" : "sum",
-                       "axis" : {
-                        "title" : "Duration (s)"
-                       }
-                     },
-                     "color" : {
-                       "type" : "nominal",
-                       "field" : "runningSeconds",
-                       "scale": {
-                         "range": [ "#00BCD4","#ff9800"]
-                       },
-                       "legend": {"title": "super"  }
-                     }
-                   }
-                 });
+const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
+  width: "550",
+  title: "Runtime of jobs across time",
+  mark: "area",
+  transform: [
+    {
+      calculate: "datum.kind == 'run' ? 'Running' : 'Waiting'",
+      as: "runningSeconds"
+    }
+  ],
+  encoding: {
+    x: {
+      field: "startTime",
+      type: "temporal",
+      axis: {
+        title: null,
+        format: "%d/%m %H:%M",
+        labelAngle: -45
+      }
+    },
+    y: {
+      field: "seconds",
+      type: "quantitative",
+      aggregate: "sum",
+      axis: {
+        title: "Duration (s)"
+      }
+    },
+    color: {
+      type: "nominal",
+      field: "runningSeconds",
+      scale: {
+        range: ["#00BCD4", "#ff9800"]
+      },
+      legend: { title: "super" }
+    }
+  }
+});
 
-const MaxRuntimeChart = createClassFromLiteSpec('MaxRuntimeChart', {
-                   "width" : "550",
-                   "mark": "line",
-                    "transform" : [
-                       { "calculate": "datum.durationSeconds - datum.waitingSeconds", "as": "runningSeconds" }
-                    ],
-                   "encoding": {
-                     "x": {
-                       "field": "startTime",
-                       "type": "temporal",
-                          "axis" : {
-                            "title" : null,
-                            "format": "%d/%m",
-                            "labelAngle": -45
-                         }
-                     },
-                     "y": {
-                       "aggregate" : "max",
-                       "type": "quantitative",
-                       "field" : "runningSeconds"
-                     }
-                   }
-                 });
+const MaxRuntimeChart = createClassFromLiteSpec("MaxRuntimeChart", {
+  width: "550",
+  mark: "line",
+  transform: [
+    {
+      calculate: "datum.durationSeconds - datum.waitingSeconds",
+      as: "runningSeconds"
+    }
+  ],
+  encoding: {
+    x: {
+      field: "startTime",
+      type: "temporal",
+      axis: {
+        title: null,
+        format: "%d/%m",
+        labelAngle: -45
+      }
+    },
+    y: {
+      aggregate: "max",
+      type: "quantitative",
+      field: "runningSeconds"
+    }
+  }
+});
 
-const SumFailuresChart = createClassFromLiteSpec('SumFailuresChart', {
-                   "width" : "550",
-                   "title": "Failures across time.",
-                   "mark": "bar",
-                    "transform" : [
-                      { "calculate": "datum.status === 'failed' ? 1 : 0", "as": "failures" }
-                   ],
-                   "encoding": {
-                     "x": {
-                       "field": "startTime",
-                       "timeUnit" : "day",
-                       "type": "temporal",
-                          "axis" : {
-                            "title" : null,
-//                            "format": "%d/%m",
-                            "labelAngle": -45
-                         }
-                     },
-                     "y": {
-                       "type": "quantitative",
-                       "aggregate" : "sum",
-                       "field" : "failures"
-                     }
-                   }
-                 });
+const SumFailuresChart = createClassFromLiteSpec("SumFailuresChart", {
+  width: "550",
+  title: "Failures across time.",
+  mark: "bar",
+  transform: [
+    { calculate: "datum.status === 'failed' ? 1 : 0", as: "failures" }
+  ],
+  encoding: {
+    x: {
+      field: "startTime",
+      timeUnit: "day",
+      type: "temporal",
+      axis: {
+        title: null,
+        labelAngle: -45
+      }
+    },
+    y: {
+      type: "quantitative",
+      aggregate: "sum",
+      field: "failures"
+    }
+  }
+});
 
-const aggregateDataSet = (data) => {
+const aggregateDataSet = data => {
   const groupBy = (collection, sel) => {
     let m = new Map();
 
-    collection.forEach((element) => {
+    collection.forEach(element => {
       const key = sel(element);
       if (m.has(key)) {
         const v = m.get(key);
-        if (v) v.push(element)
+        if (v) v.push(element);
       } else {
-        m.set(key, [element])
+        m.set(key, [element]);
       }
     });
 
@@ -142,60 +147,58 @@ const aggregateDataSet = (data) => {
 
   const value = groupBy(data, d => d.startTime);
 
-  const mean = (data : number[]) => {
+  const mean = (data: number[]) => {
     if (data.length === 0) {
       return 0;
     } else {
-      return data.reduce((p,c) => p + c) / data.length;
+      return data.reduce((p, c) => p + c) / data.length;
     }
   };
 
-  return Array.from(value)
-    .reduce(
-      (p,[k, v]) =>
-        p.concat([
-          {
-            startTime: k,
-            kind: "run",
-            seconds: mean(v.map(x=>x.durationSeconds - x.waitingSeconds))
-          },
-          {
-            startTime: k,
-            kind: "wait",
-            seconds: mean(v.map(x=>x.waitingSeconds))
-          }]),
-      []);
+  return Array.from(value).reduce(
+    (p, [k, v]) =>
+      p.concat([
+        {
+          startTime: k,
+          kind: "run",
+          seconds: mean(v.map(x => x.durationSeconds - x.waitingSeconds))
+        },
+        {
+          startTime: k,
+          kind: "wait",
+          seconds: mean(v.map(x => x.waitingSeconds))
+        }
+      ]),
+    []
+  );
 };
 
 class WorkflowComponent extends React.Component {
   props: Props;
   state: State;
 
-  constructor(props){
+  constructor(props) {
     super(props);
 
     this.updateCharts(props);
 
     this.state = {
-      data : []
+      data: []
     };
   }
 
-  componentWillReceiveProps(nextProps : Props){
+  componentWillReceiveProps(nextProps: Props) {
     this.updateCharts(nextProps);
   }
 
-  updateCharts(nextProps : Props) {
-        const chartJob = nextProps.job || nextProps.workflow.jobs[0].id
-        fetch(`/api/statitics/${chartJob}`)
-          .then(data => data.json())
-          .then(json => {
-
-            this.setState({
-              data : json
-            });
-          });
-      }
+  updateCharts(nextProps: Props) {
+    const chartJob = nextProps.job || nextProps.workflow.jobs[0].id;
+    fetch(`/api/statitics/${chartJob}`).then(data => data.json()).then(json => {
+      this.setState({
+        data: json
+      });
+    });
+  }
 
   render() {
     const {
@@ -317,19 +320,22 @@ class WorkflowComponent extends React.Component {
           <section className={classes.chartSection}>
             <AverageRunWaitChart
               className="chart"
-              data={{ values : aggregateDataSet(this.state.data) }}/>
+              data={{ values: aggregateDataSet(this.state.data) }}
+            />
             <h3>Average run/wait times over last 30 days</h3>
           </section>
           <section className={classes.chartSection}>
             <MaxRuntimeChart
               className="chart"
-              data={{ values : this.state.data }}/>
+              data={{ values: this.state.data }}
+            />
             <h3>Max runtime over last 30 days</h3>
           </section>
           <section className={classes.chartSection}>
             <SumFailuresChart
               className="chart"
-              data={{ values : this.state.data }}/>
+              data={{ values: this.state.data }}
+            />
             <h3>Number of failures over last 30 days</h3>
           </section>
         </SlidePanel>
@@ -346,15 +352,15 @@ const styles = {
     height: "calc(100vh - 4em)",
     position: "relative"
   },
-  chartSection : {
-    "& > .chart" : {
-      marginLeft : "50px",
-      marginTop : "50px"
+  chartSection: {
+    "& > .chart": {
+      marginLeft: "50px",
+      marginTop: "50px"
     },
-    "& h3" : {
-      color : "#3B4254",
-      textAlign : "center",
-      fontSize : "1em"
+    "& h3": {
+      color: "#3B4254",
+      textAlign: "center",
+      fontSize: "1em"
     }
   },
   tags: {
