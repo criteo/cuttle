@@ -134,7 +134,7 @@ private[cuttle] object ExecutionPlatform {
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
-private[cuttle] class Executor[S <: Scheduling] (
+class Executor[S <: Scheduling] private[cuttle] (
   val platforms: Seq[ExecutionPlatform],
   xa: XA,
   queries: Queries = new Queries {})(implicit retryStrategy: RetryStrategy) {
