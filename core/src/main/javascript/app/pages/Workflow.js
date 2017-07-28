@@ -37,12 +37,12 @@ type State = {
   data : any[];
 }
 
-const RuntimeChart = createClassFromLiteSpec('BarChart', {
-                   "width" : "500",
+const AverageRunWaitChart = createClassFromLiteSpec('AverageRunWaitChart', {
+                   "width" : "550",
                    "title": "Runtime of jobs across time",
                    "mark": "area",
                    "transform" : [
-                      { "calculate": "datum.kind == 'run' ? 'Running' : 'Waiting'", "as": "runningState" }
+                      { "calculate": "datum.kind == 'run' ? 'Running' : 'Waiting'", "as": "runningSeconds" }
                    ],
                    "encoding": {
                      "x": {
@@ -50,7 +50,7 @@ const RuntimeChart = createClassFromLiteSpec('BarChart', {
                        "type": "temporal",
                        "axis" : {
                         "title" : null,
-                        "format": "%d/%m",
+                        "format": "%d/%m %H:%M",
                         "labelAngle": -45
                        }
                      },
@@ -63,28 +63,22 @@ const RuntimeChart = createClassFromLiteSpec('BarChart', {
                        }
                      },
                      "color" : {
-                       "field" : "runningState",
+                       "type" : "nominal",
+                       "field" : "runningSeconds",
                        "scale": {
-                      //   "domain": ["Running", "Waiting"],
                          "range": [ "#00BCD4","#ff9800"]
                        },
-                       "legend": {"title": null  }
+                       "legend": {"title": "super"  }
                      }
                    }
                  });
 
-const FailuresChart = createClassFromLiteSpec('BarChart', {
-                   "width" : "600",
-                   "title": "Failures across time.",
+const MaxRuntimeChart = createClassFromLiteSpec('MaxRuntimeChart', {
+                   "width" : "550",
                    "mark": "line",
-                   "transform" : [
-                     {
-                       "filter": {
-                         "field": "status",
-                         "equal": "failed"
-                       }
-                     }
-                   ],
+                    "transform" : [
+                       { "calculate": "datum.durationSeconds - datum.waitingSeconds", "as": "runningSeconds" }
+                    ],
                    "encoding": {
                      "x": {
                        "field": "startTime",
@@ -96,25 +90,82 @@ const FailuresChart = createClassFromLiteSpec('BarChart', {
                          }
                      },
                      "y": {
+                       "aggregate" : "max",
                        "type": "quantitative",
-                       "aggregate" : "count"
+                       "field" : "runningSeconds"
                      }
                    }
                  });
 
-const unPivotDataSet = (data : any[]) =>
-  data.reduce((p,c) => p.concat([
-    {
-      startTime : c.startTime,
-      seconds : c.waitingSeconds,
-      kind : "wait"
-    },
-    {
-      startTime : c.startTime,
-      seconds : c.durationSeconds - c.waitingSeconds,
-      kind : "run"
+const SumFailuresChart = createClassFromLiteSpec('SumFailuresChart', {
+                   "width" : "550",
+                   "title": "Failures across time.",
+                   "mark": "bar",
+                    "transform" : [
+                      { "calculate": "datum.status === 'failed' ? 1 : 0", "as": "failures" }
+                   ],
+                   "encoding": {
+                     "x": {
+                       "field": "startTime",
+                       "timeUnit" : "day",
+                       "type": "temporal",
+                          "axis" : {
+                            "title" : null,
+//                            "format": "%d/%m",
+                            "labelAngle": -45
+                         }
+                     },
+                     "y": {
+                       "type": "quantitative",
+                       "aggregate" : "sum",
+                       "field" : "failures"
+                     }
+                   }
+                 });
+
+const aggregateDataSet = (data) => {
+  const groupBy = (collection, sel) => {
+    let m = new Map();
+
+    collection.forEach((element) => {
+      const key = sel(element);
+      if (m.has(key)) {
+        const v = m.get(key);
+        if (v) v.push(element)
+      } else {
+        m.set(key, [element])
+      }
+    });
+
+    return m;
+  };
+
+  const value = groupBy(data, d => d.startTime);
+
+  const mean = (data : number[]) => {
+    if (data.length === 0) {
+      return 0;
+    } else {
+      return data.reduce((p,c) => p + c) / data.length;
     }
-  ]),[]);
+  };
+
+  return Array.from(value)
+    .reduce(
+      (p,[k, v]) =>
+        p.concat([
+          {
+            startTime: k,
+            kind: "run",
+            seconds: mean(v.map(x=>x.durationSeconds - x.waitingSeconds))
+          },
+          {
+            startTime: k,
+            kind: "wait",
+            seconds: mean(v.map(x=>x.waitingSeconds))
+          }]),
+      []);
+};
 
 class WorkflowComponent extends React.Component {
   props: Props;
@@ -135,7 +186,8 @@ class WorkflowComponent extends React.Component {
   }
 
   updateCharts(nextProps : Props) {
-        fetch(`/api/statitics/${nextProps.job}`)
+        const chartJob = nextProps.job || nextProps.workflow.jobs[0].id
+        fetch(`/api/statitics/${chartJob}`)
           .then(data => data.json())
           .then(json => {
 
@@ -262,8 +314,24 @@ class WorkflowComponent extends React.Component {
               ]}
             </FancyTable>
           </div>
-          <RuntimeChart  style={{ textAlign : "center", marginTop : "50px"  }} data={{ values : unPivotDataSet(this.state.data) }}/>
-          <FailuresChart style={{ textAlign : "center", marginTop : "50px" }} data={{ values : this.state.data }}/>
+          <section className={classes.chartSection}>
+            <AverageRunWaitChart
+              className="chart"
+              data={{ values : aggregateDataSet(this.state.data) }}/>
+            <h3>Average run/wait times over last 30 days</h3>
+          </section>
+          <section className={classes.chartSection}>
+            <MaxRuntimeChart
+              className="chart"
+              data={{ values : this.state.data }}/>
+            <h3>Max runtime over last 30 days</h3>
+          </section>
+          <section className={classes.chartSection}>
+            <SumFailuresChart
+              className="chart"
+              data={{ values : this.state.data }}/>
+            <h3>Number of failures over last 30 days</h3>
+          </section>
         </SlidePanel>
       </div>
     );
@@ -277,6 +345,17 @@ const styles = {
     width: "100%",
     height: "calc(100vh - 4em)",
     position: "relative"
+  },
+  chartSection : {
+    "& > .chart" : {
+      marginLeft : "50px",
+      marginTop : "50px"
+    },
+    "& h3" : {
+      color : "#3B4254",
+      textAlign : "center",
+      fontSize : "1em"
+    }
   },
   tags: {
     display: "table-cell"

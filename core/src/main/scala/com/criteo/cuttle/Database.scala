@@ -219,7 +219,7 @@ private[cuttle] trait Queries {
              waiting_seconds as waiting_seconds,
              success
          from executions
-         where job=$jobId and end_time > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+         where job=$jobId and end_time > DATE_SUB(CURDATE(), INTERVAL 30 DAY) order by start_time asc, end_time asc
        """.query[(Instant, Instant, Int, Int, ExecutionStatus)]
           .list
           .map(_.map {
