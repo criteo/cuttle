@@ -55,7 +55,8 @@ private[cuttle] case class ExecutionLog(
   endTime: Option[Instant],
   context: Json,
   status: ExecutionStatus,
-  failing: Option[FailingJob] = None
+  failing: Option[FailingJob] = None,
+  waitingSeconds: Int
 )
 
 private object ExecutionCancelledException extends RuntimeException("Execution cancelled")
@@ -72,6 +73,7 @@ case class Execution[S <: Scheduling](
   private[cuttle] val cancelSignal = Promise[Nothing]
   def isCancelled = cancelSignal.isCompleted
   val cancelled = cancelSignal.future
+  var waitingSeconds = 0
   def onCancelled(thunk: () => Unit) = cancelled.andThen {
     case Failure(_) =>
       thunk()
@@ -91,10 +93,15 @@ case class Execution[S <: Scheduling](
       startTime,
       None,
       context.toJson,
-      status
+      status,
+      waitingSeconds = waitingSeconds
     )
 
   private[cuttle] val isParked = new AtomicBoolean(false)
+
+  private[cuttle] def updateWaitingTime(seconds: Int): Unit =
+    waitingSeconds += seconds
+
   def park(duration: FiniteDuration): Future[Unit] =
     if (isParked.get) {
       sys.error(s"Already parked")
@@ -146,6 +153,8 @@ class Executor[S <: Scheduling] private[cuttle] (
   private val throttledState = TMap.empty[Execution[S], (Promise[Unit], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
+
+  startMonitoringExecutions()
 
   private def flagWaitingExecutions(executions: Seq[Execution[S]]): Seq[(Execution[S], ExecutionStatus)] = {
     val waitings = platforms.flatMap(_.waiting).toSet
@@ -519,5 +528,17 @@ class Executor[S <: Scheduling] private[cuttle] (
             (execution, promise.future)
         }
       ))
+  }
+
+  private def startMonitoringExecutions() = {
+    val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.platforms.ExecutionMonitor.SC")
+
+    val intervalSeconds = 1
+
+    SC.scheduleAtFixedRate(intervalSeconds.second) {
+      runningExecutions
+        .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
+        .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
+    }
   }
 }

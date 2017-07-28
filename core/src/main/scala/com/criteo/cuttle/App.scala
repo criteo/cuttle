@@ -69,7 +69,8 @@ private[cuttle] object App {
               "failedExecutions" -> Json.fromValues(failedExecutions.map(_.asJson(executionLogEncoder))),
               "nextRetry" -> nextRetry.asJson
             )
-        }.asJson
+        }.asJson,
+        "waitingSeconds" -> execution.waitingSeconds.asJson
       )
   }
 

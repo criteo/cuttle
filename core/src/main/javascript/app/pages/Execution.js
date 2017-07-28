@@ -8,6 +8,8 @@ import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
 import BreakIcon from "react-icons/lib/md/keyboard-control";
 import CalendarIcon from "react-icons/lib/md/date-range";
+import ReactTooltip from "react-tooltip";
+
 import moment from "moment";
 
 import Window from "../components/Window";
@@ -42,6 +44,52 @@ type State = {
   fullscreen: boolean,
   autoScroll: boolean
 };
+
+type ProgressBarProps = {
+  classes: any,
+  totalTimeSeconds: number,
+  waitingTimeSeconds: number
+};
+
+const ProgressBarComponent = ({
+  classes,
+  totalTimeSeconds,
+  waitingTimeSeconds
+}: ProgressBarProps) => {
+  const totalWidth = 200;
+  const height = 8;
+  const barWidth = totalTimeSeconds !== 0
+    ? waitingTimeSeconds / totalTimeSeconds * totalWidth
+    : 0;
+
+  const tooltip =
+    `Waiting : ${moment.utc(waitingTimeSeconds * 1000).format("HH:mm:ss")} / ` +
+    `Running : ${moment
+      .utc((totalTimeSeconds - waitingTimeSeconds) * 1000)
+      .format("HH:mm:ss")}`;
+
+  return (
+    <span className={classes.main}>
+      <svg width={totalWidth} height={height} className={classes.svg}>
+        <g data-tip={tooltip}>
+          <rect width={totalWidth} height={height} fill="#00BCD4" />
+          <rect width={barWidth} height={height} fill="#ff9800" />
+        </g>
+      </svg>
+      <ReactTooltip className={classes.tooltip} effect="float" html={true} />
+    </span>
+  );
+};
+
+const ProgressBar = injectSheet({
+  main: {
+    "margin-left": "10px"
+  },
+  svg: {
+    lineHeight: "18px",
+    display: "inline-block"
+  }
+})(ProgressBarComponent);
 
 class Execution extends React.Component {
   props: Props;
@@ -241,13 +289,23 @@ class Execution extends React.Component {
                       <dt key="duration">Duration:</dt>,
                       <dd key="duration_">
                         {data.endTime
-                          ? moment
-                              .utc(
-                                moment(data.endTime).diff(
-                                  moment(data.startTime)
+                          ? [
+                              moment
+                                .utc(
+                                  moment(data.endTime).diff(
+                                    moment(data.startTime)
+                                  )
                                 )
-                              )
-                              .format("HH:mm:ss")
+                                .format("HH:mm:ss"),
+                              <ProgressBar
+                                totalTimeSeconds={
+                                  moment(data.endTime).diff(
+                                    moment(data.startTime)
+                                  ) / 1000
+                                }
+                                waitingTimeSeconds={data.waitingSeconds}
+                              />
+                            ]
                           : <Clock time={data.startTime} humanize={false} />}
                       </dd>
                     ]

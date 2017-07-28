@@ -24,7 +24,8 @@ export type ExecutionLog = {
   failing?: {
     failedExecutions: Array<ExecutionLog>,
     nextRetry: ?string
-  }
+  },
+  waitingSeconds : number
 };
 
 export type Paginated<A> = {
