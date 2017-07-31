@@ -5,11 +5,11 @@ import scala.concurrent.{Future}
 /*
  * The representation of the workflow to be scheduled
  * */
-sealed trait Workflow[S <: Scheduling] {
+trait Workflow[S <: Scheduling] {
   type Dependency = (Job[S], Job[S], S#DependencyDescriptor)
 
-  private[cuttle] def vertices: Set[Job[S]]
-  private[cuttle] def edges: Set[Dependency]
+  def vertices: Set[Job[S]]
+  def edges: Set[Dependency]
 
   // Kahn's algorithm
   // We construct the best linear representation for our DAG. At the
@@ -45,8 +45,8 @@ sealed trait Workflow[S <: Scheduling] {
   private[cuttle] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _) => v1 != v })
   private[cuttle] lazy val leaves = vertices.filter(v => edges.forall { case (_, v2, _) => v2 != v })
 
-  def dependsOn(rightWorkflow: Workflow[S])(implicit depDescriptor: S#DependencyDescriptor): Workflow[S] =
-    dependsOn((rightWorkflow, depDescriptor))
+  def dependsOn(rightWorkflow: Workflow[S])(implicit dependencyDescriptor: S#DependencyDescriptor): Workflow[S] =
+    dependsOn((rightWorkflow, dependencyDescriptor))
 
   def dependsOn(rightOperand: (Workflow[S], S#DependencyDescriptor)): Workflow[S] = {
     val (rightWorkflow, depDescriptor) = rightOperand
@@ -64,8 +64,8 @@ sealed trait Workflow[S <: Scheduling] {
 
 object Workflow {
   def empty[S <: Scheduling] = new Workflow[S] {
-    private[cuttle] def vertices = Set.empty
-    private[cuttle] def edges = Set.empty
+    def vertices = Set.empty
+    def edges = Set.empty
   }
 }
 
@@ -80,8 +80,8 @@ case class Job[S <: Scheduling](id: String,
                                 description: String = "",
                                 tags: Set[Tag] = Set.empty[Tag])(val effect: SideEffect[S])
     extends Workflow[S] {
-  private[cuttle] val vertices = Set(this)
-  private[cuttle] val edges = Set.empty[Dependency]
+  val vertices = Set(this)
+  val edges = Set.empty[Dependency]
 
   def run(execution: Execution[S]): Future[Unit] = effect(execution)
 }

@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.duration._
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 import lol.http.PartialService
 import doobie.imports._
 import cats.implicits._
@@ -56,7 +56,7 @@ private[cuttle] case class ExecutionLog(
   context: Json,
   status: ExecutionStatus,
   failing: Option[FailingJob] = None,
-  waitingSeconds : Int
+  waitingSeconds: Int
 )
 
 private[cuttle] class ExecutionStat(
@@ -104,10 +104,12 @@ case class Execution[S <: Scheduling](
       status,
       waitingSeconds = waitingSeconds
     )
+
   private[cuttle] val isParked = new AtomicBoolean(false)
-  private[cuttle] def updateWaitingTime(seconds : Int): Unit = {
+
+  private[cuttle] def updateWaitingTime(seconds: Int): Unit =
     waitingSeconds += seconds
-  }
+
   def park(duration: FiniteDuration): Future[Unit] =
     if (isParked.get) {
       sys.error(s"Already parked")
@@ -124,7 +126,7 @@ case class Execution[S <: Scheduling](
 object Execution {
   private[cuttle] implicit val ordering: Ordering[Execution[_]] =
     Ordering.by(e => (e.context: SchedulingContext, e.job.id, e.id))
-  private[cuttle] implicit def ordering0[S<:Scheduling]: Ordering[Execution[S]] =
+  private[cuttle] implicit def ordering0[S <: Scheduling]: Ordering[Execution[S]] =
     ordering.asInstanceOf[Ordering[Execution[S]]]
 }
 
@@ -159,6 +161,8 @@ private[cuttle] class Executor[S <: Scheduling] (
   private val throttledState = TMap.empty[Execution[S], (Promise[Unit], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
+
+  startMonitoringExecutions()
 
   private def flagWaitingExecutions(executions: Seq[Execution[S]]): Seq[(Execution[S], ExecutionStatus)] = {
     val waitings = platforms.flatMap(_.waiting).toSet
@@ -535,5 +539,17 @@ private[cuttle] class Executor[S <: Scheduling] (
             (execution, promise.future)
         }
       ))
+  }
+
+  private def startMonitoringExecutions() = {
+    val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.platforms.ExecutionMonitor.SC")
+
+    val intervalSeconds = 1
+
+    SC.scheduleAtFixedRate(intervalSeconds.second) {
+      runningExecutions
+        .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
+        .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
+    }
   }
 }

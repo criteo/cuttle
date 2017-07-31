@@ -243,12 +243,12 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         case true =>
           Ok(
             fs2.Stream(ServerSentEvents.Event("BOS".asJson)) ++
-            streams
-              .through(fs2.text.utf8Decode)
-              .through(fs2.text.lines)
-              .chunks
-              .map(chunk => ServerSentEvents.Event(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)))) ++
-            fs2.Stream(ServerSentEvents.Event("EOS".asJson))
+              streams
+                .through(fs2.text.utf8Decode)
+                .through(fs2.text.lines)
+                .chunks
+                .map(chunk => ServerSentEvents.Event(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)))) ++
+              fs2.Stream(ServerSentEvents.Event("EOS".asJson))
           )
         case false =>
           Ok(
