@@ -111,6 +111,11 @@ const MaxRuntimeChart = createClassFromLiteSpec("MaxRuntimeChart", {
         title: "Max running time (s)"
       }
     }
+  },
+  config : {
+    mark : {
+      color : "#00BCD4"
+    }
   }
 });
 
@@ -139,6 +144,11 @@ const SumFailuresChart = createClassFromLiteSpec("SumFailuresChart", {
       axis: {
         title: "Number of failures"
       }
+    }
+  },
+  config : {
+    mark : {
+      color : "#e91e63"
     }
   }
 });
@@ -203,7 +213,7 @@ class WorkflowComponent extends React.Component {
 
   updateCharts(nextProps: Props) {
     const chartJob = nextProps.job || nextProps.workflow.jobs[0].id;
-    fetch(`/api/statitics/${chartJob}`).then(data => data.json()).then(json => {
+    fetch(`/api/statistics/${chartJob}`).then(data => data.json()).then(json => {
       this.setState({
         data: json
       });

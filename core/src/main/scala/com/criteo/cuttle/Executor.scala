@@ -178,7 +178,7 @@ private[cuttle] class Executor[S <: Scheduling] (
         execution.toExecutionLog(status)
     }
 
-  private[cuttle] def jobExecutionsSince(jobId : String) : Seq[ExecutionStat] =
+  private[cuttle] def jobStatsForLastThirtyDays(jobId : String) : Seq[ExecutionStat] =
     queries.jobStatsForLastThirtyDays(jobId).transact(xa).unsafePerformIO
 
   private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =

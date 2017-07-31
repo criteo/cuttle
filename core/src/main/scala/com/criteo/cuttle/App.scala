@@ -176,8 +176,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
           Ok(asJson(getStats().get))
       }
 
-    case GET at url"/api/statitics/$jobName" =>
-      Ok(executor.jobExecutionsSince(jobName).asJson)
+    case GET at url"/api/statistics/$jobName" =>
+      Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)
