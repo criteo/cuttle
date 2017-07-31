@@ -143,6 +143,9 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           }
 
         val allFailing = executor.allFailingExecutions
+        val allWaitingIds = executor.allRunning
+          .filter(_.status == ExecutionWaiting)
+          .map(_.id)
 
         def findAggregationLevel(n: Int,
                                  gridView: TimeSeriesGridView,
@@ -180,7 +183,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             case Running(e) =>
               if (allFailing.exists(_.id == e))
                 "failed"
-              else if (executor.platforms.exists(_.waiting.exists(_.id == e)))
+              else if (allWaitingIds.contains(e))
                 "waiting"
               else "running"
             case Todo(_) => "todo"
