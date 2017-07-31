@@ -210,7 +210,7 @@ private[cuttle] trait Queries {
       .query[String]
       .option
 
-  def getJobDurationsSince(jobId : String) : ConnectionIO[List[ExecutionStat]] = {
+  def jobStatsForLastThirtyDays(jobId : String) : ConnectionIO[List[ExecutionStat]] = {
     sql"""
          select
              start_time,

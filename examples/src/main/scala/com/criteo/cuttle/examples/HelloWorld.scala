@@ -11,7 +11,7 @@ object HelloWorld {
 
   def main(args: Array[String]): Unit = {
     // 7 days ago at 00:00 UTC
-    val start: Instant = LocalDate.now.minusDays(30).atStartOfDay.toInstant(UTC)
+    val start: Instant = LocalDate.now.minusDays(7).atStartOfDay.toInstant(UTC)
 
     val hello1 =
       Job("hello1", hourly(start)) { implicit e =>

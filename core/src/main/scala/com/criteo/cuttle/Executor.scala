@@ -175,7 +175,7 @@ private[cuttle] class Executor[S <: Scheduling] (
     }
 
   private[cuttle] def jobExecutionsSince(jobId : String) : Seq[ExecutionStat] =
-    queries.getJobDurationsSince(jobId).transact(xa).unsafePerformIO
+    queries.jobStatsForLastThirtyDays(jobId).transact(xa).unsafePerformIO
 
   private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
     flagWaitingExecutions(runningState.single.keys.toSeq)

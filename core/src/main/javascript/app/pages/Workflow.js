@@ -5,12 +5,16 @@ import injectSheet from "react-jss";
 import ReactTooltip from "react-tooltip";
 import { createClassFromLiteSpec } from "react-vega-lite";
 
-import map from "lodash/map";
-import reduce from "lodash/reduce";
-import find from "lodash/find";
+import entries from "lodash/entries";
 import filter from "lodash/filter";
-import some from "lodash/some";
+import find from "lodash/find";
+import flatMap from "lodash/flatMap";
+import groupBy from "lodash/groupBy";
 import includes from "lodash/includes";
+import map from "lodash/map";
+import mean from "lodash/mean";
+import reduce from "lodash/reduce";
+import some from "lodash/some";
 
 import type { Node, Edge } from "../../graph/dagger/dataAPI/genericGraph";
 import type { Workflow, Tag, Job, Dependency } from "../../datamodel";
@@ -24,6 +28,8 @@ import TagIcon from "react-icons/lib/md/label";
 import Dagger from "../../graph/Dagger";
 import SlidePanel from "../components/SlidePanel";
 import FancyTable from "../components/FancyTable";
+
+import moment from "moment";
 
 type Props = {
   classes: any,
@@ -51,9 +57,10 @@ const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
     x: {
       field: "startTime",
       type: "temporal",
+      timeUnit: "utcyearmonthday",
       axis: {
         title: null,
-        format: "%d/%m %H:%M",
+        format: "%d/%m",
         labelAngle: -45
       }
     },
@@ -71,7 +78,7 @@ const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
       scale: {
         range: ["#00BCD4", "#ff9800"]
       },
-      legend: { title: "super" }
+      legend: { title: "Status" }
     }
   }
 });
@@ -88,6 +95,7 @@ const MaxRuntimeChart = createClassFromLiteSpec("MaxRuntimeChart", {
   encoding: {
     x: {
       field: "startTime",
+      timeUnit: "utcyearmonthday",
       type: "temporal",
       axis: {
         title: null,
@@ -98,7 +106,10 @@ const MaxRuntimeChart = createClassFromLiteSpec("MaxRuntimeChart", {
     y: {
       aggregate: "max",
       type: "quantitative",
-      field: "runningSeconds"
+      field: "runningSeconds",
+      axis: {
+        title: "Max running time (s)"
+      }
     }
   }
 });
@@ -113,9 +124,10 @@ const SumFailuresChart = createClassFromLiteSpec("SumFailuresChart", {
   encoding: {
     x: {
       field: "startTime",
-      timeUnit: "day",
+      timeUnit: "utcyearmonthday",
       type: "temporal",
       axis: {
+        format: "%d/%m",
         title: null,
         labelAngle: -45
       }
@@ -123,55 +135,53 @@ const SumFailuresChart = createClassFromLiteSpec("SumFailuresChart", {
     y: {
       type: "quantitative",
       aggregate: "sum",
-      field: "failures"
+      field: "failures",
+      axis: {
+        title: "Number of failures"
+      }
     }
   }
 });
 
-const aggregateDataSet = data => {
-  const groupBy = (collection, sel) => {
-    let m = new Map();
-
-    collection.forEach(element => {
-      const key = sel(element);
-      if (m.has(key)) {
-        const v = m.get(key);
-        if (v) v.push(element);
-      } else {
-        m.set(key, [element]);
-      }
-    });
-
-    return m;
-  };
-
-  const value = groupBy(data, d => d.startTime);
-
-  const mean = (data: number[]) => {
-    if (data.length === 0) {
-      return 0;
-    } else {
-      return data.reduce((p, c) => p + c) / data.length;
-    }
-  };
-
-  return Array.from(value).reduce(
-    (p, [k, v]) =>
-      p.concat([
-        {
-          startTime: k,
-          kind: "run",
-          seconds: mean(v.map(x => x.durationSeconds - x.waitingSeconds))
-        },
-        {
-          startTime: k,
-          kind: "wait",
-          seconds: mean(v.map(x => x.waitingSeconds))
-        }
-      ]),
-    []
-  );
+type ExecutionStat = {
+  startTime: string,
+  durationSeconds: number,
+  waitingSeconds: number,
+  status: "successful" | "failure"
 };
+
+/**
+ * Unpivots execution stats to create 
+ * separate "run" & "wait" events aggregated
+ * by date.
+ */
+const aggregateDataSet = (data: ExecutionStat[]) =>
+  flatMap(
+    entries(
+      groupBy(data, d =>
+        moment(d.startTime)
+          .set({
+            hour: 0,
+            minute: 0,
+            second: 0,
+            millisecond: 0
+          })
+          .format()
+      )
+    ),
+    ([k, v]) => [
+      {
+        startTime: k,
+        kind: "run",
+        seconds: mean(v.map(x => x.durationSeconds - x.waitingSeconds))
+      },
+      {
+        startTime: k,
+        kind: "wait",
+        seconds: mean(v.map(x => x.waitingSeconds))
+      }
+    ]
+  );
 
 class WorkflowComponent extends React.Component {
   props: Props;
@@ -317,27 +327,27 @@ class WorkflowComponent extends React.Component {
               ]}
             </FancyTable>
           </div>
-          <section className={classes.chartSection}>
+          <div className={classes.chartSection}>
+            <h3>Average run/wait times over last 30 days</h3>
             <AverageRunWaitChart
               className="chart"
               data={{ values: aggregateDataSet(this.state.data) }}
             />
-            <h3>Average run/wait times over last 30 days</h3>
-          </section>
-          <section className={classes.chartSection}>
+          </div>
+          <div className={classes.chartSection}>
+            <h3>Max runtime over last 30 days</h3>
             <MaxRuntimeChart
               className="chart"
               data={{ values: this.state.data }}
             />
-            <h3>Max runtime over last 30 days</h3>
-          </section>
-          <section className={classes.chartSection}>
+          </div>
+          <div className={classes.chartSection}>
+            <h3>Number of failures over last 30 days</h3>
             <SumFailuresChart
               className="chart"
               data={{ values: this.state.data }}
             />
-            <h3>Number of failures over last 30 days</h3>
-          </section>
+          </div>
         </SlidePanel>
       </div>
     );
@@ -355,7 +365,7 @@ const styles = {
   chartSection: {
     "& > .chart": {
       marginLeft: "50px",
-      marginTop: "50px"
+      marginBottom: "50px"
     },
     "& h3": {
       color: "#3B4254",
