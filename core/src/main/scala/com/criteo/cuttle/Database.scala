@@ -209,4 +209,23 @@ private[cuttle] trait Queries {
     sql"SELECT streams FROM executions_streams WHERE id = ${id}"
       .query[String]
       .option
+
+  def jobStatsForLastThirtyDays(jobId : String) : ConnectionIO[List[ExecutionStat]] = {
+    sql"""
+         select
+             start_time,
+             end_time,
+             TIMESTAMPDIFF(SECOND, start_time, end_time) as duration_seconds,
+             waiting_seconds as waiting_seconds,
+             success
+         from executions
+         where job=$jobId and end_time > DATE_SUB(CURDATE(), INTERVAL 30 DAY) order by start_time asc, end_time asc
+       """.query[(Instant, Instant, Int, Int, ExecutionStatus)]
+          .list
+          .map(_.map {
+            case (startTime, endTime, durationSeconds, waitingSeconds, status) =>
+              new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)
+          })
+  }
 }
+
