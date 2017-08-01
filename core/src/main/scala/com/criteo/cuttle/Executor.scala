@@ -65,7 +65,6 @@ case class Execution[S <: Scheduling](
   id: String,
   job: Job[S],
   context: S#Context,
-  startTime: Option[Instant],
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
   executionContext: ExecutionContext
@@ -74,6 +73,8 @@ case class Execution[S <: Scheduling](
   def isCancelled = cancelSignal.isCompleted
   val cancelled = cancelSignal.future
   var waitingSeconds = 0
+  var startTime: Option[Instant] = None
+
   def onCancelled(thunk: () => Unit) = cancelled.andThen {
     case Failure(_) =>
       thunk()
@@ -143,7 +144,7 @@ class Executor[S <: Scheduling] private[cuttle] (
 
   import ExecutionStatus._
 
-  private val pausedState = {
+  private val pausedState: TMap[String, Map[Execution[S], Promise[Unit]]] = {
     val byId = TMap.empty[String, Map[Execution[S], Promise[Unit]]]
     val pausedIds = queries.getPausedJobIds.transact(xa).unsafePerformIO
     byId.single ++= pausedIds.map((_, Map.empty[Execution[S], Promise[Unit]]))
@@ -153,6 +154,22 @@ class Executor[S <: Scheduling] private[cuttle] (
   private val throttledState = TMap.empty[Execution[S], (Promise[Unit], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
+  private def retryingJobLogs(filteredJobs: Set[String]): Seq[ExecutionLog] = {
+    val runningIds = runningState.single
+      .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
+      .map({ case (e, _) => e.job.id -> e}).toMap
+
+    recentFailures.single.flatMap({ case ((job,_),(_, failingJob)) =>
+      runningIds.get(job.id)
+        .map(_.toExecutionLog(ExecutionRunning).copy(failing = Some(failingJob))) }).toSeq
+  }
+  private def retryingJobsCount(filteredJobs: Set[String]): Int = {
+    val runningIds = runningState.single
+      .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
+      .map({ case (e, _) => e.job.id }).toSet
+
+    recentFailures.single.count({ case ((job,_), _) => runningIds.contains(job.id)})
+  }
 
   startMonitoringExecutions()
 
@@ -231,7 +248,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private[cuttle] def allFailing: Set[(Job[S], S#Context)] =
     throttledState.single.keys.map(e => (e.job, e.context)).toSet
   private[cuttle] def failingExecutionsSize(filteredJobs: Set[String]): Int =
-    throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size
+    throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size + retryingJobsCount(filteredJobs)
   private[cuttle] def allFailingExecutions: Seq[Execution[S]] =
     throttledState.single.toSeq.map(_._1)
   private[cuttle] def failingExecutions(filteredJobs: Set[String],
@@ -256,7 +273,7 @@ class Executor[S <: Scheduling] private[cuttle] (
       .flatMap(_.map {
         case (execution, (_, failingJob)) =>
           execution.toExecutionLog(ExecutionThrottled).copy(failing = Some(failingJob))
-      })
+      }) ++ retryingJobLogs(filteredJobs)
 
   private[cuttle] def archivedExecutionsSize(jobs: Set[String]): Int =
     queries.getExecutionLogSize(jobs).transact(xa).unsafePerformIO
@@ -309,9 +326,9 @@ class Executor[S <: Scheduling] private[cuttle] (
       jobs.foreach(job => pausedState -= job.id)
       executions.map {
         case (execution, promise) =>
-          val startedExecution = execution.copy(startTime = Some(Instant.now()))
-          runningState += (startedExecution -> promise.future)
-          (startedExecution -> promise)
+          execution.startTime = Some(Instant.now())
+          runningState += (execution -> promise.future)
+          (execution -> promise)
       }
     }
     executionsToResume.toList.sortBy(_._1.context).foreach {
@@ -432,7 +449,6 @@ class Executor[S <: Scheduling] private[cuttle] (
                   id = nextExecutionId,
                   job = job,
                   context = context,
-                  startTime = None,
                   streams = new ExecutionStreams {
                     def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
                   },
@@ -454,9 +470,9 @@ class Executor[S <: Scheduling] private[cuttle] (
                   throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
                   (job, execution, promise, Throttled(launchDate))
                 } else {
-                  val startedExecution = execution.copy(startTime = Some(Instant.now()))
-                  runningState += (startedExecution -> promise.future)
-                  (job, startedExecution, promise, ToRunNow)
+                  execution.startTime = Some(Instant.now())
+                  runningState += (execution -> promise.future)
+                  (job, execution, promise, ToRunNow)
                 }
               }
         }
@@ -495,6 +511,8 @@ class Executor[S <: Scheduling] private[cuttle] (
                       val runNow = atomic { implicit tx =>
                         if (throttledState.contains(execution)) {
                           throttledState -= execution
+                          execution.startTime = Some(Instant.now())
+                          runningState += execution -> promise.future
                           true
                         } else {
                           false
