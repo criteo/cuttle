@@ -95,6 +95,7 @@ class Execution extends React.Component {
   props: Props;
   state: State;
   scroller: ?any;
+  shouldOverwriteStreams: boolean = false;
 
   constructor(props: Props) {
     super(props);
@@ -156,12 +157,10 @@ class Execution extends React.Component {
     if (json == "EOS" && streamsEventSource) {
       streamsEventSource.close();
     } else if (json == "BOS" && streamsEventSource) {
-      this.setState({
-        streams: []
-      });
+      this.shouldOverwriteStreams = true;
     } else {
       let lines = [];
-      json.forEach(line => {
+      json.map(line => {
         let groups = /([^ ]+) ([^ ]+)\s+- (.*)/.exec(line);
         if (groups) {
           let [_, timestamp, level, message] = groups;
@@ -172,8 +171,10 @@ class Execution extends React.Component {
           });
         }
       });
+      const streamsHead = this.shouldOverwriteStreams ? [] : this.state.streams;
+      this.shouldOverwriteStreams = false;
       this.setState({
-        streams: this.state.streams.concat(lines)
+        streams: streamsHead.concat(lines)
       });
     }
   }
