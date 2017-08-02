@@ -80,7 +80,7 @@ case class Execution[S <: Scheduling](
   private[cuttle] val cancelSignal = Promise[Nothing]
   def isCancelled = cancelSignal.isCompleted
   val cancelled = cancelSignal.future
-  var waitingSeconds = 0
+  private var waitingSeconds = 0
   var startTime: Option[Instant] = None
 
   def onCancelled(thunk: () => Unit) = cancelled.andThen {
