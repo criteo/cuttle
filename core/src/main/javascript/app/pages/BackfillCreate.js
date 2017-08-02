@@ -7,11 +7,13 @@ import { compose } from "redux";
 import { goBack } from "redux-url";
 import { Field, reduxForm, SubmissionError } from "redux-form";
 import moment from "moment";
+import ArrowIcon from "react-icons/lib/fa/long-arrow-right";
 
 import Window from "../components/Window";
 import FancyTable from "../components/FancyTable";
 import JobSelector from "../components/JobSelector";
 import type { Backfill, Workflow } from "../../datamodel";
+import MaskedInput from "react-maskedinput";
 
 type Props = {
   workflow: Workflow,
@@ -22,43 +24,101 @@ type Props = {
   // Form
   handleSubmit: any,
   error: string,
-  submitting: boolean
+  valid: boolean,
+  submitting: boolean,
+  env: {
+    name: ?string,
+    critical: boolean
+  }
 };
 
 const required = value => (value ? undefined : "Required");
-// const jobsRequired = jobs => (jobs && jobs.length ? undefined : "Required");
+const jobsRequired = jobs => (jobs && jobs.length ? undefined : "Required");
 
-const DATE_FORMAT = "YYYY-MM-DD HH";
+const DATE_FORMAT = "YYYY-MM-DD HH:mm";
 const DATE_INVALID = `Invalid date, accepted format is ${DATE_FORMAT}`;
 const validDate = value =>
-  moment.utc(value).isValid() ? undefined : DATE_INVALID;
+  moment.utc(value, DATE_FORMAT, true).isValid() ? undefined : DATE_INVALID;
 
 const parseDate = value => {
-  const date = moment.utc(value);
+  const date = moment.utc(value, DATE_FORMAT, true);
   return date.isValid() ? date : value;
 };
 const formatDate = value => {
-  const date = moment.utc(value);
+  const date = moment.utc(value, DATE_FORMAT, true);
   return date.isValid() ? date.format(DATE_FORMAT) : value;
 };
 
-const Label = ({ name }: any) => <dt key={name + "_"}>{name}</dt>;
+const Label = ({ name }: any) => <dt key={`_${name}`}>{name}</dt>;
 
 const InputField = ({
   name,
   type,
   input,
-  meta: { touched, error, warning }
+  placeholder,
+  meta: { touched, error, warning },
+  alwaysDisplayError
 }: any) => (
-  <dd key={name}>
-    <input type={type} {...input} />
-    {touched &&
-      ((error && <span>{error}</span>) || (warning && <span>{warning}</span>))}
-  </dd>
+  <span>
+    <input
+      className="input-field"
+      type={type}
+      {...input}
+      placeholder={placeholder}
+    />
+    {(touched || alwaysDisplayError) &&
+      ((error && <span className="input-error">{error}</span>) ||
+        (warning && <span className="input-warning">{warning}</span>))}
+  </span>
 );
+
+const TextAreaField = ({
+  name,
+  input,
+  placeholder,
+  meta: { touched, error, warning }
+}) => (
+  <span>
+    <textarea
+      className="input-field markdown-area"
+      placeholder={placeholder}
+      {...input}
+    />
+    {touched &&
+      ((error && <span className="input-error">{error}</span>) ||
+        (warning && <span className="input-warning">{warning}</span>))}
+  </span>
+);
+
+const validateConfirmation = environment => value => {
+  const errorMessage =
+    "You are going to run a backfill, please type in the name of the environment to confirm.";
+  return environment && environment === value ? undefined : errorMessage;
+};
 
 const JobsField = ({ workflow, input: { value, onChange } }: any) => (
   <JobSelector workflow={workflow} selected={value} onChange={onChange} />
+);
+
+const DateWithMask = ({
+  name,
+  type,
+  input,
+  placeholder,
+  meta: { touched, error, warning }
+}: any) => (
+  <span>
+    <MaskedInput
+      mask="1111-11-11 11:11"
+      className="input-field"
+      type={type}
+      {...input}
+      placeholder={placeholder}
+    />
+    {touched &&
+      ((error && <span className="input-error">{error}</span>) ||
+        (warning && <span className="input-warning">{warning}</span>))}
+  </span>
 );
 
 class BackfillCreate extends React.Component<any, Props, void> {
@@ -67,14 +127,14 @@ class BackfillCreate extends React.Component<any, Props, void> {
     (this: any).createBackfill = this.createBackfill.bind(this);
   }
 
-  createBackfill({ jobs, name, description, start, end, priority }: Backfill) {
+  createBackfill({ jobs, name, description, start, end }: Backfill) {
     if (jobs.length <= 0)
       throw new SubmissionError({ _error: "No jobs selected" });
 
     return fetch(
       `/api/timeseries/backfill?` +
         `name=${name}&description=${description}&` +
-        `jobs=${jobs.join(",")}&priority=${priority}&` +
+        `jobs=${jobs.join(",")}&priority=1&` +
         `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
       { method: "POST", credentials: "include" }
     )
@@ -94,49 +154,100 @@ class BackfillCreate extends React.Component<any, Props, void> {
   }
 
   render() {
-    const { workflow, classes, handleSubmit, error, submitting } = this.props;
+    const {
+      workflow,
+      classes,
+      handleSubmit,
+      error,
+      valid,
+      submitting,
+      env
+    } = this.props;
     return (
       <Window title="Create Backfill">
-        <div className={classes.filter}>
-          <Field
-            name="jobs"
-            workflow={workflow}
-            component={JobsField}
-            //TODO display error inside: validate={[jobsRequired]}
-          />
-        </div>
-        <form onSubmit={handleSubmit(this.createBackfill)}>
+
+        <form
+          onSubmit={handleSubmit(this.createBackfill)}
+          className={classes.createBackfillForm}
+        >
           <FancyTable key="properties">
-            <Label name="name" />
-            <Field
-              name="name"
-              type="text"
-              component={InputField}
-              validate={[required]}
-            />
-            <Label name="start" />
-            <Field
-              name="start"
-              type="text"
-              component={InputField}
-              format={formatDate}
-              parse={parseDate}
-              validate={[required, validDate]}
-            />
-            <Label name="end" />
-            <Field
-              name="end"
-              type="text"
-              component={InputField}
-              format={formatDate}
-              parse={parseDate}
-              validate={[required, validDate]}
-            />
-            <Label name="priority" />
-            <Field name="priority" type="number" component={InputField} />
+            <Label name="Name" />
+            <dd key="name">
+              <Field
+                name="name"
+                type="text"
+                component={InputField}
+                validate={[required]}
+                props={{ placeholder: "To identify the backfill" }}
+              />
+            </dd>
+            <Label name="Jobs to backfill" />
+            <dd name="jobs" style={{ overflow: "visible" }}>
+              <div className={classes.filter}>
+                <Field
+                  name="jobs"
+                  workflow={workflow}
+                  component={JobsField}
+                  props={{ placeholder: "Select the list of jobs to backfill" }}
+                  validate={[jobsRequired]}
+                />
+              </div>
+            </dd>
+            <Label name="Period" />
+            <dd name="period" className={classes.dateRangeSelector}>
+              <Field
+                name="start"
+                type="text"
+                component={DateWithMask}
+                format={formatDate}
+                parse={parseDate}
+                validate={[required, validDate]}
+              />
+              <ArrowIcon />
+              <Field
+                name="end"
+                type="text"
+                component={DateWithMask}
+                format={formatDate}
+                parse={parseDate}
+                validate={[required, validDate]}
+              />
+            </dd>
+            <dt key={"description_"} className="double-height">
+              {"Description"}
+            </dt>
+            <dd name="description" className="double-height">
+              <Field
+                name="description"
+                component={TextAreaField}
+                props={{
+                  placeholder: "Explain why you need to backfill. Markdown is supported."
+                }}
+              />
+            </dd>
+            <div
+              style={{ display: "flex", width: "100%" }}
+              className={env.critical ? "confirm confirm-critical" : "confirm"}
+            >
+              <Label name="Confirm" />
+              <dd name="confirm">
+                <Field
+                  name="confirm"
+                  component={InputField}
+                  validate={[validateConfirmation(env.name)]}
+                  props={{alwaysDisplayError:true}}
+                />
+              </dd>
+            </div>
             <dt name="create_" />
             <dd key="create">
-              <button type="submit" disabled={submitting}>Create</button>
+              <button
+                type="submit"
+                className={["validate-button " + (valid ? "" : "error")]}
+                disabled={valid == false || submitting}
+              >
+                Start to backfill
+              </button>
               {error && <strong>{error}</strong>}
             </dd>
           </FancyTable>
@@ -150,20 +261,79 @@ const styles = {
   filter: {
     background: "#fff",
     height: "4em",
-    lineHeight: "4em",
-    boxShadow: "0px 1px 5px 0px #BECBD6"
+    lineHeight: "4em"
+  },
+  dateRangeSelector: {
+    "& > span:last-child": {
+      marginLeft: "10px"
+    },
+    "& > svg": {
+      marginLeft: "10px"
+    }
+  },
+  createBackfillForm: {
+    "& .input-field": {
+      border: "1px solid #D8D8D9",
+      padding: "5px",
+      borderRadius: "3px"
+    },
+    "& .input-field.markdown-area": {
+      verticalAlign: "middle",
+      width: "95%",
+      height: "70px",
+      resize: "none"
+    },
+    "& .confirm": {
+      backgroundColor: "#26A69A",
+      color: "white"
+    },
+    "& .confirm.confirm-critical": {
+      backgroundColor: "#FF5722"
+    },
+    "& .validate-button": {
+      padding: "10px",
+      borderRadius: "3px",
+      backgroundColor: "#283249",
+      borderColor: "transparent",
+      color: "white",
+      fontWeight: "bold"
+    },
+    "& .validate-button.error": {
+      backgroundColor: "#6A6A6A",
+      cursor: "not-allowed"
+    },
+    "& dt": {
+      lineHeight: "4em"
+    },
+    "& dd": {
+      lineHeight: "4em"
+    },
+    "& dt.double-height": {
+      lineHeight: "8em"
+    },
+    "& dd.double-height": {
+      lineHeight: "8em"
+    },
+    "& .input-error": {
+      marginLeft: "5px"
+    },
+    "& .input-warning": {
+      marginLeft: "5px"
+    }
   }
 };
 
-const mapStateToProps = ({ app: { workflow, selectedJobs } }) => ({
+const mapStateToProps = ({ app: { workflow, selectedJobs, project } }) => ({
   workflow,
   initialValues: {
     jobs: selectedJobs,
     priority: 0,
     start: moment.utc({ hour: 0 }),
     end: moment.utc({ hour: 1 })
-  }
+  },
+  env: project && project.env
 });
+
 const mapDispatchToProps = dispatch => ({
   back() {
     dispatch(goBack());
