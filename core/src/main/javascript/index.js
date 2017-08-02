@@ -68,7 +68,10 @@ let listenForStatistics = (query: string) => {
     statisticsListener = listenEvents(
       query,
       stats => {
-        statisticsError && clearTimeout(statisticsError);
+        if (statisticsError) {
+          clearTimeout(statisticsError);
+          statisticsError = undefined;
+        }
         store.dispatch(Actions.updateStatistics(stats));
       },
       error => {
