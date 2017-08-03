@@ -19,6 +19,7 @@ import Workflow from "./app/pages/Workflow";
 import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
 import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
+import Backfill from "./app/pages/Backfill";
 import Backfills from "./app/pages/Backfills";
 import BackfillCreate from "./app/pages/BackfillCreate";
 import Favicon from "./app/components/Favicon";
@@ -104,6 +105,8 @@ class App extends React.Component {
             return <Backfills />;
           case "timeseries/backfills/create":
             return <BackfillCreate />;
+          case "timeseries/backfills/detail":
+            return <Backfill backfill={page.backfill} />;
           default:
             return null;
         }

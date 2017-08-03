@@ -356,6 +356,12 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .transact(xa)
           .unsafePerformIO
           .asJson)
+    case GET at url"/api/timeseries/backfills/$id?events=$events" =>
+      val backfills = Database.getBackfillById(id).transact(xa).unsafePerformIO
+      events match {
+        case "true" | "yes" => sse(()=>backfills, (b : Json) =>b)
+        case _ => Ok(backfills.asJson)
+      }
   }
 
   private[cuttle] override def privateRoutes(workflow: Workflow[TimeSeries],

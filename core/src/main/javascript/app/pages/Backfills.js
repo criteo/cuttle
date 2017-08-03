@@ -153,7 +153,7 @@ class Backfills extends React.Component {
             ) => {
               switch (column) {
                 case "name":
-                  return <Link href={`/backfills/${id}`}>{name}</Link>; //TODO detail screen + links repetition
+                  return <Link href={`/timeseries/backfills/${id}`}>{name}</Link>; //TODO detail screen + links repetition
                 case "jobs":
                   return <span>{jobs.length}</span>;
                 case "period":
@@ -174,7 +174,7 @@ class Backfills extends React.Component {
                   return (
                     <Link
                       className={classes.openIcon}
-                      href={`/backfills/${id}`}
+                      href={`/timeseries/backfills/${id}`}
                     >
                       <BackfillStatus status={status} />
                     </Link>
@@ -183,7 +183,7 @@ class Backfills extends React.Component {
                   return (
                     <Link
                       className={classes.openIcon}
-                      href={`/backfills/${id}`}
+                      href={`/timeseries/backfills/${id}`}
                     >
                       <OpenIcon />
                     </Link>

@@ -41,6 +41,8 @@ const routes = {
     openPage({ id: "timeseries/backfills", page, sort, order }),
   "/timeseries/backfills/create": () =>
     openPage({ id: "timeseries/backfills/create" }),
+  "/timeseries/backfills/:id": ({ id }) =>
+    openPage({ id: "timeseries/backfills/detail", backfill : id }),
   "/timeseries/executions/:job/:start_:end": ({ job, start, end }) =>
     openPage({ id: "timeseries/executions", job, start, end })
 };

@@ -147,6 +147,29 @@ private[timeseries] object Database {
       .query[(String, String, String, String, Int, Instant, Instant, Instant, String, String)]
   }
 
+  def getBackfillById(id : String) : ConnectionIO[Option[Json]] = {
+    val select =
+      sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status, created_by
+            FROM timeseries_backfills WHERE id=$id"""
+    select.query[(String, String, String, String, Int, Instant, Instant, Instant, String, String)]
+      .option
+      .map(_.map {
+        case (id, name, description, jobs, priority, start, end, created_at, status, created_by) =>
+          Json.obj(
+            "id" -> id.asJson,
+            "name" -> name.asJson,
+            "description" -> description.asJson,
+            "jobs" -> jobs.asJson,
+            "priority" -> priority.asJson,
+            "start" -> start.asJson,
+            "end" -> end.asJson,
+            "created_at" -> created_at.asJson,
+            "status" -> status.asJson,
+            "created_by" -> created_by.asJson
+          )
+      })
+  }
+
   def createBackfill(backfill: Backfill) =
     sql"""INSERT INTO timeseries_backfills (id, name, description, jobs, priority, start, end, created_at, status, created_by)
           VALUES (${backfill.id},
