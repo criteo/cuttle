@@ -359,9 +359,32 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
     case GET at url"/api/timeseries/backfills/$id?events=$events" =>
       val backfills = Database.getBackfillById(id).transact(xa).unsafePerformIO
       events match {
-        case "true" | "yes" => sse(()=>backfills, (b : Json) =>b)
+        case "true" | "yes" => sse(() => backfills, (b: Json) => b)
         case _ => Ok(backfills.asJson)
       }
+    case GET at url"/api/timeseries/backfills/$id/executions?events=$events" =>
+      Ok(Database.getExecutionLogsForBackfill(id).transact(xa).unsafePerformIO.asJson)
+    case GET at url"/api/timeseries/backfills/$backfillId/running?events=$events" => {
+      def allExecutions() = {
+        val archived =
+        Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
+
+        val runningExecutions = executor.runningExecutions
+          .filter(t => {
+            val bf = t._1.context.backfill
+            bf.isDefined && bf.get.id == backfillId
+          })
+          .map({ case (execution, status) => execution.toExecutionLog(status) })
+
+        val runningExecutionsIds = runningExecutions.map(_.id).toSet
+        val archivedNotRunning = archived.filterNot(e => runningExecutionsIds.contains(e.id))
+        Some(runningExecutions ++ archivedNotRunning)
+      }
+      events match {
+        case "true" | "yes" => sse(allExecutions, (e : Seq[ExecutionLog]) => e.map(x => x.asJson).asJson)
+        case _ => Ok(allExecutions().get.asJson)
+      }
+    }
   }
 
   private[cuttle] override def privateRoutes(workflow: Workflow[TimeSeries],

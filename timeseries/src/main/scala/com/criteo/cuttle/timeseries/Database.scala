@@ -34,6 +34,7 @@ private[timeseries] object Database {
         id          VARCHAR(1000) NOT NULL,
         json        JSON NOT NULL,
         ctx_range   LINESTRING NOT NULL,
+        backfill_id CHAR(36) NULL,
         PRIMARY KEY (id)
       ) ENGINE = INNODB;
 
@@ -95,14 +96,15 @@ private[timeseries] object Database {
 
   def serializeContext(context: TimeSeriesContext): ConnectionIO[String] =
     sql"""
-      REPLACE INTO timeseries_contexts (id, json, ctx_range)
+      REPLACE INTO timeseries_contexts (id, json, ctx_range, backfill_id)
       VALUES (
         ${context.toString},
         ${context.asJson},
         LineString(
           Point(-1, ${context.start.getEpochSecond}),
           Point( 1, ${context.end.getEpochSecond - 1L})
-        )
+        ),
+        ${context.backfill.map(_.id)}
       )
     """.update.run *> Applicative[ConnectionIO].pure(context.toString)
 
@@ -169,6 +171,21 @@ private[timeseries] object Database {
           )
       })
   }
+
+  def getExecutionLogsForBackfill(id : String) : ConnectionIO[Seq[ExecutionLog]] =
+      sql"""
+        SELECT e.id, job, start_time, end_time, c.json AS context, success, e.waiting_seconds
+          FROM executions e
+        JOIN timeseries_contexts c
+          ON  c.id = e.context_id
+        WHERE c.backfill_id=$id
+        ORDER BY c.id DESC
+        """.query[(String, String, Instant, Instant, Json, ExecutionStatus, Int)]
+        .list
+        .map(_.map {
+          case (id, job, startTime, endTime, context, status, waitingSeconds) =>
+            ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
+        })
 
   def createBackfill(backfill: Backfill) =
     sql"""INSERT INTO timeseries_backfills (id, name, description, jobs, priority, start, end, created_at, status, created_by)
