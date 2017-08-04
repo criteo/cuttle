@@ -106,7 +106,7 @@ class App extends React.Component {
           case "timeseries/backfills/create":
             return <BackfillCreate />;
           case "timeseries/backfills/detail":
-            return <Backfill backfill={page.backfill} />;
+            return <Backfill backfillId={page.backfillId} />;
           default:
             return null;
         }

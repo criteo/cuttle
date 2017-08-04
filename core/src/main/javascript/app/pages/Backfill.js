@@ -6,19 +6,21 @@ import injectSheet from "react-jss";
 import Window from "../components/Window";
 
 type Props = {
-  test : string
+  backfillId : string
 }
 
-const Backfill = ({props : Props}) => (<Window><div>hey</div></Window>)
+class Backfill extends React.Component {
+  props : Props
 
+  constructor(props: Props) {
+    super(props);
+  }
 
-const mapStateToProps = ({
-  app
-}) => ({
-  test : "hello"
-});
+  render() {
+    return (<Window>
+      Heya
+    </Window>)
+  }
+}
 
-
-export default connect(mapStateToProps)(
-  injectSheet({})(Backfill)
-);
+export default injectSheet({})(Backfill)
