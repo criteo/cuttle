@@ -32,13 +32,18 @@ type Props = {
   }
 };
 
-const required = value => (value ? undefined : "Required");
-const jobsRequired = jobs => (jobs && jobs.length ? undefined : "Required");
-
+const REQUIRED_MESSAGE = "Required";
 const DATE_FORMAT = "YYYY-MM-DD HH:mm";
 const DATE_INVALID = `Invalid date, accepted format is ${DATE_FORMAT}`;
+const INTEGER_INVALID = "Should be an integer";
+
+const required = value => (value != undefined ? undefined : REQUIRED_MESSAGE);
+const jobsRequired = jobs =>
+  jobs && jobs.length ? undefined : REQUIRED_MESSAGE;
 const validDate = value =>
   moment.utc(value, DATE_FORMAT, true).isValid() ? undefined : DATE_INVALID;
+const validInteger = value => 
+  Number.isSafeInteger(parseFloat(value)) ? undefined : INTEGER_INVALID;
 
 const parseDate = value => {
   const date = moment.utc(value, DATE_FORMAT, true);
@@ -127,14 +132,14 @@ class BackfillCreate extends React.Component<any, Props, void> {
     (this: any).createBackfill = this.createBackfill.bind(this);
   }
 
-  createBackfill({ jobs, name, description, start, end }: Backfill) {
+  createBackfill({ jobs, name, description, start, end, priority }: Backfill) {
     if (jobs.length <= 0)
       throw new SubmissionError({ _error: "No jobs selected" });
 
     return fetch(
       `/api/timeseries/backfill?` +
         `name=${name}&description=${description}&` +
-        `jobs=${jobs.join(",")}&priority=1&` +
+        `jobs=${jobs.join(",")}&priority=${priority}&` +
         `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
       { method: "POST", credentials: "include" }
     )
@@ -213,6 +218,16 @@ class BackfillCreate extends React.Component<any, Props, void> {
                 validate={[required, validDate]}
               />
             </dd>
+            <Label name="Priority" />
+            <dd name="priority">
+              <Field
+                name="priority"
+                type="number"
+                component={InputField}
+                validate={[required, validInteger]}
+                props={{ alwaysDisplayError: true }}
+              />
+            </dd>
             <dt key={"description_"} className="double-height">
               {"Description"}
             </dt>
@@ -235,7 +250,7 @@ class BackfillCreate extends React.Component<any, Props, void> {
                   name="confirm"
                   component={InputField}
                   validate={[validateConfirmation(env.name)]}
-                  props={{alwaysDisplayError:true}}
+                  props={{ alwaysDisplayError: true }}
                 />
               </dd>
             </div>
