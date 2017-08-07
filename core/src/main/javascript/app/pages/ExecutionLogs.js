@@ -633,8 +633,8 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
             page={page}
             workflow={workflow}
             columns={["job", "context", "status", "detail"]}
-            request={(page, rowsPerPage, sort) => `/api/timeseries/backfills/${backfillId}/running?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
-            label="stuck"
+            request={(page, rowsPerPage, sort) => `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            label=""
             sort={{ column: sort || "failed", order }}
             selectedJobs={selectedJobs}
           />

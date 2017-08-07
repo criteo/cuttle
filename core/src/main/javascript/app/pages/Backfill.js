@@ -6,43 +6,46 @@ import injectSheet from "react-jss";
 import FancyTable from "../components/FancyTable";
 
 import Window from "../components/Window";
-import type {Backfill, ExecutionLog} from "../../datamodel";
+import type { Backfill, ExecutionLog, Workflow } from "../../datamodel";
 import { listenEvents } from "../../Utils";
 import Context from "../components/Context";
 import JobStatus from "../components/JobStatus";
 import { markdown } from "markdown";
+import Link from "../components/Link";
 
 import { BackfillsExecutions } from "./ExecutionLogs";
 
-type Props = { 
-  backfillId : string;
-}
+type Props = {
+  classes: any,
+  backfillId: string,
+  workflow: Workflow
+};
 type State = {
-  backfill : ?Backfill,
+  backfill: ?Backfill,
   query: ?string,
   eventSource: ?any,
   error: ?any,
   executionsEventSource: ?any,
   executions: Array<ExecutionLog>
-}
+};
 
 class BackfillDetail extends React.Component {
-  props : Props
-  state : State
+  props: Props;
+  state: State;
   constructor(props: Props) {
     super(props);
     this.state = {
-      backfill : undefined,
+      backfill: undefined,
       query: null,
       eventSource: null,
       error: null
-    }
+    };
   }
-  
+
   componentWillMount() {
     this.listen();
   }
-  
+
   listen() {
     let { query, eventSource } = this.state;
     let { backfillId } = this.props;
@@ -77,34 +80,57 @@ class BackfillDetail extends React.Component {
 
   render() {
     const { backfill, error } = this.state;
+    const { classes } = this.props;
 
-    const created = b =>`by ${b.created_by} on ${b.created}`;
+    const created = b => `by ${b.created_by} on ${b.created}`;
+    const jobIdFromName = (n: String) =>
+      this.props.workflow.jobs.find(j => j.name == n).id;
 
-    return (<Window 
-      closeUrl={`/timeseries/backfills`}
-      title="Backfill">
-      {backfill ? 
-      <FancyTable key="properties">
-        <dt key="name">Name:</dt>
-        <dd key="name_">{backfill.name}</dd>
-        <dt key="jobs">Jobs:</dt>
-        <dd key="jobs_">{backfill.jobs}</dd>
-        <dt key="created">Created:</dt>
-        <dd key="created_">{created(backfill)}</dd>
-        <dt key="description">Description:</dt>
-        {backfill.description ? <dd
-          key="description_"
-          dangerouslySetInnerHTML={{
-            __html: markdown.toHTML(backfill.description)
-          }}
-        /> : null}
-        <dt key="context">Context:</dt>
-        <dd key="context_"><Context context={{start : backfill.start, end : backfill.end }} /></dd>
-        <dt key="status">Status:</dt>
-        <dd key="status_"><JobStatus status={backfill.status} /></dd>
-      </FancyTable> : null}
-      <BackfillsExecutions backfillId={this.props.backfillId} />
-    </Window>)
+    const jobLinks =
+      backfill &&
+      backfill.jobs.split(",").map(jobName => {
+        const jobId = jobIdFromName(jobName);
+        return (
+          <Link className="job-badge" href={`/workflow/${jobId}`}>
+            <span>{jobName}</span>
+          </Link>
+        );
+      });
+
+    return (
+      <div className={classes.main}>
+        <Window closeUrl={`/timeseries/backfills`} title="Backfill">
+          {backfill
+            ? <FancyTable key="properties">
+                <dt key="name">Name:</dt>
+                <dd key="name_">{backfill.name}</dd>
+                <dt key="jobs">Jobs:</dt>
+                <dd key="jobs_">{jobLinks}</dd>
+                <dt key="created">Created:</dt>
+                <dd key="created_">{created(backfill)}</dd>
+                <dt key="description">Description:</dt>
+                {backfill.description
+                  ? <dd
+                      key="description_"
+                      dangerouslySetInnerHTML={{
+                        __html: markdown.toHTML(backfill.description)
+                      }}
+                    />
+                  : null}
+                <dt key="context">Context:</dt>
+                <dd key="context_">
+                  <Context
+                    context={{ start: backfill.start, end: backfill.end }}
+                  />
+                </dd>
+                <dt key="status">Status:</dt>
+                <dd key="status_"><JobStatus status={backfill.status} /></dd>
+              </FancyTable>
+            : null}
+          <BackfillsExecutions backfillId={this.props.backfillId} />
+        </Window>
+      </div>
+    );
   }
 
   componentWillUnmount() {
@@ -113,4 +139,27 @@ class BackfillDetail extends React.Component {
   }
 }
 
-export default injectSheet({})(BackfillDetail)
+const mapStateToProps = ({ app: { workflow } }) => ({
+  workflow
+});
+
+const styles = {
+  main: {
+    "& .job-badge": {
+      display: "inline-block",
+      backgroundColor: "#5E6A87",
+      color: "#FFF",
+      fontFamily: "Arial",
+      fontWeight: "normal",
+      lineHeight: "18px",
+      fontSize: "11px",
+      borderRadius: "2px",
+      padding: "0 .5em",
+      maxHeight: "18px",
+      textAlign: "center",
+      marginLeft: "5px"
+    }
+  }
+};
+
+export default connect(mapStateToProps)(injectSheet(styles)(BackfillDetail));
