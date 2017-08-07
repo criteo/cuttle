@@ -364,8 +364,36 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
     case GET at url"/api/timeseries/backfills/$id/executions?events=$events" =>
       Ok(Database.getExecutionLogsForBackfill(id).transact(xa).unsafePerformIO.asJson)
-    case GET at url"/api/timeseries/backfills/$backfillId/running?events=$events" => {
-      def allExecutions() = {
+    case GET at url"/api/timeseries/backfills/$backfillId/running?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
+      val limit = Try(l.toInt).toOption.getOrElse(25)
+      val offset = Try(o.toInt).toOption.getOrElse(0)
+      val asc = (a.toLowerCase == "asc")
+      def asTotalJson(x: (Int, Seq[ExecutionLog])) = x match {
+        case (total, executions) =>
+          Json.obj(
+            "total" -> total.asJson,
+            "offset" -> offset.asJson,
+            "limit" -> limit.asJson,
+            "sort" -> sort.asJson,
+            "asc" -> asc.asJson,
+            "data" -> executions.asJson
+          )
+      }
+      val ordering = {
+        val columnOrdering = sort match {
+          case "job" => Ordering.by((_: ExecutionLog).job)
+          case "startTime" => Ordering.by((_: ExecutionLog).startTime)
+          case "status" =>  Ordering.by((_: ExecutionLog).status.toString)
+          case _ => Ordering.by((_: ExecutionLog).id)
+        }
+        if (asc) {
+          columnOrdering
+        }
+        else {
+          columnOrdering.reverse
+        }
+      }
+      def allExecutions() : Option[(Int,Seq[ExecutionLog])] = {
         val archived =
         Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
 
@@ -378,11 +406,14 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
         val runningExecutionsIds = runningExecutions.map(_.id).toSet
         val archivedNotRunning = archived.filterNot(e => runningExecutionsIds.contains(e.id))
-        Some(runningExecutions ++ archivedNotRunning)
+        val executions = (runningExecutions ++ archivedNotRunning)
+        Some(executions.size -> executions.sorted(ordering).drop(offset).take(limit))
       }
-      events match {
-        case "true" | "yes" => sse(allExecutions, (e : Seq[ExecutionLog]) => e.map(x => x.asJson).asJson)
-        case _ => Ok(allExecutions().get.asJson)
+       events match {
+        case "true" | "yes" =>
+          sse(allExecutions, asTotalJson)
+        case _ =>
+          allExecutions().map(e => Ok(asTotalJson(e))).getOrElse(NotFound)
       }
     }
   }
