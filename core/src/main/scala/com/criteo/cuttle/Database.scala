@@ -96,7 +96,7 @@ private[cuttle] object Database {
         SELECT MAX(schema_version) FROM schema_evolutions
       """.query[Option[Int]].unique.map(_.getOrElse(0))
 
-      _ <- schemaEvolutions.map(_.update).drop(currentSchemaVersion).zipWithIndex.foldLeft(NoUpdate) {
+      _ <- schemaEvolutions.map(_.update).zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
         case (evolutions, (evolution, i)) =>
           evolutions *> evolution.run *> sql"""
             INSERT INTO schema_evolutions (schema_version, schema_update)
