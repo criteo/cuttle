@@ -56,7 +56,8 @@ type Props = {
     order: "asc" | "desc"
   },
   open: (link: string) => void,
-  selectedJobs: Array<string>
+  selectedJobs: Array<string>,
+  completionNotifier?: (?number => void)
 };
 
 type State = {
@@ -121,6 +122,12 @@ class ExecutionLogs extends React.Component {
   }
 
   updateData(json: Paginated<ExecutionLog>) {
+    const notify = this.props.completionNotifier;
+    if (notify != undefined)
+    {
+      notify(json.completion)
+    }
+
     this.setState({
       ...this.state,
       total: json.total,
@@ -619,7 +626,8 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
       open,
       selectedJobs,
       envCritical,
-      backfillId
+      backfillId,
+      completionNotifier
     }) => {
       let jobsFilter = selectedJobs.length
         ? `&jobs=${selectedJobs.join(",")}`
@@ -637,6 +645,7 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
             label=""
             sort={{ column: sort || "failed", order }}
             selectedJobs={selectedJobs}
+            completionNotifier={completionNotifier}
           />
         </div>
       );

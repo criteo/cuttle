@@ -26,7 +26,8 @@ type State = {
   eventSource: ?any,
   error: ?any,
   executionsEventSource: ?any,
-  executions: Array<ExecutionLog>
+  executions: Array<ExecutionLog>,
+  completion?: number;
 };
 
 class BackfillDetail extends React.Component {
@@ -38,7 +39,8 @@ class BackfillDetail extends React.Component {
       backfill: undefined,
       query: null,
       eventSource: null,
-      error: null
+      error: null,
+      completion : null
     };
   }
 
@@ -109,14 +111,10 @@ class BackfillDetail extends React.Component {
                 <dt key="created">Created:</dt>
                 <dd key="created_">{created(backfill)}</dd>
                 <dt key="description">Description:</dt>
-                {backfill.description
-                  ? <dd
-                      key="description_"
-                      dangerouslySetInnerHTML={{
-                        __html: markdown.toHTML(backfill.description)
-                      }}
-                    />
-                  : null}
+                <dd key="description_" style={{ lineHeight : 'inherit'}}
+                    dangerouslySetInnerHTML={{
+                      __html: markdown.toHTML(backfill.description)
+                    }}/>
                 <dt key="context">Context:</dt>
                 <dd key="context_">
                   <Context
@@ -124,10 +122,15 @@ class BackfillDetail extends React.Component {
                   />
                 </dd>
                 <dt key="status">Status:</dt>
-                <dd key="status_"><JobStatus status={backfill.status} /></dd>
+                <dd key="status_"><JobStatus status={backfill.status} />
+                  <span className="backfill-completion">
+                    {this.state.completion ? `${(this.state.completion*100).toFixed(2)} % completed`: null}
+                  </span></dd>
               </FancyTable>
             : null}
-          <BackfillsExecutions backfillId={this.props.backfillId} />
+          <BackfillsExecutions 
+            backfillId={this.props.backfillId} 
+            completionNotifier={(c) => this.setState({ completion : c})}/>
         </Window>
       </div>
     );
@@ -158,6 +161,9 @@ const styles = {
       maxHeight: "18px",
       textAlign: "center",
       marginLeft: "5px"
+    },
+    "& .backfill-completion" : {
+      marginLeft : "5px"
     }
   }
 };

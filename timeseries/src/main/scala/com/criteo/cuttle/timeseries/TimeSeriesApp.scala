@@ -362,21 +362,20 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         case "true" | "yes" => sse(() => backfills, (b: Json) => b)
         case _ => Ok(backfills.asJson)
       }
-    case GET at url"/api/timeseries/backfills/$id/executions?events=$events" =>
-      Ok(Database.getExecutionLogsForBackfill(id).transact(xa).unsafePerformIO.asJson)
-    case GET at url"/api/timeseries/backfills/$backfillId/running?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
+    case GET at url"/api/timeseries/backfills/$backfillId/executions?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
       val asc = (a.toLowerCase == "asc")
-      def asTotalJson(x: (Int, Seq[ExecutionLog])) = x match {
-        case (total, executions) =>
+      def asTotalJson(x: (Int, Double, Seq[ExecutionLog])) = x match {
+        case (total, completion , executions) =>
           Json.obj(
             "total" -> total.asJson,
             "offset" -> offset.asJson,
             "limit" -> limit.asJson,
             "sort" -> sort.asJson,
             "asc" -> asc.asJson,
-            "data" -> executions.asJson
+            "data" -> executions.asJson,
+            "completion" -> completion.asJson
           )
       }
       val ordering = {
@@ -393,7 +392,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           columnOrdering.reverse
         }
       }
-      def allExecutions() : Option[(Int,Seq[ExecutionLog])] = {
+      def allExecutions() : Option[(Int, Double, Seq[ExecutionLog])] = {
         val archived =
         Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
 
@@ -407,7 +406,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val runningExecutionsIds = runningExecutions.map(_.id).toSet
         val archivedNotRunning = archived.filterNot(e => runningExecutionsIds.contains(e.id))
         val executions = (runningExecutions ++ archivedNotRunning)
-        Some(executions.size -> executions.sorted(ordering).drop(offset).take(limit))
+        val completion = {
+          executions.size match {
+            case 0 => 0
+            case total => (total- runningExecutions.size).toDouble / total
+          }
+        }
+        Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit)))
       }
        events match {
         case "true" | "yes" =>

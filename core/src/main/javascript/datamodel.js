@@ -30,7 +30,8 @@ export type ExecutionLog = {
 
 export type Paginated<A> = {
   total: number,
-  data: Array<A>
+  data: Array<A>,
+  completion?: number
 };
 
 export type Statistics = {
