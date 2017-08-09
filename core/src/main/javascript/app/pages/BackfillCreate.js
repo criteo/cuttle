@@ -137,11 +137,19 @@ class BackfillCreate extends React.Component<any, Props, void> {
       throw new SubmissionError({ _error: "No jobs selected" });
 
     return fetch(
-      `/api/timeseries/backfill?` +
-        `name=${name}&description=${description || ""}&` +
-        `jobs=${jobs.join(",")}&priority=${priority}&` +
-        `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
-      { method: "POST", credentials: "include" }
+      `/api/timeseries/backfill`,
+      { 
+        method: "POST", 
+        credentials: "include",
+        body: JSON.stringify({
+          name: name,
+          description: description || "",
+          jobs: jobs.join(","),
+          priority: priority,
+          startDate: start.toISOString(),
+          endDate: end.toISOString()
+        })
+      }
     )
       .then((response: Response) => {
         if (!response.ok) return response.text();
