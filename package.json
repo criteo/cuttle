@@ -54,6 +54,7 @@
     "react-dom": "^15.5.4",
     "react-icons": "^2.2.5",
     "react-jss": "^5.3.0",
+    "react-maskedinput": "^4.0.0",
     "react-measure": "^1.4.7",
     "react-motion": "^0.4.8",
     "react-motion-ui-pack": "^0.10.2",
