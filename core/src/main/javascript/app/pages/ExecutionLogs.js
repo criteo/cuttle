@@ -185,7 +185,7 @@ class ExecutionLogs extends React.Component {
                 case "failed":
                   return { id: "failed", label: "Failed", sortable: true };
                 case "retry":
-                  return { id: "retry", label: "Next retry", sortable: true };
+                  return { id: "retry", label: "Next retry", sortable: true, width: 200 };
                 case "startTime":
                   return { id: "startTime", label: "Started", sortable: true };
                 case "endTime":
@@ -242,6 +242,7 @@ class ExecutionLogs extends React.Component {
                   );
                 case "retry":
                   return (
+                    status === "running" ? "Now" :
                     <Clock
                       className={classes.time}
                       time={(failing && failing.nextRetry) || ""}
