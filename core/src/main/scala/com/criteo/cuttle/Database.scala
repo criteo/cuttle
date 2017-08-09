@@ -96,7 +96,7 @@ private[cuttle] object Database {
         SELECT MAX(schema_version) FROM schema_evolutions
       """.query[Option[Int]].unique.map(_.getOrElse(0))
 
-      _ <- schemaEvolutions.map(_.update).drop(currentSchemaVersion).zipWithIndex.foldLeft(NoUpdate) {
+      _ <- schemaEvolutions.map(_.update).zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
         case (evolutions, (evolution, i)) =>
           evolutions *> evolution.run *> sql"""
             INSERT INTO schema_evolutions (schema_version, schema_update)
@@ -147,16 +147,16 @@ private[cuttle] trait Queries {
                       offset: Int,
                       limit: Int): ConnectionIO[List[ExecutionLog]] = {
     val orderBy = (sort, asc) match {
-      case ("context", true) => sql"ORDER BY context_id, job, id ASC"
-      case ("context", false) => sql"ORDER BY context_id, job, id DESC"
-      case ("job", true) => sql"ORDER BY job, context_id, id ASC"
-      case ("job", false) => sql"ORDER BY job, context_id, id DESC"
-      case ("status", true) => sql"ORDER BY success, context_id, job, id ASC"
-      case ("status", false) => sql"ORDER BY success, context_id, job, id DESC"
-      case ("startTime", true) => sql"ORDER BY start_time, id ASC"
-      case ("startTime", false) => sql"ORDER BY start_time, id DESC"
-      case (_, true) => sql"ORDER BY end_time, id ASC"
-      case _ => sql"ORDER BY end_time, id DESC"
+      case ("context", true) => sql"ORDER BY context_id ASC, job, id"
+      case ("context", false) => sql"ORDER BY context_id DESC, job, id"
+      case ("job", true) => sql"ORDER BY job ASC, context_id, id"
+      case ("job", false) => sql"ORDER BY job DESC, context_id, id"
+      case ("status", true) => sql"ORDER BY success ASC, context_id, job, id"
+      case ("status", false) => sql"ORDER BY success DESC, context_id, job, id"
+      case ("startTime", true) => sql"ORDER BY start_time ASC, id"
+      case ("startTime", false) => sql"ORDER BY start_time DESC, id"
+      case (_, true) => sql"ORDER BY end_time ASC, id"
+      case _ => sql"ORDER BY end_time DESC, id"
     }
     (sql"""
       SELECT executions.id, job, start_time, end_time, contexts.json AS context, success, executions.waiting_seconds
