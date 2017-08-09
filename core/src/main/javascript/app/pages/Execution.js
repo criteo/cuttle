@@ -6,12 +6,11 @@ import injectSheet from "react-jss";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
-import BreakIcon from "react-icons/lib/md/keyboard-control";
-import CalendarIcon from "react-icons/lib/md/date-range";
 import ReactTooltip from "react-tooltip";
 
 import moment from "moment";
 
+import Context from "../components/Context";
 import Window from "../components/Window";
 import FancyTable from "../components/FancyTable";
 import Error from "../components/Error";
@@ -220,32 +219,6 @@ class Execution extends React.Component {
       });
   }
 
-  renderContext(ctx) {
-    // Need to be dynamically linked with the scehduler but for now let's
-    // assume that it is a TimeseriesContext
-    let format = date => moment(date).utc().format("MMM-DD HH:mm");
-    let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
-    return (
-      <Link
-        href={`/timeseries/calendar/${URLFormat(ctx.start)}_${URLFormat(ctx.end)}`}
-      >
-        <CalendarIcon
-          style={{
-            fontSize: "1.2em",
-            verticalAlign: "middle",
-            transform: "translateY(-2px)"
-          }}
-        />
-        {" "}
-        {format(ctx.start)}
-        {" "}
-        <BreakIcon />
-        {" "}
-        {format(ctx.end)} UTC
-      </Link>
-    );
-  }
-
   render() {
     let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
@@ -262,7 +235,7 @@ class Execution extends React.Component {
                   <Link href={`/workflow/${data.job}`}>{data.job}</Link>
                 </dd>
                 <dt key="context">Context:</dt>
-                <dd key="context_">{this.renderContext(data.context)}</dd>
+                <dd key="context_"><Context context={data.context} /></dd>
                 <dt key="status">Status:</dt>
                 <dd key="status_"><JobStatus status={data.status} /></dd>
                 {data.startTime

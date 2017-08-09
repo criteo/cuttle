@@ -56,7 +56,8 @@ type Props = {
     order: "asc" | "desc"
   },
   open: (link: string) => void,
-  selectedJobs: Array<string>
+  selectedJobs: Array<string>,
+  completionNotifier?: (?number => void)
 };
 
 type State = {
@@ -121,6 +122,12 @@ class ExecutionLogs extends React.Component {
   }
 
   updateData(json: Paginated<ExecutionLog>) {
+    const notify = this.props.completionNotifier;
+    if (notify != undefined)
+    {
+      notify(json.completion)
+    }
+
     this.setState({
       ...this.state,
       total: json.total,
@@ -594,7 +601,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
             open={open}
             page={page}
             workflow={workflow}
-            columns={["job", "context", "failed", "retry", "lastFailure", "status", "detail"]}
+            columns={["job", "context", "retry", "lastFailure", "status", "detail"]}
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label="stuck"
@@ -606,3 +613,43 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
     }
   )
 );
+
+export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
+  injectSheet(
+    styles
+  )(
+    ({
+      classes,
+      workflow,
+      page,
+      sort,
+      order,
+      open,
+      selectedJobs,
+      envCritical,
+      backfillId,
+      completionNotifier
+    }) => {
+      let jobsFilter = selectedJobs.length
+        ? `&jobs=${selectedJobs.join(",")}`
+        : "";
+      return (
+        <div className={classes.container}>
+          <ExecutionLogs
+            envCritical={envCritical}
+            classes={classes}
+            open={open}
+            page={page}
+            workflow={workflow}
+            columns={["job", "context", "status", "detail"]}
+            request={(page, rowsPerPage, sort) => `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            label=""
+            sort={{ column: sort || "failed", order }}
+            selectedJobs={selectedJobs}
+            completionNotifier={completionNotifier}
+          />
+        </div>
+      );
+    }
+  )
+)

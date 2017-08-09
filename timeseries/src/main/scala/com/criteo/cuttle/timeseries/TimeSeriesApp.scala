@@ -356,6 +356,71 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .transact(xa)
           .unsafePerformIO
           .asJson)
+    case GET at url"/api/timeseries/backfills/$id?events=$events" =>
+      val backfills = Database.getBackfillById(id).transact(xa).unsafePerformIO
+      events match {
+        case "true" | "yes" => sse(() => backfills, (b: Json) => b)
+        case _ => Ok(backfills.asJson)
+      }
+    case GET at url"/api/timeseries/backfills/$backfillId/executions?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
+      val limit = Try(l.toInt).toOption.getOrElse(25)
+      val offset = Try(o.toInt).toOption.getOrElse(0)
+      val asc = (a.toLowerCase == "asc")
+      def asTotalJson(x: (Int, Double, Seq[ExecutionLog])) = x match {
+        case (total, completion , executions) =>
+          Json.obj(
+            "total" -> total.asJson,
+            "offset" -> offset.asJson,
+            "limit" -> limit.asJson,
+            "sort" -> sort.asJson,
+            "asc" -> asc.asJson,
+            "data" -> executions.asJson,
+            "completion" -> completion.asJson
+          )
+      }
+      val ordering = {
+        val columnOrdering = sort match {
+          case "job" => Ordering.by((_: ExecutionLog).job)
+          case "startTime" => Ordering.by((_: ExecutionLog).startTime)
+          case "status" =>  Ordering.by((_: ExecutionLog).status.toString)
+          case _ => Ordering.by((_: ExecutionLog).id)
+        }
+        if (asc) {
+          columnOrdering
+        }
+        else {
+          columnOrdering.reverse
+        }
+      }
+      def allExecutions() : Option[(Int, Double, Seq[ExecutionLog])] = {
+        val archived =
+        Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
+
+        val runningExecutions = executor.runningExecutions
+          .filter(t => {
+            val bf = t._1.context.backfill
+            bf.isDefined && bf.get.id == backfillId
+          })
+          .map({ case (execution, status) => execution.toExecutionLog(status) })
+
+        val runningExecutionsIds = runningExecutions.map(_.id).toSet
+        val archivedNotRunning = archived.filterNot(e => runningExecutionsIds.contains(e.id))
+        val executions = (runningExecutions ++ archivedNotRunning)
+        val completion = {
+          executions.size match {
+            case 0 => 0
+            case total => (total- runningExecutions.size).toDouble / total
+          }
+        }
+        Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit)))
+      }
+       events match {
+        case "true" | "yes" =>
+          sse(allExecutions, asTotalJson)
+        case _ =>
+          allExecutions().map(e => Ok(asTotalJson(e))).getOrElse(NotFound)
+      }
+    }
   }
 
   private[cuttle] override def privateRoutes(workflow: Workflow[TimeSeries],
