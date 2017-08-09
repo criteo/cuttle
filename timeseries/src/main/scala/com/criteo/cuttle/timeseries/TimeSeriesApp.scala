@@ -367,7 +367,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       val offset = Try(o.toInt).toOption.getOrElse(0)
       val asc = (a.toLowerCase == "asc")
       def asTotalJson(x: (Int, Double, Seq[ExecutionLog])) = x match {
-        case (total, completion , executions) =>
+        case (total, completion, executions) =>
           Json.obj(
             "total" -> total.asJson,
             "offset" -> offset.asJson,
@@ -382,19 +382,18 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val columnOrdering = sort match {
           case "job" => Ordering.by((_: ExecutionLog).job)
           case "startTime" => Ordering.by((_: ExecutionLog).startTime)
-          case "status" =>  Ordering.by((_: ExecutionLog).status.toString)
+          case "status" => Ordering.by((_: ExecutionLog).status.toString)
           case _ => Ordering.by((_: ExecutionLog).id)
         }
         if (asc) {
           columnOrdering
-        }
-        else {
+        } else {
           columnOrdering.reverse
         }
       }
-      def allExecutions() : Option[(Int, Double, Seq[ExecutionLog])] = {
+      def allExecutions(): Option[(Int, Double, Seq[ExecutionLog])] = {
         val archived =
-        Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
+          Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
 
         val runningExecutions = executor.runningExecutions
           .filter(t => {
@@ -409,12 +408,12 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val completion = {
           executions.size match {
             case 0 => 0
-            case total => (total- runningExecutions.size).toDouble / total
+            case total => (total - runningExecutions.size).toDouble / total
           }
         }
         Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit)))
       }
-       events match {
+      events match {
         case "true" | "yes" =>
           sse(allExecutions, asTotalJson)
         case _ =>

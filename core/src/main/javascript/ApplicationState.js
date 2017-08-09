@@ -55,8 +55,9 @@ export type Page =
     }
   | { id: "timeseries/backfills/create" }
   | {
-      id: "timeseries/backfills/detail", backfillId: string
-  };
+      id: "timeseries/backfills/detail",
+      backfillId: string
+    };
 
 export type State = {
   page: Page,
