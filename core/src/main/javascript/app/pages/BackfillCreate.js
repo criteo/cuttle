@@ -54,7 +54,7 @@ const formatDate = value => {
   return date.isValid() ? date.format(DATE_FORMAT) : value;
 };
 
-const Label = ({ name }: any) => <dt key={`_${name}`}>{name}</dt>;
+const Label = ({ name, style=null }: any) => <dt key={`_${name}`} style={style}>{name}</dt>;
 
 const InputField = ({
   name,
@@ -252,7 +252,7 @@ class BackfillCreate extends React.Component<any, Props, void> {
               style={{ display: "flex", width: "100%" }}
               className={env.critical ? "confirm confirm-critical" : "confirm"}
             >
-              <Label name="Confirm" />
+              <Label name="Confirm" style={{color : 'white'}} />
               <dd name="confirm">
                 <Field
                   name="confirm"
@@ -342,6 +342,23 @@ const styles = {
     },
     "& .input-warning": {
       marginLeft: "5px"
+    },
+    "& input::-webkit-input-placeholder, textarea::-webkit-input-placeholder" : { 
+      color:    "#aaa"
+    },
+    "& input:-moz-placeholder, textarea:-moz-placeholder":  { /* Mozilla Firefox 4 to 18 */
+      color:    "#aaa",
+      opacity:  1
+    },
+    "& input::-moz-placeholder, textarea::-moz-placeholder": { /* Mozilla Firefox 19+ */
+      color:    "#aaa",
+      opacity:  1
+    },
+    "& input:-ms-input-placeholder, textarea:-ms-input-placeholder": { /* Internet Explorer 10-11 */
+      color:    "#aaa"
+    },
+    "& input::-ms-input-placeholder, textarea::-ms-input-placeholder": { /* Microsoft Edge */
+      color:    "#aaa"
     }
   }
 };
