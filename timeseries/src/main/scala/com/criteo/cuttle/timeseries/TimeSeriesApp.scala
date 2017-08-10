@@ -17,6 +17,7 @@ import intervals._
 import Bound.{Bottom, Finite, Top}
 import ExecutionStatus._
 import com.criteo.cuttle.authentication.AuthenticatedService
+import scala.concurrent.ExecutionContext.Implicits.global
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
@@ -426,15 +427,31 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   private[cuttle] override def privateRoutes(workflow: Workflow[TimeSeries],
                                              executor: Executor[TimeSeries],
                                              xa: XA): AuthenticatedService = {
-    case POST at url"/api/timeseries/backfill?name=$name&description=$description&jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
-      implicit user_ =>
-        val jobIds = jobsString.split(",")
-        val jobs = workflow.vertices.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
-        val startDate = Instant.parse(start)
-        val endDate = Instant.parse(end)
-        if (backfillJob(name, description, jobs, startDate, endDate, priority.toInt, xa))
-          Ok("ok".asJson)
-        else
-          BadRequest("invalid backfill")
+
+    case req @ POST at url"/api/timeseries/backfill" => implicit user  =>
+      req.readAs[Json].map(
+        _.as[BackfillCreate]
+          .fold(
+            _ => BadRequest("cannot parse request body"),
+            backfill => {
+              val jobIds = backfill.jobs.split(",")
+              val jobs = workflow.vertices
+                .filter((job: TimeSeriesJob) => jobIds.contains(job.id))
+
+              if (backfillJob(
+                backfill.name,
+                backfill.description,
+                jobs,
+                backfill.startDate,
+                backfill.endDate,
+                backfill.priority,
+                xa)) {
+                Ok("ok".asJson)
+              }
+              else {
+                BadRequest("invalid backfill")
+              }
+            })
+        )
   }
 }

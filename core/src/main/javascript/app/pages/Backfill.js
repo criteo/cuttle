@@ -85,13 +85,12 @@ class BackfillDetail extends React.Component {
     const { classes } = this.props;
 
     const created = b => `by ${b.created_by} on ${b.created}`;
-    const jobIdFromName = (n: String) =>
-      this.props.workflow.jobs.find(j => j.name == n).id;
 
     const jobLinks =
       backfill &&
-      backfill.jobs.split(",").map(jobName => {
-        const jobId = jobIdFromName(jobName);
+      backfill.jobs.split(",").map(jobId => {
+        const job = this.props.workflow.getJob(jobId);
+        const jobName = job && job.name || job.id;
         return (
           <Link className="job-badge" href={`/workflow/${jobId}`}>
             <span>{jobName}</span>

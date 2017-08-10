@@ -3,10 +3,13 @@ package com.criteo.cuttle.timeseries
 import com.criteo.cuttle._
 
 import io.circe._
+import io.circe.generic.semiauto._
 
 import cats.syntax.either._
 
 import java.time.Instant
+
+import io.circe.generic.semiauto.deriveDecoder
 
 private[timeseries] object Internal {
 
@@ -21,5 +24,19 @@ private[timeseries] object Internal {
     Decoder.decodeString.emap { s =>
       Either.catchNonFatal(Instant.parse(s)).leftMap(s => "Instant")
     }
-
 }
+
+private[timeseries] object BackfillCreate {
+  import Internal._
+
+  implicit val decodeBackfillCreate : Decoder[BackfillCreate] = deriveDecoder[BackfillCreate]
+}
+
+private[timeseries] case class BackfillCreate(
+                                               name : String,
+                                               description : String,
+                                               jobs : String,
+                                               startDate : Instant,
+                                               endDate : Instant,
+                                               priority : Int
+                                             )
