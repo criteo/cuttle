@@ -14,7 +14,7 @@ object HelloWorld {
     val start: Instant = LocalDate.now.minusDays(7).atStartOfDay.toInstant(UTC)
 
     val hello1 =
-      Job("hello1", hourly(start)) { implicit e =>
+      Job("hello1", hourly(start), "Hello 1") { implicit e =>
         sh"""
           echo "Hello 1"
           echo check my project page https://github.com/criteo/cuttle
@@ -23,7 +23,7 @@ object HelloWorld {
       }
 
     val hello2 =
-      Job("hello2", hourly(start)) { implicit e =>
+      Job("hello2", hourly(start), "Hello 2") { implicit e =>
         sh"""
           echo "Looping for 20 seconds..."
           for i in {1..20}; do
@@ -35,7 +35,7 @@ object HelloWorld {
       }
 
     val hello3 =
-      Job("hello3", hourly(start), tags = Set(Tag("unsafe job"))) { implicit e =>
+      Job("hello3", hourly(start), "Hello 3", tags = Set(Tag("unsafe job"))) { implicit e =>
         sh"""
           echo "Hello 3"
           sleep 3
@@ -50,7 +50,7 @@ object HelloWorld {
         }
       }
 
-    val world = Job("world", daily(start, UTC)) { implicit e =>
+    val world = Job("world", daily(start, UTC), "World") { implicit e =>
       sh"""
         echo "World"
         sleep 6
