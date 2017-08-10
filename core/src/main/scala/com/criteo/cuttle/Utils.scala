@@ -1,21 +1,40 @@
 package com.criteo.cuttle
 
-import scala.concurrent.{Future, Promise}
-import scala.concurrent.duration.{Duration}
+import java.util.UUID
+import java.util.concurrent.{Executors, ThreadFactory, TimeUnit}
 
-import java.util.{UUID}
-import java.util.concurrent.{Executors, TimeUnit}
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 import lol.http.{PartialService, Service}
+
 
 package object utils {
 
   private[cuttle] object Timeout {
-    private val scheduler = Executors.newScheduledThreadPool(1)
+    private val scheduler = Executors.newScheduledThreadPool(1,
+      new ThreadFactory() {
+        def newThread(r: Runnable): Thread = {
+          val t = Executors.defaultThreadFactory.newThread(r)
+          t.setDaemon(true)
+          t
+        }
+      })
+
     def apply(timeout: Duration): Future[Unit] = {
       val p = Promise[Unit]()
-      scheduler.schedule(new Runnable { def run = p.success(()) }, timeout.toMillis, TimeUnit.MILLISECONDS)
+      scheduler.schedule(
+        new Runnable { def run(): Unit = p.success(()) },
+        timeout.toMillis,
+        TimeUnit.MILLISECONDS
+      )
       p.future
+    }
+  }
+
+  private[cuttle] object ExecuteAfter {
+    def apply[T](delay: Duration)(block: => Future[T])(implicit executionContext: ExecutionContext) = {
+      Timeout(delay).flatMap(_ => block)(executionContext)
     }
   }
 
