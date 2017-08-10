@@ -68,8 +68,8 @@ const styles = {
 
 const mapDispatchToProps = (dispatch, ownProps) => ({
   back() {
-    if (ownProps.closeUrl){
-      dispatch(navigate(ownProps.closeUrl));      
+    if (ownProps.closeUrl) {
+      dispatch(navigate(ownProps.closeUrl));
     } else {
       dispatch(goBack());
     }

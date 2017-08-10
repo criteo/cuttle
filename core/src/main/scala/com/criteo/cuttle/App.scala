@@ -75,7 +75,7 @@ private[cuttle] object App {
   }
 
   implicit val executionStatEncoder: Encoder[ExecutionStat] = new Encoder[ExecutionStat] {
-    override def apply(execution: ExecutionStat) : Json =
+    override def apply(execution: ExecutionStat): Json =
       Json.obj(
         "startTime" -> execution.startTime.asJson,
         "endTime" -> execution.endTime.asJson,

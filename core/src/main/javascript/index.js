@@ -41,8 +41,17 @@ const routes = {
     openPage({ id: "timeseries/backfills", page, sort, order }),
   "/timeseries/backfills/create": () =>
     openPage({ id: "timeseries/backfills/create" }),
-  "/timeseries/backfills/:backfillId": ({ backfillId }, { page, sort, order }) =>
-    openPage({ id: "timeseries/backfills/detail", backfillId, page, sort, order }),
+  "/timeseries/backfills/:backfillId": (
+    { backfillId },
+    { page, sort, order }
+  ) =>
+    openPage({
+      id: "timeseries/backfills/detail",
+      backfillId,
+      page,
+      sort,
+      order
+    }),
   "/timeseries/executions/:job/:start_:end": ({ job, start, end }) =>
     openPage({ id: "timeseries/executions", job, start, end })
 };
@@ -105,10 +114,9 @@ store.subscribe(() => {
     : "";
   listenForStatistics(`/api/statistics?events=true${jobsFilter}`);
   if (state.project && state.project.name) {
-    if(state.project.env.name) {
+    if (state.project.env.name) {
       document.title = `${state.project.name} – ${state.project.env.name}`;
-    }
-    else {
+    } else {
       document.title = state.project.name;
     }
   }

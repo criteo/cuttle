@@ -42,7 +42,7 @@ const jobsRequired = jobs =>
   jobs && jobs.length ? undefined : REQUIRED_MESSAGE;
 const validDate = value =>
   moment.utc(value, DATE_FORMAT, true).isValid() ? undefined : DATE_INVALID;
-const validInteger = value => 
+const validInteger = value =>
   Number.isSafeInteger(parseFloat(value)) ? undefined : INTEGER_INVALID;
 
 const parseDate = value => {

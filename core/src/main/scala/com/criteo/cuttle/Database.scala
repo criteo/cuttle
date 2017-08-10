@@ -210,7 +210,7 @@ private[cuttle] trait Queries {
       .query[String]
       .option
 
-  def jobStatsForLastThirtyDays(jobId : String) : ConnectionIO[List[ExecutionStat]] = {
+  def jobStatsForLastThirtyDays(jobId: String): ConnectionIO[List[ExecutionStat]] =
     sql"""
          select
              start_time,
@@ -220,12 +220,11 @@ private[cuttle] trait Queries {
              success
          from executions
          where job=$jobId and end_time > DATE_SUB(CURDATE(), INTERVAL 30 DAY) order by start_time asc, end_time asc
-       """.query[(Instant, Instant, Int, Int, ExecutionStatus)]
-          .list
-          .map(_.map {
-            case (startTime, endTime, durationSeconds, waitingSeconds, status) =>
-              new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)
-          })
-  }
+       """
+      .query[(Instant, Instant, Int, Int, ExecutionStatus)]
+      .list
+      .map(_.map {
+        case (startTime, endTime, durationSeconds, waitingSeconds, status) =>
+          new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)
+      })
 }
-

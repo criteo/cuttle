@@ -60,11 +60,11 @@ private[cuttle] case class ExecutionLog(
 )
 
 private[cuttle] class ExecutionStat(
-   val startTime : Instant,
-   val endTime : Instant,
-   val durationSeconds : Int,
-   val waitingSeconds : Int,
-   val status : ExecutionStatus
+  val startTime: Instant,
+  val endTime: Instant,
+  val durationSeconds: Int,
+  val waitingSeconds: Int,
+  val status: ExecutionStatus
 )
 
 private object ExecutionCancelledException extends RuntimeException("Execution cancelled")
@@ -164,19 +164,26 @@ class Executor[S <: Scheduling] private[cuttle] (
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
   private def retryingJobLogs(filteredJobs: Set[String]): Seq[ExecutionLog] = {
     val runningIds = runningState.single
-      .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
-      .map({ case (e, _) => e.job.id -> e}).toMap
+      .filter({ case (e, _) => filteredJobs.contains(e.job.id) })
+      .map({ case (e, _) => e.job.id -> e })
+      .toMap
 
-    recentFailures.single.flatMap({ case ((job,_),(_, failingJob)) =>
-      runningIds.get(job.id)
-        .map(_.toExecutionLog(ExecutionRunning).copy(failing = Some(failingJob))) }).toSeq
+    recentFailures.single
+      .flatMap({
+        case ((job, _), (_, failingJob)) =>
+          runningIds
+            .get(job.id)
+            .map(_.toExecutionLog(ExecutionRunning).copy(failing = Some(failingJob)))
+      })
+      .toSeq
   }
   private def retryingJobsCount(filteredJobs: Set[String]): Int = {
     val runningIds = runningState.single
-      .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
-      .map({ case (e, _) => e.job.id }).toSet
+      .filter({ case (e, _) => filteredJobs.contains(e.job.id) })
+      .map({ case (e, _) => e.job.id })
+      .toSet
 
-    recentFailures.single.count({ case ((job,_), _) => runningIds.contains(job.id)})
+    recentFailures.single.count({ case ((job, _), _) => runningIds.contains(job.id) })
   }
 
   startMonitoringExecutions()
@@ -195,7 +202,7 @@ class Executor[S <: Scheduling] private[cuttle] (
         execution.toExecutionLog(status)
     }
 
-  private[cuttle] def jobStatsForLastThirtyDays(jobId : String) : Seq[ExecutionStat] =
+  private[cuttle] def jobStatsForLastThirtyDays(jobId: String): Seq[ExecutionStat] =
     queries.jobStatsForLastThirtyDays(jobId).transact(xa).unsafePerformIO
 
   private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
