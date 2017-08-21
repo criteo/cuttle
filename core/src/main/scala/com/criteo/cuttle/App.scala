@@ -142,12 +142,16 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   val publicApi: PartialService = {
 
     case GET at url"/api/status" =>
-      Ok(
-        Json.obj(
-          "project" -> project.name.asJson,
-          "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
-          "status" -> "ok".asJson
-        ))
+      executor.healthCheck
+        .fold(
+          t => InternalServerError(t.getMessage()),
+          _ => Ok(
+            Json.obj(
+              "project" -> project.name.asJson,
+              "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
+              "status" -> "ok".asJson
+          ))
+        )
 
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption

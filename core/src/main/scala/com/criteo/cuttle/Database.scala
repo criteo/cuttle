@@ -227,5 +227,10 @@ private[cuttle] trait Queries {
               new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)
           })
   }
+
+  val healthCheck : ConnectionIO[Boolean] =
+    sql"""select 1 from dual"""
+      .query[Boolean]
+      .unique
 }
 

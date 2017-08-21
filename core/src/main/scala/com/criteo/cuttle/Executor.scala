@@ -570,4 +570,10 @@ class Executor[S <: Scheduling] private[cuttle] (
         .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
     }
   }
+
+  private[cuttle] def healthCheck(): Either[Throwable, Boolean] = {
+    import fs2.interop.cats._
+
+    queries.healthCheck.attempt.transact(xa).unsafePerformIO
+  }
 }
