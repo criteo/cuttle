@@ -229,8 +229,8 @@ private[cuttle] trait Queries {
   }
 
   val healthCheck : ConnectionIO[Boolean] =
-    sql"""select 1 from dual"""
-      .query[Boolean]
-      .unique
+      sql"""select 1 from dual"""
+        .query[Boolean]
+        .unique
 }
 

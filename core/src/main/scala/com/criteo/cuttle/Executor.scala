@@ -5,7 +5,7 @@ import java.util.{Timer, TimerTask}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.time.{Duration, Instant, ZoneId}
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
@@ -571,9 +571,6 @@ class Executor[S <: Scheduling] private[cuttle] (
     }
   }
 
-  private[cuttle] def healthCheck(): Either[Throwable, Boolean] = {
-    import fs2.interop.cats._
-
-    queries.healthCheck.attempt.transact(xa).unsafePerformIO
-  }
+  private[cuttle] def healthCheck(): Try[Boolean] =
+    Try(queries.healthCheck.transact(xa).unsafePerformIO)
 }
