@@ -18,6 +18,7 @@ import Spinner from "../components/Spinner";
 import Clock from "../components/Clock";
 import Link from "../components/Link";
 import JobStatus from "../components/JobStatus";
+import { Badge } from "../components/Badge";
 import { listenEvents } from "../../Utils";
 import type { ExecutionLog } from "../../datamodel";
 import { highlightURLs } from "../utils/URLHighlighter";
@@ -237,7 +238,14 @@ class Execution extends React.Component {
                 <dt key="context">Context:</dt>
                 <dd key="context_"><Context context={data.context} /></dd>
                 <dt key="status">Status:</dt>
-                <dd key="status_"><JobStatus status={data.status} /></dd>
+                <dd key="status_"><JobStatus status={data.status} />{ 
+                  data.context.backfill ? 
+                    <span style={{ marginLeft : "10px" }}>
+                      <Link href={`/timeseries/backfills/${data.context.backfill.id}`}>
+                        <Badge label="BACKFILL" kind="alt" />
+                      </Link>
+                    </span> : null}
+                </dd>
                 {data.startTime
                   ? [
                       <dt key="startTime">Start time:</dt>,
