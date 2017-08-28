@@ -13,9 +13,7 @@ import io.circe.syntax._
   *
   * Priority is based first on the [[Ordering]] of the Context, then the job id.
   *
-  * @param name a globally unique name for this queue.
   * @param concurrencyLimit
-  * @param contextOrdering
   */
 private[cuttle] class ExecutionPool(concurrencyLimit: Int) extends WaitingExecutionQueue {
   def canRunNextCondition(implicit txn: InTxn) = _running().size < concurrencyLimit
