@@ -171,7 +171,7 @@ class ExecutionLogs extends React.Component {
       }
     };
 
-    let Data = () => {
+    let dataTable = (() => {
       if (data && data.length) {
         return (
           <Table
@@ -292,7 +292,7 @@ class ExecutionLogs extends React.Component {
       } else {
         return <Spinner />;
       }
-    };
+    })();
 
     let Pagination = () => {
       if (total >= 2 && total <= rowsPerPage) {
@@ -326,7 +326,7 @@ class ExecutionLogs extends React.Component {
     return (
       <div className={classes.grid}>
         <Measure onMeasure={this.adaptTableHeight}>
-          <div className={classes.data}><Data /></div>
+          <div className={classes.data}>{dataTable}</div>
         </Measure>
         <Pagination />
       </div>
