@@ -295,7 +295,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       val now = Instant.now
       val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
         val (stateSnapshot, newBackfills, completedBackfills) =
-          computeNextState(workflow, now, _state(), _backfills(), completed)
+          collectCompletedJobs(workflow, now, _state(), _backfills(), completed)
 
         val toRun = jobsToRun(workflow, stateSnapshot, now)
 
@@ -338,7 +338,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     mainLoop(Set.empty)
   }
 
-  private[timeseries] def computeNextState(
+  private[timeseries] def collectCompletedJobs(
     workflow : Workflow[TimeSeries],
     now : Instant, 
     state : State,
