@@ -21,7 +21,7 @@ class TimeSeriesSpec extends FunSuite {
     val state = Map(
       job(1) -> IntervalMap[Instant, JobState](Interval(Finite(ts(2)), Top) -> JobState.Todo(None))
     )
-    val result = scheduler.next(job(1), state, ts(5))
+    val result = scheduler.jobsToRun(job(1), state, ts(5))
     assert(
       result ==
         (2 to 4).map { i =>
