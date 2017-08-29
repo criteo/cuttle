@@ -159,8 +159,11 @@ lazy val cuttle =
       ).map(_ % "test"),
       // Webpack
       resourceGenerators in Compile += Def.task {
+        import scala.sys.process._
+        val streams0 = streams.value
+        val webpackOutputDir: File = (resourceManaged in Compile).value / "public"
         if (devMode.value) {
-          streams.value.log.warn(s"Skipping webpack resource generation.")
+          streams0.log.warn(s"Skipping webpack resource generation.")
           Nil
         } else {
           def listFiles(dir: File): Seq[File] =
@@ -168,15 +171,14 @@ lazy val cuttle =
               .flatMap(f =>
                 if (f.isDirectory) listFiles(f)
                 else Seq(f))
-          val webpackOutputDir: File = (resourceManaged in Compile).value / "public"
           val logger = new ProcessLogger {
-            override def error(s: => String): Unit = streams.value.log.info(s"ERR, $s")
+            override def err(s: => String): Unit = streams0.log.info(s"ERR, $s")
             override def buffer[T](f: => T): T = f
-            override def info(s: => String): Unit = streams.value.log.info(s)
+            override def out(s: => String): Unit = streams0.log.info(s)
           }
-          logger.info(s"Generating UI assets to $webpackOutputDir...")
+          logger.out(s"Generating UI assets to $webpackOutputDir...")
           assert(s"yarn install" ! logger == 0, "yarn failed")
-          logger.info("Running webpack...")
+          logger.out("Running webpack...")
           assert(s"./node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail" ! logger == 0,
                  "webpack failed")
           listFiles(webpackOutputDir)
@@ -227,7 +229,7 @@ lazy val root =
           allJars
             .flatMap(x => x.metadata.get(moduleID.key).map(m => x.data -> m))
             .collect {
-              case (jar, ModuleID("org.scala-lang", "scala-library", _, _, _, _, _, _, _, _, _)) =>
+              case (jar, module) if module.name == "scala-library" =>
                 jar -> "https://www.scala-lang.org/api/current/"
             }
             .toMap
