@@ -161,6 +161,10 @@ class Executor[S <: Scheduling] private[cuttle] (
   private val runningState = TMap.empty[Execution[S], Future[Unit]]
   private val throttledState = TMap.empty[Execution[S], (Promise[Unit], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
+  // signals whether the instance is shutting down
+  private val isShuttingDown: Ref[Boolean] = Ref(false)
+  // signals that a scheduling is happening
+  private val isScheduling: Ref[Boolean] = Ref(false)
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
   private def retryingJobLogs(filteredJobs: Set[String]): Seq[ExecutionLog] = {
     val runningIds = runningState.single
@@ -172,11 +176,13 @@ class Executor[S <: Scheduling] private[cuttle] (
         .map(_.toExecutionLog(ExecutionRunning).copy(failing = Some(failingJob))) }).toSeq
   }
   private def retryingJobsCount(filteredJobs: Set[String]): Int = {
-    val runningIds = runningState.single
-      .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
-      .map({ case (e, _) => e.job.id }).toSet
+    atomic {implicit txn => 
+      val runningIds = runningState
+        .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
+        .map({ case (e, _) => e.job.id }).toSet
 
-    recentFailures.single.count({ case ((job,_), _) => runningIds.contains(job.id)})
+      recentFailures.count({ case ((job,_), _) => runningIds.contains(job.id)})
+    }
   }
 
   startMonitoringExecutions()
@@ -258,6 +264,8 @@ class Executor[S <: Scheduling] private[cuttle] (
 
   private[cuttle] def allFailing: Set[(Job[S], S#Context)] =
     throttledState.single.keys.map(e => (e.job, e.context)).toSet
+  // Count as failing all jobs that have failed and are not running (throttledState)
+  // and all jobs that have recently failed and are now running.
   private[cuttle] def failingExecutionsSize(filteredJobs: Set[String]): Int =
     throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size + retryingJobsCount(filteredJobs)
   private[cuttle] def allFailingExecutions: Seq[Execution[S]] =
@@ -278,6 +286,7 @@ class Executor[S <: Scheduling] private[cuttle] (
         }
       }
       .map { executions =>
+       
         if (asc) executions else executions.reverse
       }
       .map(_.drop(offset).take(limit))
@@ -368,6 +377,45 @@ class Executor[S <: Scheduling] private[cuttle] (
     }
   }
 
+  /**
+    * Cancels all executions.
+    * A hard shutdown will be performed anyway if after the
+    * timeout cancelled executions still have not terminated.
+    *
+    * @param timeout the timeout after which a hard shutdown
+    *        should be performed
+    * @param user the user performing the action
+    */
+  private[cuttle] def gracefulShutdown(timeout: scala.concurrent.duration.Duration)(implicit user: User): Unit = {
+
+    import utils._
+
+    // prevent new executions from being scheduled
+    // will execute as soon as scheduling is finished
+    atomic { implicit txn =>
+      if (isScheduling()) retry
+      isShuttingDown() = true
+    }
+
+    // cancel all executions
+    val toCancel = atomic { implicit tx =>
+      runningState.keys ++ pausedState.values.flatMap(_.keys) ++ throttledState.keys
+    }
+    toCancel.foreach(_.cancel())
+
+    val runningFutures = atomic { implicit tx =>
+      runningState.map({ case (k, v) => v })
+    }
+
+    Future
+      .firstCompletedOf(List(Timeout(timeout), Future.sequence(runningFutures)))
+      .andThen({
+        case _ => hardShutdown()
+      })
+  }
+
+  private[cuttle] def hardShutdown() = System.exit(0)
+
   private def unsafeDoRun(execution: Execution[S], promise: Promise[Unit]): Unit =
     promise.completeWith(
       execution.job
@@ -375,7 +423,10 @@ class Executor[S <: Scheduling] private[cuttle] (
         .andThen {
           case Success(()) =>
             execution.streams.debug(s"Execution successful")
-            recentFailures.single -= (execution.job -> execution.context)
+            atomic { implicit txn => 
+              runningState -= execution
+              recentFailures -= (execution.job -> execution.context)
+            }
           case Failure(e) =>
             val stacktrace = new StringWriter()
             e.printStackTrace(new PrintWriter(stacktrace))
@@ -390,6 +441,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                 }
                 val failureKey = (execution.job, execution.context)
                 val failingJob = recentFailures.get(failureKey).map(_._2).getOrElse(FailingJob(Nil, None))
+                runningState -= execution
                 recentFailures += (failureKey -> (None -> failingJob.copy(failedExecutions = execution
                   .toExecutionLog(ExecutionFailed)
                   .copy(endTime = Some(Instant.now)) :: failingJob.failedExecutions)))
@@ -402,9 +454,6 @@ class Executor[S <: Scheduling] private[cuttle] (
             } catch {
               case e: Throwable =>
                 e.printStackTrace()
-            }
-            atomic { implicit tx =>
-              runningState -= execution
             }
             if (execution.startTime.isDefined) {
               queries
@@ -420,10 +469,26 @@ class Executor[S <: Scheduling] private[cuttle] (
         })
 
   def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] =
-    run0(all.sortBy(_._2))
+    runIfNotShuttingDown(all.sortBy(_._2))
 
   def run(job: Job[S], context: S#Context): (Execution[S], Future[Unit]) =
-    run0(Seq(job -> context)).head
+    runIfNotShuttingDown(Seq(job -> context)).head
+
+  private def runIfNotShuttingDown(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] = {
+    val result = if (atomic { implicit txn =>
+                       isScheduling() = true
+                       isShuttingDown()
+                     }) {
+      // cannot schedule new jobs while shutting down
+      Seq.empty
+    } else {
+      run0(all)
+    }
+    atomic { implicit txn =>
+      isScheduling() = false
+    }
+    result
+  }
 
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] = {
     sealed trait NewExecution
