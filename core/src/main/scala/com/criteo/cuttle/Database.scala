@@ -79,6 +79,22 @@ private[cuttle] object Database {
         id          CHAR(36) NOT NULL,
         streams     MEDIUMTEXT
       ) ENGINE = INNODB;
+    """,
+    // A Yarn application is uniquely identified in the Yarn resource manager by
+    // a Yarn "cluster timestamp" and "application_id"
+    sql"""
+      CREATE TABLE IF NOT EXISTS yarn_applications (
+        id                  BIGINT NOT NULL AUTO_INCREMENT,
+        cluster_timestamp   BIGINT NOT NULL,
+        application_id      INT NOT NULL,
+        application_name    VARCHAR(1000) NOT NULL,
+        start_time          DATETIME NOT NULL,
+        end_time            DATETIME NOT NULL,
+        serialized_context  VARCHAR(1000) NOT NULL,
+        success             BOOLEAN NOT NULL,
+        state               CHAR(50) NOT NULL,
+        PRIMARY KEY (id)
+      ) ENGINE = INNODB;
     """
   )
 
