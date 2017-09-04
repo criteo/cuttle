@@ -299,6 +299,26 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         Ok
       }
     }
+    case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>
+      import scala.concurrent.duration._
+
+      val gracePeriod: Try[Long] = gracePeriodSeconds match {
+        case "" => Success(300)
+        case p => Try(p.toLong)
+      }
+
+      gracePeriod match {
+        case Success(s) if s > 0 => {
+          executor.gracefulShutdown(Duration(s, SECONDS))
+          Ok
+        }
+        case Success(s) if s <= 0 => {
+          executor.hardShutdown()
+          Ok
+        }
+        case _ => BadRequest("gracePeriodSeconds should be an integer")
+      }
+    }
   }
 
   val api = publicApi orElse project.authenticator(privateApi)
