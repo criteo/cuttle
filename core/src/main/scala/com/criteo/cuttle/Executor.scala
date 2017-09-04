@@ -164,16 +164,19 @@ class Executor[S <: Scheduling] private[cuttle] (
   // signals whether the instance is shutting down
   private val isShuttingDown: Ref[Boolean] = Ref(false)
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
-  private def retryingJobLogs(filteredJobs: Set[String]): Seq[ExecutionLog] = {
+
+  // executions that failed recently and are now running
+  private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] = {
     val runningIds = runningState.single
       .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
       .map({ case (e, _) => e.job.id -> e}).toMap
 
-    recentFailures.single.flatMap({ case ((job,_),(_, failingJob)) =>
-      runningIds.get(job.id)
-        .map(_.toExecutionLog(ExecutionRunning).copy(failing = Some(failingJob))) }).toSeq
+    recentFailures.single
+      .flatMap({ case ((job,_),(_, failingJob)) => runningIds.get(job.id).map((_, failingJob, ExecutionRunning)) })
+      .toSeq
   }
-  private def retryingJobsCount(filteredJobs: Set[String]): Int = {
+
+  private def retryingExecutionsSize(filteredJobs: Set[String]): Int = {
     atomic {implicit txn => 
       val runningIds = runningState
         .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
@@ -265,7 +268,8 @@ class Executor[S <: Scheduling] private[cuttle] (
   // Count as failing all jobs that have failed and are not running (throttledState)
   // and all jobs that have recently failed and are now running.
   private[cuttle] def failingExecutionsSize(filteredJobs: Set[String]): Int =
-    throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size + retryingJobsCount(filteredJobs)
+    throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size + 
+      retryingExecutionsSize(filteredJobs)
   private[cuttle] def allFailingExecutions: Seq[Execution[S]] =
     throttledState.single.toSeq.map(_._1)
   private[cuttle] def failingExecutions(filteredJobs: Set[String],
@@ -273,14 +277,21 @@ class Executor[S <: Scheduling] private[cuttle] (
                                         asc: Boolean,
                                         offset: Int,
                                         limit: Int): Seq[ExecutionLog] =
-    Seq(throttledState.single.toSeq.filter(x => filteredJobs.contains(x._1.job.id)))
-      .map { executions =>
+    Seq(throttledState.single.toSeq
+          .filter(x => filteredJobs.contains(x._1.job.id))
+          .map(x => (x._1, x._2._2, ExecutionThrottled)) ++ retryingExecutions(filteredJobs))
+      .map {
         sort match {
-          case "job" => executions.sortBy(x => (x._1.job.id, x._1))
-          case "startTime" => executions.sortBy(x => (x._1.startTime.toString, x._1))
-          case "failed" => executions.sortBy(x => (x._2._2.failedExecutions.size, x._1))
-          case "retry" => executions.sortBy(x => (x._2._2.nextRetry.map(_.toString), x._1))
-          case _ => executions.sortBy(_._1)
+          case "job"       => 
+            _.sortBy({ case (execution, _, _) => (execution.job.id, execution) })
+          case "startTime" => 
+            _.sortBy({ case (execution, _, _) => (execution.startTime.toString, execution) })
+          case "failed"    => 
+            _.sortBy({ case (execution, failingJob, _) => (failingJob.failedExecutions.size, execution) })
+          case "retry"     => 
+            _.sortBy({ case (execution, failingJob, _)  => (failingJob.nextRetry.map(_.toString), execution) })
+          case _ => 
+            _.sortBy({ case (execution, _, _) => execution })
         }
       }
       .map { executions =>
@@ -289,9 +300,9 @@ class Executor[S <: Scheduling] private[cuttle] (
       }
       .map(_.drop(offset).take(limit))
       .flatMap(_.map {
-        case (execution, (_, failingJob)) =>
-          execution.toExecutionLog(ExecutionThrottled).copy(failing = Some(failingJob))
-      }) ++ retryingJobLogs(filteredJobs)
+        case (execution, failingJob, executionStatus) =>
+          execution.toExecutionLog(executionStatus).copy(failing = Some(failingJob))
+      })
 
   private[cuttle] def archivedExecutionsSize(jobs: Set[String]): Int =
     queries.getExecutionLogSize(jobs).transact(xa).unsafePerformIO
