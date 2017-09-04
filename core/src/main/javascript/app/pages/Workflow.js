@@ -28,6 +28,7 @@ import TagIcon from "react-icons/lib/md/label";
 import Dagger from "../../graph/Dagger";
 import SlidePanel from "../components/SlidePanel";
 import FancyTable from "../components/FancyTable";
+import Spinner from "../components/Spinner";
 
 import moment from "moment";
 
@@ -40,7 +41,7 @@ type Props = {
 };
 
 type State = {
-  data: any[]
+  data: ?any[]
 };
 
 const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
@@ -203,16 +204,22 @@ class WorkflowComponent extends React.Component {
     this.updateCharts(props);
 
     this.state = {
-      data: []
+      data: undefined
     };
   }
 
   componentWillReceiveProps(nextProps: Props) {
+    
     this.updateCharts(nextProps);
   }
 
   updateCharts(nextProps: Props) {
     const chartJob = nextProps.job || nextProps.workflow.jobs[0].id;
+    if (nextProps && nextProps.job && nextProps.job !== this.props.job) {
+      this.setState({
+        data : undefined
+      });
+    }
     fetch(`/api/statistics/${chartJob}`).then(data => data.json()).then(json => {
       this.setState({
         data: json
@@ -278,6 +285,39 @@ class WorkflowComponent extends React.Component {
       ]
     ];
 
+    const charts = (data : any) => {
+      if (data) {
+        return <div>
+          <div className={classes.chartSection}>
+            <h3>Average run/wait times over last 30 days</h3>
+            <AverageRunWaitChart
+              className="chart"
+              data={{ values: aggregateDataSet(data) }}
+            />
+          </div>
+          <div className={classes.chartSection}>
+            <h3>Max runtime over last 30 days</h3>
+            <MaxRuntimeChart
+              className="chart"
+              data={{ values: data }}
+            />
+          </div>
+          <div className={classes.chartSection}>
+            <h3>Number of failures over last 30 days</h3>
+            <SumFailuresChart
+              className="chart"
+              data={{ values: data }}
+            />
+          </div>
+      </div>;
+      } 
+      return <div style={{ textAlign : "center" }}>
+        <div style={{ display : "inline-block", marginTop : "50px" }}>
+          <Spinner />
+        </div>
+      </div>;
+    };
+
     return (
       <div className={classes.main}>
         <Dagger
@@ -337,27 +377,7 @@ class WorkflowComponent extends React.Component {
               ]}
             </FancyTable>
           </div>
-          <div className={classes.chartSection}>
-            <h3>Average run/wait times over last 30 days</h3>
-            <AverageRunWaitChart
-              className="chart"
-              data={{ values: aggregateDataSet(this.state.data) }}
-            />
-          </div>
-          <div className={classes.chartSection}>
-            <h3>Max runtime over last 30 days</h3>
-            <MaxRuntimeChart
-              className="chart"
-              data={{ values: this.state.data }}
-            />
-          </div>
-          <div className={classes.chartSection}>
-            <h3>Number of failures over last 30 days</h3>
-            <SumFailuresChart
-              className="chart"
-              data={{ values: this.state.data }}
-            />
-          </div>
+          {charts(this.state.data)}
         </SlidePanel>
       </div>
     );
