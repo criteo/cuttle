@@ -2,6 +2,7 @@ package com.criteo.cuttle
 
 import lol.http._
 import scala.concurrent.ExecutionContext.Implicits.global
+import com.criteo.cuttle.logging.Logger
 
 class CuttleProject[S <: Scheduling] private[cuttle] (
   val name: String,
@@ -10,7 +11,8 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val env: (String, Boolean),
   val workflow: Workflow[S],
   val scheduler: Scheduler[S],
-  val authenticator: Authenticator
+  val authenticator: Authenticator,
+  val logger: Logger
 ) {
   def start(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
@@ -19,14 +21,14 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ) = {
     val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa)(retryStrategy)
+    val executor = new Executor[S](platforms, xa, logger = logger)(retryStrategy)
 
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(App(this, executor, xa).routes)
-    println(s"Listening on http://localhost:$httpPort")
-    scheduler.start(workflow, executor, xa)
+    })(App(this, executor, xa, logger).routes)
+    logger.info(s"Listening on http://localhost:$httpPort")
+    scheduler.start(workflow, executor, xa, logger)
   }
 }
 
@@ -35,9 +37,9 @@ object CuttleProject {
                              version: String = "",
                              description: String = "",
                              env: (String, Boolean) = ("", false),
-                             authenticator: Authenticator = GuestAuth)(workflow: Workflow[S])(
-    implicit scheduler: Scheduler[S]): CuttleProject[S] =
-    new CuttleProject(name, version, description, env, workflow, scheduler, authenticator)
+                             authenticator: Authenticator = GuestAuth)
+                             (workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
+    new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import platforms._

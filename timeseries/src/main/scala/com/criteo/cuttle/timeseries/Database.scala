@@ -1,6 +1,8 @@
 package com.criteo.cuttle.timeseries
 
 import com.criteo.cuttle._
+import com.criteo.cuttle.logging._
+
 import Internal._
 
 import java.time._
@@ -14,12 +16,14 @@ import io.circe.syntax._
 
 import doobie.imports._
 
-private[timeseries] object Database {
+private[timeseries] case class Database(logger : Logger) {
   import TimeSeriesUtils._
   import com.criteo.cuttle.Database._
   import com.criteo.cuttle.NoUpdate
 
   import intervals.{Interval, IntervalMap}
+
+  private implicit val logHandler = createLogHandler(logger)
 
   val schema = List(
     sql"""
@@ -94,20 +98,6 @@ private[timeseries] object Database {
       )
     """
 
-  def serializeContext(context: TimeSeriesContext): ConnectionIO[String] =
-    sql"""
-      REPLACE INTO timeseries_contexts (id, json, ctx_range, backfill_id)
-      VALUES (
-        ${context.toString},
-        ${context.asJson},
-        LineString(
-          Point(-1, ${context.start.getEpochSecond}),
-          Point( 1, ${context.end.getEpochSecond - 1L})
-        ),
-        ${context.backfill.map(_.id)}
-      )
-    """.update.run *> Applicative[ConnectionIO].pure(context.toString)
-
   def deserializeState(implicit jobs: Set[Job[TimeSeries]]): ConnectionIO[Option[State]] = {
     type StoredState = List[(String, List[(Interval[Instant], JobState)])]
     OptionT {
@@ -119,24 +109,6 @@ private[timeseries] object Database {
           jobs.find(_.id == jobId).map(job => job -> IntervalMap(st: _*))
       }.toMap)
       .value
-  }
-
-  def serializeState(state: State): ConnectionIO[Int] = {
-    import JobState.{Done, Todo}
-
-    val now = Instant.now()
-    val stateJson = state.toList.map {
-      case (job, im) =>
-        (job.id, im.toList.filter {
-          case (interval, jobState) =>
-            jobState match {
-              case Done => true
-              case Todo(_) => true
-              case _ => false
-            }
-        })
-    }.asJson
-    sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
   }
 
   def queryBackfills(where: Option[Fragment] = None) = {
@@ -206,4 +178,41 @@ private[timeseries] object Database {
       sql"UPDATE timeseries_backfills SET status = $status WHERE " ++
         Fragments.in(fr"id", NonEmptyList.fromListUnsafe(ids.toList))
     ).update.run
+
+     def serializeState(state: State): ConnectionIO[Int] = {
+    import JobState.{Done, Todo}
+
+    val now = Instant.now()
+    val stateJson = state.toList.map {
+      case (job, im) =>
+        (job.id, im.toList.filter {
+          case (interval, jobState) =>
+            jobState match {
+              case Done => true
+              case Todo(_) => true
+              case _ => false
+            }
+        })
+    }.asJson
+    sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
+  }
+}
+
+object Database {
+  import com.criteo.cuttle.Database._
+
+  def serializeContext(context: TimeSeriesContext): ConnectionIO[String] = {
+    sql"""
+      REPLACE INTO timeseries_contexts (id, json, ctx_range, backfill_id)
+      VALUES (
+        ${context.toString},
+        ${context.asJson},
+        LineString(
+          Point(-1, ${context.start.getEpochSecond}),
+          Point( 1, ${context.end.getEpochSecond - 1L})
+        ),
+        ${context.backfill.map(_.id)}
+      )
+    """.update.run *> Applicative[ConnectionIO].pure(context.toString)
+  }  
 }

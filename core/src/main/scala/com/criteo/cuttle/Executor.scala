@@ -15,8 +15,10 @@ import scala.reflect.{classTag, ClassTag}
 import lol.http.PartialService
 import doobie.imports._
 import cats.implicits._
-import com.criteo.cuttle.authentication.AuthenticatedService
 import io.circe._
+
+import authentication._
+import logging._
 
 trait RetryStrategy {
   def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]): Duration
@@ -146,7 +148,11 @@ private[cuttle] object ExecutionPlatform {
 class Executor[S <: Scheduling] private[cuttle] (
   val platforms: Seq[ExecutionPlatform],
   xa: XA,
-  queries: Queries = new Queries {})(implicit retryStrategy: RetryStrategy) {
+  logger: Logger)(implicit retryStrategy: RetryStrategy) {
+
+  val queries = new Queries {
+    val appLogger = logger
+  }
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 

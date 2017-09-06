@@ -2,6 +2,7 @@ package com.criteo.cuttle.timeseries
 
 import Internal._
 import com.criteo.cuttle._
+import com.criteo.cuttle.logging._
 
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
@@ -171,11 +172,9 @@ case class TimeSeries(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1)
       "grid" -> grid.asJson
     )
 }
-
 object TimeSeries {
-  implicit def scheduler = TimeSeriesScheduler()
+  implicit def scheduler(implicit logger: Logger) = TimeSeriesScheduler(logger)
 }
-
 private[timeseries] sealed trait JobState
 private[timeseries] object JobState {
   case object Done extends JobState
@@ -188,12 +187,12 @@ private[timeseries] object JobState {
     deriveDecoder
 }
 
-case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesApp {
+case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] with TimeSeriesApp {
   import TimeSeriesUtils._
   import JobState.{Done, Running, Todo}
 
-  val allContexts = Database.sqlGetContextsBetween(None, None)
-
+  val database = Database(logger)
+  val allContexts = database.sqlGetContextsBetween(None, None)
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalMap[Instant, JobState]])
 
   private val _backfills = Ref(Set.empty[Backfill])
@@ -239,14 +238,14 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       (isValid, newBackfill)
     }
     if (isValid)
-      Database.createBackfill(newBackfill).transact(xa).unsafePerformIO
+      database.createBackfill(newBackfill).transact(xa).unsafePerformIO
     isValid
   }
 
-  def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA): Unit = {
-    Database.doSchemaUpdates.transact(xa).unsafePerformIO
+  def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
+    database.doSchemaUpdates.transact(xa).unsafePerformIO
 
-    Database
+    database
       .deserializeState(workflow.vertices)
       .transact(xa)
       .unsafePerformIO
@@ -257,7 +256,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       }
 
     atomic { implicit txn =>
-      val incompleteBackfills = Database
+      val incompleteBackfills = database
         .queryBackfills(Some(sql"""status = 'RUNNING'"""))
         .list
         .map(_.map {
@@ -316,10 +315,10 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       }
 
       if (completed.nonEmpty || toRun.nonEmpty)
-        Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO
+        database.serializeState(stateSnapshot).transact(xa).unsafePerformIO
 
       if (completedBackfills.nonEmpty)
-        Database.setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
+        database.setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
           .transact(xa)
           .unsafePerformIO
 

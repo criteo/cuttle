@@ -1,6 +1,7 @@
 package com.criteo.cuttle.examples
 
 import com.criteo.cuttle._
+import com.criteo.cuttle.logging.default._
 import platforms.local._
 import timeseries._
 

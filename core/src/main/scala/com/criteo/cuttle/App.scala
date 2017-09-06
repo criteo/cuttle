@@ -13,6 +13,7 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import authentication._
+import logging._
 import ExecutionStatus._
 
 private[cuttle] object App {
@@ -135,7 +136,7 @@ private[cuttle] object App {
     }
 }
 
-private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
+private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA, logger: Logger) {
   import App._
   import project.{scheduler, workflow}
 
