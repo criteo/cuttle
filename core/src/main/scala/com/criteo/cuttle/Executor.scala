@@ -376,7 +376,7 @@ class Executor[S <: Scheduling] private[cuttle] (
         }
       })
       jobs.flatMap { job =>
-        pausedState += (job.id -> Map.empty)
+        if (!pausedState.contains(job.id)) pausedState += (job.id -> Map.empty)
         runningState.filterKeys(_.job == job).keys ++ throttledState.filterKeys(_.job == job).keys
       }
     }
