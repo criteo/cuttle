@@ -3,13 +3,18 @@
 import React from "react";
 import injectSheet from "react-jss";
 import ReactTooltip from "react-tooltip";
+import { createClassFromLiteSpec } from "react-vega-lite";
 
-import map from "lodash/map";
-import reduce from "lodash/reduce";
-import find from "lodash/find";
+import entries from "lodash/entries";
 import filter from "lodash/filter";
-import some from "lodash/some";
+import find from "lodash/find";
+import flatMap from "lodash/flatMap";
+import groupBy from "lodash/groupBy";
 import includes from "lodash/includes";
+import map from "lodash/map";
+import mean from "lodash/mean";
+import reduce from "lodash/reduce";
+import some from "lodash/some";
 
 import type { Node, Edge } from "../../graph/dagger/dataAPI/genericGraph";
 import type { Workflow, Tag, Job, Dependency } from "../../datamodel";
@@ -23,6 +28,9 @@ import TagIcon from "react-icons/lib/md/label";
 import Dagger from "../../graph/Dagger";
 import SlidePanel from "../components/SlidePanel";
 import FancyTable from "../components/FancyTable";
+import Spinner from "../components/Spinner";
+
+import moment from "moment";
 
 type Props = {
   classes: any,
@@ -32,8 +40,192 @@ type Props = {
   navTo: () => void
 };
 
+type State = {
+  data: ?any[]
+};
+
+const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
+  width: "550",
+  title: "Runtime of jobs across time",
+  mark: "area",
+  transform: [
+    {
+      calculate: "datum.kind == 'run' ? 'Running' : 'Waiting'",
+      as: "runningSeconds"
+    }
+  ],
+  encoding: {
+    x: {
+      field: "startTime",
+      type: "temporal",
+      timeUnit: "utcyearmonthday",
+      axis: {
+        title: null,
+        format: "%d/%m",
+        labelAngle: -45
+      }
+    },
+    y: {
+      field: "seconds",
+      type: "quantitative",
+      aggregate: "sum",
+      axis: {
+        title: "Duration (s)"
+      }
+    },
+    color: {
+      type: "nominal",
+      field: "runningSeconds",
+      scale: {
+        range: ["#00BCD4", "#ff9800"]
+      },
+      legend: { title: "Status" }
+    }
+  }
+});
+
+const MaxRuntimeChart = createClassFromLiteSpec("MaxRuntimeChart", {
+  width: "550",
+  mark: "line",
+  transform: [
+    {
+      calculate: "datum.durationSeconds - datum.waitingSeconds",
+      as: "runningSeconds"
+    }
+  ],
+  encoding: {
+    x: {
+      field: "startTime",
+      timeUnit: "utcyearmonthday",
+      type: "temporal",
+      axis: {
+        title: null,
+        format: "%d/%m",
+        labelAngle: -45
+      }
+    },
+    y: {
+      aggregate: "max",
+      type: "quantitative",
+      field: "runningSeconds",
+      axis: {
+        title: "Max running time (s)"
+      }
+    }
+  },
+  config : {
+    mark : {
+      color : "#00BCD4"
+    }
+  }
+});
+
+const SumFailuresChart = createClassFromLiteSpec("SumFailuresChart", {
+  width: "550",
+  title: "Failures across time.",
+  mark: "bar",
+  transform: [
+    { calculate: "datum.status === 'failed' ? 1 : 0", as: "failures" }
+  ],
+  encoding: {
+    x: {
+      field: "startTime",
+      timeUnit: "utcyearmonthday",
+      type: "temporal",
+      axis: {
+        format: "%d/%m",
+        title: null,
+        labelAngle: -45
+      }
+    },
+    y: {
+      type: "quantitative",
+      aggregate: "sum",
+      field: "failures",
+      axis: {
+        title: "Number of failures"
+      }
+    }
+  },
+  config : {
+    mark : {
+      color : "#e91e63"
+    }
+  }
+});
+
+type ExecutionStat = {
+  startTime: string,
+  durationSeconds: number,
+  waitingSeconds: number,
+  status: "successful" | "failure"
+};
+
+/**
+ * Unpivots execution stats to create 
+ * separate "run" & "wait" events aggregated
+ * by date.
+ */
+const aggregateDataSet = (data: ExecutionStat[]) =>
+  flatMap(
+    entries(
+      groupBy(data, d =>
+        moment(d.startTime)
+          .set({
+            hour: 0,
+            minute: 0,
+            second: 0,
+            millisecond: 0
+          })
+          .format()
+      )
+    ),
+    ([k, v]) => [
+      {
+        startTime: k,
+        kind: "run",
+        seconds: mean(v.map(x => x.durationSeconds - x.waitingSeconds))
+      },
+      {
+        startTime: k,
+        kind: "wait",
+        seconds: mean(v.map(x => x.waitingSeconds))
+      }
+    ]
+  );
+
 class WorkflowComponent extends React.Component {
   props: Props;
+  state: State;
+
+  constructor(props) {
+    super(props);
+
+    this.updateCharts(props);
+
+    this.state = {
+      data: undefined
+    };
+  }
+
+  componentWillReceiveProps(nextProps: Props) {
+    
+    this.updateCharts(nextProps);
+  }
+
+  updateCharts(nextProps: Props) {
+    const chartJob = nextProps.job || nextProps.workflow.jobs[0].id;
+    if (nextProps && nextProps.job && nextProps.job !== this.props.job) {
+      this.setState({
+        data : undefined
+      });
+    }
+    fetch(`/api/statistics/${chartJob}`).then(data => data.json()).then(json => {
+      this.setState({
+        data: json
+      });
+    });
+  }
 
   render() {
     const {
@@ -92,6 +284,39 @@ class WorkflowComponent extends React.Component {
         <dd key="maxPeriods_">{startNode.scheduling.maxPeriods}</dd>
       ]
     ];
+
+    const charts = (data : any) => {
+      if (data) {
+        return <div>
+          <div className={classes.chartSection}>
+            <h3>Average run/wait times over last 30 days</h3>
+            <AverageRunWaitChart
+              className="chart"
+              data={{ values: aggregateDataSet(data) }}
+            />
+          </div>
+          <div className={classes.chartSection}>
+            <h3>Max runtime over last 30 days</h3>
+            <MaxRuntimeChart
+              className="chart"
+              data={{ values: data }}
+            />
+          </div>
+          <div className={classes.chartSection}>
+            <h3>Number of failures over last 30 days</h3>
+            <SumFailuresChart
+              className="chart"
+              data={{ values: data }}
+            />
+          </div>
+      </div>;
+      } 
+      return <div style={{ textAlign : "center" }}>
+        <div style={{ display : "inline-block", marginTop : "50px" }}>
+          <Spinner />
+        </div>
+      </div>;
+    };
 
     return (
       <div className={classes.main}>
@@ -152,6 +377,7 @@ class WorkflowComponent extends React.Component {
               ]}
             </FancyTable>
           </div>
+          {charts(this.state.data)}
         </SlidePanel>
       </div>
     );
@@ -165,6 +391,17 @@ const styles = {
     width: "100%",
     height: "calc(100vh - 4em)",
     position: "relative"
+  },
+  chartSection: {
+    "& > .chart": {
+      marginLeft: "50px",
+      marginBottom: "50px"
+    },
+    "& h3": {
+      color: "#3B4254",
+      textAlign: "center",
+      fontSize: "1em"
+    }
   },
   tags: {
     display: "table-cell"

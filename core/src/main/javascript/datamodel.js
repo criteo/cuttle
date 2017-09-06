@@ -24,12 +24,14 @@ export type ExecutionLog = {
   failing?: {
     failedExecutions: Array<ExecutionLog>,
     nextRetry: ?string
-  }
+  },
+  waitingSeconds : number
 };
 
 export type Paginated<A> = {
   total: number,
-  data: Array<A>
+  data: Array<A>,
+  completion?: number
 };
 
 export type Statistics = {

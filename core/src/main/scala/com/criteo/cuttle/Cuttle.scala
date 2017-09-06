@@ -20,6 +20,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   ) = {
     val xa = Database.connect(databaseConfig)
     val executor = new Executor[S](platforms, xa)(retryStrategy)
+
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)

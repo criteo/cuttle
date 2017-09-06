@@ -32,7 +32,7 @@ const routes = {
     openPage({ id: "executions/paused", page, sort, order }),
   "/executions/:id": ({ id }) =>
     openPage({ id: "executions/detail", execution: id }),
-  "/workflow/:jobId": ({ jobId }) => openPage({ id: "workflow", jobId }),
+  "/workflow/*": ({ _ }) => openPage({ id: "workflow", jobId : _ }),
   "/workflow": () => openPage({ id: "workflow" }),
   "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
   "/timeseries/calendar/:start_:end": ({ start, end }) =>
@@ -41,9 +41,29 @@ const routes = {
     openPage({ id: "timeseries/backfills", page, sort, order }),
   "/timeseries/backfills/create": () =>
     openPage({ id: "timeseries/backfills/create" }),
-  "/timeseries/executions/:job/:start_:end": ({ job, start, end }) =>
-    openPage({ id: "timeseries/executions", job, start, end })
+  "/timeseries/backfills/:backfillId": ({ backfillId }, { page, sort, order }) =>
+    openPage({ id: "timeseries/backfills/detail", backfillId, page, sort, order }),
+  "/timeseries/executions/*": ({ _ }) => {
+    return openPage({ 
+      id: "timeseries/executions", 
+      ...parseExecutionsRoute(_) 
+    })
+    }
 };
+
+const parseExecutionsRoute = (()=>{
+  const executionsRouteRegex = /([^/]+)\/([^_]+)_([^/?#]+).*/;
+
+  return (queryString : string)  => {
+    const match = executionsRouteRegex.exec(queryString);
+    return match && {
+      job: match[1],
+      start: match[2],
+      end: match[3]
+    };
+  }
+})();
+
 
 const router = createRouter(routes, createHistory());
 const store = createStore(
@@ -68,7 +88,10 @@ let listenForStatistics = (query: string) => {
     statisticsListener = listenEvents(
       query,
       stats => {
-        statisticsError && clearTimeout(statisticsError);
+        if (statisticsError) {
+          clearTimeout(statisticsError);
+          statisticsError = undefined;
+        }
         store.dispatch(Actions.updateStatistics(stats));
       },
       error => {

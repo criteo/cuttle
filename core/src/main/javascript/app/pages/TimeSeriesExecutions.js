@@ -16,6 +16,7 @@ import Spinner from "../components/Spinner";
 import Link from "../components/Link";
 import Clock from "../components/Clock";
 import JobStatus from "../components/JobStatus";
+import { Badge } from "../components/Badge";
 import { listenEvents } from "../../Utils";
 import type { ExecutionLog, Job } from "../../datamodel";
 
@@ -188,10 +189,19 @@ class TimeSeriesExecutions extends React.Component {
                   onSortBy={this.sortBy.bind(this)}
                   sort={sort}
                   data={sortedData}
-                  render={(column, { id, startTime, endTime, status }) => {
+                  render={(
+                    column,
+                    { id, startTime, endTime, status, context }
+                  ) => {
                     switch (column) {
                       case "backfill":
-                        return <span className={classes.missing}>no</span>;
+                        return context.backfill
+                          ? <Link
+                              href={`/timeseries/backfills/${context.backfill.id}`}
+                            >
+                              <Badge label="BACKFILL" kind="alt" width={75} />
+                            </Link>
+                          : <span className={classes.missing}>no</span>;
                       case "startTime":
                         return startTime
                           ? <Clock

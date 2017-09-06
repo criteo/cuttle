@@ -6,10 +6,11 @@ import injectSheet from "react-jss";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
-import BreakIcon from "react-icons/lib/md/keyboard-control";
-import CalendarIcon from "react-icons/lib/md/date-range";
+import ReactTooltip from "react-tooltip";
+
 import moment from "moment";
 
+import Context from "../components/Context";
 import Window from "../components/Window";
 import FancyTable from "../components/FancyTable";
 import Error from "../components/Error";
@@ -17,6 +18,7 @@ import Spinner from "../components/Spinner";
 import Clock from "../components/Clock";
 import Link from "../components/Link";
 import JobStatus from "../components/JobStatus";
+import { Badge } from "../components/Badge";
 import { listenEvents } from "../../Utils";
 import type { ExecutionLog } from "../../datamodel";
 import { highlightURLs } from "../utils/URLHighlighter";
@@ -43,10 +45,57 @@ type State = {
   autoScroll: boolean
 };
 
+type ProgressBarProps = {
+  classes: any,
+  totalTimeSeconds: number,
+  waitingTimeSeconds: number
+};
+
+const ProgressBarComponent = ({
+  classes,
+  totalTimeSeconds,
+  waitingTimeSeconds
+}: ProgressBarProps) => {
+  const totalWidth = 200;
+  const height = 8;
+  const barWidth = totalTimeSeconds !== 0
+    ? waitingTimeSeconds / totalTimeSeconds * totalWidth
+    : 0;
+
+  const tooltip =
+    `Waiting : ${moment.utc(waitingTimeSeconds * 1000).format("HH:mm:ss")} / ` +
+    `Running : ${moment
+      .utc((totalTimeSeconds - waitingTimeSeconds) * 1000)
+      .format("HH:mm:ss")}`;
+
+  return (
+    <span className={classes.main}>
+      <svg width={totalWidth} height={height} className={classes.svg}>
+        <g data-tip={tooltip}>
+          <rect width={totalWidth} height={height} fill="#00BCD4" />
+          <rect width={barWidth} height={height} fill="#ff9800" />
+        </g>
+      </svg>
+      <ReactTooltip className={classes.tooltip} effect="float" html={true} />
+    </span>
+  );
+};
+
+const ProgressBar = injectSheet({
+  main: {
+    "margin-left": "10px"
+  },
+  svg: {
+    lineHeight: "18px",
+    display: "inline-block"
+  }
+})(ProgressBarComponent);
+
 class Execution extends React.Component {
   props: Props;
   state: State;
   scroller: ?any;
+  shouldOverwriteStreams: boolean = false;
 
   constructor(props: Props) {
     super(props);
@@ -108,12 +157,10 @@ class Execution extends React.Component {
     if (json == "EOS" && streamsEventSource) {
       streamsEventSource.close();
     } else if (json == "BOS" && streamsEventSource) {
-      this.setState({
-        streams: []
-      });
+      this.shouldOverwriteStreams = true;
     } else {
       let lines = [];
-      json.forEach(line => {
+      json.map(line => {
         let groups = /([^ ]+) ([^ ]+)\s+- (.*)/.exec(line);
         if (groups) {
           let [_, timestamp, level, message] = groups;
@@ -124,8 +171,10 @@ class Execution extends React.Component {
           });
         }
       });
+      const streamsHead = this.shouldOverwriteStreams ? [] : this.state.streams;
+      this.shouldOverwriteStreams = false;
       this.setState({
-        streams: this.state.streams.concat(lines)
+        streams: streamsHead.concat(lines)
       });
     }
   }
@@ -171,32 +220,6 @@ class Execution extends React.Component {
       });
   }
 
-  renderContext(ctx) {
-    // Need to be dynamically linked with the scehduler but for now let's
-    // assume that it is a TimeseriesContext
-    let format = date => moment(date).utc().format("MMM-DD HH:mm");
-    let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
-    return (
-      <Link
-        href={`/timeseries/calendar/${URLFormat(ctx.start)}_${URLFormat(ctx.end)}`}
-      >
-        <CalendarIcon
-          style={{
-            fontSize: "1.2em",
-            verticalAlign: "middle",
-            transform: "translateY(-2px)"
-          }}
-        />
-        {" "}
-        {format(ctx.start)}
-        {" "}
-        <BreakIcon />
-        {" "}
-        {format(ctx.end)} UTC
-      </Link>
-    );
-  }
-
   render() {
     let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
@@ -213,9 +236,16 @@ class Execution extends React.Component {
                   <Link href={`/workflow/${data.job}`}>{data.job}</Link>
                 </dd>
                 <dt key="context">Context:</dt>
-                <dd key="context_">{this.renderContext(data.context)}</dd>
+                <dd key="context_"><Context context={data.context} /></dd>
                 <dt key="status">Status:</dt>
-                <dd key="status_"><JobStatus status={data.status} /></dd>
+                <dd key="status_"><JobStatus status={data.status} />{ 
+                  data.context.backfill ? 
+                    <span style={{ marginLeft : "10px" }}>
+                      <Link href={`/timeseries/backfills/${data.context.backfill.id}`}>
+                        <Badge label="BACKFILL" kind="alt" />
+                      </Link>
+                    </span> : null}
+                </dd>
                 {data.startTime
                   ? [
                       <dt key="startTime">Start time:</dt>,
@@ -241,13 +271,23 @@ class Execution extends React.Component {
                       <dt key="duration">Duration:</dt>,
                       <dd key="duration_">
                         {data.endTime
-                          ? moment
-                              .utc(
-                                moment(data.endTime).diff(
-                                  moment(data.startTime)
+                          ? [
+                              moment
+                                .utc(
+                                  moment(data.endTime).diff(
+                                    moment(data.startTime)
+                                  )
                                 )
-                              )
-                              .format("HH:mm:ss")
+                                .format("HH:mm:ss"),
+                              <ProgressBar
+                                totalTimeSeconds={
+                                  moment(data.endTime).diff(
+                                    moment(data.startTime)
+                                  ) / 1000
+                                }
+                                waitingTimeSeconds={data.waitingSeconds}
+                              />
+                            ]
                           : <Clock time={data.startTime} humanize={false} />}
                       </dd>
                     ]

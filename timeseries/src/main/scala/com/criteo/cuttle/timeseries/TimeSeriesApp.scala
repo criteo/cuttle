@@ -17,6 +17,7 @@ import intervals._
 import Bound.{Bottom, Finite, Top}
 import ExecutionStatus._
 import com.criteo.cuttle.authentication.AuthenticatedService
+import scala.concurrent.ExecutionContext.Implicits.global
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
@@ -108,7 +109,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             (lo, hi) <- grid.split(interval)
           } yield {
             val context = TimeSeriesContext(grid.truncate(lo), grid.ceil(hi), maybeBackfill)
-            ExecutionLog("", job.id, None, None, context.asJson, ExecutionTodo, None)
+            ExecutionLog("", job.id, None, None, context.asJson, ExecutionTodo, None, 0)
           }
         val throttledExecutions = executor.allFailingExecutions
           .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))
@@ -143,6 +144,9 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           }
 
         val allFailing = executor.allFailingExecutions
+        val allWaitingIds = executor.allRunning
+          .filter(_.status == ExecutionWaiting)
+          .map(_.id)
 
         def findAggregationLevel(n: Int,
                                  gridView: TimeSeriesGridView,
@@ -180,7 +184,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             case Running(e) =>
               if (allFailing.exists(_.id == e))
                 "failed"
-              else if (executor.platforms.exists(_.waiting.exists(_.id == e)))
+              else if (allWaitingIds.contains(e))
                 "waiting"
               else "running"
             case Todo(_) => "todo"
@@ -353,20 +357,101 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .transact(xa)
           .unsafePerformIO
           .asJson)
+    case GET at url"/api/timeseries/backfills/$id?events=$events" =>
+      val backfills = Database.getBackfillById(id).transact(xa).unsafePerformIO
+      events match {
+        case "true" | "yes" => sse(() => backfills, (b: Json) => b)
+        case _ => Ok(backfills.asJson)
+      }
+    case GET at url"/api/timeseries/backfills/$backfillId/executions?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
+      val limit = Try(l.toInt).toOption.getOrElse(25)
+      val offset = Try(o.toInt).toOption.getOrElse(0)
+      val asc = (a.toLowerCase == "asc")
+      def asTotalJson(x: (Int, Double, Seq[ExecutionLog])) = x match {
+        case (total, completion , executions) =>
+          Json.obj(
+            "total" -> total.asJson,
+            "offset" -> offset.asJson,
+            "limit" -> limit.asJson,
+            "sort" -> sort.asJson,
+            "asc" -> asc.asJson,
+            "data" -> executions.asJson,
+            "completion" -> completion.asJson
+          )
+      }
+      val ordering = {
+        val columnOrdering = sort match {
+          case "job" => Ordering.by((_: ExecutionLog).job)
+          case "startTime" => Ordering.by((_: ExecutionLog).startTime)
+          case "status" =>  Ordering.by((_: ExecutionLog).status.toString)
+          case _ => Ordering.by((_: ExecutionLog).id)
+        }
+        if (asc) {
+          columnOrdering
+        }
+        else {
+          columnOrdering.reverse
+        }
+      }
+      def allExecutions() : Option[(Int, Double, Seq[ExecutionLog])] = {
+        val archived =
+        Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
+
+        val runningExecutions = executor.runningExecutions
+          .filter(t => {
+            val bf = t._1.context.backfill
+            bf.isDefined && bf.get.id == backfillId
+          })
+          .map({ case (execution, status) => execution.toExecutionLog(status) })
+
+        val runningExecutionsIds = runningExecutions.map(_.id).toSet
+        val archivedNotRunning = archived.filterNot(e => runningExecutionsIds.contains(e.id))
+        val executions = (runningExecutions ++ archivedNotRunning)
+        val completion = {
+          executions.size match {
+            case 0 => 0
+            case total => (total- runningExecutions.size).toDouble / total
+          }
+        }
+        Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit)))
+      }
+       events match {
+        case "true" | "yes" =>
+          sse(allExecutions, asTotalJson)
+        case _ =>
+          allExecutions().map(e => Ok(asTotalJson(e))).getOrElse(NotFound)
+      }
+    }
   }
 
   private[cuttle] override def privateRoutes(workflow: Workflow[TimeSeries],
                                              executor: Executor[TimeSeries],
                                              xa: XA): AuthenticatedService = {
-    case POST at url"/api/timeseries/backfill?name=$name&description=$description&jobs=$jobsString&startDate=$start&endDate=$end&priority=$priority" =>
-      implicit user_ =>
-        val jobIds = jobsString.split(",")
-        val jobs = workflow.vertices.filter((job: TimeSeriesJob) => jobIds.contains(job.id))
-        val startDate = Instant.parse(start)
-        val endDate = Instant.parse(end)
-        if (backfillJob(name, description, jobs, startDate, endDate, priority.toInt, xa))
-          Ok("ok".asJson)
-        else
-          BadRequest("invalid backfill")
+
+    case req @ POST at url"/api/timeseries/backfill" => implicit user  =>
+      req.readAs[Json].map(
+        _.as[BackfillCreate]
+          .fold(
+            _ => BadRequest("cannot parse request body"),
+            backfill => {
+              val jobIds = backfill.jobs.split(",")
+              val jobs = workflow.vertices
+                .filter((job: TimeSeriesJob) => jobIds.contains(job.id))
+
+              if (backfillJob(
+                backfill.name,
+                backfill.description,
+                jobs,
+                backfill.startDate,
+                backfill.endDate,
+                backfill.priority,
+                xa)) {
+                Ok("ok".asJson)
+              }
+              else {
+                BadRequest("invalid backfill")
+              }
+            })
+        )
   }
 }

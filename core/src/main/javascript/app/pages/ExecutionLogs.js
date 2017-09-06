@@ -56,7 +56,8 @@ type Props = {
     order: "asc" | "desc"
   },
   open: (link: string) => void,
-  selectedJobs: Array<string>
+  selectedJobs: Array<string>,
+  completionNotifier?: (?number => void)
 };
 
 type State = {
@@ -121,6 +122,12 @@ class ExecutionLogs extends React.Component {
   }
 
   updateData(json: Paginated<ExecutionLog>) {
+    const notify = this.props.completionNotifier;
+    if (notify != undefined)
+    {
+      notify(json.completion)
+    }
+
     this.setState({
       ...this.state,
       total: json.total,
@@ -164,7 +171,7 @@ class ExecutionLogs extends React.Component {
       }
     };
 
-    let Data = () => {
+    let dataTable = (() => {
       if (data && data.length) {
         return (
           <Table
@@ -178,7 +185,7 @@ class ExecutionLogs extends React.Component {
                 case "failed":
                   return { id: "failed", label: "Failed", sortable: true };
                 case "retry":
-                  return { id: "retry", label: "Next retry", sortable: true };
+                  return { id: "retry", label: "Next retry", sortable: true, width: 200 };
                 case "startTime":
                   return { id: "startTime", label: "Started", sortable: true };
                 case "endTime":
@@ -235,6 +242,7 @@ class ExecutionLogs extends React.Component {
                   );
                 case "retry":
                   return (
+                    status === "running" ? "Now" :
                     <Clock
                       className={classes.time}
                       time={(failing && failing.nextRetry) || ""}
@@ -284,7 +292,7 @@ class ExecutionLogs extends React.Component {
       } else {
         return <Spinner />;
       }
-    };
+    })();
 
     let Pagination = () => {
       if (total >= 2 && total <= rowsPerPage) {
@@ -318,7 +326,7 @@ class ExecutionLogs extends React.Component {
     return (
       <div className={classes.grid}>
         <Measure onMeasure={this.adaptTableHeight}>
-          <div className={classes.data}><Data /></div>
+          <div className={classes.data}>{dataTable}</div>
         </Measure>
         <Pagination />
       </div>
@@ -593,7 +601,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
             open={open}
             page={page}
             workflow={workflow}
-            columns={["job", "context", "failed", "retry", "lastFailure", "status", "detail"]}
+            columns={["job", "context", "retry", "lastFailure", "status", "detail"]}
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label="stuck"
@@ -605,3 +613,43 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
     }
   )
 );
+
+export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
+  injectSheet(
+    styles
+  )(
+    ({
+      classes,
+      workflow,
+      page,
+      sort,
+      order,
+      open,
+      selectedJobs,
+      envCritical,
+      backfillId,
+      completionNotifier
+    }) => {
+      let jobsFilter = selectedJobs.length
+        ? `&jobs=${selectedJobs.join(",")}`
+        : "";
+      return (
+        <div className={classes.container}>
+          <ExecutionLogs
+            envCritical={envCritical}
+            classes={classes}
+            open={open}
+            page={page}
+            workflow={workflow}
+            columns={["job", "context", "status", "detail"]}
+            request={(page, rowsPerPage, sort) => `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            label=""
+            sort={{ column: sort || "failed", order }}
+            selectedJobs={selectedJobs}
+            completionNotifier={completionNotifier}
+          />
+        </div>
+      );
+    }
+  )
+)

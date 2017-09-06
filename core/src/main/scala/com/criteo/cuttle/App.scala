@@ -69,7 +69,27 @@ private[cuttle] object App {
               "failedExecutions" -> Json.fromValues(failedExecutions.map(_.asJson(executionLogEncoder))),
               "nextRetry" -> nextRetry.asJson
             )
-        }.asJson
+        }.asJson,
+        "waitingSeconds" -> execution.waitingSeconds.asJson
+      )
+  }
+
+  implicit val executionStatEncoder: Encoder[ExecutionStat] = new Encoder[ExecutionStat] {
+    override def apply(execution: ExecutionStat) : Json =
+      Json.obj(
+        "startTime" -> execution.startTime.asJson,
+        "endTime" -> execution.endTime.asJson,
+        "durationSeconds" -> execution.durationSeconds.asJson,
+        "waitingSeconds" -> execution.waitingSeconds.asJson,
+        "status" -> (execution.status match {
+          case ExecutionSuccessful => "successful"
+          case ExecutionFailed => "failed"
+          case ExecutionRunning => "running"
+          case ExecutionWaiting => "waiting"
+          case ExecutionPaused => "paused"
+          case ExecutionThrottled => "throttled"
+          case ExecutionTodo => "todo"
+        }).asJson
       )
   }
 
@@ -121,13 +141,17 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
 
   val publicApi: PartialService = {
 
-    case GET at url"/api/status" =>
-      Ok(
-        Json.obj(
-          "project" -> project.name.asJson,
-          "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
-          "status" -> "ok".asJson
-        ))
+    case GET at url"/api/status" => {
+      val projectJson = (status : String) => Json.obj(
+        "project" -> project.name.asJson,
+        "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
+        "status" -> status.asJson
+      )
+      executor.healthCheck() match {
+        case Success(_) => Ok(projectJson("ok"))
+        case _ => InternalServerError(projectJson("ko"))
+      }
+    }
 
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
@@ -155,6 +179,9 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         case _ =>
           Ok(asJson(getStats().get))
       }
+
+    case GET at url"/api/statistics/$jobName" =>
+      Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)
@@ -270,6 +297,26 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       workflow.vertices.find(_.id == id).fold(NotFound) { job =>
         executor.unpauseJobs(Set(job))
         Ok
+      }
+    }
+    case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>
+      import scala.concurrent.duration._
+
+      val gracePeriod: Try[Long] = gracePeriodSeconds match {
+        case "" => Success(300)
+        case p => Try(p.toLong)
+      }
+
+      gracePeriod match {
+        case Success(s) if s > 0 => {
+          executor.gracefulShutdown(Duration(s, SECONDS))
+          Ok
+        }
+        case Success(s) if s <= 0 => {
+          executor.hardShutdown()
+          Ok
+        }
+        case _ => BadRequest("gracePeriodSeconds should be an integer")
       }
     }
   }

@@ -3,14 +3,15 @@
 import React from "react";
 import injectSheet from "react-jss";
 import { connect } from "react-redux";
-import { goBack } from "redux-url";
+import { goBack, navigate } from "redux-url";
 import CloseIcon from "react-icons/lib/md/close";
 
 type Props = {
   classes: any,
   title: string,
   children: any,
-  back: () => void
+  back: () => void,
+  closeUrl: ?string
 };
 
 const Window = ({ classes, title, children, back }: Props) => (
@@ -65,9 +66,13 @@ const styles = {
   }
 };
 
-const mapDispatchToProps = dispatch => ({
+const mapDispatchToProps = (dispatch, ownProps) => ({
   back() {
-    dispatch(goBack());
+    if (ownProps.closeUrl){
+      dispatch(navigate(ownProps.closeUrl));      
+    } else {
+      dispatch(goBack());
+    }
   }
 });
 
