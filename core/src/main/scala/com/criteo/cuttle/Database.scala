@@ -12,6 +12,7 @@ import io.circe.parser._
 import scala.util._
 
 import java.time._
+import java.util.concurrent.{Executors, TimeUnit}
 
 import logging._ 
 import ExecutionStatus._
@@ -83,6 +84,53 @@ private[cuttle] object Database {
     """
   )
 
+  private def lockedTransactor(xa: HikariTransactor[IOLite]): HikariTransactor[IOLite] = {
+    val guid = java.util.UUID.randomUUID.toString
+
+    // Try to insert our lock at bootstrap
+    (for {
+      locks <-
+        sql"""
+          SELECT locked_by, locked_at FROM locks WHERE TIMESTAMPDIFF(MINUTE, locked_at, NOW()) < 5;
+        """.query[(String,Instant)].list
+      _ <-
+        if(locks.isEmpty) {
+          sql"""
+            DELETE FROM locks;
+            INSERT INTO locks VALUES (${guid}, NOW());
+          """.update.run
+        }
+        else {
+          sys.error(s"Database already locked: ${locks.head}")
+        }
+    } yield ()).transact(xa).unsafePerformIO
+
+    // Remove lock on shutdown
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run =
+        sql"""
+          DELETE FROM locks WHERE locked_by = ${guid};
+        """.update.run.transact(xa).unsafePerformIO
+    })
+
+    // Refresh our lock every minute (and check that we still are the lock owner)
+    Executors.newScheduledThreadPool(1).scheduleAtFixedRate(new Runnable {
+      def run = {
+        if(
+          (sql"""
+            UPDATE locks SET locked_at = NOW() WHERE locked_by = ${guid}
+          """.update.run.transact(xa).unsafePerformIO: Int) != 1
+        ) {
+          xa.shutdown.unsafePerformIO
+          sys.error(s"Lock has been lost, shutting down the database connection.")
+        }
+      }
+    }, 1, 1, TimeUnit.MINUTES)
+
+    // We can now use the transactor safely
+    xa
+  }
+
   private val doSchemaUpdates =
     (for {
       _ <- sql"""
@@ -90,7 +138,12 @@ private[cuttle] object Database {
           schema_version  SMALLINT NOT NULL,
           schema_update   DATETIME NOT NULL,
           PRIMARY KEY     (schema_version)
-        ) ENGINE = INNODB
+        ) ENGINE = INNODB;
+
+        CREATE TABLE IF NOT EXISTS locks (
+          locked_by       VARCHAR(36) NOT NULL,
+          locked_at       DATETIME NOT NULL
+        ) ENGINE = INNODB;
       """.update.run
 
       currentSchemaVersion <- sql"""
@@ -119,7 +172,7 @@ private[cuttle] object Database {
       }
     } yield hikari).unsafePerformIO
     doSchemaUpdates.transact(xa).unsafePerformIO
-    xa
+    lockedTransactor(xa)
   }
 
   private[cuttle] def createLogHandler(logger: Logger) = {
