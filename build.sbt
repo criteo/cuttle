@@ -36,6 +36,12 @@ lazy val commonSettings = Seq(
     "criteo-oss",
     sys.env.getOrElse("SONATYPE_PASSWORD", "")
   ),
+  publishTo := Some(
+    if (isSnapshot.value)
+      Opts.resolver.sonatypeSnapshots
+    else
+      Opts.resolver.sonatypeStaging
+  ),
   pgpPassphrase := sys.env.get("SONATYPE_PASSWORD").map(_.toArray),
   pgpSecretRing := file(".travis/secring.gpg"),
   pgpPublicRing := file(".travis/pubring.gpg"),
