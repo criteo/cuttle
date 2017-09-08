@@ -23,7 +23,7 @@ object HelloWorld {
       }
 
     val hello2 =
-      Job("hel.lo2", hourly(start), "Hello 2") { implicit e =>
+      Job("hello2", hourly(start), "Hello 2") { implicit e =>
         sh"""
           echo "Looping for 20 seconds..."
           for i in {1..20}; do
