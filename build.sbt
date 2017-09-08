@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.1.12"
+val VERSION = "0.1.13"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -35,6 +35,12 @@ lazy val commonSettings = Seq(
     "oss.sonatype.org",
     "criteo-oss",
     sys.env.getOrElse("SONATYPE_PASSWORD", "")
+  ),
+  publishTo := Some(
+    if (isSnapshot.value)
+      Opts.resolver.sonatypeSnapshots
+    else
+      Opts.resolver.sonatypeStaging
   ),
   pgpPassphrase := sys.env.get("SONATYPE_PASSWORD").map(_.toArray),
   pgpSecretRing := file(".travis/secring.gpg"),
