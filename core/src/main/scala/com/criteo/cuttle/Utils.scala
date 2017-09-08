@@ -11,7 +11,7 @@ import lol.http.{PartialService, Service}
 
 package object utils {
 
-  private[cuttle] object Timeout {
+  object Timeout {
     private val scheduler = Executors.newScheduledThreadPool(1,
       new ThreadFactory() {
         def newThread(r: Runnable): Thread = {
@@ -47,7 +47,7 @@ package object utils {
     * from a PartialService that returns a
     * non-further-chainable Service.
     */
-  implicit class PartialServiceConverter(val service: PartialService) extends AnyVal {
+  implicit private[cuttle] class PartialServiceConverter(val service: PartialService) extends AnyVal {
     def orFinally(finalService: Service): Service =
       service.orElse(toPartial(finalService))
 

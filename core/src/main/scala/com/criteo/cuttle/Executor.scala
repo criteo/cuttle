@@ -5,6 +5,8 @@ import java.util.{Timer, TimerTask}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.time.{Duration, Instant, ZoneId}
 
+import platforms.ExecutionPool
+
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -106,25 +108,47 @@ case class Execution[S <: Scheduling](
       waitingSeconds = waitingSeconds
     )
 
-  private[cuttle] val isParked = new AtomicBoolean(false)
-
   private[cuttle] def updateWaitingTime(seconds: Int): Unit =
     waitingSeconds += seconds
 
-  def park(duration: FiniteDuration): Future[Unit] =
-    if (isParked.get) {
-      sys.error(s"Already parked")
+  private[cuttle] val isWaiting = new AtomicBoolean(false)
+
+  def synchronize[A,B](lock: A)(thunk: => Future[B]): Future[B] = {
+    if (isWaiting.get) {
+      sys.error(s"Already waiting")
     } else {
-      streams.debug(s"Execution parked for $duration")
-      isParked.set(true)
+      streams.debug(s"Execution waiting for lock ${lock}...")
+      isWaiting.set(true)
+      val pool = atomic { implicit tx =>
+        if(!Execution.locks.contains(lock)) {
+          Execution.locks.update(lock, new ExecutionPool(1))
+        }
+        Execution.locks(lock)
+      }
+      pool.run(this, s"Locked on ${lock}") { () =>
+        streams.debug(s"Resuming")
+        isWaiting.set(false)
+        thunk
+      }
+    }
+  }
+
+  def park(duration: FiniteDuration): Future[Unit] =
+    if (isWaiting.get) {
+      sys.error(s"Already waiting")
+    } else {
+      streams.debug(s"Execution parked for $duration...")
+      isWaiting.set(true)
       utils.Timeout(duration).andThen {
         case _ =>
-          isParked.set(false)
+          streams.debug(s"Resuming")
+          isWaiting.set(false)
       }
     }
 }
 
 object Execution {
+  private val locks = TMap.empty[Any,ExecutionPool]
   private[cuttle] implicit val ordering: Ordering[Execution[_]] =
     Ordering.by(e => (e.context: SchedulingContext, e.job.id, e.id))
   private[cuttle] implicit def ordering0[S <: Scheduling]: Ordering[Execution[S]] =
@@ -191,7 +215,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private def flagWaitingExecutions(executions: Seq[Execution[S]]): Seq[(Execution[S], ExecutionStatus)] = {
     val waitings = platforms.flatMap(_.waiting).toSet
     executions.map { execution =>
-      val status = if (execution.isParked.get || waitings.contains(execution)) ExecutionWaiting else ExecutionRunning
+      val status = if (execution.isWaiting.get || waitings.contains(execution)) ExecutionWaiting else ExecutionRunning
       (execution -> status)
     }
   }
