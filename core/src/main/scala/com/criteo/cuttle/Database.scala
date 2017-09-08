@@ -14,7 +14,6 @@ import scala.util._
 import java.time._
 import java.util.concurrent.{Executors, TimeUnit}
 
-import logging._ 
 import ExecutionStatus._
 
 case class DatabaseConfig(host: String, port: Int, database: String, username: String, password: String)
@@ -174,50 +173,12 @@ private[cuttle] object Database {
     doSchemaUpdates.transact(xa).unsafePerformIO
     lockedTransactor(xa)
   }
-
-  private[cuttle] def createLogHandler(logger: Logger) = {
-    import doobie.util.log._
-
-    LogHandler {
-      case Success(s, a, e1, e2) =>
-        logger.debug(s"""Successful Statement Execution:
-          |
-          |  ${s.lines.dropWhile(_.trim.isEmpty).mkString("\n  ")}
-          |
-          | arguments = [${a.mkString(", ")}]
-          |   elapsed = ${e1.toMillis} ms exec + ${e2.toMillis} ms processing (${(e1 + e2).toMillis} ms total)
-        """.stripMargin)
-
-      case ProcessingFailure(s, a, e1, e2, t) =>
-        logger.warning(s"""Failed Resultset Processing:
-          |
-          |  ${s.lines.dropWhile(_.trim.isEmpty).mkString("\n  ")}
-          |
-          | arguments = [${a.mkString(", ")}]
-          |   elapsed = ${e1.toMillis} ms exec + ${e2.toMillis} ms processing (failed) (${(e1 + e2).toMillis} ms total)
-          |   failure = ${t.getMessage}
-        """.stripMargin)
-
-      case ExecFailure(s, a, e1, t) =>
-        logger.error(s"""Failed Statement Execution:
-          |
-          |  ${s.lines.dropWhile(_.trim.isEmpty).mkString("\n  ")}
-          |
-          | arguments = [${a.mkString(", ")}]
-          |   elapsed = ${e1.toMillis} ms exec (failed)
-          |   failure = ${t.getMessage}
-        """.stripMargin)
-    }
-  }
 }
 
 private[cuttle] trait Queries {
   import Database._
 
-  val appLogger : Logger
-  implicit val logHandler = Database.createLogHandler(appLogger)
-
-  def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]) : ConnectionIO[Int] =
+  def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]): ConnectionIO[Int] =
     for {
       contextId <- logContext
       result <- sql"""

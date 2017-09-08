@@ -172,9 +172,11 @@ case class TimeSeries(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1)
       "grid" -> grid.asJson
     )
 }
+
 object TimeSeries {
   implicit def scheduler(implicit logger: Logger) = TimeSeriesScheduler(logger)
 }
+
 private[timeseries] sealed trait JobState
 private[timeseries] object JobState {
   case object Done extends JobState
@@ -191,8 +193,8 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   import TimeSeriesUtils._
   import JobState.{Done, Running, Todo}
 
-  val database = Database(logger)
-  val allContexts = database.sqlGetContextsBetween(None, None)
+  val allContexts = Database.sqlGetContextsBetween(None, None)
+
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalMap[Instant, JobState]])
 
   private val _backfills = Ref(Set.empty[Backfill])
@@ -238,14 +240,14 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       (isValid, newBackfill)
     }
     if (isValid)
-      database.createBackfill(newBackfill).transact(xa).unsafePerformIO
+      Database.createBackfill(newBackfill).transact(xa).unsafePerformIO
     isValid
   }
 
   def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
-    database.doSchemaUpdates.transact(xa).unsafePerformIO
+    Database.doSchemaUpdates.transact(xa).unsafePerformIO
 
-    database
+    Database
       .deserializeState(workflow.vertices)
       .transact(xa)
       .unsafePerformIO
@@ -256,7 +258,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       }
 
     atomic { implicit txn =>
-      val incompleteBackfills = database
+      val incompleteBackfills = Database
         .queryBackfills(Some(sql"""status = 'RUNNING'"""))
         .list
         .map(_.map {
@@ -315,10 +317,10 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       }
 
       if (completed.nonEmpty || toRun.nonEmpty)
-        database.serializeState(stateSnapshot).transact(xa).unsafePerformIO
+        Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO
 
       if (completedBackfills.nonEmpty)
-        database.setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
+        Database.setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
           .transact(xa)
           .unsafePerformIO
 

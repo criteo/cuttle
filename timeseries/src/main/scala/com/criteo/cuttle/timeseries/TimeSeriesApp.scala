@@ -25,8 +25,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   import TimeSeriesGrid._
   import JobState._
 
-  val database: Database
-
   private implicit val intervalEncoder = new Encoder[Interval[Instant]] {
     implicit val boundEncoder = new Encoder[Bound[Instant]] {
       override def apply(bound: Bound[Instant]) = bound match {
@@ -93,7 +91,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val startDate = Instant.parse(start)
         val endDate = Instant.parse(end)
         val requestedInterval = Interval(startDate, endDate)
-        val contextQuery = database.sqlGetContextsBetween(Some(startDate), Some(endDate))
+        val contextQuery = Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
         val archivedExecutions = executor.archivedExecutions(contextQuery, Set(jobId), "", true, 0, Int.MaxValue)
         val runningExecutions = executor.runningExecutions
           .filter {
@@ -338,7 +336,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
     case GET at url"/api/timeseries/backfills" =>
       Ok(
-        database
+        Database
           .queryBackfills()
           .list
           .map(_.map {
@@ -360,7 +358,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .unsafePerformIO
           .asJson)
     case GET at url"/api/timeseries/backfills/$id?events=$events" =>
-      val backfills = database.getBackfillById(id).transact(xa).unsafePerformIO
+      val backfills = Database.getBackfillById(id).transact(xa).unsafePerformIO
       events match {
         case "true" | "yes" => sse(() => backfills, (b: Json) => b)
         case _ => Ok(backfills.asJson)
@@ -397,7 +395,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
       def allExecutions() : Option[(Int, Double, Seq[ExecutionLog])] = {
         val archived =
-        database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
+        Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
 
         val runningExecutions = executor.runningExecutions
           .filter(t => {
