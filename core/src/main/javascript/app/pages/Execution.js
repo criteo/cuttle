@@ -7,7 +7,7 @@ import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
 import ReactTooltip from "react-tooltip";
-
+import PopoverMenu from "../components/PopoverMenu";
 import moment from "moment";
 
 import Context from "../components/Context";
@@ -224,10 +224,36 @@ class Execution extends React.Component {
     let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
 
+    const menu = (e: ExecutionLog) => {
+      const isCancellable = e.status == "running" || e.status == "waiting";
+
+      if (isCancellable) {
+        return (
+          <PopoverMenu
+            className={classes.menu}
+            items={[
+              <span
+                onClick={() => {
+                  fetch(`/api/executions/${e.id}/cancel`, {
+                    method: "POST",
+                    credentials: "include"
+                  });
+                }}
+              >
+                Cancel
+              </span>
+            ]}
+          />
+        );
+      }
+      return null;
+    };
+
     return (
       <Window title="Execution">
         {data
           ? [
+              menu(data),
               <FancyTable key="properties">
                 <dt key="id">Id:</dt>
                 <dd key="id_">{data.id}</dd>
@@ -238,13 +264,16 @@ class Execution extends React.Component {
                 <dt key="context">Context:</dt>
                 <dd key="context_"><Context context={data.context} /></dd>
                 <dt key="status">Status:</dt>
-                <dd key="status_"><JobStatus status={data.status} />{ 
-                  data.context.backfill ? 
-                    <span style={{ marginLeft : "10px" }}>
-                      <Link href={`/timeseries/backfills/${data.context.backfill.id}`}>
-                        <Badge label="BACKFILL" kind="alt" />
-                      </Link>
-                    </span> : null}
+                <dd key="status_">
+                  <JobStatus status={data.status} />{data.context.backfill
+                    ? <span style={{ marginLeft: "10px" }}>
+                        <Link
+                          href={`/timeseries/backfills/${data.context.backfill.id}`}
+                        >
+                          <Badge label="BACKFILL" kind="alt" />
+                        </Link>
+                      </span>
+                    : null}
                 </dd>
                 {data.startTime
                   ? [
@@ -375,6 +404,11 @@ class Execution extends React.Component {
 }
 
 const styles = {
+  menu: {
+    position: "absolute",
+    top: "60px",
+    right: "1em"
+  },
   failedLink: {
     color: "#e91e63"
   },
