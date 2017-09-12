@@ -317,12 +317,17 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       }
 
       if (completed.nonEmpty || toRun.nonEmpty)
-        Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO
+        runOrLogAndDie(
+          Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO,
+          "TimeseriesScheduler, cannot serialize state, shutting down")
 
       if (completedBackfills.nonEmpty)
-        Database.setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
-          .transact(xa)
-          .unsafePerformIO
+        runOrLogAndDie(
+	        Database
+            .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
+            .transact(xa)
+            .unsafePerformIO,
+          "TimeseriesScheduler, cannot serialize state, shutting down")
 
       val newRunning = stillRunning ++ newExecutions.map {
         case (execution, result) =>
@@ -337,6 +342,22 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
 
     mainLoop(Set.empty)
+  }
+
+  private def runOrLogAndDie(thunk: => Unit, message: => String): Unit = {
+    import java.io._
+
+    try {
+      thunk
+    } catch {
+      case (e: Throwable) => {
+        logger.error(message)
+        val sw = new StringWriter
+        e.printStackTrace(new PrintWriter(sw))
+        logger.error(sw.toString)
+        System.exit(-1)
+      }
+    }
   }
 
   private[timeseries] def collectCompletedJobs(
