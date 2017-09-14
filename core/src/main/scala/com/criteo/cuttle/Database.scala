@@ -160,7 +160,7 @@ private[cuttle] object Database {
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig,XA]
   def connect(c: DatabaseConfig): XA = {
-    connections.getOrElseUpdate {
+    connections.getOrElseUpdate(c, {
       val xa = (for {
         hikari <- HikariTransactor[IOLite](
           "com.mysql.cj.jdbc.Driver",
@@ -174,7 +174,7 @@ private[cuttle] object Database {
       } yield hikari).unsafePerformIO
       doSchemaUpdates.transact(xa).unsafePerformIO
       lockedTransactor(xa)
-    }
+    })
   }
 }
 
