@@ -158,20 +158,23 @@ private[cuttle] object Database {
       }
     } yield ())
 
+  private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig,XA]
   def connect(c: DatabaseConfig): XA = {
-    val xa = (for {
-      hikari <- HikariTransactor[IOLite](
-        "com.mysql.cj.jdbc.Driver",
-        s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
-        c.username,
-        c.password
-      )
-      _ <- hikari.configure { datasource =>
-        IOLite.primitive( /* Configure datasource if needed */ ())
-      }
-    } yield hikari).unsafePerformIO
-    doSchemaUpdates.transact(xa).unsafePerformIO
-    lockedTransactor(xa)
+    connections.getOrElseUpdate(c, {
+      val xa = (for {
+        hikari <- HikariTransactor[IOLite](
+          "com.mysql.cj.jdbc.Driver",
+          s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
+          c.username,
+          c.password
+        )
+        _ <- hikari.configure { datasource =>
+          IOLite.primitive( /* Configure datasource if needed */ ())
+        }
+      } yield hikari).unsafePerformIO
+      doSchemaUpdates.transact(xa).unsafePerformIO
+      lockedTransactor(xa)
+    })
   }
 }
 
