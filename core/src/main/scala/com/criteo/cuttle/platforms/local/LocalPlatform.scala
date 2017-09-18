@@ -29,7 +29,7 @@ class LocalProcess(command: String) {
   val id = UUID.randomUUID().toString
 
   private def exec0[S <: Scheduling](
-    env: Map[String, String] = sys.env,
+    env: Map[String, String],
     outLogger: (String) => Unit,
     errLogger: (String) => Unit
   )(implicit execution: Execution[S]): Future[Unit] = {

@@ -151,7 +151,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         def findAggregationLevel(n: Int,
                                  gridView: TimeSeriesGridView,
                                  interval: Interval[Instant]): TimeSeriesGridView = {
-          val aggregatedExecutions = gridView.split(interval)
+          val aggregatedExecutions = gridView.grid.split(interval)
           if (aggregatedExecutions.size <= n)
             gridView
           else
@@ -163,6 +163,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           period: Interval[Instant],
           gridView: TimeSeriesGridView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
           gridView
+            .grid
             .split(period)
             .map { interval =>
               {
@@ -201,7 +202,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             val jobExecutions = (for {
               (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, gridView)
             } yield {
-              val (intervalStart, intervalEnd) = interval.toPair
               val inBackfill = backfills.exists(
                 bf =>
                   bf.jobs.contains(job) &&
@@ -216,7 +216,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   case _ => None
                 } else
                 jobStatesOnIntervals match {
-                  case l => {
+                  case l if l.nonEmpty => {
                     val (duration, done, error) = l.foldLeft((0L, 0L, false))((acc, currentExecution) => {
                       val (lo, hi) = currentExecution._1.toPair
                       val jobStatus = getStatusLabelFromState(currentExecution._2)
@@ -240,6 +240,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           "summary" -> jobTimelines
             .maxBy(_.executions.size)
             .gridView
+            .grid
             .split(period)
             .flatMap {
               case (lo, hi) =>
