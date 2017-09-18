@@ -5,10 +5,11 @@ import io.circe.Json
 import doobie.imports._
 import java.util.Comparator
 
-import com.criteo.cuttle.authentication.AuthenticatedService
+import logging._
+import authentication._
 
 trait Scheduler[S <: Scheduling] {
-  def start(workflow: Workflow[S], executor: Executor[S], xa: XA): Unit
+  def start(workflow: Workflow[S], executor: Executor[S], xa: XA, logger: Logger): Unit
   private[cuttle] def publicRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): PartialService =
     PartialFunction.empty
   private[cuttle] def privateRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): AuthenticatedService =
