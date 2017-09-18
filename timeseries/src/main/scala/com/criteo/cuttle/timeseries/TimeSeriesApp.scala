@@ -295,11 +295,11 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
             else
               acc
           }
-        val upToNow = Interval(Bottom, Finite(Instant.now))
+        val upToMidnightToday = Interval(Bottom, Finite(Daily(UTC).ceil(Instant.now)))
         (for {
-          job <- workflow.vertices
+          job <- workflow.vertices.toList
           if filteredJobs.contains(job.id)
-          (interval, jobState) <- state(job).intersect(upToNow).toList
+          (interval, jobState) <- state(job).intersect(upToMidnightToday).toList
           (start, end) <- Daily(UTC).split(interval)
         } yield
           (Daily(UTC).truncate(start), start.until(end, SECONDS), jobState == Done, jobState match {
@@ -317,9 +317,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 val newDone = if (isDone) duration else 0L
                 (totalDuration + duration, doneDuration + newDone, isAnyStuck || isStuck)
               }
+              val completion = Math.rint((done.toDouble / total.toDouble)*10)/10
+              val correctedCompletion =
+                if (completion == 0 && done != 0) 0.1
+                else completion
               Map(
                 "date" -> date.asJson,
-                "completion" -> f"${done.toDouble / total.toDouble}%1.1f".asJson
+                "completion" -> f"${correctedCompletion}%.1f".asJson
               ) ++ (if (stuck) Map("stuck" -> true.asJson) else Map.empty) ++
                 (if (backfillDomain.intersect(Interval(date, Daily(UTC).next(date))).toList.nonEmpty)
                    Map("backfill" -> true.asJson)
