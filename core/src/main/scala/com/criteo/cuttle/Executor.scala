@@ -182,14 +182,14 @@ class Executor[S <: Scheduling] private[cuttle] (
 
   import ExecutionStatus._
 
-  private val pausedState: TMap[String, Map[Execution[S], Promise[Unit]]] = {
-    val byId = TMap.empty[String, Map[Execution[S], Promise[Unit]]]
+  private val pausedState: TMap[String, Map[Execution[S], Promise[Completed]]] = {
+    val byId = TMap.empty[String, Map[Execution[S], Promise[Completed]]]
     val pausedIds = queries.getPausedJobIds.transact(xa).unsafePerformIO
-    byId.single ++= pausedIds.map((_, Map.empty[Execution[S], Promise[Unit]]))
+    byId.single ++= pausedIds.map((_, Map.empty[Execution[S], Promise[Completed]]))
     byId
   }
-  private val runningState = TMap.empty[Execution[S], Future[Unit]]
-  private val throttledState = TMap.empty[Execution[S], (Promise[Unit], FailingJob)]
+  private val runningState = TMap.empty[Execution[S], Future[Completed]]
+  private val throttledState = TMap.empty[Execution[S], (Promise[Completed], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
   // signals whether the instance is shutting down
   private val isShuttingDown: Ref[Boolean] = Ref(false)
@@ -207,7 +207,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   }
 
   private def retryingExecutionsSize(filteredJobs: Set[String]): Int = {
-    atomic {implicit txn => 
+    atomic {implicit txn =>
       val runningIds = runningState
         .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
         .map({ case (e, _) => e.job.id }).toSet
@@ -312,20 +312,19 @@ class Executor[S <: Scheduling] private[cuttle] (
           .map(x => (x._1, x._2._2, ExecutionThrottled)) ++ retryingExecutions(filteredJobs))
       .map {
         sort match {
-          case "job"       => 
+          case "job"       =>
             _.sortBy({ case (execution, _, _) => (execution.job.id, execution) })
-          case "startTime" => 
+          case "startTime" =>
             _.sortBy({ case (execution, _, _) => (execution.startTime.toString, execution) })
-          case "failed"    => 
+          case "failed"    =>
             _.sortBy({ case (execution, failingJob, _) => (failingJob.failedExecutions.size, execution) })
-          case "retry"     => 
+          case "retry"     =>
             _.sortBy({ case (execution, failingJob, _)  => (failingJob.nextRetry.map(_.toString), execution) })
-          case _ => 
+          case _ =>
             _.sortBy({ case (execution, _, _) => execution })
         }
       }
       .map { executions =>
-       
         if (asc) executions else executions.reverse
       }
       .map(_.drop(offset).take(limit))
@@ -449,14 +448,14 @@ class Executor[S <: Scheduling] private[cuttle] (
 
   private[cuttle] def hardShutdown() = System.exit(0)
 
-  private def unsafeDoRun(execution: Execution[S], promise: Promise[Unit]): Unit =
+  private def unsafeDoRun(execution: Execution[S], promise: Promise[Completed]): Unit =
     promise.completeWith(
       execution.job
         .run(execution)
         .andThen {
-          case Success(()) =>
+          case Success(_) =>
             execution.streams.debug(s"Execution successful")
-            atomic { implicit txn => 
+            atomic { implicit txn =>
               runningState -= execution
               recentFailures -= (execution.job -> execution.context)
             }
@@ -501,29 +500,29 @@ class Executor[S <: Scheduling] private[cuttle] (
             }
         })
 
-  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] =
+  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] =
     run0(all.sortBy(_._2))
 
-  def run(job: Job[S], context: S#Context): (Execution[S], Future[Unit]) =
+  def run(job: Job[S], context: S#Context): (Execution[S], Future[Completed]) =
     run0(Seq(job -> context)).head
 
-  private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Unit])] = {
+  private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
     case object Paused extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
-    val existingOrNew: Seq[Either[(Execution[S], Future[Unit]), (Job[S], Execution[S], Promise[Unit], NewExecution)]] =
+    val existingOrNew: Seq[Either[(Execution[S], Future[Completed]), (Job[S], Execution[S], Promise[Completed], NewExecution)]] =
       atomic { implicit tx =>
         if (isShuttingDown()) {
           Seq.empty
-        } else 
+        } else
           all.map {
             case (job, context) =>
-              val maybeAlreadyRunning: Option[(Execution[S], Future[Unit])] =
+              val maybeAlreadyRunning: Option[(Execution[S], Future[Completed])] =
                 runningState.find { case (e, _) => e.job == job && e.context == context }
 
-              lazy val maybePaused: Option[(Execution[S], Future[Unit])] =
+              lazy val maybePaused: Option[(Execution[S], Future[Completed])] =
                 pausedState
                   .getOrElse(job.id, Map.empty)
                   .find { case (e, _) => e.context == context }
@@ -531,7 +530,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                     case (e, p) => (e, p.future)
                   }
 
-              lazy val maybeThrottled: Option[(Execution[S], Future[Unit])] =
+              lazy val maybeThrottled: Option[(Execution[S], Future[Completed])] =
                 throttledState.find { case (e, _) => e.job == job && e.context == context }.map {
                   case (e, (p, _)) => (e, p.future)
                 }
@@ -551,7 +550,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                     platforms = platforms,
                     executionContext = global
                   )
-                  val promise = Promise[Unit]
+                  val promise = Promise[Completed]
 
                   if (pausedState.contains(job.id)) {
                     val pausedExecutions = pausedState(job.id) + (execution -> promise)

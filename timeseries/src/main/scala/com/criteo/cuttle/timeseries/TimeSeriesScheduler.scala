@@ -438,7 +438,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 private[timeseries] object TimeSeriesUtils {
   type TimeSeriesJob = Job[TimeSeries]
   type Executable = (TimeSeriesJob, TimeSeriesContext)
-  type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
+  type Run = (TimeSeriesJob, TimeSeriesContext, Future[Completed])
   type State = Map[TimeSeriesJob, IntervalMap[Instant, JobState]]
 
   val UTC = ZoneId.of("UTC")
