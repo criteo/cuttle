@@ -2,6 +2,7 @@ package com.criteo.cuttle.timeseries
 
 import Internal._
 import com.criteo.cuttle._
+import com.criteo.cuttle.logging._
 
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
@@ -173,7 +174,7 @@ case class TimeSeries(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1)
 }
 
 object TimeSeries {
-  implicit def scheduler = TimeSeriesScheduler()
+  implicit def scheduler(implicit logger: Logger) = TimeSeriesScheduler(logger)
 }
 
 private[timeseries] sealed trait JobState
@@ -188,7 +189,7 @@ private[timeseries] object JobState {
     deriveDecoder
 }
 
-case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesApp {
+case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] with TimeSeriesApp {
   import TimeSeriesUtils._
   import JobState.{Done, Running, Todo}
 
@@ -243,7 +244,7 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     isValid
   }
 
-  def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA): Unit = {
+  def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
     Database.doSchemaUpdates.transact(xa).unsafePerformIO
 
     Database
@@ -316,12 +317,17 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
       }
 
       if (completed.nonEmpty || toRun.nonEmpty)
-        Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO
+        runOrLogAndDie(
+          Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO,
+          "TimeseriesScheduler, cannot serialize state, shutting down")
 
       if (completedBackfills.nonEmpty)
-        Database.setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
-          .transact(xa)
-          .unsafePerformIO
+        runOrLogAndDie(
+	        Database
+            .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
+            .transact(xa)
+            .unsafePerformIO,
+          "TimeseriesScheduler, cannot serialize state, shutting down")
 
       val newRunning = stillRunning ++ newExecutions.map {
         case (execution, result) =>
@@ -336,6 +342,22 @@ case class TimeSeriesScheduler() extends Scheduler[TimeSeries] with TimeSeriesAp
     }
 
     mainLoop(Set.empty)
+  }
+
+  private def runOrLogAndDie(thunk: => Unit, message: => String): Unit = {
+    import java.io._
+
+    try {
+      thunk
+    } catch {
+      case (e: Throwable) => {
+        logger.error(message)
+        val sw = new StringWriter
+        e.printStackTrace(new PrintWriter(sw))
+        logger.error(sw.toString)
+        System.exit(-1)
+      }
+    }
   }
 
   private[timeseries] def collectCompletedJobs(
