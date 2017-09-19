@@ -83,5 +83,5 @@ case class Job[S <: Scheduling](id: String,
   val vertices = Set(this)
   val edges = Set.empty[Dependency]
 
-  def run(execution: Execution[S]): Future[Unit] = effect(execution)
+  def run(execution: Execution[S]): Future[Completed] = effect(execution)
 }
