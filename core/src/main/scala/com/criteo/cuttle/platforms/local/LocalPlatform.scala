@@ -32,7 +32,7 @@ class LocalProcess(command: String) {
     env: Map[String, String],
     outLogger: (String) => Unit,
     errLogger: (String) => Unit
-  )(implicit execution: Execution[S]): Future[Unit] = {
+  )(implicit execution: Execution[S]): Future[Completed] = {
     val streams = execution.streams
     streams.debug(s"Forking:")
     streams.debug(this.toString)
@@ -42,7 +42,7 @@ class LocalProcess(command: String) {
       .getOrElse(sys.error("No local execution platform configured"))
       .pool
       .run(execution, debug = this.toString) { () =>
-        val result = Promise[Unit]()
+        val result = Promise[Completed]()
         val handler = new NuAbstractProcessHandler() {
           override def onStdout(buffer: ByteBuffer, closed: Boolean) = {
             val bytes = Array.ofDim[Byte](buffer.remaining)
@@ -61,7 +61,7 @@ class LocalProcess(command: String) {
           override def onExit(statusCode: Int) =
             statusCode match {
               case 0 =>
-                result.success(())
+                result.success(Completed)
               case n =>
                 result.failure(new Exception(s"Process exited with code $n"))
             }
@@ -77,7 +77,7 @@ class LocalProcess(command: String) {
       }
   }
 
-  def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Unit] =
+  def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Completed] =
     exec0(env, _ => (), _ => ())
 
   def execAndRetrieveOutput[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[(String,String)] = {
