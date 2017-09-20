@@ -11,6 +11,7 @@ import scala.concurrent._
 import scala.concurrent.stm._
 import scala.collection.{SortedSet}
 
+import scala.util._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import io.circe._
@@ -49,12 +50,12 @@ private[cuttle] trait WaitingExecutionQueue {
     atomic { implicit txn =>
       _waiting() = _waiting() + entry
     }
-    execution.onCancelled(() => {
+    execution.onCancel(() => {
       atomic { implicit txn =>
         _waiting() = _waiting() - entry
       }
-      result.promise.tryCompleteWith(execution.cancelled)
-    })
+      result.promise.tryComplete(Failure(ExecutionCancelledException))
+    }).unsubscribeOn(result.promise.future)
     runNext()
     result.promise.future
   }

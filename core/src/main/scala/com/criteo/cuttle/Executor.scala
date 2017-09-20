@@ -71,7 +71,11 @@ private[cuttle] class ExecutionStat(
    val status : ExecutionStatus
 )
 
-private object ExecutionCancelledException extends RuntimeException("Execution cancelled")
+object ExecutionCancelledException extends RuntimeException("Execution cancelled")
+class CancellationListener private[cuttle](execution: Execution[_], private[cuttle] val thunk: () => Unit) {
+  def unsubscribe() = execution.removeCancelListener(this)
+  def unsubscribeOn[A](f: Future[A]) = f.andThen { case _ => unsubscribe() }
+}
 
 case class Execution[S <: Scheduling](
   id: String,
@@ -81,23 +85,49 @@ case class Execution[S <: Scheduling](
   platforms: Seq[ExecutionPlatform],
   executionContext: ExecutionContext
 ) {
-  private[cuttle] val cancelSignal = Promise[Nothing]
-  def isCancelled = cancelSignal.isCompleted
-  val cancelled = cancelSignal.future
   private var waitingSeconds = 0
-  var startTime: Option[Instant] = None
+  private[cuttle] var startTime: Option[Instant] = None
+  private val cancelListeners = TSet.empty[CancellationListener]
+  private val cancelled = Ref(false)
 
-  def onCancelled(thunk: () => Unit) = cancelled.andThen {
-    case Failure(_) =>
+  def isCancelled = cancelled.single()
+  def onCancel(thunk: () => Unit): CancellationListener = {
+    val listener = new CancellationListener(this, thunk)
+    val alreadyCancelled = atomic { implicit txn =>
+      if(!cancelled()) {
+        cancelListeners += listener
+        false
+      }
+      else {
+        true
+      }
+    }
+    if(alreadyCancelled) {
       thunk()
-    case Success(_) =>
-      sys.error("Panic, the cancelled future can never succeed!")
+    }
+    listener
   }
-  def cancel()(implicit user: User): Boolean =
-    if (cancelSignal.tryFailure(ExecutionCancelledException)) {
+  private[cuttle] def removeCancelListener(listener: CancellationListener): Unit = atomic { implicit txn =>
+    cancelListeners -= listener
+  }
+
+  def cancel()(implicit user: User): Boolean = {
+    val (hasBeenCancelled, listeners) = atomic { implicit txn =>
+      if(cancelled()) {
+        (false, Nil)
+      } else {
+        cancelled() = true
+        val listeners = cancelListeners.snapshot
+        cancelListeners.clear()
+        (true, listeners)
+      }
+    }
+    if(hasBeenCancelled) {
       streams.debug(s"Execution has been cancelled by user ${user.userId}.")
-      true
-    } else false
+      listeners.foreach(listener => Try(listener.thunk()))
+    }
+    hasBeenCancelled
+  }
 
   private[cuttle] def toExecutionLog(status: ExecutionStatus) =
     ExecutionLog(
@@ -141,7 +171,12 @@ case class Execution[S <: Scheduling](
     } else {
       streams.debug(s"Execution parked for $duration...")
       isWaiting.set(true)
-      utils.Timeout(duration).andThen {
+      val p = Promise[Unit]
+      p.tryCompleteWith(utils.Timeout(duration))
+      this.onCancel(() => {
+        p.tryComplete(Failure(ExecutionCancelledException))
+      }).unsubscribeOn(p.future)
+      p.future.andThen {
         case _ =>
           streams.debug(s"Resuming")
           isWaiting.set(false)
@@ -586,7 +621,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                   unsafeDoRun(execution, promise)
                 case Paused =>
                   execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
-                  execution.onCancelled { () =>
+                  execution.onCancel { () =>
                     val cancelNow = atomic { implicit tx =>
                       val isStillPaused = pausedState.get(job.id).getOrElse(Map.empty).contains(execution)
                       if (isStillPaused) {
@@ -617,7 +652,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                     }
                   }
                   timer.schedule(timerTask, java.util.Date.from(launchDate.atZone(ZoneId.systemDefault()).toInstant))
-                  execution.onCancelled {
+                  execution.onCancel {
                     () =>
                       val cancelNow = atomic { implicit tx =>
                         val failureKey = (execution.job -> execution.context)
