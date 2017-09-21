@@ -3,6 +3,7 @@ package com.criteo
 import scala.concurrent._
 import doobie.imports._
 import cats.free._
+import cuttle.logging.Logger
 
 package object cuttle {
 
@@ -12,5 +13,12 @@ package object cuttle {
   type SideEffect[S <: Scheduling] = (Execution[S]) => Future[Unit]
 
   implicit def scopedExecutionContext(implicit execution: Execution[_]) = execution.executionContext
-
+ 
+  implicit val logger = new Logger {
+    def logMe(message : => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
+      override def info(message: => String): Unit = logMe(message, "INFO")
+      override def debug(message: => String): Unit = logMe(message, "DEBUG")
+      override def warning(message: => String): Unit = ()
+      override def error(message : => String): Unit = ()
+  }
 }
