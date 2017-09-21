@@ -1,5 +1,5 @@
 let sbt = startSbt({
-  sh: 'sbt -DdevMode',
+  sh: 'sbt -DdevMode=true',
   watch: ['build.sbt']
 });
 

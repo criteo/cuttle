@@ -12,7 +12,7 @@ import Bound.{Finite, Top}
 
 class TimeSeriesSpec extends FunSuite {
   val scheduling = hourly(date"2017-03-25T02:00:00Z")
-  val job = (0 to 10).map(i => Job(i.toString, scheduling)(_ => Future.successful(())))
+  val job = (0 to 10).map(i => Job(i.toString, scheduling)(_ => Future.successful(Completed)))
   val scheduler = TimeSeriesScheduler(logger)
 
   test("next") {

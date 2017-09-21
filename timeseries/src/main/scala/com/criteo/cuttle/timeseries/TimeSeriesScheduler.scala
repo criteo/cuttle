@@ -55,7 +55,8 @@ sealed trait TimeSeriesGrid {
   }
 }
 
-sealed trait TimeSeriesGridView extends TimeSeriesGrid {
+sealed trait TimeSeriesGridView {
+  def grid: TimeSeriesGrid
   def upper(): TimeSeriesGridView
   val aggregationFactor: Int
 }
@@ -86,6 +87,11 @@ object TimeSeriesGrid {
           "period" -> "daily".asJson,
           "zoneId" -> tz.getId().asJson
         )
+      case Monthly(tz: ZoneId) =>
+        Json.obj(
+          "period" -> "monthly".asJson,
+          "zoneId" -> tz.getId().asJson
+        )
     }
   }
 }
@@ -94,23 +100,29 @@ object TimeSeriesGridView {
   def apply(grid: TimeSeriesGrid) = grid match {
     case TimeSeriesGrid.Hourly => new HourlyView(1)
     case TimeSeriesGrid.Daily(tz) => new DailyView(tz, 1)
+    case TimeSeriesGrid.Monthly(tz) => new MonthlyView(tz, 1)
   }
-  abstract class GenericView(n: Int, grid: TimeSeriesGrid, agg: Int) extends TimeSeriesGridView {
+  sealed trait GenericView extends TimeSeriesGridView {
+    def over: (Int, TimeSeriesGrid)
+    def grid = over._2
     def truncate(t: Instant) = grid.truncate(t)
-    def next(t: Instant) = (1 to n).foldLeft(grid.truncate(t))((acc, _) => grid.next(acc))
-    val aggregationFactor = agg
+    def next(t: Instant) = (1 to over._1).foldLeft(grid.truncate(t))((acc, _) => grid.next(acc))
     def upper(): TimeSeriesGridView
   }
-  case class HourlyView(agg: Int) extends GenericView(1, Hourly, agg) {
-    override def upper: TimeSeriesGridView = new DailyView(UTC, agg * 24)
+  case class HourlyView(aggregationFactor: Int) extends GenericView {
+    def over = (1, Hourly)
+    override def upper: TimeSeriesGridView = new DailyView(UTC, aggregationFactor * 24)
   }
-  case class DailyView(tz: ZoneId, agg: Int) extends GenericView(1, Daily(tz), agg) {
-    override def upper: TimeSeriesGridView = new WeeklyView(tz, agg * 7)
+  case class DailyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
+    def over = (1, Daily(tz))
+    override def upper: TimeSeriesGridView = new WeeklyView(tz, aggregationFactor * 7)
   }
-  case class WeeklyView(tz: ZoneId, agg: Int) extends GenericView(7, Daily(tz), agg) {
-    override def upper: TimeSeriesGridView = new MonthlyView(tz, agg * 4)
+  case class WeeklyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
+    def over = (7, Daily(tz))
+    override def upper: TimeSeriesGridView = new MonthlyView(tz, aggregationFactor * 4)
   }
-  case class MonthlyView(tz: ZoneId, agg: Int) extends GenericView(1, Monthly(tz), agg) {
+  case class MonthlyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
+    def over = (1, Monthly(tz))
     override def upper: TimeSeriesGridView = new MonthlyView(tz, 1)
   }
 }
@@ -438,7 +450,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 private[timeseries] object TimeSeriesUtils {
   type TimeSeriesJob = Job[TimeSeries]
   type Executable = (TimeSeriesJob, TimeSeriesContext)
-  type Run = (TimeSeriesJob, TimeSeriesContext, Future[Unit])
+  type Run = (TimeSeriesJob, TimeSeriesContext, Future[Completed])
   type State = Map[TimeSeriesJob, IntervalMap[Instant, JobState]]
 
   val UTC = ZoneId.of("UTC")
