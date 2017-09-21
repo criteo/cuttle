@@ -234,10 +234,10 @@ class Executor[S <: Scheduling] private[cuttle] (
   private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] = {
     val runningIds = runningState.single
       .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
-      .map({ case (e, _) => e.job.id -> e}).toMap
+      .map({ case (e, _) => (e.job.id, e.context) -> e}).toMap
 
     recentFailures.single
-      .flatMap({ case ((job,_),(_, failingJob)) => runningIds.get(job.id).map((_, failingJob, ExecutionRunning)) })
+      .flatMap({ case ((job,context),(_, failingJob)) => runningIds.get((job.id, context)).map((_, failingJob, ExecutionRunning)) })
       .toSeq
   }
 
@@ -245,9 +245,9 @@ class Executor[S <: Scheduling] private[cuttle] (
     atomic {implicit txn =>
       val runningIds = runningState
         .filter({ case (e, _) => filteredJobs.contains(e.job.id)})
-        .map({ case (e, _) => e.job.id }).toSet
+        .map({ case (e, _) => (e.job.id, e.context) }).toSet
 
-      recentFailures.count({ case ((job,_), _) => runningIds.contains(job.id)})
+      recentFailures.count({ case ((job,context), _) => runningIds.contains((job.id, context))})
     }
   }
 
@@ -333,7 +333,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   // Count as failing all jobs that have failed and are not running (throttledState)
   // and all jobs that have recently failed and are now running.
   private[cuttle] def failingExecutionsSize(filteredJobs: Set[String]): Int =
-    throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size + 
+    throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size +
       retryingExecutionsSize(filteredJobs)
   private[cuttle] def allFailingExecutions: Seq[Execution[S]] =
     throttledState.single.toSeq.map(_._1)
