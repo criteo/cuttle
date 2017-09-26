@@ -318,7 +318,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 val newDone = if (isDone) duration else 0L
                 (totalDuration + duration, doneDuration + newDone, isAnyStuck || isStuck)
               }
-              val completion = Math.rint((done.toDouble / total.toDouble)*10)/10
+              val completion = Math.floor((done.toDouble / total.toDouble)*10)/10
               val correctedCompletion =
                 if (completion == 0 && done != 0) 0.1
                 else completion
