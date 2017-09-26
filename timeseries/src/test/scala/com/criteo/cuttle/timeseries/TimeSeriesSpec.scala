@@ -1,7 +1,6 @@
 package com.criteo.cuttle.timeseries
 
 import com.criteo.cuttle._
-import com.criteo.cuttle.logging.default.logger
 import org.scalatest.FunSuite
 import java.time._
 import java.time.temporal.ChronoUnit._
