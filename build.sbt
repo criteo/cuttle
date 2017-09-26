@@ -20,7 +20,14 @@ lazy val commonSettings = Seq(
     "-Xfuture",
     "-Ywarn-unused",
     "-Ywarn-unused-import"
-  ),
+  ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) => Nil
+      Seq(
+        "-Ywarn-unused:-params"
+      )
+    case _ =>
+      Nil
+  }),
   devMode := Option(System.getProperty("devMode")).isDefined,
   writeClasspath := {
     val f = file(s"/tmp/classpath_${organization.value}.${name.value}")
@@ -148,7 +155,7 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "de.sciss" %% "fingertree" % "1.5.2",
         "org.scala-stm" %% "scala-stm" % "0.8",
-        "org.scala-lang" % "scala-reflect" % "2.11.9",
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.typelevel" %% "cats" % "0.9.0",
         "codes.reactive" %% "scala-time" % "0.4.1",
         "com.zaxxer" % "nuprocess" % "1.1.0"

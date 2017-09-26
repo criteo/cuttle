@@ -57,7 +57,7 @@ private[timeseries] object IntervalMap {
       val (leftOfLow, rightOfLow) = tree.span(lower(interval))
 
       val withoutLow = leftOfLow.viewRight match {
-        case ViewRightCons(_, (Interval(lo, hi), v)) if hi > interval.lo =>
+        case ViewRightCons(_, (Interval(_, hi), v)) if hi > interval.lo =>
           (Interval(interval.lo, hi) -> v) +: rightOfLow
         case _ =>
           rightOfLow
@@ -65,7 +65,7 @@ private[timeseries] object IntervalMap {
       val (leftOfHigh, rightOfHigh) = withoutLow.span(greater(interval))
 
       val newTree = rightOfHigh.viewLeft match {
-        case ViewLeftCons((Interval(lo, hi), v), _) if lo < interval.hi =>
+        case ViewLeftCons((Interval(lo, _), v), _) if lo < interval.hi =>
           leftOfHigh :+ (Interval(lo, interval.hi) -> v)
         case _ =>
           leftOfHigh

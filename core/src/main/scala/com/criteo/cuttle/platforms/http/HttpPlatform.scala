@@ -50,7 +50,7 @@ case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, Htt
             ))
       }
       rateLimiters.zipWithIndex.foldLeft(index) {
-        case (routes, ((pattern, rateLimiter), i)) =>
+        case (routes, ((_, rateLimiter), i)) =>
           routes.orElse(rateLimiter.routes(s"/api/platforms/http/rate-limiters/$i"))
       }
     }
