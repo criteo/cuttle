@@ -273,9 +273,7 @@ class Executor[S <: Scheduling] private[cuttle] (
     flagWaitingExecutions(runningState.single.keys.toSeq)
 
   private[cuttle] def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
-    runningState.single.keys
-      .filter(e => filteredJobs.contains(e.job.id))
-      .size
+    runningState.single.keys.count(e => filteredJobs.contains(e.job.id))
 
   private[cuttle] def runningExecutionsSizes(filteredJobs: Set[String]): (Int, Int) = {
     val statuses =
@@ -404,9 +402,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private[cuttle] def getExecution(queryContexts: Fragment, executionId: String): Option[ExecutionLog] =
     atomic { implicit tx =>
       val predicate = (e: Execution[S]) => e.id == executionId
-      pausedState.values
-        .map(_.keys)
-        .flatten
+      pausedState.values.flatMap(_.keys)
         .find(predicate)
         .map(_.toExecutionLog(ExecutionPaused))
         .orElse(throttledState.keys
