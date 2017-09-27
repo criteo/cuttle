@@ -13,7 +13,6 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import authentication._
-import logging._
 import ExecutionStatus._
 
 private[cuttle] object App {
@@ -136,7 +135,8 @@ private[cuttle] object App {
     }
 }
 
-private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA, logger: Logger) {
+private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA,
+                                                logger: Logger, metricRepository: MetricRepository) {
   import App._
   import project.{scheduler, workflow}
 
@@ -159,30 +159,30 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         .filter(_.nonEmpty)
         .getOrElse(workflow.vertices.map(_.id))
         .toSet
-      def getStats() =
-        Some(
-          (executor.runningExecutionsSizes(filteredJobs),
-           executor.pausedExecutionsSize(filteredJobs),
-           executor.failingExecutionsSize(filteredJobs)))
-      def asJson(x: ((Int, Int), Int, Int)) = x match {
-        case ((running, waiting), paused, failing) =>
-          Json.obj(
-            "running" -> running.asJson,
-            "waiting" -> waiting.asJson,
-            "paused" -> paused.asJson,
-            "failing" -> failing.asJson,
-            "scheduler" -> scheduler.getStats(filteredJobs)
-          )
+
+      def getStats() = Try(
+        executor.getStats(filteredJobs) -> scheduler.getStats(filteredJobs)
+      ).toOption
+
+      def asJson(x: (Map[String, Long], Map[String, Long])) = x match {
+        case (executorStats, schedulerStats) =>
+          executorStats.asJson.deepMerge(Json.obj(
+            "scheduler" -> schedulerStats.asJson
+          ))
       }
+
       events match {
         case "true" | "yes" =>
           sse(getStats, asJson)
         case _ =>
-          Ok(asJson(getStats().get))
+          getStats().map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
       }
 
     case GET at url"/api/statistics/$jobName" =>
       Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
+
+    case GET at "/api/metrics" =>
+      Ok(metricRepository.toString)
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)

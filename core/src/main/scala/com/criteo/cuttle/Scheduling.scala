@@ -5,7 +5,6 @@ import io.circe.Json
 import doobie.imports._
 import java.util.Comparator
 
-import logging._
 import authentication._
 
 trait Scheduler[S <: Scheduling] {
@@ -15,7 +14,7 @@ trait Scheduler[S <: Scheduling] {
   private[cuttle] def privateRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): AuthenticatedService =
     PartialFunction.empty
   val allContexts: Fragment
-  def getStats(jobs: Set[String]): Json
+  def getStats(jobs: Set[String]): Map[String, Long]
 }
 
 trait SchedulingContext {

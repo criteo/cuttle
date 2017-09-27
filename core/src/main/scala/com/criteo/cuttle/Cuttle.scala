@@ -2,7 +2,6 @@ package com.criteo.cuttle
 
 import lol.http._
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.criteo.cuttle.logging.Logger
 
 class CuttleProject[S <: Scheduling] private[cuttle] (
   val name: String,
@@ -19,14 +18,33 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
-  ) = {
+  ): Unit = {
     val xa = Database.connect(databaseConfig)
     val executor = new Executor[S](platforms, xa, logger = logger)(retryStrategy)
+
+    // Basic metric definitions
+    val allJobs = workflow.vertices.map(_.id)
+    metricRepository
+      .addMetric(new GenericMetric {
+        override def toString: String = {
+          val (running, waiting) = executor.runningExecutionsSizes(allJobs)
+          s"""scheduler_stat{type="running"} $running\nscheduler_stat{type="waiting"} $waiting"""
+        }
+      })
+      .addMetric(Comment("Count as failing all jobs that have failed and are not running (throttledState) " +
+        "and all jobs that have recently failed and are now running."))
+      .addMetric(Gauge("scheduler_stat_count", () => executor.pausedExecutionsSize(allJobs), Seq("type" -> "paused")))
+      .addMetric(Gauge("scheduler_stat_count", () => executor.failingExecutionsSize(allJobs), Seq("type" -> "failing")))
+      .addMetric(
+        Gauge("scheduler_stat_count", () => executor.archivedExecutionsSize(allJobs), Seq("type" -> "finished")))
+      .addMetric(Gauge("scheduler_stat_count",
+                       () => scheduler.getStats(allJobs).getOrElse("backfills", -1),
+                       Seq("type" -> "backfills")))
 
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(App(this, executor, xa, logger).routes)
+    })(App(this, executor, xa, logger, metricRepository).routes)
     logger.info(s"Listening on http://localhost:$httpPort")
     scheduler.start(workflow, executor, xa, logger)
   }
@@ -37,8 +55,10 @@ object CuttleProject {
                              version: String = "",
                              description: String = "",
                              env: (String, Boolean) = ("", false),
-                             authenticator: Authenticator = GuestAuth)
-                             (workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
+                             authenticator: Authenticator = GuestAuth)(workflow: Workflow[S])(
+    implicit scheduler: Scheduler[S],
+    logger: Logger,
+    metricRepository: MetricRepository): CuttleProject[S] =
     new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {

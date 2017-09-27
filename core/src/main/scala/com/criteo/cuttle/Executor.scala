@@ -20,7 +20,6 @@ import cats.implicits._
 import io.circe._
 
 import authentication._
-import logging._
 
 trait RetryStrategy {
   def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]): Duration
@@ -377,6 +376,20 @@ class Executor[S <: Scheduling] private[cuttle] (
                                          offset: Int,
                                          limit: Int): Seq[ExecutionLog] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa).unsafePerformIO
+
+  private[cuttle] def getStats(jobs: Set[String]): Map[String, Long] = {
+    val (running, waiting) = runningExecutionsSizes(jobs)
+    val paused = pausedExecutionsSize(jobs)
+    val failing = failingExecutionsSize(jobs)
+    val finished = archivedExecutionsSize(jobs)
+    Map(
+      "running" -> running,
+      "waiting" -> waiting,
+      "paused" -> paused,
+      "failing" -> failing,
+      "finished" -> finished
+    )
+  }
 
   private[cuttle] def pausedJobs: Seq[String] =
     pausedState.single.keys.toSeq

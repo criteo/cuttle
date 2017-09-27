@@ -2,7 +2,6 @@ package com.criteo.cuttle.timeseries
 
 import Internal._
 import com.criteo.cuttle._
-import com.criteo.cuttle.logging._
 
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
@@ -435,7 +434,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
   }
 
-  override def getStats(jobs: Set[String]) = {
+  override def getStats(jobs: Set[String]): Map[String, Long] = {
     val runningBackfills = state match {
       case (_, backfills) =>
         backfills.filter(
@@ -443,7 +442,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             bf.status == "RUNNING" &&
               bf.jobs.map(_.id).intersect(jobs).nonEmpty)
     }
-    Map("backfills" -> runningBackfills.size).asJson
+    Map("backfills" -> runningBackfills.size)
   }
 }
 
