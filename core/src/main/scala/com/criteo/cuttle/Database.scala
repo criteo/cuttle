@@ -40,7 +40,7 @@ private[cuttle] object Database {
   )
 
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
-    x => if (x != null && x) ExecutionSuccessful else ExecutionFailed,
+    x => if (x) ExecutionSuccessful else ExecutionFailed,
     x =>
       x match {
         case ExecutionSuccessful => true

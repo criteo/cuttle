@@ -40,6 +40,8 @@ sealed trait TimeSeriesGrid {
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
         go(ceil(lo), hi).grouped(maxPeriods).map(xs => (xs.head._1, xs.last._2))
+      case _ =>
+        sys.error("panic")
     }
   }
   private[timeseries] def split(interval: Interval[Instant]) = {
@@ -51,6 +53,8 @@ sealed trait TimeSeriesGrid {
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
         go(lo, hi)
+      case _ =>
+        sys.error("panic")
     }
   }
 }
@@ -274,12 +278,12 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         .queryBackfills(Some(sql"""status = 'RUNNING'"""))
         .list
         .map(_.map {
-          case (id, name, description, jobsIdsString, priority, start, end, created_at, status, created_by) =>
+          case (id, name, description, jobsIdsString, priority, start, end, _, status, createdBy) =>
             val jobsIds = jobsIdsString.split(",")
             val jobs = workflow.vertices.filter { job =>
               jobsIds.contains(job.id)
             }
-            Backfill(id, start, end, jobs, priority, name, description, status, created_by)
+            Backfill(id, start, end, jobs, priority, name, description, status, createdBy)
         })
         .transact(xa)
         .unsafePerformIO
@@ -305,12 +309,11 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         case(_,_,effect) => effect.isCompleted
       }
 
-      val now = Instant.now
       val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
         val (stateSnapshot, newBackfills, completedBackfills) =
-          collectCompletedJobs(workflow, now, _state(), _backfills(), completed)
+          collectCompletedJobs(_state(), _backfills(), completed)
 
-        val toRun = jobsToRun(workflow, stateSnapshot, now)
+        val toRun = jobsToRun(workflow, stateSnapshot, Instant.now)
 
         _state() = stateSnapshot
         _backfills() = newBackfills
@@ -371,8 +374,6 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   }
 
   private[timeseries] def collectCompletedJobs(
-    workflow : Workflow[TimeSeries],
-    now : Instant, 
     state : State,
     backfills : Set[Backfill],
     completed : Set[Run]) : (State, Set[Backfill], Set[Backfill]) = {
