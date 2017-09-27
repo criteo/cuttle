@@ -78,7 +78,7 @@ private[cuttle] trait WaitingExecutionQueue {
     }
 
     maybeToRun.foreach {
-      case entry @ (execution, DelayedResult(effect, _, promise, _, _)) =>
+      case entry @ (_, DelayedResult(effect, _, promise, _, _)) =>
         val effectResult = try {
           effect()
         } catch {

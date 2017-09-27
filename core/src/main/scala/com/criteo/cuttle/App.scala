@@ -176,7 +176,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       }
       events match {
         case "true" | "yes" =>
-          sse(getStats, asJson)
+          sse(getStats _, asJson)
         case _ =>
           Ok(asJson(getStats().get))
       }
@@ -228,7 +228,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       }
       events match {
         case "true" | "yes" =>
-          sse(getExecutions, asJson)
+          sse(getExecutions _, asJson)
         case _ =>
           getExecutions().map(e => Ok(asJson(e))).getOrElse(NotFound)
       }
@@ -237,7 +237,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       def getExecution() = executor.getExecution(scheduler.allContexts, id)
       events match {
         case "true" | "yes" =>
-          sse(getExecution, (e: ExecutionLog) => e.asJson)
+          sse(getExecution _, (e: ExecutionLog) => e.asJson)
         case _ =>
           getExecution().map(e => Ok(e.asJson)).getOrElse(NotFound)
       }
