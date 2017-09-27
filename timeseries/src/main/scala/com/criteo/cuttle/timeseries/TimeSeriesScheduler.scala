@@ -435,7 +435,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
   }
 
-  override def getStats(jobs: Set[String]): Map[String, Long] = {
+  private def getRunningBackfillsSize(jobs: Set[String]) = {
     val runningBackfills = state match {
       case (_, backfills) =>
         backfills.filter(
@@ -443,7 +443,18 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             bf.status == "RUNNING" &&
               bf.jobs.map(_.id).intersect(jobs).nonEmpty)
     }
-    Map("backfills" -> runningBackfills.size)
+
+    runningBackfills.size
+  }
+
+  override private[cuttle] def getMetrics(jobs: Set[String]): Seq[Metric] = Seq(Gauge(
+    "scheduler_stat_count",
+    getRunningBackfillsSize(jobs),
+    Seq("type" -> "backfills"))
+  )
+
+  override def getStats(jobs: Set[String]): Json = {
+    Map("backfills" -> getRunningBackfillsSize(jobs)).asJson
   }
 }
 

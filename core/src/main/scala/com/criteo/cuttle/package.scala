@@ -25,6 +25,4 @@ package object cuttle {
       override def warning(message: => String): Unit = ()
       override def error(message : => String): Unit = ()
   }
-
-  implicit val metricRepository: MetricRepository = PrometheusRepository()
 }

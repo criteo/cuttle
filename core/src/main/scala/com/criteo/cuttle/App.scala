@@ -136,9 +136,11 @@ private[cuttle] object App {
 }
 
 private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA,
-                                                logger: Logger, metricRepository: MetricRepository) {
+                                                logger: Logger) {
   import App._
   import project.{scheduler, workflow}
+
+  private def allJobs = workflow.vertices.map(_.id)
 
   val publicApi: PartialService = {
 
@@ -157,17 +159,17 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
-        .getOrElse(workflow.vertices.map(_.id))
+        .getOrElse(allJobs)
         .toSet
 
       def getStats() = Try(
         executor.getStats(filteredJobs) -> scheduler.getStats(filteredJobs)
       ).toOption
 
-      def asJson(x: (Map[String, Long], Map[String, Long])) = x match {
+      def asJson(x: (Json, Json)) = x match {
         case (executorStats, schedulerStats) =>
-          executorStats.asJson.deepMerge(Json.obj(
-            "scheduler" -> schedulerStats.asJson
+          executorStats.deepMerge(Json.obj(
+            "scheduler" -> schedulerStats
           ))
       }
 
@@ -181,8 +183,10 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at url"/api/statistics/$jobName" =>
       Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
 
-    case GET at "/api/metrics" =>
-      Ok(metricRepository.toString)
+    case GET at "/api/metrics" => {
+      val metrics = executor.getMetrics(allJobs) ++ scheduler.getMetrics(allJobs)
+      Ok(Prometheus.format(metrics))
+    }
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)
@@ -190,7 +194,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       val asc = (a.toLowerCase == "asc")
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
-        .getOrElse(workflow.vertices.map(_.id))
+        .getOrElse(allJobs)
         .toSet
       def getExecutions() = kind match {
         case "started" =>

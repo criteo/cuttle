@@ -7,14 +7,15 @@ import java.util.Comparator
 
 import authentication._
 
-trait Scheduler[S <: Scheduling] {
+trait Scheduler[S <: Scheduling] extends MetricProvider {
   def start(workflow: Workflow[S], executor: Executor[S], xa: XA, logger: Logger): Unit
   private[cuttle] def publicRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): PartialService =
     PartialFunction.empty
   private[cuttle] def privateRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): AuthenticatedService =
     PartialFunction.empty
   val allContexts: Fragment
-  def getStats(jobs: Set[String]): Map[String, Long]
+
+  def getStats(jobs: Set[String]): Json
 }
 
 trait SchedulingContext {

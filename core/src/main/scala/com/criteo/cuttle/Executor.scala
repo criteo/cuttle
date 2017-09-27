@@ -18,6 +18,7 @@ import lol.http.PartialService
 import doobie.imports._
 import cats.implicits._
 import io.circe._
+import io.circe.syntax._
 
 import authentication._
 
@@ -206,7 +207,7 @@ private[cuttle] object ExecutionPlatform {
 class Executor[S <: Scheduling] private[cuttle] (
   val platforms: Seq[ExecutionPlatform],
   xa: XA,
-  logger: Logger)(implicit retryStrategy: RetryStrategy) {
+  logger: Logger)(implicit retryStrategy: RetryStrategy) extends MetricProvider {
 
   val queries = new Queries {
     val appLogger = logger
@@ -375,7 +376,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                                          limit: Int): Seq[ExecutionLog] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa).unsafePerformIO
 
-  private[cuttle] def getStats(jobs: Set[String]): Map[String, Long] = {
+  private[cuttle] def getStats(jobs: Set[String]): Json = {
     val (running, waiting) = runningExecutionsSizes(jobs)
     val paused = pausedExecutionsSize(jobs)
     val failing = failingExecutionsSize(jobs)
@@ -386,7 +387,21 @@ class Executor[S <: Scheduling] private[cuttle] (
       "paused" -> paused,
       "failing" -> failing,
       "finished" -> finished
+    ).asJson
+  }
+
+  override private[cuttle] def getMetrics(jobs: Set[String]): Seq[Metric] = {
+    val (running, waiting) = runningExecutionsSizes(jobs)
+
+    Seq(
+      Gauge("scheduler_stat_count", running, Seq("type" -> "running")),
+      Gauge("scheduler_stat_count", waiting, Seq("type" -> "waiting")),
+      Gauge("scheduler_stat_count", pausedExecutionsSize(jobs), Seq("type" -> "paused")),
+      Gauge("scheduler_stat_count", failingExecutionsSize(jobs), Seq("type" -> "failing")),
+      Gauge("scheduler_stat_count", archivedExecutionsSize(jobs), Seq("type" -> "finished"))
     )
+    //    .addMetric(Comment("Count as failing all jobs that have failed and are not running (throttledState) " +
+    //      "and all jobs that have recently failed and are now running."))
   }
 
   private[cuttle] def pausedJobs: Seq[String] =
