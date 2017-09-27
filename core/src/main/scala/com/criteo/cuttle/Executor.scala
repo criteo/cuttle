@@ -480,7 +480,7 @@ class Executor[S <: Scheduling] private[cuttle] (
     toCancel.foreach(_.cancel())
 
     val runningFutures = atomic { implicit tx =>
-      runningState.map({ case (k, v) => v })
+      runningState.map({ case (_, v) => v })
     }
 
     Future

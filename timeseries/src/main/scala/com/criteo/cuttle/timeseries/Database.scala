@@ -128,7 +128,7 @@ private[timeseries] object Database {
     val stateJson = state.toList.map {
       case (job, im) =>
         (job.id, im.toList.filter {
-          case (interval, jobState) =>
+          case (_, jobState) =>
             jobState match {
               case Done => true
               case Todo(_) => true

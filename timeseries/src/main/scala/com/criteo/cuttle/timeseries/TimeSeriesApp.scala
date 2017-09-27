@@ -118,7 +118,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
 
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
-        sse(watchState, getExecutions)
+        sse(watchState _, getExecutions)
       else
         Ok(getExecutions())
 
@@ -211,7 +211,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                       .nonEmpty)
               if (gridView.aggregationFactor == 1)
                 jobStatesOnIntervals match {
-                  case (executionInterval, state) :: Nil =>
+                  case (_, state) :: Nil =>
                     Some(JobExecution(interval, getStatusLabelFromState(state), inBackfill))
                   case _ => None
                 } else
@@ -275,7 +275,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
 
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
-        sse(watchState, getFocusView)
+        sse(watchState _, getFocusView)
       else
         Ok(getFocusView())
 
@@ -318,7 +318,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 val newDone = if (isDone) duration else 0L
                 (totalDuration + duration, doneDuration + newDone, isAnyStuck || isStuck)
               }
-              val completion = Math.rint((done.toDouble / total.toDouble)*10)/10
+              val completion = Math.floor((done.toDouble / total.toDouble)*10)/10
               val correctedCompletion =
                 if (completion == 0 && done != 0) 0.1
                 else completion
@@ -335,7 +335,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
 
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
-        sse(watchState, getCalendar)
+        sse(watchState _, getCalendar)
       else
         Ok(getCalendar())
 
@@ -422,7 +422,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
        events match {
         case "true" | "yes" =>
-          sse(allExecutions, asTotalJson)
+          sse(allExecutions _, asTotalJson)
         case _ =>
           allExecutions().map(e => Ok(asTotalJson(e))).getOrElse(NotFound)
       }
