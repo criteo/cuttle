@@ -474,7 +474,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     val timeOfLastSuccessMetrics = getTimeOfLastSuccess(jobs).map {
       case (job, instant) =>
         Gauge("scheduler_last_success_epoch_seconds", Instant.now().getEpochSecond - instant.getEpochSecond,
-          Seq("job.id" -> job.id, "job.name" -> job.name))
+          Seq("job_id" -> job.id, "job_name" -> job.name))
     }
 
     Seq(Gauge("scheduler_stat_count", getRunningBackfillsSize(jobs), Seq("type" -> "backfills"))) ++
