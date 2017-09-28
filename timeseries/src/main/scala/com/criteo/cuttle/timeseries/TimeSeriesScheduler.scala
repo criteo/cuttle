@@ -472,7 +472,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   override private[cuttle] def getMetrics(jobs: Set[String]): Seq[Metric] = {
     val timeOfLastSuccessMetrics = getTimeOfLastSuccess(jobs).map {
       case (job, instant) =>
-        Gauge("scheduler_last_success_epoch_seconds", instant.getEpochSecond,
+        Gauge("scheduler_last_success_epoch_seconds", Instant.now().getEpochSecond - instant.getEpochSecond,
           Seq("job.id" -> job.id, "job.name" -> job.name))
     }
 
