@@ -348,11 +348,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
           (execution.job, execution.context, result)
       }
 
-      Future.firstCompletedOf(
-        utils.Timeout(ScalaDuration.create(1, "s")) :: newRunning.map(_._3).toList)
-          .andThen {
-            case _ => mainLoop(newRunning ++ stillRunning)
-          }
+      utils.Timeout(ScalaDuration.create(1, "s")).andThen {
+        case _ => mainLoop(newRunning)
+      }
     }
 
     mainLoop(Set.empty)
