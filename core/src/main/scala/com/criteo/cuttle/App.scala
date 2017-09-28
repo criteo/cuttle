@@ -183,7 +183,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at url"/api/statistics/$jobName" =>
       Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
 
-    case GET at "/api/metrics" => {
+    case GET at "/metrics" => {
       val metrics = executor.getMetrics(allJobs) ++ scheduler.getMetrics(allJobs)
       Ok(Prometheus.format(metrics))
     }

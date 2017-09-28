@@ -400,8 +400,6 @@ class Executor[S <: Scheduling] private[cuttle] (
       Gauge("scheduler_stat_count", failingExecutionsSize(jobs), Seq("type" -> "failing")),
       Gauge("scheduler_stat_count", archivedExecutionsSize(jobs), Seq("type" -> "finished"))
     )
-    //    .addMetric(Comment("Count as failing all jobs that have failed and are not running (throttledState) " +
-    //      "and all jobs that have recently failed and are now running."))
   }
 
   private[cuttle] def pausedJobs: Seq[String] =
