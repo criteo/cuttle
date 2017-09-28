@@ -448,10 +448,11 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   /**
     * We compute the last instant when job was in a valid state
     * @param jobs set of jobs to process
-    * @return Map of job to to last instant when job was in a valid state
+    * @return Iterable of job to to last instant when job was in a valid state.
+    *         Iterable is empty when job doesn't contain any "DONE" interval.
     */
   private def getTimeOfLastSuccess(jobs: Set[String]) = {
-    state._1.collect {
+    _state.single().collect {
       case (job, intervals) if jobs.contains(job.id) =>
         val intervalList = intervals.toList
         val lastValidInterval = intervalList.takeWhile {
@@ -465,8 +466,8 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             case Finite(instant) => instant
             case _ => Instant.MAX
           })
-        }.getOrElse(job -> Instant.MAX)
-    }
+        }
+    }.flatten
   }
 
   override private[cuttle] def getMetrics(jobs: Set[String]): Seq[Metric] = {
