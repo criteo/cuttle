@@ -21,6 +21,7 @@ import java.time.temporal.{ChronoUnit, TemporalAdjusters}
 import com.criteo.cuttle.timeseries.TimeSeriesGrid.{Daily, Hourly, Monthly}
 import intervals.{Bound, Interval, IntervalMap}
 import Bound.{Bottom, Finite, Top}
+import Metrics._
 
 sealed trait TimeSeriesGrid {
   def next(t: Instant): Instant
@@ -470,7 +471,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }.flatten
   }
 
-  override private[cuttle] def getMetrics(jobs: Set[String]): Seq[Metric] = {
+  override def getMetrics(jobs: Set[String]): Seq[Metric] = {
     val timeOfLastSuccessMetrics = getTimeOfLastSuccess(jobs).map {
       case (job, instant) =>
         Gauge("scheduler_last_success_epoch_seconds", Instant.now().getEpochSecond - instant.getEpochSecond,

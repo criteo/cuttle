@@ -6,6 +6,7 @@ import doobie.imports._
 import java.util.Comparator
 
 import authentication._
+import Metrics.MetricProvider
 
 trait Scheduler[S <: Scheduling] extends MetricProvider {
   def start(workflow: Workflow[S], executor: Executor[S], xa: XA, logger: Logger): Unit

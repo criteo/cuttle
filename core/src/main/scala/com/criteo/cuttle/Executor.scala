@@ -13,14 +13,15 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.duration._
-import scala.reflect.{classTag, ClassTag}
+import scala.reflect.{ClassTag, classTag}
 import lol.http.PartialService
 import doobie.imports._
 import cats.implicits._
 import io.circe._
 import io.circe.syntax._
-
 import authentication._
+
+import Metrics._
 
 trait RetryStrategy {
   def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]): Duration
@@ -390,7 +391,7 @@ class Executor[S <: Scheduling] private[cuttle] (
     ).asJson
   }
 
-  override private[cuttle] def getMetrics(jobs: Set[String]): Seq[Metric] = {
+  override def getMetrics(jobs: Set[String]): Seq[Metric] = {
     val (running, waiting) = runningExecutionsSizes(jobs)
 
     Seq(

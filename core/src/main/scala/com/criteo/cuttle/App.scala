@@ -14,6 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import authentication._
 import ExecutionStatus._
+import Metrics.Prometheus
 
 private[cuttle] object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
