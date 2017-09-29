@@ -4,7 +4,7 @@
 
 ## Development
 
-To work on the Scala API, run sbt using `sbt -DdevMode` (the devMode
+To work on the Scala API, run sbt using `sbt -DdevMode=true` (the devMode
 option allows to skip webpack execution to speed up execution). You can
 use `~compile` or `~test` on the root project or focus on a specific
 project using `~timeseries/test`.
@@ -33,15 +33,23 @@ Use `yarn format` to format the Javascript files.
 
 ### Scalafmt
 
-We use Scalafmt to enforce style.  The minimal config is found in the
+We use Scalafmt to enforce style. The minimal config is found in the
 .scalafmt.conf file (you probably won't make any friends if you change
 this).
 
-To use you can install the [IntelliJ
+Several ways to use it:
+
+1. We provide a `git-init-scalafmt-precommit-hook.sh` that **replaces you git precommit hook** by a Scalafmt check.
+
+__Note__:
+  - It works only in UNIX like systems with bash installed.
+  - You need a Scalafmt installed in your PATH in CLI mode(Scalafmt in CLI mode](http://scalameta.org/scalafmt/#CLI).
+
+2. You can install the [IntelliJ
 plugin](http://scalameta.org/scalafmt/#IntelliJ) and use the familiar
 shift-ctrl-L shortcut.
 
-You can also use the sbt plugin:
+3. You can also use the sbt plugin:
 ```
 $> sbt "scalafmt -i"
 ```
