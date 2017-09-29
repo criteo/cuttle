@@ -133,10 +133,6 @@ private[timeseries] object IntervalMap {
         m <- this.intersect(interval).toList
       } yield m): _*))
     }
-
-    def head: (Interval[A], B) = tree.head
-
-    def last: (Interval[A], B) = tree.last
   }
 
   implicit def functorFilterInstance[K: Ordering] =
@@ -166,6 +162,4 @@ private[timeseries] sealed trait IntervalMap[A, B] {
   def mapKeys[K: Ordering](f: A => K): IntervalMap[K, B]
   def whenIsDef[C](other: IntervalMap[A, C]): IntervalMap[A, B]
   def whenIsUndef[C](other: IntervalMap[A, C]): IntervalMap[A, B]
-  def head: (Interval[A], B)
-  def last: (Interval[A], B)
 }

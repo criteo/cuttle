@@ -377,10 +377,18 @@ class Executor[S <: Scheduling] private[cuttle] (
                                          limit: Int): Seq[ExecutionLog] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa).unsafePerformIO
 
+  /**
+    * Atomically get executor stats.
+    * @param jobs the list of jobs ids
+    * @return how much ((running, waiting), paused, failing) jobs are in concrete states
+    * */
+  private def getStateAtomic(jobs: Set[String]) = atomic { implicit txn =>
+    (runningExecutionsSizes(jobs), pausedExecutionsSize(jobs), failingExecutionsSize(jobs))
+  }
+
   private[cuttle] def getStats(jobs: Set[String]): Json = {
-    val (running, waiting) = runningExecutionsSizes(jobs)
-    val paused = pausedExecutionsSize(jobs)
-    val failing = failingExecutionsSize(jobs)
+    val ((running, waiting), paused, failing) = getStateAtomic(jobs)
+    // DB state call
     val finished = archivedExecutionsSize(jobs)
     Map(
       "running" -> running,
@@ -392,14 +400,13 @@ class Executor[S <: Scheduling] private[cuttle] (
   }
 
   override def getMetrics(jobs: Set[String]): Seq[Metric] = {
-    val (running, waiting) = runningExecutionsSizes(jobs)
+    val ((running, waiting), paused, failing) = getStateAtomic(jobs)
 
     Seq(
       Gauge("scheduler_stat_count", running, Seq("type" -> "running")),
       Gauge("scheduler_stat_count", waiting, Seq("type" -> "waiting")),
-      Gauge("scheduler_stat_count", pausedExecutionsSize(jobs), Seq("type" -> "paused")),
-      Gauge("scheduler_stat_count", failingExecutionsSize(jobs), Seq("type" -> "failing")),
-      Gauge("scheduler_stat_count", archivedExecutionsSize(jobs), Seq("type" -> "finished"))
+      Gauge("scheduler_stat_count", paused, Seq("type" -> "paused")),
+      Gauge("scheduler_stat_count", failing, Seq("type" -> "failing"))
     )
   }
 
