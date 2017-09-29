@@ -2,6 +2,7 @@ package com.criteo.cuttle
 
 import java.util.UUID
 import java.util.concurrent.{Executors, ThreadFactory, TimeUnit}
+import java.lang.management.ManagementFactory
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -55,4 +56,6 @@ package object utils {
       case e => service(e)
     }
   }
+
+  private[cuttle] def getJVMUptime = ManagementFactory.getRuntimeMXBean.getUptime / 1000
 }

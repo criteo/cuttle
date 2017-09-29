@@ -14,7 +14,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import authentication._
 import ExecutionStatus._
-import Metrics.Prometheus
+import Metrics.{Prometheus, Gauge}
+import utils.getJVMUptime
 
 private[cuttle] object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
@@ -184,10 +185,10 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at url"/api/statistics/$jobName" =>
       Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
 
-    case GET at "/metrics" => {
-      val metrics = executor.getMetrics(allJobs) ++ scheduler.getMetrics(allJobs)
+    case GET at "/metrics" =>
+      val metrics = executor.getMetrics(allJobs) ++ scheduler.getMetrics(allJobs) :+
+        Gauge("jvm_uptime_seconds", getJVMUptime)
       Ok(Prometheus.format(metrics))
-    }
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)

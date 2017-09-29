@@ -15,7 +15,10 @@ object Metrics {
     def format(metrics: Seq[Metric]): String = {
       val prometheusMetrics = metrics.map {
         case Gauge(name, value, tags) =>
-          s"$name {${if (tags.nonEmpty) tags.map(tag => s"""${tag._1}="${tag._2}"""").mkString(", ") else ""}} $value"
+          s"$name${
+            if (tags.nonEmpty) s" {${tags.map(tag => s"""${tag._1}="${tag._2}"""").mkString(", ")}}"
+            else ""
+          } $value"
       }
 
       s"${prometheusMetrics.mkString("\n")}\n"
