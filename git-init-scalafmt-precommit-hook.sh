@@ -15,3 +15,4 @@ fi
 echo -e "\e[0;32m Scalafmt SUCCEEDED \e[0m"
 exit 0
 ' > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
