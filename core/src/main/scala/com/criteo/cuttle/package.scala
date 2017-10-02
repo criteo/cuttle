@@ -17,12 +17,12 @@ package object cuttle {
   type SideEffect[S <: Scheduling] = (Execution[S]) => Future[Completed]
 
   implicit def scopedExecutionContext(implicit execution: Execution[_]) = execution.executionContext
- 
+
   implicit val logger = new Logger {
-    def logMe(message : => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
-      override def info(message: => String): Unit = logMe(message, "INFO")
-      override def debug(message: => String): Unit = logMe(message, "DEBUG")
-      override def warning(message: => String): Unit = ()
-      override def error(message : => String): Unit = ()
+    def logMe(message: => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
+    override def info(message: => String): Unit = logMe(message, "INFO")
+    override def debug(message: => String): Unit = logMe(message, "DEBUG")
+    override def warning(message: => String): Unit = ()
+    override def error(message: => String): Unit = ()
   }
 }

@@ -102,8 +102,8 @@ object TimeSeriesGrid {
 
 object TimeSeriesGridView {
   def apply(grid: TimeSeriesGrid) = grid match {
-    case TimeSeriesGrid.Hourly => new HourlyView(1)
-    case TimeSeriesGrid.Daily(tz) => new DailyView(tz, 1)
+    case TimeSeriesGrid.Hourly      => new HourlyView(1)
+    case TimeSeriesGrid.Daily(tz)   => new DailyView(tz, 1)
     case TimeSeriesGrid.Monthly(tz) => new MonthlyView(tz, 1)
   }
   sealed trait GenericView extends TimeSeriesGridView {
@@ -306,7 +306,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
     def mainLoop(running: Set[Run]): Unit = {
       val (completed, stillRunning) = running.partition {
-        case(_,_,effect) => effect.isCompleted
+        case (_, _, effect) => effect.isCompleted
       }
 
       val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
@@ -327,22 +327,22 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         _state() = newExecutions.foldLeft(_state()) {
           case (st, (execution, _)) =>
             st + (execution.job ->
-             st(execution.job).update(execution.context.toInterval, Running(execution.id)))
+              st(execution.job).update(execution.context.toInterval, Running(execution.id)))
         }
       }
 
       if (completed.nonEmpty || toRun.nonEmpty)
-        runOrLogAndDie(
-          Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO,
-          "TimeseriesScheduler, cannot serialize state, shutting down")
+        runOrLogAndDie(Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO,
+                       "TimeseriesScheduler, cannot serialize state, shutting down")
 
       if (completedBackfills.nonEmpty)
         runOrLogAndDie(
-	        Database
+          Database
             .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
             .transact(xa)
             .unsafePerformIO,
-          "TimeseriesScheduler, cannot serialize state, shutting down")
+          "TimeseriesScheduler, cannot serialize state, shutting down"
+        )
 
       val newRunning = stillRunning ++ newExecutions.map {
         case (execution, result) =>
@@ -373,35 +373,31 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
   }
 
-  private[timeseries] def collectCompletedJobs(
-    state : State,
-    backfills : Set[Backfill],
-    completed : Set[Run]) : (State, Set[Backfill], Set[Backfill]) = {
+  private[timeseries] def collectCompletedJobs(state: State,
+                                               backfills: Set[Backfill],
+                                               completed: Set[Run]): (State, Set[Backfill], Set[Backfill]) = {
 
-      // update state with job statuses
-      val newState = completed.foldLeft(state) {
-        case (acc, (job, context, future)) =>
-          val jobState = if (future.value.get.isSuccess) Done else Todo(context.backfill)
-          acc + (job ->(acc(job).update(context.toInterval, jobState)))
-      }
+    // update state with job statuses
+    val newState = completed.foldLeft(state) {
+      case (acc, (job, context, future)) =>
+        val jobState = if (future.value.get.isSuccess) Done else Todo(context.backfill)
+        acc + (job -> (acc(job).update(context.toInterval, jobState)))
+    }
 
-      val notCompletedBackfills = backfills.filter { bf =>
-        val itvl = Interval(bf.start, bf.end)
-        bf.jobs.exists(job => newState(job).intersect(itvl).toList.exists(_._2 != Done))
-      }
+    val notCompletedBackfills = backfills.filter { bf =>
+      val itvl = Interval(bf.start, bf.end)
+      bf.jobs.exists(job => newState(job).intersect(itvl).toList.exists(_._2 != Done))
+    }
 
-      (newState, notCompletedBackfills, backfills -- notCompletedBackfills)
+    (newState, notCompletedBackfills, backfills -- notCompletedBackfills)
   }
 
-  private[timeseries] def jobsToRun(
-    workflow: Workflow[TimeSeries], 
-    state0: State, 
-    now: Instant): List[Executable] = {
+  private[timeseries] def jobsToRun(workflow: Workflow[TimeSeries], state0: State, now: Instant): List[Executable] = {
 
     val timerInterval = Interval(Bottom, Finite(now))
     val state = state0.mapValues(_.intersect(timerInterval))
 
-    val parentsMap = workflow.edges.groupBy { case (child, _, _) => child }
+    val parentsMap = workflow.edges.groupBy { case (child, _, _)   => child }
     val childrenMap = workflow.edges.groupBy { case (_, parent, _) => parent }
 
     workflow.vertices.toList.flatMap { job =>
@@ -452,39 +448,42 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     * @return Iterable of job to to last instant when job was in a valid state.
     *         Iterable is empty when job doesn't contain any "DONE" interval.
     */
-  private def getTimeOfLastSuccess(jobs: Set[String]) = {
-    _state.single().collect {
-      case (job, intervals) if jobs.contains(job.id) =>
-        val intervalList = intervals.toList
-        val lastValidInterval = intervalList.takeWhile {
-          case (_, Running(_)) => false
-          case (_, Todo(None)) => false
-          case _ => true
-        }.lastOption
+  private def getTimeOfLastSuccess(jobs: Set[String]) =
+    _state
+      .single()
+      .collect {
+        case (job, intervals) if jobs.contains(job.id) =>
+          val intervalList = intervals.toList
+          val lastValidInterval = intervalList.takeWhile {
+            case (_, Running(_)) => false
+            case (_, Todo(None)) => false
+            case _               => true
+          }.lastOption
 
-        lastValidInterval.map {
-          case (interval, _) => job -> (interval.hi match {
-            case Finite(instant) => instant
-            case _ => Instant.MAX
-          })
-        }
-    }.flatten
-  }
+          lastValidInterval.map {
+            case (interval, _) =>
+              job -> (interval.hi match {
+                case Finite(instant) => instant
+                case _               => Instant.MAX
+              })
+          }
+      }
+      .flatten
 
   override def getMetrics(jobs: Set[String]): Seq[Metric] = {
     val timeOfLastSuccessMetrics = getTimeOfLastSuccess(jobs).map {
       case (job, instant) =>
-        Gauge("scheduler_last_success_epoch_seconds", Instant.now().getEpochSecond - instant.getEpochSecond,
-          Seq("job_id" -> job.id, "job_name" -> job.name))
+        Gauge("scheduler_last_success_epoch_seconds",
+              Instant.now().getEpochSecond - instant.getEpochSecond,
+              Seq("job_id" -> job.id, "job_name" -> job.name))
     }
 
     Seq(Gauge("scheduler_stat_count", getRunningBackfillsSize(jobs), Seq("type" -> "backfills"))) ++
       timeOfLastSuccessMetrics
   }
 
-  override def getStats(jobs: Set[String]): Json = {
+  override def getStats(jobs: Set[String]): Json =
     Map("backfills" -> getRunningBackfillsSize(jobs)).asJson
-  }
 }
 
 private[timeseries] object TimeSeriesUtils {

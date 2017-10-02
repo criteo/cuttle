@@ -44,12 +44,12 @@ private[timeseries] object IntervalMap {
     def toList = tree.toList
 
     def lower(interval: Interval[A]): (Option[Interval[A]] => Boolean) = {
-      case None => true
+      case None                  => true
       case Some(Interval(lo, _)) => lo < interval.lo
     }
 
     def greater(interval: Interval[A]): Option[Interval[A]] => Boolean = {
-      case None => true
+      case None                  => true
       case Some(Interval(_, hi)) => hi <= interval.hi
     }
 

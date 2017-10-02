@@ -9,18 +9,16 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 import lol.http.{PartialService, Service}
 
-
 package object utils {
 
   object Timeout {
-    private val scheduler = Executors.newScheduledThreadPool(1,
-      new ThreadFactory() {
-        def newThread(r: Runnable): Thread = {
-          val t = Executors.defaultThreadFactory.newThread(r)
-          t.setDaemon(true)
-          t
-        }
-      })
+    private val scheduler = Executors.newScheduledThreadPool(1, new ThreadFactory() {
+      def newThread(r: Runnable): Thread = {
+        val t = Executors.defaultThreadFactory.newThread(r)
+        t.setDaemon(true)
+        t
+      }
+    })
 
     def apply(timeout: Duration): Future[Unit] = {
       val p = Promise[Unit]()
@@ -34,9 +32,8 @@ package object utils {
   }
 
   private[cuttle] object ExecuteAfter {
-    def apply[T](delay: Duration)(block: => Future[T])(implicit executionContext: ExecutionContext) = {
+    def apply[T](delay: Duration)(block: => Future[T])(implicit executionContext: ExecutionContext) =
       Timeout(delay).flatMap(_ => block)(executionContext)
-    }
   }
 
   private[cuttle] val never = Promise[Nothing]().future

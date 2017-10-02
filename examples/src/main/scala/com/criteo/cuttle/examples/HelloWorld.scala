@@ -46,8 +46,7 @@ object HelloWorld {
               && !new java.io.File("/tmp/hello3_success").exists) {
             e.streams.error("Oops, please create the /tmp/hello3_success file to make this execution pass...")
             sys.error("Oops!!!")
-          }
-          else {
+          } else {
             Completed
           }
         }

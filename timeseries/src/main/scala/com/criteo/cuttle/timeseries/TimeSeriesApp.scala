@@ -28,8 +28,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   private implicit val intervalEncoder = new Encoder[Interval[Instant]] {
     implicit val boundEncoder = new Encoder[Bound[Instant]] {
       override def apply(bound: Bound[Instant]) = bound match {
-        case Bottom => "-oo".asJson
-        case Top => "+oo".asJson
+        case Bottom    => "-oo".asJson
+        case Top       => "+oo".asJson
         case Finite(t) => t.asJson
       }
     }
@@ -162,8 +162,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           job: TimeSeriesJob,
           period: Interval[Instant],
           gridView: TimeSeriesGridView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
-          gridView
-            .grid
+          gridView.grid
             .split(period)
             .map { interval =>
               {
@@ -174,7 +173,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   .sortBy(_._1.lo)
                 currentlyAggregatedPeriod match {
                   case Nil => None
-                  case _ => Some((Interval(start, end), currentlyAggregatedPeriod))
+                  case _   => Some((Interval(start, end), currentlyAggregatedPeriod))
                 }
               }
             }
@@ -189,7 +188,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 "waiting"
               else "running"
             case Todo(_) => "todo"
-            case Done => "successful"
+            case Done    => "successful"
           }
 
         val jobTimelines =
@@ -225,10 +224,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                        acc._3 || jobStatus == "failed")
                     })
                     Some(
-                      AggregatedJobExecution(interval,
-                                             f"${done.toDouble / duration.toDouble}%2.2f",
-                                             error,
-                                             inBackfill))
+                      AggregatedJobExecution(interval, f"${done.toDouble / duration.toDouble}%2.2f", error, inBackfill))
                   }
                   case Nil => None
                 }
@@ -253,7 +249,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   val (lo, hi) = interval.toPair
                   (lo.until(hi, SECONDS), if (jobState == Done) lo.until(hi, SECONDS) else 0, jobState match {
                     case Running(e) => allFailing.exists(_.id == e)
-                    case _ => false
+                    case _          => false
                   })
                 }
                 if (jobSummaries.nonEmpty) {
@@ -305,7 +301,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         } yield
           (Daily(UTC).truncate(start), start.until(end, SECONDS), jobState == Done, jobState match {
             case Running(exec) => executor.allFailingExecutions.exists(_.id == exec)
-            case _ => false
+            case _             => false
           }))
           .groupBy(_._1)
           .toList
@@ -318,7 +314,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 val newDone = if (isDone) duration else 0L
                 (totalDuration + duration, doneDuration + newDone, isAnyStuck || isStuck)
               }
-              val completion = Math.floor((done.toDouble / total.toDouble)*10)/10
+              val completion = Math.floor((done.toDouble / total.toDouble) * 10) / 10
               val correctedCompletion =
                 if (completion == 0 && done != 0) 0.1
                 else completion
@@ -366,14 +362,14 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       val backfills = Database.getBackfillById(id).transact(xa).unsafePerformIO
       events match {
         case "true" | "yes" => sse(() => backfills, (b: Json) => b)
-        case _ => Ok(backfills.asJson)
+        case _              => Ok(backfills.asJson)
       }
     case GET at url"/api/timeseries/backfills/$backfillId/executions?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
       val asc = (a.toLowerCase == "asc")
       def asTotalJson(x: (Int, Double, Seq[ExecutionLog])) = x match {
-        case (total, completion , executions) =>
+        case (total, completion, executions) =>
           Json.obj(
             "total" -> total.asJson,
             "offset" -> offset.asJson,
@@ -386,21 +382,20 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
       val ordering = {
         val columnOrdering = sort match {
-          case "job" => Ordering.by((_: ExecutionLog).job)
+          case "job"       => Ordering.by((_: ExecutionLog).job)
           case "startTime" => Ordering.by((_: ExecutionLog).startTime)
-          case "status" =>  Ordering.by((_: ExecutionLog).status.toString)
-          case _ => Ordering.by((_: ExecutionLog).id)
+          case "status"    => Ordering.by((_: ExecutionLog).status.toString)
+          case _           => Ordering.by((_: ExecutionLog).id)
         }
         if (asc) {
           columnOrdering
-        }
-        else {
+        } else {
           columnOrdering.reverse
         }
       }
-      def allExecutions() : Option[(Int, Double, Seq[ExecutionLog])] = {
+      def allExecutions(): Option[(Int, Double, Seq[ExecutionLog])] = {
         val archived =
-        Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
+          Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
 
         val runningExecutions = executor.runningExecutions
           .filter(t => {
@@ -414,13 +409,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val executions = (runningExecutions ++ archivedNotRunning)
         val completion = {
           executions.size match {
-            case 0 => 0
-            case total => (total- runningExecutions.size).toDouble / total
+            case 0     => 0
+            case total => (total - runningExecutions.size).toDouble / total
           }
         }
         Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit)))
       }
-       events match {
+      events match {
         case "true" | "yes" =>
           sse(allExecutions _, asTotalJson)
         case _ =>
@@ -433,30 +428,32 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                              executor: Executor[TimeSeries],
                                              xa: XA): AuthenticatedService = {
 
-    case req @ POST at url"/api/timeseries/backfill" => implicit user  =>
-      req.readAs[Json].map(
-        _.as[BackfillCreate]
-          .fold(
-            _ => BadRequest("cannot parse request body"),
-            backfill => {
-              val jobIds = backfill.jobs.split(",")
-              val jobs = workflow.vertices
-                .filter((job: TimeSeriesJob) => jobIds.contains(job.id))
+    case req @ POST at url"/api/timeseries/backfill" =>
+      implicit user =>
+        req
+          .readAs[Json]
+          .map(
+            _.as[BackfillCreate]
+              .fold(
+                _ => BadRequest("cannot parse request body"),
+                backfill => {
+                  val jobIds = backfill.jobs.split(",")
+                  val jobs = workflow.vertices
+                    .filter((job: TimeSeriesJob) => jobIds.contains(job.id))
 
-              if (backfillJob(
-                backfill.name,
-                backfill.description,
-                jobs,
-                backfill.startDate,
-                backfill.endDate,
-                backfill.priority,
-                xa)) {
-                Ok("ok".asJson)
-              }
-              else {
-                BadRequest("invalid backfill")
-              }
-            })
-        )
+                  if (backfillJob(backfill.name,
+                                  backfill.description,
+                                  jobs,
+                                  backfill.startDate,
+                                  backfill.endDate,
+                                  backfill.priority,
+                                  xa)) {
+                    Ok("ok".asJson)
+                  } else {
+                    BadRequest("invalid backfill")
+                  }
+                }
+              )
+          )
   }
 }
