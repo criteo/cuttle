@@ -21,7 +21,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused",
     "-Ywarn-unused-import"
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) => Nil
+    case Some((2, 12)) =>
+      Nil
       Seq(
         "-Ywarn-unused:-params"
       )
@@ -119,7 +120,7 @@ def removeDependencies(groups: String*)(xml: scala.xml.Node) = {
   (new RuleTransformer(
     new RewriteRule {
       override def transform(n: Node): Seq[Node] = n match {
-        case dependency @ Elem(_, "dependency", _, _, _ *) =>
+        case dependency @ Elem(_, "dependency", _, _, _*) =>
           if (dependency.child.collect { case e: Elem => e }.headOption.exists { e =>
                 groups.exists(group => e.toString == s"<groupId>$group</groupId>")
               }) Nil

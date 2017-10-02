@@ -130,9 +130,9 @@ private[timeseries] object Database {
         (job.id, im.toList.filter {
           case (_, jobState) =>
             jobState match {
-              case Done => true
+              case Done    => true
               case Todo(_) => true
-              case _ => false
+              case _       => false
             }
         })
     }.asJson
@@ -149,11 +149,12 @@ private[timeseries] object Database {
       .query[(String, String, String, String, Int, Instant, Instant, Instant, String, String)]
   }
 
-  def getBackfillById(id : String) : ConnectionIO[Option[Json]] = {
+  def getBackfillById(id: String): ConnectionIO[Option[Json]] = {
     val select =
       sql"""SELECT id, name, description, jobs, priority, start, end, created_at, status, created_by
             FROM timeseries_backfills WHERE id=$id"""
-    select.query[(String, String, String, String, Int, Instant, Instant, Instant, String, String)]
+    select
+      .query[(String, String, String, String, Int, Instant, Instant, Instant, String, String)]
       .option
       .map(_.map {
         case (id, name, description, jobs, priority, start, end, created_at, status, created_by) =>
@@ -172,20 +173,21 @@ private[timeseries] object Database {
       })
   }
 
-  def getExecutionLogsForBackfill(id : String) : ConnectionIO[Seq[ExecutionLog]] =
-      sql"""
+  def getExecutionLogsForBackfill(id: String): ConnectionIO[Seq[ExecutionLog]] =
+    sql"""
         SELECT e.id, job, start_time, end_time, c.json AS context, success, e.waiting_seconds
           FROM executions e
         JOIN timeseries_contexts c
           ON  c.id = e.context_id
         WHERE c.backfill_id=$id
         ORDER BY c.id DESC
-        """.query[(String, String, Instant, Instant, Json, ExecutionStatus, Int)]
-        .list
-        .map(_.map {
-          case (id, job, startTime, endTime, context, status, waitingSeconds) =>
-            ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
-        })
+        """
+      .query[(String, String, Instant, Instant, Json, ExecutionStatus, Int)]
+      .list
+      .map(_.map {
+        case (id, job, startTime, endTime, context, status, waitingSeconds) =>
+          ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
+      })
 
   def createBackfill(backfill: Backfill) =
     sql"""INSERT INTO timeseries_backfills (id, name, description, jobs, priority, start, end, created_at, status, created_by)

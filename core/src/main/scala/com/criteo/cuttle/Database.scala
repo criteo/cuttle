@@ -44,8 +44,8 @@ private[cuttle] object Database {
     x =>
       x match {
         case ExecutionSuccessful => true
-        case ExecutionFailed => false
-        case x => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
+        case ExecutionFailed     => false
+        case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
     }
   )
 
@@ -88,20 +88,17 @@ private[cuttle] object Database {
 
     // Try to insert our lock at bootstrap
     (for {
-      locks <-
-        sql"""
+      locks <- sql"""
           SELECT locked_by, locked_at FROM locks WHERE TIMESTAMPDIFF(MINUTE, locked_at, NOW()) < 5;
-        """.query[(String,Instant)].list
-      _ <-
-        if(locks.isEmpty) {
-          sql"""
+        """.query[(String, Instant)].list
+      _ <- if (locks.isEmpty) {
+        sql"""
             DELETE FROM locks;
             INSERT INTO locks VALUES (${guid}, NOW());
           """.update.run
-        }
-        else {
-          sys.error(s"Database already locked: ${locks.head}")
-        }
+      } else {
+        sys.error(s"Database already locked: ${locks.head}")
+      }
     } yield ()).transact(xa).unsafePerformIO
 
     // Remove lock on shutdown
@@ -113,18 +110,22 @@ private[cuttle] object Database {
     })
 
     // Refresh our lock every minute (and check that we still are the lock owner)
-    Executors.newScheduledThreadPool(1).scheduleAtFixedRate(new Runnable {
-      def run = {
-        if(
-          (sql"""
+    Executors
+      .newScheduledThreadPool(1)
+      .scheduleAtFixedRate(
+        new Runnable {
+          def run =
+            if ((sql"""
             UPDATE locks SET locked_at = NOW() WHERE locked_by = ${guid}
-          """.update.run.transact(xa).unsafePerformIO: Int) != 1
-        ) {
-          xa.shutdown.unsafePerformIO
-          sys.error(s"Lock has been lost, shutting down the database connection.")
-        }
-      }
-    }, 1, 1, TimeUnit.MINUTES)
+          """.update.run.transact(xa).unsafePerformIO: Int) != 1) {
+              xa.shutdown.unsafePerformIO
+              sys.error(s"Lock has been lost, shutting down the database connection.")
+            }
+        },
+        1,
+        1,
+        TimeUnit.MINUTES
+      )
 
     // We can now use the transactor safely
     xa
@@ -158,24 +159,25 @@ private[cuttle] object Database {
       }
     } yield ())
 
-  private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig,XA]
-  def connect(c: DatabaseConfig): XA = {
-    connections.getOrElseUpdate(c, {
-      val xa = (for {
-        hikari <- HikariTransactor[IOLite](
-          "com.mysql.cj.jdbc.Driver",
-          s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
-          c.username,
-          c.password
-        )
-        _ <- hikari.configure { datasource =>
-          IOLite.primitive( /* Configure datasource if needed */ ())
-        }
-      } yield hikari).unsafePerformIO
-      doSchemaUpdates.transact(xa).unsafePerformIO
-      lockedTransactor(xa)
-    })
-  }
+  private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
+  def connect(c: DatabaseConfig): XA =
+    connections.getOrElseUpdate(
+      c, {
+        val xa = (for {
+          hikari <- HikariTransactor[IOLite](
+            "com.mysql.cj.jdbc.Driver",
+            s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
+            c.username,
+            c.password
+          )
+          _ <- hikari.configure { datasource =>
+            IOLite.primitive( /* Configure datasource if needed */ ())
+          }
+        } yield hikari).unsafePerformIO
+        doSchemaUpdates.transact(xa).unsafePerformIO
+        lockedTransactor(xa)
+      }
+    )
 }
 
 private[cuttle] trait Queries {
@@ -203,16 +205,16 @@ private[cuttle] trait Queries {
                       offset: Int,
                       limit: Int): ConnectionIO[List[ExecutionLog]] = {
     val orderBy = (sort, asc) match {
-      case ("context", true) => sql"ORDER BY context_id ASC, job, id"
-      case ("context", false) => sql"ORDER BY context_id DESC, job, id"
-      case ("job", true) => sql"ORDER BY job ASC, context_id, id"
-      case ("job", false) => sql"ORDER BY job DESC, context_id, id"
-      case ("status", true) => sql"ORDER BY success ASC, context_id, job, id"
-      case ("status", false) => sql"ORDER BY success DESC, context_id, job, id"
-      case ("startTime", true) => sql"ORDER BY start_time ASC, id"
+      case ("context", true)    => sql"ORDER BY context_id ASC, job, id"
+      case ("context", false)   => sql"ORDER BY context_id DESC, job, id"
+      case ("job", true)        => sql"ORDER BY job ASC, context_id, id"
+      case ("job", false)       => sql"ORDER BY job DESC, context_id, id"
+      case ("status", true)     => sql"ORDER BY success ASC, context_id, job, id"
+      case ("status", false)    => sql"ORDER BY success DESC, context_id, job, id"
+      case ("startTime", true)  => sql"ORDER BY start_time ASC, id"
       case ("startTime", false) => sql"ORDER BY start_time DESC, id"
-      case (_, true) => sql"ORDER BY end_time ASC, id"
-      case _ => sql"ORDER BY end_time DESC, id"
+      case (_, true)            => sql"ORDER BY end_time ASC, id"
+      case _                    => sql"ORDER BY end_time DESC, id"
     }
     (sql"""
       SELECT executions.id, job, start_time, end_time, contexts.json AS context, success, executions.waiting_seconds
@@ -266,7 +268,7 @@ private[cuttle] trait Queries {
       .query[String]
       .option
 
-  def jobStatsForLastThirtyDays(jobId : String) : ConnectionIO[List[ExecutionStat]] = {
+  def jobStatsForLastThirtyDays(jobId: String): ConnectionIO[List[ExecutionStat]] =
     sql"""
          select
              start_time,
@@ -276,17 +278,16 @@ private[cuttle] trait Queries {
              success
          from executions
          where job=$jobId and end_time > DATE_SUB(CURDATE(), INTERVAL 30 DAY) order by start_time asc, end_time asc
-       """.query[(Instant, Instant, Int, Int, ExecutionStatus)]
-          .list
-          .map(_.map {
-            case (startTime, endTime, durationSeconds, waitingSeconds, status) =>
-              new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)
-          })
-  }
+       """
+      .query[(Instant, Instant, Int, Int, ExecutionStatus)]
+      .list
+      .map(_.map {
+        case (startTime, endTime, durationSeconds, waitingSeconds, status) =>
+          new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)
+      })
 
-  val healthCheck : ConnectionIO[Boolean] =
-      sql"""select 1 from dual"""
-        .query[Boolean]
-        .unique
+  val healthCheck: ConnectionIO[Boolean] =
+    sql"""select 1 from dual"""
+      .query[Boolean]
+      .unique
 }
-
