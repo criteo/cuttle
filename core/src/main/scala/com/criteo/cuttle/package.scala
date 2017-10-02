@@ -3,7 +3,6 @@ package com.criteo
 import scala.concurrent._
 import doobie.imports._
 import cats.free._
-import cuttle.logging.Logger
 
 package cuttle {
   sealed trait Completed

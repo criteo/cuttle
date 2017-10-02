@@ -2,7 +2,6 @@ package com.criteo.cuttle
 
 import lol.http._
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.criteo.cuttle.logging.Logger
 
 class CuttleProject[S <: Scheduling] private[cuttle] (
   val name: String,
@@ -19,7 +18,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
-  ) = {
+  ): Unit = {
     val xa = Database.connect(databaseConfig)
     val executor = new Executor[S](platforms, xa, logger = logger)(retryStrategy)
 
@@ -37,8 +36,8 @@ object CuttleProject {
                              version: String = "",
                              description: String = "",
                              env: (String, Boolean) = ("", false),
-                             authenticator: Authenticator = GuestAuth)
-                             (workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
+                             authenticator: Authenticator = GuestAuth)(
+    workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
     new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {

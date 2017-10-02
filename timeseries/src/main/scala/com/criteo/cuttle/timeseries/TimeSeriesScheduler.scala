@@ -2,7 +2,6 @@ package com.criteo.cuttle.timeseries
 
 import Internal._
 import com.criteo.cuttle._
-import com.criteo.cuttle.logging._
 
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
@@ -22,6 +21,7 @@ import java.time.temporal.{ChronoUnit, TemporalAdjusters}
 import com.criteo.cuttle.timeseries.TimeSeriesGrid.{Daily, Hourly, Monthly}
 import intervals.{Bound, Interval, IntervalMap}
 import Bound.{Bottom, Finite, Top}
+import Metrics._
 
 sealed trait TimeSeriesGrid {
   def next(t: Instant): Instant
@@ -434,7 +434,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
   }
 
-  override def getStats(jobs: Set[String]) = {
+  private def getRunningBackfillsSize(jobs: Set[String]) = {
     val runningBackfills = state match {
       case (_, backfills) =>
         backfills.filter(
@@ -442,7 +442,48 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             bf.status == "RUNNING" &&
               bf.jobs.map(_.id).intersect(jobs).nonEmpty)
     }
-    Map("backfills" -> runningBackfills.size).asJson
+
+    runningBackfills.size
+  }
+
+  /**
+    * We compute the last instant when job was in a valid state
+    * @param jobs set of jobs to process
+    * @return Iterable of job to to last instant when job was in a valid state.
+    *         Iterable is empty when job doesn't contain any "DONE" interval.
+    */
+  private def getTimeOfLastSuccess(jobs: Set[String]) = {
+    _state.single().collect {
+      case (job, intervals) if jobs.contains(job.id) =>
+        val intervalList = intervals.toList
+        val lastValidInterval = intervalList.takeWhile {
+          case (_, Running(_)) => false
+          case (_, Todo(None)) => false
+          case _ => true
+        }.lastOption
+
+        lastValidInterval.map {
+          case (interval, _) => job -> (interval.hi match {
+            case Finite(instant) => instant
+            case _ => Instant.MAX
+          })
+        }
+    }.flatten
+  }
+
+  override def getMetrics(jobs: Set[String]): Seq[Metric] = {
+    val timeOfLastSuccessMetrics = getTimeOfLastSuccess(jobs).map {
+      case (job, instant) =>
+        Gauge("scheduler_last_success_epoch_seconds", Instant.now().getEpochSecond - instant.getEpochSecond,
+          Seq("job_id" -> job.id, "job_name" -> job.name))
+    }
+
+    Seq(Gauge("scheduler_stat_count", getRunningBackfillsSize(jobs), Seq("type" -> "backfills"))) ++
+      timeOfLastSuccessMetrics
+  }
+
+  override def getStats(jobs: Set[String]): Json = {
+    Map("backfills" -> getRunningBackfillsSize(jobs)).asJson
   }
 }
 

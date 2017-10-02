@@ -13,14 +13,15 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.duration._
-import scala.reflect.{classTag, ClassTag}
+import scala.reflect.{ClassTag, classTag}
 import lol.http.PartialService
 import doobie.imports._
 import cats.implicits._
 import io.circe._
-
+import io.circe.syntax._
 import authentication._
-import logging._
+
+import Metrics._
 
 trait RetryStrategy {
   def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]): Duration
@@ -207,7 +208,7 @@ private[cuttle] object ExecutionPlatform {
 class Executor[S <: Scheduling] private[cuttle] (
   val platforms: Seq[ExecutionPlatform],
   xa: XA,
-  logger: Logger)(implicit retryStrategy: RetryStrategy) {
+  logger: Logger)(implicit retryStrategy: RetryStrategy) extends MetricProvider {
 
   val queries = new Queries {
     val appLogger = logger
@@ -274,9 +275,7 @@ class Executor[S <: Scheduling] private[cuttle] (
     flagWaitingExecutions(runningState.single.keys.toSeq)
 
   private[cuttle] def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
-    runningState.single.keys
-      .filter(e => filteredJobs.contains(e.job.id))
-      .size
+    runningState.single.keys.count(e => filteredJobs.contains(e.job.id))
 
   private[cuttle] def runningExecutionsSizes(filteredJobs: Set[String]): (Int, Int) = {
     val statuses =
@@ -378,6 +377,39 @@ class Executor[S <: Scheduling] private[cuttle] (
                                          limit: Int): Seq[ExecutionLog] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa).unsafePerformIO
 
+  /**
+    * Atomically get executor stats.
+    * @param jobs the list of jobs ids
+    * @return how much ((running, waiting), paused, failing) jobs are in concrete states
+    * */
+  private def getStateAtomic(jobs: Set[String]) = atomic { implicit txn =>
+    (runningExecutionsSizes(jobs), pausedExecutionsSize(jobs), failingExecutionsSize(jobs))
+  }
+
+  private[cuttle] def getStats(jobs: Set[String]): Json = {
+    val ((running, waiting), paused, failing) = getStateAtomic(jobs)
+    // DB state call
+    val finished = archivedExecutionsSize(jobs)
+    Map(
+      "running" -> running,
+      "waiting" -> waiting,
+      "paused" -> paused,
+      "failing" -> failing,
+      "finished" -> finished
+    ).asJson
+  }
+
+  override def getMetrics(jobs: Set[String]): Seq[Metric] = {
+    val ((running, waiting), paused, failing) = getStateAtomic(jobs)
+
+    Seq(
+      Gauge("scheduler_stat_count", running, Seq("type" -> "running")),
+      Gauge("scheduler_stat_count", waiting, Seq("type" -> "waiting")),
+      Gauge("scheduler_stat_count", paused, Seq("type" -> "paused")),
+      Gauge("scheduler_stat_count", failing, Seq("type" -> "failing"))
+    )
+  }
+
   private[cuttle] def pausedJobs: Seq[String] =
     pausedState.single.keys.toSeq
 
@@ -391,9 +423,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private[cuttle] def getExecution(queryContexts: Fragment, executionId: String): Option[ExecutionLog] =
     atomic { implicit tx =>
       val predicate = (e: Execution[S]) => e.id == executionId
-      pausedState.values
-        .map(_.keys)
-        .flatten
+      pausedState.values.flatMap(_.keys)
         .find(predicate)
         .map(_.toExecutionLog(ExecutionPaused))
         .orElse(throttledState.keys

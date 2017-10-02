@@ -13,8 +13,9 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import authentication._
-import logging._
 import ExecutionStatus._
+import Metrics.{Prometheus, Gauge}
+import utils.getJVMUptime
 
 private[cuttle] object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
@@ -136,9 +137,12 @@ private[cuttle] object App {
     }
 }
 
-private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA, logger: Logger) {
+private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA,
+                                                logger: Logger) {
   import App._
   import project.{scheduler, workflow}
+
+  private def allJobs = workflow.vertices.map(_.id)
 
   val publicApi: PartialService = {
 
@@ -157,32 +161,34 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
-        .getOrElse(workflow.vertices.map(_.id))
+        .getOrElse(allJobs)
         .toSet
-      def getStats() =
-        Some(
-          (executor.runningExecutionsSizes(filteredJobs),
-           executor.pausedExecutionsSize(filteredJobs),
-           executor.failingExecutionsSize(filteredJobs)))
-      def asJson(x: ((Int, Int), Int, Int)) = x match {
-        case ((running, waiting), paused, failing) =>
-          Json.obj(
-            "running" -> running.asJson,
-            "waiting" -> waiting.asJson,
-            "paused" -> paused.asJson,
-            "failing" -> failing.asJson,
-            "scheduler" -> scheduler.getStats(filteredJobs)
-          )
+
+      def getStats() = Try(
+        executor.getStats(filteredJobs) -> scheduler.getStats(filteredJobs)
+      ).toOption
+
+      def asJson(x: (Json, Json)) = x match {
+        case (executorStats, schedulerStats) =>
+          executorStats.deepMerge(Json.obj(
+            "scheduler" -> schedulerStats
+          ))
       }
+
       events match {
         case "true" | "yes" =>
           sse(getStats _, asJson)
         case _ =>
-          Ok(asJson(getStats().get))
+          getStats().map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
       }
 
     case GET at url"/api/statistics/$jobName" =>
       Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
+
+    case GET at "/metrics" =>
+      val metrics = executor.getMetrics(allJobs) ++ scheduler.getMetrics(allJobs) :+
+        Gauge("jvm_uptime_seconds", getJVMUptime)
+      Ok(Prometheus.format(metrics))
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
       val limit = Try(l.toInt).toOption.getOrElse(25)
@@ -190,7 +196,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       val asc = (a.toLowerCase == "asc")
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
-        .getOrElse(workflow.vertices.map(_.id))
+        .getOrElse(allJobs)
         .toSet
       def getExecutions() = kind match {
         case "started" =>

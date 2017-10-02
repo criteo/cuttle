@@ -5,16 +5,17 @@ import io.circe.Json
 import doobie.imports._
 import java.util.Comparator
 
-import logging._
 import authentication._
+import Metrics.MetricProvider
 
-trait Scheduler[S <: Scheduling] {
+trait Scheduler[S <: Scheduling] extends MetricProvider {
   def start(workflow: Workflow[S], executor: Executor[S], xa: XA, logger: Logger): Unit
   private[cuttle] def publicRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): PartialService =
     PartialFunction.empty
   private[cuttle] def privateRoutes(workflow: Workflow[S], executor: Executor[S], xa: XA): AuthenticatedService =
     PartialFunction.empty
   val allContexts: Fragment
+
   def getStats(jobs: Set[String]): Json
 }
 

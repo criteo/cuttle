@@ -1,4 +1,4 @@
-package com.criteo.cuttle.logging
+package com.criteo.cuttle
 
 trait Logger {
   def debug(message: => String): Unit
