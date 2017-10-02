@@ -43,7 +43,7 @@ Several ways to use it:
 
 __Note__:
   - It works only in UNIX like systems with bash installed.
-  - You need a Scalafmt installed in your PATH in CLI mode(Scalafmt in CLI mode](http://scalameta.org/scalafmt/#CLI).
+  - [You need a Scalafmt installed in your PATH in CLI mode](http://scalameta.org/scalafmt/#CLI).
 
 2. You can install the [IntelliJ
 plugin](http://scalameta.org/scalafmt/#IntelliJ) and use the familiar
