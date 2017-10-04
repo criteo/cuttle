@@ -12,7 +12,7 @@ import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import authentication._
+import Auth._
 import ExecutionStatus._
 import Metrics.{Prometheus, Gauge}
 import utils.getJVMUptime

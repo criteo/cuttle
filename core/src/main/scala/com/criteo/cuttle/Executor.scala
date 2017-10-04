@@ -19,16 +19,40 @@ import doobie.imports._
 import cats.implicits._
 import io.circe._
 import io.circe.syntax._
-import authentication._
 
+import Auth._
 import Metrics._
 
+/** The strategy to use to retry stuck executions.
+  *
+  * When an [[Execution]] fails, the [[Executor]] keeps a track of this failrue in a list of
+  * recently failed [[Execution Executions]].
+  *
+  * If the [[Scheduler]] asks for the same [[Execution]] (same here is defined as an execution for the same
+  * [[Job]] and the same [[SchedulingContext]]) during the `retryWindow` defined by this strategy, it will be
+  * considered by the [[Executor]] as a __stuck__ execution and delayed for the duration computed by the
+  * configured [[RetryStrategy]].
+  */
 trait RetryStrategy {
+  /** Compute the duration this stuck execution should be delayed by. During this time the execution will
+    * appear in the __stuck__ screen and the [[SideEffect]] function won't be called.
+    *
+    * @param job The job for which the execution is stuck.
+    * @param context The [[SchedulingContext]] for which the execution is stuck.
+    * @param previouslyFailing The previous failure for the same (job,context).
+    * @return The duration this execution should be delayed by.
+    */
   def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]): Duration
+
+  /** The retry window considere by this strategy. */
   def retryWindow: Duration
 }
 
+/** Built-in [[RetryStrategy]] */
 object RetryStrategy {
+
+  /** Exponential backoff strategy. First retry will be delayed for 5 minutes, second one by 10 minutes,
+    * next one by 20 minutes, ..., n one by 5 minutes *  2^(n-1). */
   implicit def ExponentialBackoffRetryStrategy = new RetryStrategy {
     def apply[S <: Scheduling](job: Job[S], ctx: S#Context, previouslyFailing: List[String]) =
       retryWindow.multipliedBy(math.pow(2, previouslyFailing.size - 1).toLong)
@@ -72,12 +96,37 @@ private[cuttle] class ExecutionStat(
    val status : ExecutionStatus
 )
 
-object ExecutionCancelledException extends RuntimeException("Execution cancelled")
+/**
+  * Used to fail an execution Future when the execution has been cancelled.
+  */
+object ExecutionCancelled extends RuntimeException("Execution cancelled")
+
+/**
+  * Allows to unsubscribe a cancel listener. It is sometimes useful for long running executions to dettach
+  * the cancel listener to not leak any memory.
+  */
 class CancellationListener private[cuttle](execution: Execution[_], private[cuttle] val thunk: () => Unit) {
+  /**
+    * Detach the cancellation listener. The previously attached listener won't be notified anymore in case
+    * of execution cancel.
+    */
   def unsubscribe() = execution.removeCancelListener(this)
+  /**
+    * Detach the cancellation listener as soon as the specified future is completed (either with a success
+    * or a failure).
+    */
   def unsubscribeOn[A](f: Future[A]) = f.andThen { case _ => unsubscribe() }
 }
 
+/** [[Execution Executions]] are created by the [[Scheduler]].
+  *
+  * @param id The unique id for this execution. Guaranteed to be unique.
+  * @param job The [[Job]] for which this execution has been created.
+  * @param context The [[SchedulingContext]] for which this execution has been created.
+  * @param streams The execution streams are scoped stdout, stderr for the execution.
+  * @param platforms The available [[ExecutionPlatform ExecutionPlatforms]] for this execution.
+  * @param executionContext The scoped `scala.concurrent.ExecutionContext` for this execution.
+  */
 case class Execution[S <: Scheduling](
   id: String,
   job: Job[S],
@@ -91,7 +140,14 @@ case class Execution[S <: Scheduling](
   private val cancelListeners = TSet.empty[CancellationListener]
   private val cancelled = Ref(false)
 
+  /** Returns `true` if this [[Execution]] has been cancelled. */
   def isCancelled = cancelled.single()
+
+  /** Attach a [[CancellationListener]] that will be called id this [[Execution]]
+    * is cancelled.
+    *
+    * @param thunk The callback function to be called.
+    */
   def onCancel(thunk: () => Unit): CancellationListener = {
     val listener = new CancellationListener(this, thunk)
     val alreadyCancelled = atomic { implicit txn =>
@@ -112,6 +168,13 @@ case class Execution[S <: Scheduling](
     cancelListeners -= listener
   }
 
+  /** Cancels this [[Execution]]. Note that cancelling an execution does not forcibly stop the [[SideEffect]] function
+    * if it has already started. It will just call the [[CancellationListener]] so the user code can gracefully shutdown
+    * if it handles cancellation properly. Note that the provided [[ExecutionPlatform ExecutionPlatforms]] handle cancellation properly, so
+    * for [[SideEffect]] that use the provided platforms they support cancellation out of the box.
+    *
+    * @param user The user who asked for the cancellation (either from the UI or the private API).
+    */
   def cancel()(implicit user: User): Boolean = {
     val (hasBeenCancelled, listeners) = atomic { implicit txn =>
       if(cancelled()) {
@@ -146,6 +209,12 @@ case class Execution[S <: Scheduling](
 
   private[cuttle] val isWaiting = new AtomicBoolean(false)
 
+  /** Synchronize a code block over a lock. If several [[SideEffect]] functions need to race
+    * for a shared thread unsafe resource, they can use this helper function to ensure that only
+    * one code block with run at once. Think about it as an asynchronous `synchronized` helper.
+    *
+    * While waiting for the lock, the [[Execution]] will be seen as __WAITING__ in the UI and the API.
+    */
   def synchronize[A,B](lock: A)(thunk: => Future[B]): Future[B] = {
     if (isWaiting.get) {
       sys.error(s"Already waiting")
@@ -166,6 +235,11 @@ case class Execution[S <: Scheduling](
     }
   }
 
+  /** Park this execution for the provided duration. After the duration
+    * the returned `Future` will complete allowing the [[SideEffect]] to resume.
+    *
+    * During this time, the [[Execution]] will be seen as __WAITING__ in the UI and the API.
+    */
   def park(duration: FiniteDuration): Future[Unit] =
     if (isWaiting.get) {
       sys.error(s"Already waiting")
@@ -175,7 +249,7 @@ case class Execution[S <: Scheduling](
       val p = Promise[Unit]
       p.tryCompleteWith(utils.Timeout(duration))
       this.onCancel(() => {
-        p.tryComplete(Failure(ExecutionCancelledException))
+        p.tryComplete(Failure(ExecutionCancelled))
       }).unsubscribeOn(p.future)
       p.future.andThen {
         case _ =>
@@ -185,17 +259,25 @@ case class Execution[S <: Scheduling](
     }
 }
 
-object Execution {
+private[cuttle] object Execution {
   private val locks = TMap.empty[Any,ExecutionPool]
-  private[cuttle] implicit val ordering: Ordering[Execution[_]] =
+  implicit val ordering: Ordering[Execution[_]] =
     Ordering.by(e => (e.context: SchedulingContext, e.job.id, e.id))
-  private[cuttle] implicit def ordering0[S <: Scheduling]: Ordering[Execution[S]] =
+  implicit def ordering0[S <: Scheduling]: Ordering[Execution[S]] =
     ordering.asInstanceOf[Ordering[Execution[S]]]
 }
 
+/** An [[ExecutionPlatform]] provides controlled access to shared resources. */
 trait ExecutionPlatform {
+
+  /** Expose a public `lolhttp` service for the platform internal statistics (for the UI and API). */
   def publicRoutes: PartialService = PartialFunction.empty
+
+  /** Expose a private `lolhttp` service for the platform operations (for the UI and API). */
   def privateRoutes: AuthenticatedService = PartialFunction.empty
+
+  /** @return the list of [[Execution]] waiting for resources on this platform.
+    * These executions will be seen as __WAITING__ in the UI and the API. */
   def waiting: Set[Execution[_]]
 }
 
@@ -205,12 +287,14 @@ private[cuttle] object ExecutionPlatform {
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
+/** An [[Executor]] is responsible to actually execute the [[SideEffect]] functions for the
+  * given [[Execution Executions]]. */
 class Executor[S <: Scheduling] private[cuttle] (
   val platforms: Seq[ExecutionPlatform],
   xa: XA,
   logger: Logger)(implicit retryStrategy: RetryStrategy) extends MetricProvider {
 
-  val queries = new Queries {
+  private val queries = new Queries {
     val appLogger = logger
   }
 
@@ -227,6 +311,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   private val runningState = TMap.empty[Execution[S], Future[Completed]]
   private val throttledState = TMap.empty[Execution[S], (Promise[Completed], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
+
   // signals whether the instance is shutting down
   private val isShuttingDown: Ref[Boolean] = Ref(false)
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
@@ -480,15 +565,6 @@ class Executor[S <: Scheduling] private[cuttle] (
     }
   }
 
-  /**
-    * Cancels all executions.
-    * A hard shutdown will be performed anyway if after the
-    * timeout cancelled executions still have not terminated.
-    *
-    * @param timeout the timeout after which a hard shutdown
-    *        should be performed
-    * @param user the user performing the action
-    */
   private[cuttle] def gracefulShutdown(timeout: scala.concurrent.duration.Duration)(implicit user: User): Unit = {
 
     import utils._
@@ -565,11 +641,20 @@ class Executor[S <: Scheduling] private[cuttle] (
             }
         })
 
-  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] =
-    run0(all.sortBy(_._2))
-
+  /** Run the [[SideEffect]] function of the provided [[Job]] for the given [[SchedulingContext]].
+    *
+    * @param job The [[Job]] to run (actually its [[SideEffect]] function)
+    * @param context The [[SchedulingContext]] (input of the [[SideEffect]] function)
+    * @return The created [[Execution]] along with the `Future` tracking the execution status. */
   def run(job: Job[S], context: S#Context): (Execution[S], Future[Completed]) =
     run0(Seq(job -> context)).head
+
+  /** Run the [[SideEffect]] function of the provided ([[Job Jobs]], [[SchedulingContext SchedulingContexts]]).
+    *
+    * @param all The [[Job Jobs]] and [[SchedulingContext SchedulingContexts]] to run.
+    * @return The created [[Execution Executions]] along with their `Future` tracking the execution status. */
+  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] =
+    run0(all.sortBy(_._2))
 
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
@@ -662,7 +747,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                         false
                       }
                     }
-                    if (cancelNow) promise.tryFailure(ExecutionCancelledException)
+                    if (cancelNow) promise.tryFailure(ExecutionCancelled)
                   }
                 case Throttled(launchDate) =>
                   execution.streams.debug(s"Delayed until ${launchDate} because previous execution failed")
@@ -698,7 +783,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                           false
                         }
                       }
-                      if (cancelNow) promise.tryFailure(ExecutionCancelledException)
+                      if (cancelNow) promise.tryFailure(ExecutionCancelled)
                   }
 
               }

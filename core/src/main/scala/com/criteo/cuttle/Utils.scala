@@ -9,9 +9,12 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 import lol.http.{PartialService, Service}
 
-
+/** A set of basic utilities useful to write workflows. */
 package object utils {
 
+  /** Creates a  [[scala.concurrent.Future Future]] that resolve automatically
+    * after the given duration.
+    */
   object Timeout {
     private val scheduler = Executors.newScheduledThreadPool(1,
       new ThreadFactory() {
@@ -22,6 +25,11 @@ package object utils {
         }
       })
 
+  /** Creates a  [[scala.concurrent.Future]] that resolve automatically
+    * after the given duration.
+    *
+    * @param duration Duration for the timeout.
+    */
     def apply(timeout: Duration): Future[Unit] = {
       val p = Promise[Unit]()
       scheduler.schedule(
