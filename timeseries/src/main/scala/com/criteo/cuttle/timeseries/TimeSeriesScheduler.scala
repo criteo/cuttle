@@ -472,16 +472,15 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   }
 
   override def getMetrics(jobs: Set[String]): Seq[Metric] = {
-    val timeOfLastSuccessGauge = Gauge("timeseries_scheduler_last_success_epoch_seconds",
-      "The seconds since a last job's success")
 
-    getTimeOfLastSuccess(jobs).foreach {
-      case (job, instant) => timeOfLastSuccessGauge.labeled(
+    val timeOfLastSuccessGauge = getTimeOfLastSuccess(jobs).foldLeft(
+      Gauge("cuttle_timeseries_scheduler_last_success_epoch_seconds", "The seconds since a last job's success")) {
+      case (gauge, (job,instant)) => gauge.labeled(
           Set("job_id" -> job.id, "job_name" -> job.name), Instant.now().getEpochSecond - instant.getEpochSecond)
     }
 
     Seq(
-      Gauge("timeseries_scheduler_stat_count", "The number of backfills")
+      Gauge("cuttle_timeseries_scheduler_stat_count", "The number of backfills")
         .labeled("type" -> "backfills",getRunningBackfillsSize(jobs)),
       timeOfLastSuccessGauge
     )

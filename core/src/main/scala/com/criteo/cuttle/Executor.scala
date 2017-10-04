@@ -402,7 +402,7 @@ class Executor[S <: Scheduling] private[cuttle] (
   override def getMetrics(jobs: Set[String]): Seq[Metric] = {
     val ((running, waiting), paused, failing) = getStateAtomic(jobs)
 
-    Seq(Gauge("scheduler_stat_count", "The number of jobs that we have in concrete states")
+    Seq(Gauge("cuttle_scheduler_stat_count", "The number of jobs that we have in concrete states")
       .labeled("type" -> "running", running)
       .labeled("type" -> "waiting", waiting)
       .labeled("type" -> "paused", paused)

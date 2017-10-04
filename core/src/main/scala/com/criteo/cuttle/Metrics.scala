@@ -1,7 +1,5 @@
 package com.criteo.cuttle
 
-import scala.collection.mutable.{ Map => MMap }
-
 object Metrics {
 
   object MetricType extends Enumeration {
@@ -15,31 +13,23 @@ object Metrics {
     val name: String
     val help: String
     val metricType: MetricType
-    val labels2Value: MMap[Set[(String, String)], AnyVal]
+    val labels2Value: Map[Set[(String, String)], AnyVal]
 
     def isDefined: Boolean = labels2Value.nonEmpty
   }
 
-  case class Gauge(name: String, help: String = "") extends Metric {
+  case class Gauge(name: String, help: String = "", labels2Value: Map[Set[(String, String)], AnyVal] = Map.empty)
+    extends Metric {
 
     override val metricType: MetricType = gauge
-    override val labels2Value: MMap[Set[(String, String)], AnyVal] = MMap.empty
 
-    def labeled(labels: Set[(String, String)], value: AnyVal): Gauge = {
-      labels2Value += labels -> value
-      this
-    }
+    def labeled(labels: Set[(String, String)], value: AnyVal): Gauge =
+      copy(labels2Value = labels2Value + (labels -> value))
 
-    def labeled(label: (String, String), value: AnyVal): Gauge = {
-      labels2Value += Set(label) -> value
-      this
-    }
+    def labeled(label: (String, String), value: AnyVal): Gauge =
+      copy(labels2Value = labels2Value + (Set(label) -> value))
 
-    def set(value: AnyVal): Gauge = {
-      labels2Value += Set.empty[(String, String)] -> value
-      this
-    }
-
+    def set(value: AnyVal): Gauge = copy(labels2Value = labels2Value + (Set.empty[(String, String)] -> value))
   }
 
   trait MetricProvider {
