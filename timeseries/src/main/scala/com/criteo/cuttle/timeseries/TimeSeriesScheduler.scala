@@ -468,18 +468,22 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             case _ => Instant.MAX
           })
         }
-    }.flatten
+    }.flatten.toSeq
   }
 
   override def getMetrics(jobs: Set[String]): Seq[Metric] = {
-    val timeOfLastSuccessMetrics = getTimeOfLastSuccess(jobs).map {
-      case (job, instant) =>
-        Gauge("scheduler_last_success_epoch_seconds", Instant.now().getEpochSecond - instant.getEpochSecond,
-          Seq("job_id" -> job.id, "job_name" -> job.name))
+
+    val timeOfLastSuccessGauge = getTimeOfLastSuccess(jobs).foldLeft(
+      Gauge("cuttle_timeseries_scheduler_last_success_epoch_seconds", "The seconds since a last job's success")) {
+      case (gauge, (job,instant)) => gauge.labeled(
+          Set("job_id" -> job.id, "job_name" -> job.name), Instant.now().getEpochSecond - instant.getEpochSecond)
     }
 
-    Seq(Gauge("scheduler_stat_count", getRunningBackfillsSize(jobs), Seq("type" -> "backfills"))) ++
-      timeOfLastSuccessMetrics
+    Seq(
+      Gauge("cuttle_timeseries_scheduler_stat_count", "The number of backfills")
+        .labeled("type" -> "backfills",getRunningBackfillsSize(jobs)),
+      timeOfLastSuccessGauge
+    )
   }
 
   override def getStats(jobs: Set[String]): Json = {
