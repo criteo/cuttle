@@ -123,6 +123,13 @@ lazy val commonSettings = Seq(
         <organization>Criteo</organization>
         <organizationUrl>http://www.criteo.com</organizationUrl>
       </developer>
+      <developer>
+        <name>Jean-Baptiste Catté</name>
+        <email>jb.catte@criteo.com</email>
+        <url>https://github.com/jbkt</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
     </developers>
   },
   // Useful to run flakey tests
