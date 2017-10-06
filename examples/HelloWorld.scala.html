@@ -286,7 +286,7 @@ a cuttle project.</p></p></div>
             
               <section class="">
                 <div class="comment "><p>The local platform allows to locally fork some processes
-(here we will just fork bash commands).</p></p></div>
+(<em>here we will just fork bash commands</em>).</p></p></div>
                 <div class="code "><span class="keyword">import</span> <span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/platforms/index.html" data-tooltip="<span>com.criteo.cuttle.platforms</span>">platforms</a></span>.<span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/platforms/local/index.html" data-tooltip="<span>com.criteo.cuttle.platforms.local</span>">local</a></span>._
 &nbsp;</div>
               </section>
@@ -316,7 +316,7 @@ time series scheduler.</p></p></div>
               <section class="">
                 <div class="comment "><p>We define a common start date for all our jobs. This is required by the
 time series scheduler to define a start date for each job. Here we dynaically
-compute it as 7 days ago (and we round it at midnight UTC).</p></p></div>
+compute it as 7 days ago (<em>and we round it to midnight UTC</em>).</p></p></div>
                 <div class="code ">    <span class="keyword">val</span> <span class="identifier">start</span>: <span class="identifier">Instant</span> = <span class="identifier">LocalDate</span>.<span class="identifier">now</span>.<span class="identifier">minusDays</span>(<span class="number">7</span>).<span class="identifier">atStartOfDay</span>.<span class="identifier">toInstant</span>(<span class="identifier">UTC</span>)
 &nbsp;</div>
               </section>
@@ -331,7 +331,7 @@ date declared before.</p></p></div>
             
               <section class="">
                 <div class="comment "><p>The side effect function takes the execution as parameter. The execution
-contains useful meta data as well as the <em>context</em> which is basically the
+contains useful meta data as well as the <strong>context</strong> which is basically the
 input data for our execution.</p></p></div>
                 <div class="code ">        <span class="keyword">implicit</span> <span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/Execution.html" data-tooltip="<span>com.criteo.cuttle.Execution[com.criteo.cuttle.timeseries.TimeSeries]</span>">e</a></span> =>
 &nbsp;</div>
@@ -350,7 +350,7 @@ and end date.</p></p></div>
 declare a bash script to execute.</p></p></div>
                 <div class="code ">        <span class="string">sh</span>"""<span class="string">
           echo "Hello for $</span>{<span class="identifier">partitionToCompute</span>}<span class="string">"
-          echo check my project page https://github.com/criteo/cuttle
+          echo "Check my project page at https://github.com/criteo/cuttle"
           sleep 1
         """</span>.<span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/platforms/local/LocalProcess.html#exec[S<:com.criteo.cuttle.Scheduling](env:Map[String,String])(implicitexecution:com.criteo.cuttle.Execution[S])scala.concurrent.Future[com.criteo.cuttle.Completed]" data-tooltip="<span>com.criteo.cuttle.platforms.local.LocalProcess.exec[S <: com.criteo.cuttle.Scheduling](env: Map[String,String])(implicit execution: com.criteo.cuttle.Execution[S]): scala.concurrent.Future[com.criteo.cuttle.Completed]</span>">exec</a></span>()
       }
@@ -385,7 +385,7 @@ name and a set of tags. These informations are used in the UI to help retrieving
               </section>
             
               <section class="">
-                <div class="comment "><p>We generate an artifical failure if the partition is for 2 days ago 00 to 01
+                <div class="comment "><p>We generate an artifical failure if the partition is for 2 days ago between 00 and 01
 and if the <code>/tmp/hello3_success</code> file does not exist.</p></p></div>
                 <div class="code ">          <span class="keyword">if</span> (<span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/Execution.html" data-tooltip="<span>com.criteo.cuttle.Execution[com.criteo.cuttle.timeseries.TimeSeries]</span>">e</a></span>.<span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/Execution.html#context=>S#Context" data-tooltip="<span>com.criteo.cuttle.Execution.context: S#Context</span>">context</a></span>.<span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/timeseries/TimeSeriesContext.html#start=>java.time.Instant" data-tooltip="<span>com.criteo.cuttle.timeseries.TimeSeriesContext.start: java.time.Instant</span>">start</a></span> <span class="identifier">==</span> <span class="identifier">LocalDate</span>.<span class="identifier">now</span>.<span class="identifier">minusDays</span>(<span class="number">2</span>).<span class="identifier">atStartOfDay</span>.<span class="identifier">toInstant</span>(<span class="identifier">UTC</span>)
               <span class="identifier">&&</span> <span class="identifier">!</span><span class="keyword">new</span> <span class="identifier">java</span>.<span class="identifier">io</span>.<span class="identifier">File</span>(<span class="string">"/tmp/hello3_success"</span>).<span class="identifier">exists</span>) {
@@ -405,7 +405,7 @@ a failed Future.</p></p></div>
               <section class="">
                 <div class="comment "><p>The completed value is returned to cuttle to announce the job execution as
 successful. In this case the time series scheduler will mark the partition as
-successful for job <strong>hello3</strong> and store that information in his internal state.</p></p></div>
+successful for job <strong>hello3</strong> and store this information in his internal state.</p></p></div>
                 <div class="code ">            <span class="identifier"><a target="doc" href="https://criteo.github.io/cuttle/api//com/criteo/cuttle/Completed$.html" data-tooltip="<span>com.criteo.cuttle.Completed</span>">Completed</a></span>
           }
         }
