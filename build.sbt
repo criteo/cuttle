@@ -21,7 +21,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused",
     "-Ywarn-unused-import"
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) => Nil
+    case Some((2, 12)) =>
+      Nil
       Seq(
         "-Ywarn-unused:-params"
       )
@@ -81,7 +82,7 @@ lazy val commonSettings = Seq(
         <organizationUrl>http://www.criteo.com</organizationUrl>
       </developer>
       <developer>
-        <name>Justin coffey</name>
+        <name>Justin Coffey</name>
         <email>j.coffey@criteo.com</email>
         <url>https://github.com/jqcoffey</url>
         <organization>Criteo</organization>
@@ -116,13 +117,6 @@ lazy val commonSettings = Seq(
         <organizationUrl>http://www.criteo.com</organizationUrl>
       </developer>
       <developer>
-        <name>Justin Coffey</name>
-        <email>j.coffey@criteo.com</email>
-        <url>https://github.com/jqcoffey</url>
-        <organization>Criteo</organization>
-        <organizationUrl>http://www.criteo.com</organizationUrl>
-      </developer>
-      <developer>
         <name>Jean-Philippe Lam Yee Mui</name>
         <email>jp.lamyeemui@criteo.com</email>
         <url>https://github.com/Masuzu</url>
@@ -147,7 +141,7 @@ def removeDependencies(groups: String*)(xml: scala.xml.Node) = {
   (new RuleTransformer(
     new RewriteRule {
       override def transform(n: Node): Seq[Node] = n match {
-        case dependency @ Elem(_, "dependency", _, _, _ *) =>
+        case dependency @ Elem(_, "dependency", _, _, _*) =>
           if (dependency.child.collect { case e: Elem => e }.headOption.exists { e =>
                 groups.exists(group => e.toString == s"<groupId>$group</groupId>")
               }) Nil
