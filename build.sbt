@@ -101,6 +101,34 @@ lazy val commonSettings = Seq(
         <organization>Criteo</organization>
         <organizationUrl>http://www.criteo.com</organizationUrl>
       </developer>
+      <developer>
+        <name>Arnaud Dufranne</name>
+        <email>a.dufranne@criteo.com</email>
+        <url>https://github.com/dufrannea</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+      <developer>
+        <name>Alexey Eryshev</name>
+        <email>a.eryshev@criteo.com</email>
+        <url>https://github.com/eryshev</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+      <developer>
+        <name>Justin Coffey</name>
+        <email>j.coffey@criteo.com</email>
+        <url>https://github.com/jqcoffey</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
+      <developer>
+        <name>Jean-Philippe Lam Yee Mui</name>
+        <email>jp.lamyeemui@criteo.com</email>
+        <url>https://github.com/Masuzu</url>
+        <organization>Criteo</organization>
+        <organizationUrl>http://www.criteo.com</organizationUrl>
+      </developer>
     </developers>
   },
   // Useful to run flakey tests
