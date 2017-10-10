@@ -30,51 +30,39 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
   test("it should validate empty workflow") {
     val workflow = Workflow.empty[TimeSeries]
 
-    assume(workflow.isInstanceOf[Workflow[TimeSeries]], "workflow is not timeseries workflow")
-    val typedWorkflow = workflow.asInstanceOf[Workflow[TimeSeries]]
-    assert(TimeSeriesUtils.validate(typedWorkflow).isRight, "workflow is not valid")
+    assert(TimeSeriesUtils.validate(workflow).isRight, "workflow is not valid")
   }
 
   test("it should validate unit workflow") {
     val workflow = job(0)
 
-    assume(workflow.isInstanceOf[Workflow[TimeSeries]], "workflow is not timeseries workflow")
-    val typedWorkflow = workflow.asInstanceOf[Workflow[TimeSeries]]
-    assert(TimeSeriesUtils.validate(typedWorkflow).isRight, "workflow is not valid")
+    assert(TimeSeriesUtils.validate(workflow).isRight, "workflow is not valid")
   }
 
   test("it should validate workflow without cycles and valid start dates") {
     val workflow = job(0) dependsOn job(1) dependsOn job(2)
 
-    assume(workflow.isInstanceOf[Workflow[TimeSeries]], "workflow is not timeseries workflow")
-    val typedWorkflow = workflow.asInstanceOf[Workflow[TimeSeries]]
-    assert(TimeSeriesUtils.validate(typedWorkflow).isRight, "workflow is not valid")
+    assert(TimeSeriesUtils.validate(workflow).isRight, "workflow is not valid")
   }
 
   test("it shouldn't validate cyclic workflow") {
     val workflow = job(0) dependsOn job(1) dependsOn job(2) dependsOn job(0)
 
-    assume(workflow.isInstanceOf[Workflow[TimeSeries]], "workflow is not timeseries workflow")
-    val typedWorkflow = workflow.asInstanceOf[Workflow[TimeSeries]]
-    assert(TimeSeriesUtils.validate(typedWorkflow).isLeft, "workflow passed a validation of cycle presence")
+    assert(TimeSeriesUtils.validate(workflow).isLeft, "workflow passed a validation of cycle presence")
   }
 
   test("it should validate workflow with correct start dates") {
     val oldJob = Job("badJob", hourly(date"2016-03-25T02:00:00Z"))(completed)
     val workflow = job(0) dependsOn oldJob
 
-    assume(workflow.isInstanceOf[Workflow[TimeSeries]], "workflow is not timeseries workflow")
-    val typedWorkflow = workflow.asInstanceOf[Workflow[TimeSeries]]
-    assert(TimeSeriesUtils.validate(typedWorkflow).isRight, "workflow didn't pass start date validation")
+    assert(TimeSeriesUtils.validate(workflow).isRight, "workflow didn't pass start date validation")
   }
 
   test("it shouldn't validate workflow with incorrect start dates of jobs") {
     val badJob = Job("badJob", hourly(date"2117-03-25T02:00:00Z"))(completed)
     val workflow = job(0) dependsOn (job(1) and job(2)) dependsOn badJob
 
-    assume(workflow.isInstanceOf[Workflow[TimeSeries]], "workflow is not timeseries workflow")
-    val typedWorkflow = workflow.asInstanceOf[Workflow[TimeSeries]]
-    val validationRes = TimeSeriesUtils.validate(typedWorkflow)
+    val validationRes = TimeSeriesUtils.validate(workflow)
     assert(validationRes.isLeft, "workflow passed start date validation")
     assert(
       validationRes.left.get === List(
@@ -89,9 +77,7 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     val badJob = Job("badJob", hourly(date"2117-03-25T02:00:00Z"))(completed)
     val workflow = job(0) dependsOn badJob dependsOn job(1) dependsOn badJob
 
-    assume(workflow.isInstanceOf[Workflow[TimeSeries]], "workflow is not timeseries workflow")
-    val typedWorkflow = workflow.asInstanceOf[Workflow[TimeSeries]]
-    val validationRes = TimeSeriesUtils.validate(typedWorkflow)
+    val validationRes = TimeSeriesUtils.validate(workflow)
     assert(validationRes.isLeft, "workflow passed start date validation")
     assert(validationRes.left.get === List("workflow has at least one cycle"), "errors messages are bad")
   }

@@ -42,7 +42,7 @@ trait Workflow[S <: Scheduling] {
     }
   }
 
-  private[cuttle] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _) => v1 != v })
+  private[cuttle] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _)  => v1 != v })
   private[cuttle] lazy val leaves = vertices.filter(v => edges.forall { case (_, v2, _) => v2 != v })
 
   def dependsOn(rightWorkflow: Workflow[S])(implicit dependencyDescriptor: S#DependencyDescriptor): Workflow[S] =
@@ -63,7 +63,7 @@ trait Workflow[S <: Scheduling] {
 }
 
 object Workflow {
-  def empty[S <: Scheduling] = new Workflow[S] {
+  def empty[S <: Scheduling]: Workflow[S] = new Workflow[S] {
     def vertices = Set.empty
     def edges = Set.empty
   }
