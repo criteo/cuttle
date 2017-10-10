@@ -1,13 +1,13 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.1.18"
+val VERSION = "0.2"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
   scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.11.11", "2.12.2"),
+  crossScalaVersions := Seq("2.11.11", "2.12.3"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
@@ -244,6 +244,16 @@ lazy val examples =
       fork in Test := true,
       connectInput in Test := true
     )
+    .settings(
+      Option(System.getProperty("generateExamples")).map(_ => Seq(
+        autoCompilerPlugins := true,
+        addCompilerPlugin("com.criteo.socco" %% "socco-plugin" % "0.1.7"),
+        scalacOptions := Seq(
+          "-P:socco:out:examples/target/html",
+          "-P:socco:package_com.criteo.cuttle:https://criteo.github.io/cuttle/api/"
+        )
+      )).getOrElse(Nil): _*
+    )
     .dependsOn(cuttle, timeseries, localdb)
 
 lazy val root =
@@ -252,16 +262,19 @@ lazy val root =
     .settings(commonSettings: _*)
     .settings(
       publishArtifact := false,
-      scalacOptions in (Compile, doc) ++= Seq(
+      scalacOptions in (ScalaUnidoc, unidoc) ++= Seq(
         Seq(
           "-sourcepath",
           baseDirectory.value.getAbsolutePath
         ),
         Opts.doc.title("cuttle"),
         Opts.doc.version(VERSION),
-        Opts.doc.sourceUrl("https://github.com/criteo/cuttle/blob/master€{FILE_PATH}.scala")
+        Opts.doc.sourceUrl("https://github.com/criteo/cuttle/blob/master€{FILE_PATH}.scala"),
+        Seq(
+          "-doc-root-content",
+          (baseDirectory.value / "core/src/main/scala/root.scala").getAbsolutePath
+        )
       ).flatten,
-      // Not so useful for now because of SI-9967
       unidocAllAPIMappings in (ScalaUnidoc, unidoc) ++= {
         val allJars = {
           (fullClasspath in cuttle in Compile).value ++
@@ -272,10 +285,15 @@ lazy val root =
             .flatMap(x => x.metadata.get(moduleID.key).map(m => x.data -> m))
             .collect {
               case (jar, module) if module.name == "scala-library" =>
-                jar -> "https://www.scala-lang.org/api/current/"
+                jar -> url("https://www.scala-lang.org/api/current/")
+              case (jar, module) if module.name.contains("doobie") =>
+                jar -> url("https://www.javadoc.io/doc/org.tpolecat/doobie-core_2.12/0.4.1/")
+              case (jar, module) if module.name.contains("lolhttp") =>
+                jar -> url("https://criteo.github.io/lolhttp/api/")
+              case (jar, module) if module.name.contains("circe") =>
+                jar -> url("http://circe.github.io/circe/api/")
             }
             .toMap
-            .mapValues(url => new java.net.URL(url))
         )
       },
       unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(cuttle, timeseries)

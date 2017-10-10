@@ -16,9 +16,27 @@ import java.util.concurrent.{Executors, TimeUnit}
 
 import ExecutionStatus._
 
+/** Configuration for the MySQL database used by cuttle.
+  *
+  * @param host JDBC driver host
+  * @param port JDBC driver port
+  * @param database JDBC database
+  * @param username JDBC username
+  * @param password JDBC password
+  */
 case class DatabaseConfig(host: String, port: Int, database: String, username: String, password: String)
 
+/** Utilities for [[DatabaseConfig]]. */
 object DatabaseConfig {
+
+  /** Creates a [[DatabaseConfig]] instance from the following environment variables:
+    *
+    *  - MYSQL_HOST (default to `localhost')
+    *  - MYSQL_PORT (default to `3306')
+    *  - MYSQL_DATABASE
+    *  - MYSQL_USERNAME
+    *  - MYSQL_PASSWORD
+    */
   def fromEnv: DatabaseConfig = {
     def env(variable: String, default: Option[String] = None) =
       Option(System.getenv(variable)).orElse(default).getOrElse(sys.error(s"Missing env ${'$' + variable}"))

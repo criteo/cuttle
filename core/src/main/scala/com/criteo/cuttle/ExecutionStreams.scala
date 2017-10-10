@@ -9,9 +9,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.stm._
 
+/** The scoped output streams for an [[Execution]]. Allows the execution to log its output. */
 trait ExecutionStreams {
+  /** Output info messages */
   def info(str: CharSequence = "") = this.writeln("INFO ", str)
+  /** Output error messages */
   def error(str: CharSequence = "") = this.writeln("ERROR", str)
+  /** Output debug messages (usually used by the [[ExecutionPlatform]]) */
   def debug(str: CharSequence = "") = this.writeln("DEBUG", str)
   private def writeln(tag: String, str: CharSequence): Unit = {
     val time = Instant.now.toString
