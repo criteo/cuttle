@@ -1,5 +1,6 @@
 package com.criteo.cuttle
 
+/** Expose cuttle metrics via the [[https://prometheus.io prometheus]] protocol. */
 object Metrics {
 
   object MetricType extends Enumeration {
@@ -9,6 +10,7 @@ object Metrics {
 
   import MetricType._
 
+  /** A metric to be exposed. */
   sealed trait Metric {
     val name: String
     val help: String
@@ -18,6 +20,12 @@ object Metrics {
     def isDefined: Boolean = labels2Value.nonEmpty
   }
 
+  /** A __Gauge__ metric epresents a single numerical value that can arbitrarily go up and down.
+    *
+    * @param name The metric name.
+    * @param help Metric description if provided.
+    * @param labels2Value The current value.s
+    */
   case class Gauge(name: String, help: String = "", labels2Value: Map[Set[(String, String)], AnyVal] = Map.empty)
     extends Metric {
 
@@ -32,6 +40,7 @@ object Metrics {
     def set(value: AnyVal): Gauge = copy(labels2Value = labels2Value + (Set.empty[(String, String)] -> value))
   }
 
+  /** Components able to provide metrics. */
   trait MetricProvider {
     def getMetrics(jobs: Set[String]): Seq[Metric]
   }

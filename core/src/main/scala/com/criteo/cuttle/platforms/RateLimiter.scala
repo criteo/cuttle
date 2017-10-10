@@ -19,7 +19,17 @@ private[cuttle] object RateLimiter {
   val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.platforms.RateLimiter.SC")
 }
 
-private[cuttle] class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueue {
+/**
+  * An rate limiter pool backed by a priority queue. It rate limits the executions
+  * and the priority queue is ordered by the [[scala.math.Ordering Ordering]] defined
+  * on the [[com.criteo.cuttle.SchedulingContext SchedulingContext]].
+  *
+  * The implementation is based on the tokens bucket algorithm.
+  *
+  * @param tokens Maximum (and initial) number of tokens.
+  * @param refillRateInMs A token is added to the bucket every `refillRateInMs` milliseconds.
+  */
+class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueue {
   private val _tokens = Ref(tokens)
   private val _lastRefill = Ref(Instant.now)
 

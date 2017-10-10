@@ -1,7 +1,6 @@
 package com.criteo.cuttle.platforms.local
 
 import java.nio.ByteBuffer
-import java.util.UUID
 
 import com.criteo.cuttle._
 import com.criteo.cuttle.platforms.ExecutionPool
@@ -11,6 +10,15 @@ import lol.http.PartialService
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
 
+/** The [[LocalPlatform]] handles the execution of locally forked processes.
+  * The number of concurrently forked processes is limited and can be configured for
+  * the platform.
+  *
+  * While waiting for the process to be actually forked, the [[com.criteo.cuttle.Job Job]]
+  * [[com.criteo.cuttle.Execution Execution]] is seen as __WAITING__ in the UI.
+  *
+  * @param maxForkedProcesses The maximum number of concurrently running processes.
+  **/
 case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
   private[local] val pool = new ExecutionPool(concurrencyLimit = maxForkedProcesses)
 
@@ -21,12 +29,15 @@ case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
     pool.routes("/api/platforms/local/pool")
 }
 
-object LocalPlatform {
+private[cuttle] object LocalPlatform {
   def fork(command: String) = new LocalProcess(command)
 }
 
+/** Represent a process to be locally foked.
+  *
+  * @param command The actual command to be run in a new `shell`.
+  */
 class LocalProcess(command: String) {
-  val id = UUID.randomUUID().toString
 
   private def exec0[S <: Scheduling](
     env: Map[String, String],
@@ -77,9 +88,29 @@ class LocalProcess(command: String) {
       }
   }
 
+  /** Fork this processfor the given [[com.criteo.cuttle.Execution Execution]]. The returned
+    * [[scala.concurrent.Future Future]] will be resolved as soon as the command complete.
+    *
+    * @param env The environment variables to pass to the forked process
+    * @param execution The execution for which this process is forked. The process out will be redirected to
+    *                  the [[com.criteo.cuttle.ExecutionStreams execution streams]].
+    */
   def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Completed] =
     exec0(env, _ => (), _ => ())
 
+
+  /** Fork this processfor the given [[com.criteo.cuttle.Execution Execution]]. The returned
+    * [[scala.concurrent.Future Future]] will be resolved as soon as the command complete.
+    *
+    * All the output of the forked process (STDOUT,STERR) will be buffered in memory and sent back as the
+    * result of the returned future.
+    *
+    * __BECAUSE EVERYTHING WILL BE BUFFERED IN MEMORY YOU DON'T WANT TO DO THAT FOR PROCESS WITH LARGE OUTPUT__
+    *
+    * @param env The environment variables to pass to the forked process
+    * @param execution The execution for which this process is forked. The process out will be redirected to
+    *                  the [[com.criteo.cuttle.ExecutionStreams execution streams]].
+    */
   def execAndRetrieveOutput[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[(String,String)] = {
     val out = new StringBuffer
     val err = new StringBuffer

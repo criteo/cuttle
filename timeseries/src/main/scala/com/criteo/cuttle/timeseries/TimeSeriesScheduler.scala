@@ -18,15 +18,17 @@ import java.time.temporal.ChronoUnit._
 import java.time.ZoneOffset.UTC
 import java.time.temporal.{ChronoUnit, TemporalAdjusters}
 
-import com.criteo.cuttle.timeseries.TimeSeriesGrid.{Daily, Hourly, Monthly}
+import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly}
 import intervals.{Bound, Interval, IntervalMap}
 import Bound.{Bottom, Finite, Top}
 import Metrics._
 
-sealed trait TimeSeriesGrid {
-  def next(t: Instant): Instant
-  def truncate(t: Instant): Instant
-  def ceil(t: Instant): Instant = {
+/** Represents calendar partitions for which a job will be run by the [[TimeSeriesScheduler]].
+  * See the companion object for the available calendars. */
+sealed trait TimeSeriesCalendar {
+  private[timeseries] def next(t: Instant): Instant
+  private[timeseries] def truncate(t: Instant): Instant
+  private[timeseries] def ceil(t: Instant): Instant = {
     val truncated = truncate(t)
     if (truncated == t) t
     else next(t)
@@ -59,32 +61,48 @@ sealed trait TimeSeriesGrid {
   }
 }
 
-sealed trait TimeSeriesGridView {
-  def grid: TimeSeriesGrid
-  def upper(): TimeSeriesGridView
+private[timeseries] sealed trait TimeSeriesCalendarView {
+  def calendar: TimeSeriesCalendar
+  def upper(): TimeSeriesCalendarView
   val aggregationFactor: Int
 }
 
-object TimeSeriesGrid {
+/** Define the available calendars. */
+object TimeSeriesCalendar {
 
-  case object Hourly extends TimeSeriesGrid {
+  /** An hourly calendar. Hours are defined as complete calendar hours starting
+    * at 00 minutes, 00 seconds. */
+  case object Hourly extends TimeSeriesCalendar {
     def truncate(t: Instant) = t.truncatedTo(HOURS)
     def next(t: Instant) =
       t.truncatedTo(HOURS).plus(1, HOURS)
   }
-  case class Daily(tz: ZoneId) extends TimeSeriesGrid {
+
+  /** An daily calendar. Days are defined as complete calendar days starting a midnight and
+    * during 24 hours. If the specified timezone defines lightsaving it is possible that some
+    * days are 23 or 25 horus thus.
+    *
+    * @param tz The time zone for which these _days_ are defined.
+    */
+  case class Daily(tz: ZoneId) extends TimeSeriesCalendar {
     def truncate(t: Instant) = t.atZone(tz).truncatedTo(DAYS).toInstant
     def next(t: Instant) = t.atZone(tz).truncatedTo(DAYS).plus(1, DAYS).toInstant
   }
-  case class Monthly(tz: ZoneId) extends TimeSeriesGrid {
+
+  /** An monthly calendar. Months are defined as complete calendar months starting on the 1st day and
+    * during 28,29,30 or 31 days. The specified time zone is used to define the exact month start instant.
+    *
+    * @param tz The time zone for which these _months_ are defined.
+    */
+  case class Monthly(tz: ZoneId) extends TimeSeriesCalendar {
     private val truncateToMonth = (t: ZonedDateTime) =>
       t.`with`(TemporalAdjusters.firstDayOfMonth()).truncatedTo(ChronoUnit.DAYS)
     def truncate(t: Instant) = truncateToMonth(t.atZone(tz)).toInstant
     def next(t: Instant) = truncateToMonth(t.atZone(tz)).plus(1, MONTHS).toInstant
   }
 
-  implicit val gridEncoder = new Encoder[TimeSeriesGrid] {
-    override def apply(grid: TimeSeriesGrid) = grid match {
+  private[timeseries] implicit val calendarEncoder = new Encoder[TimeSeriesCalendar] {
+    override def apply(calendar: TimeSeriesCalendar) = calendar match {
       case Hourly => Json.obj("period" -> "hourly".asJson)
       case Daily(tz: ZoneId) =>
         Json.obj(
@@ -100,37 +118,50 @@ object TimeSeriesGrid {
   }
 }
 
-object TimeSeriesGridView {
-  def apply(grid: TimeSeriesGrid) = grid match {
-    case TimeSeriesGrid.Hourly => new HourlyView(1)
-    case TimeSeriesGrid.Daily(tz) => new DailyView(tz, 1)
-    case TimeSeriesGrid.Monthly(tz) => new MonthlyView(tz, 1)
+private[timeseries] object TimeSeriesCalendarView {
+  def apply(calendar: TimeSeriesCalendar) = calendar match {
+    case TimeSeriesCalendar.Hourly => new HourlyView(1)
+    case TimeSeriesCalendar.Daily(tz) => new DailyView(tz, 1)
+    case TimeSeriesCalendar.Monthly(tz) => new MonthlyView(tz, 1)
   }
-  sealed trait GenericView extends TimeSeriesGridView {
-    def over: (Int, TimeSeriesGrid)
-    def grid = over._2
-    def truncate(t: Instant) = grid.truncate(t)
-    def next(t: Instant) = (1 to over._1).foldLeft(grid.truncate(t))((acc, _) => grid.next(acc))
-    def upper(): TimeSeriesGridView
+  sealed trait GenericView extends TimeSeriesCalendarView {
+    def over: (Int, TimeSeriesCalendar)
+    def calendar = over._2
+    def truncate(t: Instant) = calendar.truncate(t)
+    def next(t: Instant) = (1 to over._1).foldLeft(calendar.truncate(t))((acc, _) => calendar.next(acc))
+    def upper(): TimeSeriesCalendarView
   }
   case class HourlyView(aggregationFactor: Int) extends GenericView {
     def over = (1, Hourly)
-    override def upper: TimeSeriesGridView = new DailyView(UTC, aggregationFactor * 24)
+    override def upper: TimeSeriesCalendarView = new DailyView(UTC, aggregationFactor * 24)
   }
   case class DailyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
     def over = (1, Daily(tz))
-    override def upper: TimeSeriesGridView = new WeeklyView(tz, aggregationFactor * 7)
+    override def upper: TimeSeriesCalendarView = new WeeklyView(tz, aggregationFactor * 7)
   }
   case class WeeklyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
     def over = (7, Daily(tz))
-    override def upper: TimeSeriesGridView = new MonthlyView(tz, aggregationFactor * 4)
+    override def upper: TimeSeriesCalendarView = new MonthlyView(tz, aggregationFactor * 4)
   }
   case class MonthlyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
     def over = (1, Monthly(tz))
-    override def upper: TimeSeriesGridView = new MonthlyView(tz, 1)
+    override def upper: TimeSeriesCalendarView = new MonthlyView(tz, 1)
   }
 }
 
+/** A [[Backfill]] allows to recompute already computed time partitions in the past.
+  *
+  * @param id Unique id for the backfill.
+  * @param start Start instant for the partitions to backfill.
+  * @param end End instant for the partitions to backfill.
+  * @param jobs Indicates the part of the graph to backfill.
+  * @param priority The backfill priority. If minus than 0 it is less priority than the day
+  *                 to day workload. If more than 0 it becomes more prioritary and can delay
+  *                 the day to day workload.
+  * @param description Description (for audit logs).
+  * @param status Status of the backfill.
+  * @param createdBy User who created the backfill (for audit logs).
+  */
 case class Backfill(id: String,
                     start: Instant,
                     end: Instant,
@@ -147,6 +178,13 @@ private[timeseries] object Backfill {
     deriveDecoder[Backfill]
 }
 
+/** A [[TimeSeriesContext]] is passed to [[com.criteo.cuttle.Execution Executions]] initiated by
+  * the [[TimeSeriesScheduler]].
+  *
+  * @param start Start instant of the partition to compute.
+  * @param end End instant of the partition to compute.
+  * @param backfill If this execution is for a backfill, the [[Backfill]] informations are provided.
+  */
 case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Backfill] = None)
     extends SchedulingContext {
 
@@ -169,27 +207,42 @@ case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Back
   }
 }
 
-object TimeSeriesContext {
-  private[timeseries] implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
-  private[timeseries] implicit def decoder(implicit jobs: Set[Job[TimeSeries]]): Decoder[TimeSeriesContext] =
+private[timeseries] object TimeSeriesContext {
+  implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
+  implicit def decoder(implicit jobs: Set[Job[TimeSeries]]): Decoder[TimeSeriesContext] =
     deriveDecoder
 }
 
+/** A [[TimeSeriesDependency]] qualify the dependency between 2 [[com.criteo.cuttle.Job Jobs]] in a
+  * [[TimeSeries]] [[com.criteo.cuttle.Workflow Workflow]]. It can be configured to `offset` the dependency.
+  *
+  * @param offset Time offest to apply when computing the partitions dependencies.
+  */
 case class TimeSeriesDependency(offset: Duration)
 
-case class TimeSeries(grid: TimeSeriesGrid, start: Instant, maxPeriods: Int = 1) extends Scheduling {
-  import TimeSeriesGrid._
+/** Configure a [[com.criteo.cuttle.Job Job]] as a [[TimeSeries]] job,
+  *
+  * @param calendar The calendar partitions configuration for this job (for example hourly or daily).
+  * @param start The start instant at which this job must start being executed.
+  * @param maxPeriods The maximum number of partitions the job can handle at once. If this is defined
+  *                   to a value more than `1` and if possible, the scheduler can trigger [[com.criteo.cuttle.Execution Executions]]
+  *                   for more than 1 partition at once.
+  */
+case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, maxPeriods: Int = 1) extends Scheduling {
+  import TimeSeriesCalendar._
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
   def toJson: Json =
     Json.obj(
       "start" -> start.asJson,
       "maxPeriods" -> maxPeriods.asJson,
-      "grid" -> grid.asJson
+      "calendar" -> calendar.asJson
     )
 }
 
+/** [[TimeSeries]] utilities. */
 object TimeSeries {
+  /* Provide a default [[TimeSeriesScheduler]] for [[TimeSeries]] scheduling. */
   implicit def scheduler(implicit logger: Logger) = TimeSeriesScheduler(logger)
 }
 
@@ -205,6 +258,15 @@ private[timeseries] object JobState {
     deriveDecoder
 }
 
+/** A [[TimeSeriesScheduler]] executes the [[com.criteo.cuttle.Workflow Workflow]] for the
+  * time partitions defined in a calendar. Each [[com.criteo.cuttle.Job Job]] defines how it mnaps
+  * to the calendar (for example Hourly or Daily UTC), and the [[com.criteo.cuttle.Scheduler Scheduler]]
+  * ensure that at least one [[com.criteo.cuttle.Execution Execution]] is created and successfully run
+  * for each defined Job/Period.
+  *
+  * The scheduler also allow to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
+  * or not and an audit log of backfills is kept.
+  */
 case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] with TimeSeriesApp {
   import TimeSeriesUtils._
   import JobState.{Done, Running, Todo}
@@ -225,7 +287,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
                                       start: Instant,
                                       end: Instant,
                                       priority: Int,
-                                      xa: XA)(implicit user: User) = {
+                                      xa: XA)(implicit user: Auth.User) = {
     val (isValid, newBackfill) = atomic { implicit txn =>
       val id = UUID.randomUUID().toString
       val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING", user.userId)
@@ -234,10 +296,10 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         job <- jobs
       } yield {
         val st = _state().apply(job).intersect(Interval(start, end))
-        val grid = job.scheduling.grid
+        val calendar = job.scheduling.calendar
         val validIn = st.toList
           .collect {
-            case (Interval(Finite(lo), Finite(hi)), Done) if (grid.truncate(lo) == lo && grid.truncate(hi) == hi) =>
+            case (Interval(Finite(lo), Finite(hi)), Done) if (calendar.truncate(lo) == lo && calendar.truncate(hi) == hi) =>
               (lo, hi)
           }
           .sortBy(_._1)
@@ -334,7 +396,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       if (completed.nonEmpty || toRun.nonEmpty)
         runOrLogAndDie(
           Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO,
-          "TimeseriesScheduler, cannot serialize state, shutting down")
+          "TimeSeriesScheduler, cannot serialize state, shutting down")
 
       if (completedBackfills.nonEmpty)
         runOrLogAndDie(
@@ -342,7 +404,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
             .transact(xa)
             .unsafePerformIO,
-          "TimeseriesScheduler, cannot serialize state, shutting down")
+          "TimeSeriesScheduler, cannot serialize state, shutting down")
 
       val newRunning = stillRunning ++ newExecutions.map {
         case (execution, result) =>
@@ -427,7 +489,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
       for {
         (interval, maybeBackfill) <- toRun.toList
-        (lo, hi) <- job.scheduling.grid.inInterval(interval, job.scheduling.maxPeriods)
+        (lo, hi) <- job.scheduling.calendar.inInterval(interval, job.scheduling.maxPeriods)
       } yield {
         (job, TimeSeriesContext(lo, hi, maybeBackfill))
       }
