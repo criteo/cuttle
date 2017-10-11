@@ -13,6 +13,7 @@ package cuttle {
     * value discarding.
     */
   sealed trait Completed
+
   /**
     * The object to use to successfully complete a job side effect.
     *
@@ -60,10 +61,10 @@ package object cuttle {
 
   /** Default implicit logger that output everything to __stdout__ */
   implicit val logger = new Logger {
-    def logMe(message : => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
-      override def info(message: => String): Unit = logMe(message, "INFO")
-      override def debug(message: => String): Unit = logMe(message, "DEBUG")
-      override def warning(message: => String): Unit = ()
-      override def error(message : => String): Unit = ()
+    def logMe(message: => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
+    override def info(message: => String): Unit = logMe(message, "INFO")
+    override def debug(message: => String): Unit = logMe(message, "DEBUG")
+    override def warning(message: => String): Unit = ()
+    override def error(message: => String): Unit = ()
   }
 }

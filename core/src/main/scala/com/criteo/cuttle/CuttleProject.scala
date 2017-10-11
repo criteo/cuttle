@@ -69,8 +69,8 @@ object CuttleProject {
                              version: String = "",
                              description: String = "",
                              env: (String, Boolean) = ("", false),
-                             authenticator: Auth.Authenticator = Auth.GuestAuth)
-                             (workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
+                             authenticator: Auth.Authenticator = Auth.GuestAuth)(
+    workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
     new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {

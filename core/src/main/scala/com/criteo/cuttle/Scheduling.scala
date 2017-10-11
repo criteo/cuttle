@@ -62,6 +62,7 @@ trait SchedulingContext {
 
 /** Utilities for [[SchedulingContext]] */
 object SchedulingContext {
+
   /** Provide an implicit `Ordering` for [[SchedulingContext]] based on the `compareTo` function. */
   implicit val ordering: Ordering[SchedulingContext] =
     Ordering.comparatorToOrdering(new Comparator[SchedulingContext] {
@@ -72,6 +73,7 @@ object SchedulingContext {
 /** Represent a type of scheduling. A typical cuttle scheduling is [[timeseries.TimeSeries TimeSeries]] for example, that
   * is a scheduling based on a calendar. */
 trait Scheduling {
+
   /** The [[SchedulingContext]] type that will be passed to [[Execution]] created by
     * the [[Scheduler]] managing this [[Scheduling]]. */
   type Context <: SchedulingContext

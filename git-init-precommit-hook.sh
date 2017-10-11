@@ -13,6 +13,14 @@ if [ ${RESULT} -ne 0 ]; then
     exit ${RESULT}
 fi
 echo -e "\e[0;32m Scalafmt SUCCEEDED \e[0m"
+echo -e "\e[0;33m prettier-eslint RUNNING \e[0m"
+npm run format-diff
+RESULT=$?
+if [ ${RESULT} -ne 0 ]; then
+    echo -e "\e[0;31m prettier-eslint FAILED \e[0m"
+    exit ${RESULT}
+fi
+echo -e "\e[0;32m prettier-eslint SUCCEEDED \e[0m"
 exit 0
 ' > .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit

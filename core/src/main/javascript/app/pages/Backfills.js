@@ -114,7 +114,15 @@ class Backfills extends React.Component {
     let { sort, classes, selectedJobs, envCritical } = this.props;
     let { data } = this.state;
 
-    let columns = ["name", "jobs", "period", "created", "created_by", "status", "detail"];
+    let columns = [
+      "name",
+      "jobs",
+      "period",
+      "created",
+      "created_by",
+      "status",
+      "detail"
+    ];
     let Data = () => {
       if (data && data.length) {
         const sortedData = [...data].sort(Backfills.sortFunction(sort));
@@ -132,7 +140,11 @@ class Backfills extends React.Component {
                 case "created":
                   return { id: "created", label: "Created", sortable: true };
                 case "created_by":
-                  return { id: "created_by", label: "Created By", sortable: true };
+                  return {
+                    id: "created_by",
+                    label: "Created By",
+                    sortable: true
+                  };
                 case "status":
                   return {
                     id: "status",
@@ -149,11 +161,22 @@ class Backfills extends React.Component {
             data={sortedData}
             render={(
               column,
-              { id, name, jobs, start, end, created_at, created_by, status }: Backfill
+              {
+                id,
+                name,
+                jobs,
+                start,
+                end,
+                created_at,
+                created_by,
+                status
+              }: Backfill
             ) => {
               switch (column) {
                 case "name":
-                  return <Link href={`/timeseries/backfills/${id}`}>{name}</Link>;
+                  return (
+                    <Link href={`/timeseries/backfills/${id}`}>{name}</Link>
+                  );
                 case "jobs":
                   return <span>{jobs.length}</span>;
                 case "period":
@@ -169,7 +192,7 @@ class Backfills extends React.Component {
                     <Clock className={classes.time} time={created_at || ""} />
                   );
                 case "created_by":
-                  return <span>{created_by}</span>
+                  return <span>{created_by}</span>;
                 case "status":
                   return (
                     <Link

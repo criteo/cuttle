@@ -27,7 +27,7 @@ object Metrics {
     * @param labels2Value The current value.s
     */
   case class Gauge(name: String, help: String = "", labels2Value: Map[Set[(String, String)], AnyVal] = Map.empty)
-    extends Metric {
+      extends Metric {
 
     override val metricType: MetricType = gauge
 
@@ -46,22 +46,23 @@ object Metrics {
   }
 
   private[cuttle] object Prometheus {
-    private def serialize2PrometheusStrings[T](metric: Metric): Seq[String] = if (metric.isDefined) {
-      val labeledMetrics = metric.labels2Value.map {
-        case (labels, value) =>
-          val labelsSerialized =
-            if (labels.nonEmpty) s" {${labels.map(label => s"""${label._1}="${label._2}"""").mkString(", ")}} "
-            else " "
-          s"${metric.name}$labelsSerialized$value"
-      }
+    private def serialize2PrometheusStrings[T](metric: Metric): Seq[String] =
+      if (metric.isDefined) {
+        val labeledMetrics = metric.labels2Value.map {
+          case (labels, value) =>
+            val labelsSerialized =
+              if (labels.nonEmpty) s" {${labels.map(label => s"""${label._1}="${label._2}"""").mkString(", ")}} "
+              else " "
+            s"${metric.name}$labelsSerialized$value"
+        }
 
-      val metricType = s"# TYPE ${metric.name} ${metric.metricType}"
-      val help = if (metric.help.nonEmpty) {
-        Seq(s"# HELP ${metric.name} ${metric.help}")
-      } else Seq.empty[String]
+        val metricType = s"# TYPE ${metric.name} ${metric.metricType}"
+        val help = if (metric.help.nonEmpty) {
+          Seq(s"# HELP ${metric.name} ${metric.help}")
+        } else Seq.empty[String]
 
-      (help :+ metricType) ++ labeledMetrics
-    } else Seq.empty
+        (help :+ metricType) ++ labeledMetrics
+      } else Seq.empty
 
     def serialize(metrics: Seq[Metric]): String = s"${metrics.flatMap(serialize2PrometheusStrings).mkString("\n")}\n"
   }

@@ -51,7 +51,7 @@ trait Workflow[S <: Scheduling] {
     }
   }
 
-  private[cuttle] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _) => v1 != v })
+  private[cuttle] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _)  => v1 != v })
   private[cuttle] lazy val leaves = vertices.filter(v => edges.forall { case (_, v2, _) => v2 != v })
 
   /**
@@ -89,6 +89,7 @@ trait Workflow[S <: Scheduling] {
 
 /** Utilities for [[Workflow]]. */
 object Workflow {
+
   /** An empty [[Workflow]] (empty graph). */
   def empty[S <: Scheduling] = new Workflow[S] {
     def vertices = Set.empty
