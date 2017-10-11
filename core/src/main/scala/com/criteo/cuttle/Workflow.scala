@@ -20,19 +20,22 @@ trait Workflow[S <: Scheduling] {
   private[cuttle] lazy val jobsInOrder: List[Job[S]] = {
     val result = collection.mutable.ListBuffer.empty[Job[S]]
     val edges = collection.mutable.Set(this.edges.toSeq: _*)
-    val set = collection.mutable.SortedSet(roots.toSeq: _*)(Ordering.by(_.id))
-    while (set.nonEmpty) {
-      val n = set.head
-      set.remove(n)
-      result.append(n)
-      edges.collect({ case edge @ (_, `n`, _) => edge }).toList.map {
-        case edge @ (m, _, _) =>
+    val orderedRoots = collection.mutable.SortedSet(roots.toSeq: _*)(Ordering.by(_.id))
+    while (orderedRoots.nonEmpty) {
+      val root = orderedRoots.head
+      orderedRoots.remove(root)
+      result.append(root)
+      val edgesToRemove = edges.filter(_._2 == root)
+
+      edgesToRemove.foreach {
+        case edge @ (child, _, _) =>
           edges.remove(edge)
-          if (edges.collect({ case (`m`, _, _) => () }).isEmpty) {
-            set.add(m)
+          if (!edges.exists(_._1 == child)) {
+            orderedRoots.add(child)
           }
       }
     }
+
     require(edges.isEmpty, "Workflow has at least one cycle")
     result.toList
   }
