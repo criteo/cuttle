@@ -57,7 +57,7 @@ type Props = {
   },
   open: (link: string) => void,
   selectedJobs: Array<string>,
-  completionNotifier?: (?number => void)
+  completionNotifier?: (?number) => void
 };
 
 type State = {
@@ -123,9 +123,8 @@ class ExecutionLogs extends React.Component {
 
   updateData(json: Paginated<ExecutionLog>) {
     const notify = this.props.completionNotifier;
-    if (notify != undefined)
-    {
-      notify(json.completion)
+    if (notify != undefined) {
+      notify(json.completion);
     }
 
     this.setState({
@@ -185,7 +184,12 @@ class ExecutionLogs extends React.Component {
                 case "failed":
                   return { id: "failed", label: "Failed", sortable: true };
                 case "retry":
-                  return { id: "retry", label: "Next retry", sortable: true, width: 200 };
+                  return {
+                    id: "retry",
+                    label: "Next retry",
+                    sortable: true,
+                    width: 200
+                  };
                 case "startTime":
                   return { id: "startTime", label: "Started", sortable: true };
                 case "endTime":
@@ -200,7 +204,7 @@ class ExecutionLogs extends React.Component {
                 case "detail":
                   return { id: "detail", width: 40 };
                 case "lastFailure":
-                  return { id : "lastFailure", label : "Last failure" };
+                  return { id: "lastFailure", label: "Last failure" };
               }
             })}
             onSortBy={this.sortBy.bind(this)}
@@ -241,13 +245,12 @@ class ExecutionLogs extends React.Component {
                     <Clock className={classes.time} time={endTime || ""} />
                   );
                 case "retry":
-                  return (
-                    status === "running" ? "Now" :
-                    <Clock
-                      className={classes.time}
-                      time={(failing && failing.nextRetry) || ""}
-                    />
-                  );
+                  return status === "running"
+                    ? "Now"
+                    : <Clock
+                        className={classes.time}
+                        time={(failing && failing.nextRetry) || ""}
+                      />;
                 case "status":
                   return (
                     <Link
@@ -266,14 +269,14 @@ class ExecutionLogs extends React.Component {
                       <OpenIcon />
                     </Link>
                   );
-              case "lastFailure" :
-                const lastFailedUrl = `/executions/${ failing.failedExecutions[failing.failedExecutions.length - 1].id }`;
+                case "lastFailure":
+                  const lastFailedUrl = `/executions/${failing.failedExecutions[failing.failedExecutions.length - 1].id}`;
 
-                return (
-                  <Link href={lastFailedUrl}>
-                    <Badge label="FAILED" kind="error" width={75} />
-                  </Link>
-                )
+                  return (
+                    <Link href={lastFailedUrl}>
+                      <Badge label="FAILED" kind="error" width={75} />
+                    </Link>
+                  );
               }
             }}
           />
@@ -601,7 +604,14 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
             open={open}
             page={page}
             workflow={workflow}
-            columns={["job", "context", "retry", "lastFailure", "status", "detail"]}
+            columns={[
+              "job",
+              "context",
+              "retry",
+              "lastFailure",
+              "status",
+              "detail"
+            ]}
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label="stuck"
@@ -642,7 +652,8 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
             page={page}
             workflow={workflow}
             columns={["job", "context", "status", "detail"]}
-            request={(page, rowsPerPage, sort) => `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+            request={(page, rowsPerPage, sort) =>
+              `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label=""
             sort={{ column: sort || "failed", order }}
             selectedJobs={selectedJobs}
@@ -652,4 +663,4 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
       );
     }
   )
-)
+);

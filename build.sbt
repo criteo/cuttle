@@ -245,14 +245,17 @@ lazy val examples =
       connectInput in Test := true
     )
     .settings(
-      Option(System.getProperty("generateExamples")).map(_ => Seq(
-        autoCompilerPlugins := true,
-        addCompilerPlugin("com.criteo.socco" %% "socco-plugin" % "0.1.7"),
-        scalacOptions := Seq(
-          "-P:socco:out:examples/target/html",
-          "-P:socco:package_com.criteo.cuttle:https://criteo.github.io/cuttle/api/"
-        )
-      )).getOrElse(Nil): _*
+      Option(System.getProperty("generateExamples"))
+        .map(_ =>
+          Seq(
+            autoCompilerPlugins := true,
+            addCompilerPlugin("com.criteo.socco" %% "socco-plugin" % "0.1.7"),
+            scalacOptions := Seq(
+              "-P:socco:out:examples/target/html",
+              "-P:socco:package_com.criteo.cuttle:https://criteo.github.io/cuttle/api/"
+            )
+        ))
+        .getOrElse(Nil): _*
     )
     .dependsOn(cuttle, timeseries, localdb)
 

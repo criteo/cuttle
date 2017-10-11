@@ -48,18 +48,20 @@ type SummarySlot = {
   aggregated: true
 };
 
-type JobPeriodSlot = {
-  period: Period,
-  status: "done" | "running" | "todo",
-  backfill: boolean,
-  aggregated: false
-} | {
-  period: Period,
-  completion: string,
-  error: boolean,
-  backfill: boolean,
-  aggregated: true
-};
+type JobPeriodSlot =
+  | {
+      period: Period,
+      status: "done" | "running" | "todo",
+      backfill: boolean,
+      aggregated: false
+    }
+  | {
+      period: Period,
+      completion: string,
+      error: boolean,
+      backfill: boolean,
+      aggregated: true
+    };
 
 type Stats = {
   summary: SummarySlot[],
@@ -90,8 +92,8 @@ let tickFormat = date =>
   (d3.utcHour(date) < date
     ? d3.utcFormat("")
     : d3.utcDay(date) < date
-    ? d3.utcFormat("%H:00")
-    : d3.utcFormat("%Y-%m-%d"))(date);
+        ? d3.utcFormat("%H:00")
+        : d3.utcFormat("%Y-%m-%d"))(date);
 
 let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
   let g = svg.append("g").attr("id", "widthHack");
@@ -119,21 +121,17 @@ const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
   width: ({ period }) => x2(period) - x1(period),
   fill: ({ status }) =>
     status == "failed"
-    ? "#e91e63"
-    : status == "successful"
-    ? "#62cc64"
-    : status == "waiting"
-    ? "#ffbc5a"
-    : status == "running" ? "#49d3e4" : "#ecf1f5",
+      ? "#e91e63"
+      : status == "successful"
+          ? "#62cc64"
+          : status == "waiting"
+              ? "#ffbc5a"
+              : status == "running" ? "#49d3e4" : "#ecf1f5",
   // For aggregated periods, we want to zoom on click
   click: ({ period, jobId, aggregated }) =>
     aggregated
-    ? drillDown(moment.utc(period.start), moment.utc(period.end))
-    : showExecutions(
-      jobId,
-      moment.utc(period.start),
-      moment.utc(period.end)
-    ),
+      ? drillDown(moment.utc(period.start), moment.utc(period.end))
+      : showExecutions(jobId, moment.utc(period.start), moment.utc(period.end)),
   // For aggregated periods, we want to zoom on click
   cursor: ({ aggregated }) => (aggregated ? "zoom-in" : "pointer"),
   // No stroke (thick border) for simple periods
@@ -156,17 +154,20 @@ const drawJobPeriods = (
   const aggregatedHelper = summaryPeriodHelper(x1, x2);
   const adjustedWidth = ({ period }) => helper.width({ period }) - 2 * MARGIN;
   const strokeWidth = 4;
-  const xyOffset = ({ aggregated }) => MARGIN + ((aggregated || summary) ? strokeWidth/2 : 0)
-  const cursor =  summary ? "default" : helper.cursor;
+  const xyOffset = ({ aggregated }) =>
+    MARGIN + (aggregated || summary ? strokeWidth / 2 : 0);
+  const cursor = summary ? "default" : helper.cursor;
   const newPeriodSlot = enterPeriodNode
     .append("g")
     .attr("class", classNames("periodSlot", periodClass))
-    .attr("data-tip", d => (d.aggregated || summary) ? aggregatedHelper.tip(d) : helper.tip(d))
+    .attr(
+      "data-tip",
+      d => (d.aggregated || summary ? aggregatedHelper.tip(d) : helper.tip(d))
+    )
     .attr("transform", helper.translate);
 
   // Summmary periods are not clickable
-  if (!summary)
-    newPeriodSlot.on("click", helper.click);
+  if (!summary) newPeriodSlot.on("click", helper.click);
 
   // Transparent rectangle behind
   newPeriodSlot
@@ -184,17 +185,32 @@ const drawJobPeriods = (
     .attr("class", "colored")
     .attr("y", xyOffset)
     .attr("x", xyOffset)
-    .attr("height", ({ backfill, aggregated }) => ROW_HEIGHT - ((aggregated || summary) ? strokeWidth : 0) - (backfill ? 6 : 0))
-    .attr("width", d => adjustedWidth(d) - ((d.aggregated || summary) ? strokeWidth : 0))
-    .attr("fill", d => (d.aggregated || summary) ? aggregatedHelper.fill(d) : helper.fill(d))
-    .attr("stroke-width",  d => (d.aggregated || summary) ? strokeWidth : 0)
-    .attr("stroke",  d => (d.aggregated || summary) ? helper.stroke(d) : "transparent")
+    .attr(
+      "height",
+      ({ backfill, aggregated }) =>
+        ROW_HEIGHT -
+        (aggregated || summary ? strokeWidth : 0) -
+        (backfill ? 6 : 0)
+    )
+    .attr(
+      "width",
+      d => adjustedWidth(d) - (d.aggregated || summary ? strokeWidth : 0)
+    )
+    .attr(
+      "fill",
+      d => (d.aggregated || summary ? aggregatedHelper.fill(d) : helper.fill(d))
+    )
+    .attr("stroke-width", d => (d.aggregated || summary ? strokeWidth : 0))
+    .attr(
+      "stroke",
+      d => (d.aggregated || summary ? helper.stroke(d) : "transparent")
+    )
     .style("cursor", cursor);
 
   // A purple line is added for periods of ab backfilled job
   newPeriodSlot
     .selectAll("rect.backfill")
-    .data(d => d.backfill ? [d] : [], k => k.period.start)
+    .data(d => (d.backfill ? [d] : []), k => k.period.start)
     .enter()
     .append("rect")
     .attr("class", "backfill")
@@ -477,32 +493,32 @@ class CalendarFocus extends React.Component {
         </h1>
         {data && data.summary.length
           ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
-            <div className={classes.summarySvg}>
-              <svg ref={r => (this.summarySvgContainer = r)}>
-                <g id="axisContainer" />
-                <g id="summary"/>
-              </svg>
-            </div>
-            <div className={classes.detailsSvg}>
-              <svg ref={r => (this.detailsSvgContainer = r)} />
-            </div>
-            <ReactTooltip
-              className={classes.tooltip}
-              effect="float"
-              html={true}
-            />
-          </div>
-          : data
-          ? <div className={classes.noData}>
-              <div>
-                Nothing to be done for this period
-                {selectedJobs.length
-                  ? " (some may have been filtered)"
-                  : ""}
+              <div className={classes.summarySvg}>
+                <svg ref={r => (this.summarySvgContainer = r)}>
+                  <g id="axisContainer" />
+                  <g id="summary" />
+                </svg>
               </div>
-          </div>
-          : <Spinner />}
-          </div>
+              <div className={classes.detailsSvg}>
+                <svg ref={r => (this.detailsSvgContainer = r)} />
+              </div>
+              <ReactTooltip
+                className={classes.tooltip}
+                effect="float"
+                html={true}
+              />
+            </div>
+          : data
+              ? <div className={classes.noData}>
+                  <div>
+                    Nothing to be done for this period
+                    {selectedJobs.length
+                      ? " (some may have been filtered)"
+                      : ""}
+                  </div>
+                </div>
+              : <Spinner />}
+      </div>
     );
   }
 }

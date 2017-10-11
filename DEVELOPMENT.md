@@ -25,19 +25,28 @@ compatibility package (e.g. ncurses5-compat-libs on Archlinux).
    $> sudo apt install libaio1
    ```
 
-### Format Javascript
+### Javascript style
 
-Use `yarn format` to format the Javascript files.
+We use [prettier-eslint](https://github.com/prettier/prettier-eslint) to enforce style.
 
-### Scalafmt
+Several ways to use it:
 
-We use Scalafmt to enforce style. The minimal config is found in the
+1. We provide a `git-init-precommit-hook.sh` that **replaces you git precommit hook** 
+   by a Scalafmt and prettier-eslint run on changed files.
+   
+2. Use `yarn format` to format the Javascript files. 
+3. Use `ỳarm format-diff` to format only changed files.
+
+
+### Scala Style
+
+We use [Scalafmt](http://scalameta.org/scalafmt/) to enforce style. The minimal config is found in the
 .scalafmt.conf file (you probably won't make any friends if you change
 this).
 
 Several ways to use it:
 
-1. We provide a `git-init-scalafmt-precommit-hook.sh` that **replaces you git precommit hook** by a Scalafmt check.
+1. We provide a `git-init-precommit-hook.sh` that **replaces you git precommit hook** by a Scalafmt run on changed files.
 
 __Note__:
   - It works only in UNIX like systems with bash installed.
