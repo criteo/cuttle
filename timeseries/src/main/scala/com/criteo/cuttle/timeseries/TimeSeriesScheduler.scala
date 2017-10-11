@@ -261,15 +261,15 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   }
 
   def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
-    logger.info("validate workflow before start")
+    logger.info("Validate workflow before start")
     TimeSeriesUtils.validate(workflow) match {
       case Left(errors) =>
-        errors.foreach(logger.error(_))
-        logger.error("exit with error code 1")
-        System.exit(1)
+        val consolidatedError = errors.mkString("\n")
+        logger.error(consolidatedError)
+        throw new IllegalArgumentException(consolidatedError)
       case Right(_) => ()
     }
-    logger.info("workflow is valid")
+    logger.info("Workflow is valid")
 
     Database.doSchemaUpdates.transact(xa).unsafePerformIO
 
@@ -531,7 +531,7 @@ private[timeseries] object TimeSeriesUtils {
       edgesWithoutParent.foreach {
         case edge @ (child, _, _) =>
           if (child.scheduling.start.isBefore(root.scheduling.start)) {
-            errors += s"job [${child.id}] starts at [${child.scheduling.start.toString}] " +
+            errors += s"Job [${child.id}] starts at [${child.scheduling.start.toString}] " +
               s"before his parent [${root.id}] at [${root.scheduling.start.toString}]"
           }
 
@@ -543,7 +543,7 @@ private[timeseries] object TimeSeriesUtils {
       }
     }
 
-    if (edges.nonEmpty) errors += "workflow has at least one cycle"
+    if (edges.nonEmpty) errors += "Workflow has at least one cycle"
 
     if (errors.nonEmpty) Left(errors.toList)
     else Right(())
