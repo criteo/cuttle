@@ -96,7 +96,7 @@ object HelloWorld {
     // Our last job is a daily job. For the daily job we still need to annouce a start date, plus
     // we need to define the time zone for which _days_ must be considered. The partitions for
     // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
-    val world = Job("world", daily(start, UTC), "World") { implicit e =>
+    val world = Job("world", daily(UTC, start), "World") { implicit e =>
       sh"""
         echo "World"
         sleep 6
