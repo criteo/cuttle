@@ -39,15 +39,14 @@ object HelloWorld {
         // contains useful meta data as well as the __context__ which is basically the
         // input data for our execution.
         implicit e =>
+          // Because this job uses a time series scheduling configuration the context
+          // contains the information about the time partition to compute, ie the start
+          // and end date.
+          val partitionToCompute = (e.context.start) + "-" + (e.context.end)
 
-        // Because this job uses a time series scheduling configuration the context
-        // contains the information about the time partition to compute, ie the start
-        // and end date.
-        val partitionToCompute = (e.context.start) + "-" + (e.context.end)
-
-        // The `sh` interpolation is provided by the local platform. It allows us to
-        // declare a bash script to execute.
-        sh"""
+          // The `sh` interpolation is provided by the local platform. It allows us to
+          // declare a bash script to execute.
+          sh"""
           echo "Hello for ${partitionToCompute}"
           echo "Check my project page at https://github.com/criteo/cuttle"
           sleep 1
@@ -84,8 +83,7 @@ object HelloWorld {
             // Throwing an execption is enough to fail the execution, but you can also return
             // a failed Future.
             sys.error("Oops!!!")
-          }
-          else {
+          } else {
 
             // The completed value is returned to cuttle to announce the job execution as
             // successful. In this case the time series scheduler will mark the partition as

@@ -92,6 +92,7 @@ trait Workflow[S <: Scheduling] {
 
 /** Utilities for [[Workflow]]. */
 object Workflow {
+
   /** An empty [[Workflow]] (empty graph). */
   def empty[S <: Scheduling] = new Workflow[S] {
     def vertices = Set.empty

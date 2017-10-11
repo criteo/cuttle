@@ -81,9 +81,11 @@ class LocalProcess(command: String) {
         process.setProcessListener(handler)
         val fork = process.start()
         streams.debug(s"forked with PID ${fork.getPID}")
-        execution.onCancel(() => {
-          fork.destroy(true)
-        }).unsubscribeOn(result.future)
+        execution
+          .onCancel(() => {
+            fork.destroy(true)
+          })
+          .unsubscribeOn(result.future)
         result.future
       }
   }
@@ -98,7 +100,6 @@ class LocalProcess(command: String) {
   def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Completed] =
     exec0(env, _ => (), _ => ())
 
-
   /** Fork this processfor the given [[com.criteo.cuttle.Execution Execution]]. The returned
     * [[scala.concurrent.Future Future]] will be resolved as soon as the command complete.
     *
@@ -111,7 +112,8 @@ class LocalProcess(command: String) {
     * @param execution The execution for which this process is forked. The process out will be redirected to
     *                  the [[com.criteo.cuttle.ExecutionStreams execution streams]].
     */
-  def execAndRetrieveOutput[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[(String,String)] = {
+  def execAndRetrieveOutput[S <: Scheduling](env: Map[String, String] = sys.env)(
+    implicit execution: Execution[S]): Future[(String, String)] = {
     val out = new StringBuffer
     val err = new StringBuffer
     exec0(env, x => out.append(x), x => err.append(x)).map(_ => (out.toString, err.toString))

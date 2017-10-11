@@ -39,11 +39,11 @@ case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, Htt
       (pattern -> new RateLimiter(
         tokens,
         per match {
-          case TimeUnit.DAYS => (24 * 60 * 60 * 1000) / tokens
-          case TimeUnit.HOURS => (60 * 60 * 1000) / tokens
+          case TimeUnit.DAYS    => (24 * 60 * 60 * 1000) / tokens
+          case TimeUnit.HOURS   => (60 * 60 * 1000) / tokens
           case TimeUnit.MINUTES => (60 * 1000) / tokens
           case TimeUnit.SECONDS => (1000) / tokens
-          case x => sys.error(s"Non supported period, ${x}")
+          case x                => sys.error(s"Non supported period, ${x}")
         }
       ))
   }
