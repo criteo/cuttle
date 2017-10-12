@@ -68,7 +68,7 @@ trait Workflow[S <: Scheduling] {
   def dependsOn(rightWorkflow: Workflow[S])(implicit dependencyDescriptor: S#DependencyDescriptor): Workflow[S] =
     dependsOn((rightWorkflow, dependencyDescriptor))
 
-  /**def empty[S <: Scheduling] = new Workflow[S] {
+  /**
     * Compose a [[Workflow]] with a second [[Workflow]] with a dependencies added between
     * all this workflow roots and the other workflow leaves. The added dependencies will use the
     * specified dependency descriptors.
