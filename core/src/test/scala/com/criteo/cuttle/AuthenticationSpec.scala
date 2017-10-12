@@ -1,8 +1,9 @@
 package com.criteo.cuttle
 
-import com.criteo.cuttle.authentication._
 import org.scalatest.FunSuite
 import lol.http._
+
+import Auth._
 
 class AuthenticationSpec extends FunSuite {
 
@@ -146,7 +147,7 @@ object SuiteUtils {
   private def isAuthorized(t: (String, String)): Boolean =
     t._1 == "login" && t._2 == "password"
 
-  private val basicAuth = BasicAuth(isAuthorized, testRealm)
+  private val basicAuth = BasicAuth(isAuthorized _, testRealm)
 }
 
 object YesAuth extends Authenticator {

@@ -19,7 +19,8 @@ import io.circe.syntax._
 
 import App._
 
-private[cuttle] trait WaitingExecutionQueue {
+/** A priority queue ordered by [[com.criteo.cuttle.SchedulingContext SchedulingContext]] priority. */
+trait WaitingExecutionQueue {
   case class DelayedResult[A](effect: () => Future[A],
                               effectDebug: String,
                               promise: Promise[A],
@@ -50,12 +51,14 @@ private[cuttle] trait WaitingExecutionQueue {
     atomic { implicit txn =>
       _waiting() = _waiting() + entry
     }
-    execution.onCancel(() => {
-      atomic { implicit txn =>
-        _waiting() = _waiting() - entry
-      }
-      result.promise.tryComplete(Failure(ExecutionCancelledException))
-    }).unsubscribeOn(result.promise.future)
+    execution
+      .onCancel(() => {
+        atomic { implicit txn =>
+          _waiting() = _waiting() - entry
+        }
+        result.promise.tryComplete(Failure(ExecutionCancelled))
+      })
+      .unsubscribeOn(result.promise.future)
     runNext()
     result.promise.future
   }

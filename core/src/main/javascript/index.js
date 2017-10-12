@@ -32,7 +32,7 @@ const routes = {
     openPage({ id: "executions/paused", page, sort, order }),
   "/executions/:id": ({ id }) =>
     openPage({ id: "executions/detail", execution: id }),
-  "/workflow/*": ({ _ }) => openPage({ id: "workflow", jobId : _ }),
+  "/workflow/*": ({ _ }) => openPage({ id: "workflow", jobId: _ }),
   "/workflow": () => openPage({ id: "workflow" }),
   "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
   "/timeseries/calendar/:start_:end": ({ start, end }) =>
@@ -41,29 +41,39 @@ const routes = {
     openPage({ id: "timeseries/backfills", page, sort, order }),
   "/timeseries/backfills/create": () =>
     openPage({ id: "timeseries/backfills/create" }),
-  "/timeseries/backfills/:backfillId": ({ backfillId }, { page, sort, order }) =>
-    openPage({ id: "timeseries/backfills/detail", backfillId, page, sort, order }),
+  "/timeseries/backfills/:backfillId": (
+    { backfillId },
+    { page, sort, order }
+  ) =>
+    openPage({
+      id: "timeseries/backfills/detail",
+      backfillId,
+      page,
+      sort,
+      order
+    }),
   "/timeseries/executions/*": ({ _ }) => {
-    return openPage({ 
-      id: "timeseries/executions", 
-      ...parseExecutionsRoute(_) 
-    })
-    }
+    return openPage({
+      id: "timeseries/executions",
+      ...parseExecutionsRoute(_)
+    });
+  }
 };
 
-const parseExecutionsRoute = (()=>{
+const parseExecutionsRoute = (() => {
   const executionsRouteRegex = /([^/]+)\/([^_]+)_([^/?#]+).*/;
 
-  return (queryString : string)  => {
+  return (queryString: string) => {
     const match = executionsRouteRegex.exec(queryString);
-    return match && {
-      job: match[1],
-      start: match[2],
-      end: match[3]
-    };
-  }
+    return (
+      match && {
+        job: match[1],
+        start: match[2],
+        end: match[3]
+      }
+    );
+  };
 })();
-
 
 const router = createRouter(routes, createHistory());
 const store = createStore(
@@ -123,10 +133,9 @@ store.subscribe(() => {
     : "";
   listenForStatistics(`/api/statistics?events=true${jobsFilter}`);
   if (state.project && state.project.name) {
-    if(state.project.env.name) {
+    if (state.project.env.name) {
       document.title = `${state.project.name} – ${state.project.env.name}`;
-    }
-    else {
+    } else {
       document.title = state.project.name;
     }
   }

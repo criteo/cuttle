@@ -19,7 +19,7 @@ private[timeseries] case class Interval[V: Ordering](lo: Bound[V], hi: Bound[V])
     Interval(lo.map(f), hi.map(f))
   def toPair: (V, V) = (lo, hi) match {
     case (Finite(lo), Finite(hi)) => (lo, hi)
-    case _ => throw new IllegalArgumentException("cant convert infinite intervals to pair")
+    case _                        => throw new IllegalArgumentException("cant convert infinite intervals to pair")
   }
 }
 private[timeseries] object Interval {

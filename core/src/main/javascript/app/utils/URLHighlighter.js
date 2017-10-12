@@ -26,18 +26,18 @@ const buildLinkTag = (m: Match): any => {
 };
 
 const autolinker = new AutoLinker({
-    urls : {
-        schemeMatches : true,
-        wwwMatches    : false,
-        tldMatches    : false
-    },
-    email       : false,
-    phone       : false,
-    mention     : false,
-    hashtag     : false,
-    stripPrefix : true,
-    stripTrailingSlash : true,
-    newWindow   : true
+  urls: {
+    schemeMatches: true,
+    wwwMatches: false,
+    tldMatches: false
+  },
+  email: false,
+  phone: false,
+  mention: false,
+  hashtag: false,
+  stripPrefix: true,
+  stripTrailingSlash: true,
+  newWindow: true
 });
 
 /**

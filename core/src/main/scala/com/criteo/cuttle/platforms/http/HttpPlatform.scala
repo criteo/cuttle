@@ -12,6 +12,24 @@ import io.circe.syntax._
 import lol.http._
 import lol.json._
 
+/** Allow to make HTTP calls in a managed way with rate limiting. Globally the platform limits the number
+  * of concurrent requests on the platform. Additionnaly a rate limiter must be defined for each host allowed
+  * to be called by this platform.
+  *
+  * Example:
+  * {{{
+  *   platforms.http.HttpPlatform(
+  *     maxConcurrentRequests = 10,
+  *     rateLimits = Seq(
+  *       .*[.]criteo[.](pre)?prod([:][0-9]+)?" -> platforms.http.HttpPlatform.RateLimit(100, per = SECONDS),
+  *       google.com -> platforms.http.HttpPlatform.RateLimit(1, per = SECONDS)
+  *     )
+  *   ),
+  * }}}
+  *
+  * While being rate limited, the [[com.criteo.cuttle.Job Job]] [[com.criteo.cuttle.Execution Execution]] is
+  * seen as __WAITING__ in the UI.
+  */
 case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, HttpPlatform.RateLimit)])
     extends ExecutionPlatform {
 
@@ -21,11 +39,11 @@ case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, Htt
       (pattern -> new RateLimiter(
         tokens,
         per match {
-          case TimeUnit.DAYS => (24 * 60 * 60 * 1000) / tokens
-          case TimeUnit.HOURS => (60 * 60 * 1000) / tokens
+          case TimeUnit.DAYS    => (24 * 60 * 60 * 1000) / tokens
+          case TimeUnit.HOURS   => (60 * 60 * 1000) / tokens
           case TimeUnit.MINUTES => (60 * 1000) / tokens
           case TimeUnit.SECONDS => (1000) / tokens
-          case x => sys.error(s"Non supported period, ${x}")
+          case x                => sys.error(s"Non supported period, ${x}")
         }
       ))
   }
@@ -56,9 +74,21 @@ case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, Htt
     }
 }
 
+/** Access to the [[HttpPlatform]]. */
 object HttpPlatform {
+
+  /** A rate limiter for a given HTTP host. It uses a token bucket implementation.
+    *
+    * @param maxRequests Maximum number of requests allowed in the specified time slot.
+    * @param per time slot.
+    */
   case class RateLimit(maxRequests: Int, per: TimeUnit)
 
+  /** Make an HTTP request via the platorm.
+    *
+    * @param request The [[lol.http.Request Request]] to run.
+    * @param thunk The function handling the HTTP resposne once received.
+    */
   def request[A, S <: Scheduling](request: Request)(thunk: Response => Future[A])(
     implicit execution: Execution[S]): Future[A] = {
     val streams = execution.streams

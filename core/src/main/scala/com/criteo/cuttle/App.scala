@@ -12,9 +12,9 @@ import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import authentication._
+import Auth._
 import ExecutionStatus._
-import Metrics.{Prometheus, Gauge}
+import Metrics.{Gauge, Prometheus}
 import utils.getJVMUptime
 
 private[cuttle] object App {
@@ -58,12 +58,12 @@ private[cuttle] object App {
         "context" -> execution.context,
         "status" -> (execution.status match {
           case ExecutionSuccessful => "successful"
-          case ExecutionFailed => "failed"
-          case ExecutionRunning => "running"
-          case ExecutionWaiting => "waiting"
-          case ExecutionPaused => "paused"
-          case ExecutionThrottled => "throttled"
-          case ExecutionTodo => "todo"
+          case ExecutionFailed     => "failed"
+          case ExecutionRunning    => "running"
+          case ExecutionWaiting    => "waiting"
+          case ExecutionPaused     => "paused"
+          case ExecutionThrottled  => "throttled"
+          case ExecutionTodo       => "todo"
         }).asJson,
         "failing" -> execution.failing.map {
           case FailingJob(failedExecutions, nextRetry) =>
@@ -77,7 +77,7 @@ private[cuttle] object App {
   }
 
   implicit val executionStatEncoder: Encoder[ExecutionStat] = new Encoder[ExecutionStat] {
-    override def apply(execution: ExecutionStat) : Json =
+    override def apply(execution: ExecutionStat): Json =
       Json.obj(
         "startTime" -> execution.startTime.asJson,
         "endTime" -> execution.endTime.asJson,
@@ -85,12 +85,12 @@ private[cuttle] object App {
         "waitingSeconds" -> execution.waitingSeconds.asJson,
         "status" -> (execution.status match {
           case ExecutionSuccessful => "successful"
-          case ExecutionFailed => "failed"
-          case ExecutionRunning => "running"
-          case ExecutionWaiting => "waiting"
-          case ExecutionPaused => "paused"
-          case ExecutionThrottled => "throttled"
-          case ExecutionTodo => "todo"
+          case ExecutionFailed     => "failed"
+          case ExecutionRunning    => "running"
+          case ExecutionWaiting    => "waiting"
+          case ExecutionPaused     => "paused"
+          case ExecutionThrottled  => "throttled"
+          case ExecutionTodo       => "todo"
         }).asJson
       )
   }
@@ -137,7 +137,9 @@ private[cuttle] object App {
     }
 }
 
-private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA,
+private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
+                                                executor: Executor[S],
+                                                xa: XA,
                                                 logger: Logger) {
   import App._
   import project.{scheduler, workflow}
@@ -147,14 +149,15 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
   val publicApi: PartialService = {
 
     case GET at url"/api/status" => {
-      val projectJson = (status : String) => Json.obj(
-        "project" -> project.name.asJson,
-        "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
-        "status" -> status.asJson
+      val projectJson = (status: String) =>
+        Json.obj(
+          "project" -> project.name.asJson,
+          "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
+          "status" -> status.asJson
       )
       executor.healthCheck() match {
         case Success(_) => Ok(projectJson("ok"))
-        case _ => InternalServerError(projectJson("ko"))
+        case _          => InternalServerError(projectJson("ko"))
       }
     }
 
@@ -164,15 +167,17 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         .getOrElse(allJobs)
         .toSet
 
-      def getStats() = Try(
-        executor.getStats(filteredJobs) -> scheduler.getStats(filteredJobs)
-      ).toOption
+      def getStats() =
+        Try(
+          executor.getStats(filteredJobs) -> scheduler.getStats(filteredJobs)
+        ).toOption
 
       def asJson(x: (Json, Json)) = x match {
         case (executorStats, schedulerStats) =>
-          executorStats.deepMerge(Json.obj(
-            "scheduler" -> schedulerStats
-          ))
+          executorStats.deepMerge(
+            Json.obj(
+              "scheduler" -> schedulerStats
+            ))
       }
 
       events match {
@@ -311,7 +316,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
 
       val gracePeriod: Try[Long] = gracePeriodSeconds match {
         case "" => Success(300)
-        case p => Try(p.toLong)
+        case p  => Try(p.toLong)
       }
 
       gracePeriod match {
