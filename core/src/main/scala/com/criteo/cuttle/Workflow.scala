@@ -94,7 +94,7 @@ trait Workflow[S <: Scheduling] {
 object Workflow {
 
   /** An empty [[Workflow]] (empty graph). */
-  def empty[S <: Scheduling] = new Workflow[S] {
+  def empty[S <: Scheduling]: Workflow[S] = new Workflow[S] {
     def vertices = Set.empty
     def edges = Set.empty
   }

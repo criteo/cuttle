@@ -38,12 +38,16 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     val xa = Database.connect(databaseConfig)
     val executor = new Executor[S](platforms, xa, logger = logger)(retryStrategy)
 
+    logger.info("Start workflow")
+    scheduler.start(workflow, executor, xa, logger)
+
+    logger.info("Start server")
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
     })(App(this, executor, xa, logger).routes)
+
     logger.info(s"Listening on http://localhost:$httpPort")
-    scheduler.start(workflow, executor, xa, logger)
   }
 }
 

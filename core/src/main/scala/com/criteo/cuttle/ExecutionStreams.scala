@@ -35,7 +35,7 @@ private[cuttle] object ExecutionStreams {
   private val maxHandles = 1024
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
   private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.ExecutionStreams.SC")
-  println(s"Transient execution streams go to $transientStorage")
+  logger.info(s"Transient execution streams go to $transientStorage")
 
   private def logFile(id: ExecutionId): File = new File(transientStorage, id)
 

@@ -64,7 +64,7 @@ package object cuttle {
     def logMe(message: => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
     override def info(message: => String): Unit = logMe(message, "INFO")
     override def debug(message: => String): Unit = logMe(message, "DEBUG")
-    override def warning(message: => String): Unit = ()
-    override def error(message: => String): Unit = ()
+    override def warning(message: => String): Unit = logMe(message, "WARNING")
+    override def error(message: => String): Unit = logMe(message, "ERROR")
   }
 }

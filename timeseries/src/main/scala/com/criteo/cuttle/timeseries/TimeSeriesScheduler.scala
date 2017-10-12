@@ -324,6 +324,16 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   }
 
   def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
+    logger.info("Validate workflow before start")
+    TimeSeriesUtils.validate(workflow) match {
+      case Left(errors) =>
+        val consolidatedError = errors.mkString("\n")
+        logger.error(consolidatedError)
+        throw new IllegalArgumentException(consolidatedError)
+      case Right(_) => ()
+    }
+    logger.info("Workflow is valid")
+
     Database.doSchemaUpdates.transact(xa).unsafePerformIO
 
     Database
@@ -396,7 +406,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
       if (completed.nonEmpty || toRun.nonEmpty)
         runOrLogAndDie(Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO,
-                       "TimeSeriesScheduler, cannot serialize state, shutting down")
+                       "TimeseriesScheduler, cannot serialize state, shutting down")
 
       if (completedBackfills.nonEmpty)
         runOrLogAndDie(
@@ -404,7 +414,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
             .transact(xa)
             .unsafePerformIO,
-          "TimeSeriesScheduler, cannot serialize state, shutting down"
+          "TimeseriesScheduler, cannot serialize state, shutting down"
         )
 
       val newRunning = stillRunning ++ newExecutions.map {
@@ -560,5 +570,45 @@ private[timeseries] object TimeSeriesUtils {
   type Run = (TimeSeriesJob, TimeSeriesContext, Future[Completed])
   type State = Map[TimeSeriesJob, IntervalMap[Instant, JobState]]
 
-  val UTC = ZoneId.of("UTC")
+  val UTC: ZoneId = ZoneId.of("UTC")
+
+  /**
+    * Validation of cycle absence in workflow DAG and an absence the (execution, dependency) tuple that execution has
+    * a start date after an execution's start date.
+    * It's implemented based on Kahn's algorithm.
+    * @param workflow workflow to be validated
+    * @return either a validation errors list or an unit
+    */
+  def validate(workflow: Workflow[TimeSeries]): Either[List[String], Unit] = {
+    val errors = collection.mutable.ListBuffer.empty[String]
+    val edges = collection.mutable.Set(workflow.edges.toSeq: _*)
+    val roots = collection.mutable.Set(workflow.roots.toSeq: _*)
+
+    while (roots.nonEmpty) {
+      val root = roots.head
+
+      roots.remove(root)
+
+      val edgesWithoutParent = edges.filter(_._2 == root)
+
+      edgesWithoutParent.foreach {
+        case edge @ (child, _, _) =>
+          if (child.scheduling.start.isBefore(root.scheduling.start)) {
+            errors += s"Job [${child.id}] starts at [${child.scheduling.start.toString}] " +
+              s"before his parent [${root.id}] at [${root.scheduling.start.toString}]"
+          }
+
+          edges.remove(edge)
+
+          if (!edges.exists(_._1 == child)) {
+            roots.add(child)
+          }
+      }
+    }
+
+    if (edges.nonEmpty) errors += "Workflow has at least one cycle"
+
+    if (errors.nonEmpty) Left(errors.toList)
+    else Right(())
+  }
 }
