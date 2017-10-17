@@ -30,12 +30,16 @@ type Props = {
 
 type State = {
   query: ?string,
-  data: ?Array<ExecutionLog>,
+  data: ?{
+    jobExecutions: Array<ExecutionLog>,
+    parentExecutions: Array<ExecutionLog>
+  },
   eventSource: ?any,
   sort: {
     column: string,
     order: "asc" | "desc"
-  }
+  },
+  blockedBySelectedStatus?: string
 };
 
 let formatDate = (date: string) =>
@@ -137,17 +141,80 @@ class TimeSeriesExecutions extends React.Component {
     let { classes, job, start, end, envCritical } = this.props;
     let { data, sort } = this.state;
 
-    let sortedData = _.sortBy(data, e => {
-      switch (sort.column) {
-        case "backfill":
-          return e.context.backfill;
-        default:
-          return e.endTime;
+    const sortedJobExecutions = jobExecutions => {
+      let result = _.sortBy(jobExecutions, e => {
+        switch (sort.column) {
+          case "backfill":
+            return e.context.backfill;
+          default:
+            return e.endTime;
+        }
+      });
+      if (sort.order == "desc") {
+        result = _.reverse(result);
       }
-    });
-    if (sort.order == "desc") {
-      sortedData = _.reverse(sortedData);
-    }
+      return result;
+    };
+
+    const blockedByRow = (executions: Array<ExecutionLog>) => {
+      const groupedParentExecutions = (executions: Array<ExecutionLog>) =>
+        _(executions)
+          .countBy(e => e.status)
+          .entries()
+          .sortBy(([status, _]) => status)
+          .map(([status, count]) => (
+            <a
+              className={classes.openIcon}
+              onClick={() => {
+                this.setState({
+                  blockedBySelectedStatus: this.state.blockedBySelectedStatus ==
+                    status
+                    ? undefined
+                    : status
+                });
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              <JobStatus
+                key={status}
+                status={status}
+                labelFormatter={s => `${count} - ${s}`}
+              />
+            </a>
+          ))
+          .value();
+      const blockedByExpandedRow = (
+        executions: Array<ExecutionLog>,
+        status: string
+      ) => 
+        _(executions)
+          .filter(e => e.status === status)
+          .sortBy('id')
+          .sortBy('job')
+          .map(e => (
+            <Link href={`/executions/${e.id}`}>
+              <JobStatus status={e.status} labelFormatter={_ => e.job} />
+            </Link>
+          ))
+          .value();
+
+      if (executions.length) {
+        return [
+          <dt key="incomplete_parents">Blocked by:</dt>,
+          <dd key="incomplete_parents_">
+            {groupedParentExecutions(executions)}
+            {this.state.blockedBySelectedStatus
+              ? <div>
+                  {blockedByExpandedRow(
+                    executions,
+                    this.state.blockedBySelectedStatus
+                  )}
+                </div>
+              : null}
+          </dd>
+        ];
+      } else return null;
+    };
 
     return (
       <Window title="Executions for the period">
@@ -164,8 +231,11 @@ class TimeSeriesExecutions extends React.Component {
                 <dd key="end_">{formatDate(end)} UTC</dd>
                 <dt key="backfilled">Backfilled:</dt>
                 <dd key="backfilled_">
-                  {data.filter(e => e.context.backfill).length ? "Yes" : "No"}
+                  {data.jobExecutions.filter(e => e.context.backfill).length
+                    ? "Yes"
+                    : "No"}
                 </dd>
+                {blockedByRow(data.parentExecutions)}
               </FancyTable>,
               <div
                 key="data"
@@ -188,7 +258,7 @@ class TimeSeriesExecutions extends React.Component {
                   ]}
                   onSortBy={this.sortBy.bind(this)}
                   sort={sort}
-                  data={sortedData}
+                  data={sortedJobExecutions(data.jobExecutions)}
                   render={(
                     column,
                     { id, startTime, endTime, status, context }

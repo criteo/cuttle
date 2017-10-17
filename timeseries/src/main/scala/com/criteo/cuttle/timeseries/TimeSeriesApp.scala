@@ -82,6 +82,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
     override def apply(jobTimeline: JobTimeline) = jobTimeline.executions.asJson
   }
 
+  case class ExecutionDetails(jobExecutions: Seq[ExecutionLog], parentExecutions: Seq[ExecutionLog])
+
+  private implicit val executionDetailsEncoder: Encoder[ExecutionDetails] =
+    Encoder.forProduct2("jobExecutions", "parentExecutions")(
+      e => (e.jobExecutions, e.parentExecutions)
+    )
+
   private[cuttle] override def publicRoutes(workflow: Workflow[TimeSeries],
                                             executor: Executor[TimeSeries],
                                             xa: XA): PartialService = {
@@ -107,7 +114,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val remainingExecutions =
           for {
             (interval, maybeBackfill) <- state(job)
-              .intersect(Interval(startDate, endDate))
+              .intersect(requestedInterval)
               .toList
               .collect { case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill) }
             (lo, hi) <- calendar.split(interval)
@@ -118,7 +125,40 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         val throttledExecutions = executor.allFailingExecutions
           .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))
           .map(_.toExecutionLog(ExecutionThrottled))
-        (archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions).asJson
+
+        ExecutionDetails(archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions,
+                         parentExecutions(requestedInterval, job, state)).asJson
+      }
+
+      def parentExecutions(requestedInterval: Interval[Instant],
+                           job: Job[TimeSeries],
+                           state: Map[Job[TimeSeries], IntervalMap[Instant, JobState]]): Seq[ExecutionLog] = {
+
+        val calendar = job.scheduling.calendar
+        val parentJobs = workflow.edges
+          .collect({ case (child, parent, _) if child == job => parent })
+        val runningDependencies: Seq[ExecutionLog] = executor.runningExecutions
+          .filter {
+            case (e, _) => parentJobs.contains(e.job) && e.context.toInterval.intersects(requestedInterval)
+          }
+          .map({ case (e, status) => e.toExecutionLog(status) })
+        val failingDependencies: Seq[ExecutionLog] = executor.allFailingExecutions
+          .filter(e => parentJobs.contains(e.job) && e.context.toInterval.intersects(requestedInterval))
+          .map(_.toExecutionLog(ExecutionThrottled))
+        val remainingDependenciesDeps =
+          for {
+            parentJob <- parentJobs
+            (interval, maybeBackfill) <- state(parentJob)
+              .intersect(requestedInterval)
+              .toList
+              .collect { case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill) }
+            (lo, hi) <- calendar.split(interval)
+          } yield {
+            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill)
+            ExecutionLog("", parentJob.id, None, None, context.asJson, ExecutionTodo, None, 0)
+          }
+
+        runningDependencies ++ failingDependencies ++ remainingDependenciesDeps.toSeq
       }
 
       if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))

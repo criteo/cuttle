@@ -72,7 +72,9 @@ const styles = {
     borderRadius: "2px",
     padding: "0 .5em",
     maxHeight: "18px",
-    textAlign: "center"
+    textAlign: "center",
+    marginRight: "1px",
+    userSelect: "none"
   }
 };
 export const Badge = injectSheet(styles)(BadgeComponent);
