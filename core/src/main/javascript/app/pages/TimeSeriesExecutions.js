@@ -176,6 +176,7 @@ class TimeSeriesExecutions extends React.Component {
               style={{ cursor: "pointer" }}
             >
               <JobStatus
+                className={classes.executionBadge}
                 key={status}
                 status={status}
                 labelFormatter={s => `${count} - ${s}`}
@@ -186,16 +187,26 @@ class TimeSeriesExecutions extends React.Component {
       const blockedByExpandedRow = (
         executions: Array<ExecutionLog>,
         status: string
-      ) => 
+      ) =>
         _(executions)
           .filter(e => e.status === status)
-          .sortBy('id')
-          .sortBy('job')
-          .map(e => (
-            <Link href={`/executions/${e.id}`}>
-              <JobStatus status={e.status} labelFormatter={_ => e.job} />
-            </Link>
-          ))
+          .sortBy("id")
+          .sortBy("job")
+          .map(e => {
+            const href = e.status === "todo"
+              ? `/timeseries/executions/${e.job}/${e.context.start}_${e.context.end}`
+              : `/executions/${e.id}`;
+
+            return (
+              <Link href={href}>
+                <JobStatus
+                  className={classes.executionBadge}
+                  status={e.status}
+                  labelFormatter={_ => e.job}
+                />
+              </Link>
+            );
+          })
           .value();
 
       if (executions.length) {
@@ -337,6 +348,9 @@ const styles = {
   },
   disabled: {
     opacity: ".25"
+  },
+  executionBadge: {
+    marginRight: "5px"
   }
 };
 

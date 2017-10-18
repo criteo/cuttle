@@ -73,7 +73,6 @@ const styles = {
     padding: "0 .5em",
     maxHeight: "18px",
     textAlign: "center",
-    marginRight: "1px",
     userSelect: "none"
   }
 };
