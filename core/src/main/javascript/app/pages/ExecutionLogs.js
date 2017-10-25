@@ -486,21 +486,37 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
       selectedJobs,
       envCritical
     }) => {
-      let jobsFilter = selectedJobs.length
-        ? `&jobs=${selectedJobs.join(",")}`
-        : "";
-      let pauseAll = () =>
-        fetch("/api/jobs/all/pause", {
-          method: "POST",
-          credentials: "include"
-        });
+      const isFilterApplied = selectedJobs.length > 0;
+      const selectedJobsString = selectedJobs.join(",");
+
+      const menuItems = [];
+      let jobsFilter = "";
+      if (isFilterApplied) {
+        jobsFilter = `&jobs=${selectedJobsString}`;
+
+        const pauseFiltered = () =>
+          fetch(`/api/jobs/filtered/pause?jobs=${selectedJobsString}`, {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push(
+          <span onClick={pauseFiltered}>{`Pause ${selectedJobsString}`}</span>
+        );
+      } else {
+        const pauseAll = () =>
+          fetch("/api/jobs/all/pause", {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push(<span onClick={pauseAll}>{"Pause everything"}</span>);
+      }
+
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Started executions</h1>
-          <PopoverMenu
-            className={classes.menu}
-            items={[<span onClick={pauseAll}>Pause everything</span>]}
-          />
+          <PopoverMenu className={classes.menu} items={menuItems} />
           <ExecutionLogs
             envCritical={envCritical}
             classes={classes}
@@ -534,21 +550,39 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
       selectedJobs,
       envCritical
     }) => {
-      let jobsFilter = selectedJobs.length
-        ? `&jobs=${selectedJobs.join(",")}`
-        : "";
-      let unpauseAll = () =>
-        fetch("/api/jobs/all/unpause", {
-          method: "POST",
-          credentials: "include"
-        });
+      const isFilterApplied = selectedJobs.length > 0;
+      const selectedJobsString = selectedJobs.join(",");
+
+      const menuItems = [];
+      let jobsFilter = "";
+      if (isFilterApplied) {
+        jobsFilter = `&jobs=${selectedJobsString}`;
+
+        const unpauseFiltered = () =>
+          fetch(`/api/jobs/filtered/unpause?jobs=${selectedJobsString}`, {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push(
+          <span
+            onClick={unpauseFiltered}
+          >{`Resume ${selectedJobsString}`}</span>
+        );
+      } else {
+        const unpauseAll = () =>
+          fetch("/api/jobs/all/unpause", {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push([<span onClick={unpauseAll}>Resume everything</span>]);
+      }
+
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Paused executions</h1>
-          <PopoverMenu
-            className={classes.menu}
-            items={[<span onClick={unpauseAll}>Resume everything</span>]}
-          />
+          <PopoverMenu className={classes.menu} items={menuItems} />
           <ExecutionLogs
             envCritical={envCritical}
             classes={classes}
