@@ -77,20 +77,20 @@ class LocalProcess(command: String) {
                 result.failure(new Exception(s"Process exited with code $n"))
             }
         }
-        val process = new NuProcessBuilder(List("sh", "-ce", command).asJava, env.asJava)
+        val process = new NuProcessBuilder(List("sh", "-c", s"exec ${command.trim}").asJava, env.asJava)
         process.setProcessListener(handler)
         val fork = process.start()
         streams.debug(s"forked with PID ${fork.getPID}")
         execution
           .onCancel(() => {
-            fork.destroy(true)
+            fork.destroy(false)
           })
           .unsubscribeOn(result.future)
         result.future
       }
   }
 
-  /** Fork this processfor the given [[com.criteo.cuttle.Execution Execution]]. The returned
+  /** Fork this process for the given [[com.criteo.cuttle.Execution Execution]]. The returned
     * [[scala.concurrent.Future Future]] will be resolved as soon as the command complete.
     *
     * @param env The environment variables to pass to the forked process
@@ -100,7 +100,7 @@ class LocalProcess(command: String) {
   def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Completed] =
     exec0(env, _ => (), _ => ())
 
-  /** Fork this processfor the given [[com.criteo.cuttle.Execution Execution]]. The returned
+  /** Fork this process for the given [[com.criteo.cuttle.Execution Execution]]. The returned
     * [[scala.concurrent.Future Future]] will be resolved as soon as the command complete.
     *
     * All the output of the forked process (STDOUT,STERR) will be buffered in memory and sent back as the

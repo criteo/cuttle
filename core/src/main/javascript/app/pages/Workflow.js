@@ -31,6 +31,7 @@ import FancyTable from "../components/FancyTable";
 import Spinner from "../components/Spinner";
 
 import moment from "moment";
+import PopoverMenu from "../components/PopoverMenu";
 
 type Props = {
   classes: any,
@@ -317,6 +318,32 @@ class WorkflowComponent extends React.Component {
       );
     };
 
+    const JobMenu = ({ jobId }) => (
+      <PopoverMenu
+        className={classes.menu}
+        items={[
+          <span
+            onClick={() =>
+              fetch(`/api/jobs/${jobId}/pause`, {
+                method: "POST",
+                credentials: "include"
+              })}
+          >
+            Pause
+          </span>,
+          <span
+            onClick={() =>
+              fetch(`/api/jobs/${jobId}/unpause`, {
+                method: "POST",
+                credentials: "include"
+              })}
+          >
+            Resume
+          </span>
+        ]}
+      />
+    );
+
     return (
       <div className={classes.main}>
         <Dagger
@@ -332,8 +359,9 @@ class WorkflowComponent extends React.Component {
           options={map(nodes, n => ({ value: n.id, label: n.name }))}
           onChange={o => navTo("/workflow/" + o.value)}
         />
-        <SlidePanel>
+        <SlidePanel open={false}>
           <div className={classes.jobCard}>
+            <JobMenu jobId={startNode.id} />
             <FancyTable>
               <dt key="id">Id:</dt>
               <dd key="id_">
@@ -453,7 +481,13 @@ const styles = {
     }
   },
   jobCard: {
-    color: "#3B4254"
+    color: "#3B4254",
+    position: "relative"
+  },
+  menu: {
+    position: "absolute",
+    top: "10px",
+    right: "1em"
   }
 };
 

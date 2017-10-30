@@ -9,16 +9,16 @@ package com.criteo.cuttle.examples
 import com.criteo.cuttle._
 
 // The local platform allows to locally fork some processes
-// (_here we will just fork bash commands_).
-import platforms.local._
+// (_here we will just fork shell commands_).
+import com.criteo.cuttle.platforms.local._
 
 // We will use the time series scheduler for this project.
-import timeseries._
+import com.criteo.cuttle.timeseries._
 
 // We also have to import the Java 8 time API, used by the
 // time series scheduler.
+import java.time.ZoneOffset.UTC
 import java.time._
-import java.time.ZoneOffset.{UTC}
 
 object HelloWorld {
 
@@ -45,35 +45,49 @@ object HelloWorld {
           val partitionToCompute = (e.context.start) + "-" + (e.context.end)
 
           // The `sh` interpolation is provided by the local platform. It allows us to
-          // declare a bash script to execute.
-          sh"""
-          echo "Hello for ${partitionToCompute}"
-          echo "Check my project page at https://github.com/criteo/cuttle"
-          sleep 1
-        """.exec()
+          // declare a bash command to execute. If you want use many commands you can combine them
+          // in a for comprehension.
+          for {
+            _ <- sh"echo Hello for $partitionToCompute".exec()
+            _ <- sh"echo Check my project page at https://github.com/criteo/cuttle".exec()
+            completed <- sh"sleep 1".exec()
+          } yield completed
       }
 
     // Our second job is also on hourly job. Nothing special here.
+    // We still can do pretty sophisticated things with sh commands.
+    // For example you can create an executable file and run it.
     val hello2 =
       Job("hello2", hourly(start), "Hello 2") { implicit e =>
-        sh"""
-          echo "Looping for 20 seconds..."
-          for i in {1..20}; do
-            date
-            sleep 1
-          done
-          echo "Ok"
-        """.exec()
+        val scriptName = s"/tmp/run${e.id}"
+        for {
+          _ <- sh"echo Looping for 20 seconds...".exec()
+          _ <- sh"""
+                |echo "
+                |    number=\$$1
+                |    shift
+                |    for n in \$$(seq \$$number); do
+                |      sleep 1
+                |      \$$@
+                |    done
+                |" > /tmp/run${e.id}
+              """.exec()
+          _ <- sh"chmod +x $scriptName".exec()
+          _ <- sh"$scriptName 20 date".exec()
+          completed <- sh"echo OK".exec()
+        } yield completed
       }
 
     // Here is our third job. Look how we can also define some metadata such as a human friendly
-    // name and a set of tags. These informations are used in the UI to help retrieving your jobs.
+    // name and a set of tags. This information is used in the UI to help retrieving your jobs.
     val hello3 =
       Job("hello3", hourly(start), "Hello 3", tags = Set(Tag("unsafe job"))) { implicit e =>
-        sh"""
-          echo "Hello 3"
-          sleep 3
-        """.exec().map { _ =>
+        val complete = for {
+          _ <- sh"echo Hello 3".exec()
+          completed <- sh"sleep 3".exec()
+        } yield completed
+
+        complete.map { _ =>
           // We generate an artifical failure if the partition is for 2 days ago between 00 and 01
           // and if the `/tmp/hello3_success` file does not exist.
           if (e.context.start == LocalDate.now.minusDays(2).atStartOfDay.toInstant(UTC)
@@ -97,10 +111,10 @@ object HelloWorld {
     // we need to define the time zone for which _days_ must be considered. The partitions for
     // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
     val world = Job("world", daily(start, UTC), "World") { implicit e =>
-      sh"""
-        echo "World"
-        sleep 6
-      """.exec()
+      for {
+        _ <- sh"echo World".exec()
+        completed <- sh"sleep 6".exec()
+      } yield completed
     }
 
     // Finally we bootstrap our cuttle project.

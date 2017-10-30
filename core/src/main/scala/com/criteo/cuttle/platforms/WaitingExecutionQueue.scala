@@ -53,10 +53,12 @@ trait WaitingExecutionQueue {
     }
     execution
       .onCancel(() => {
-        atomic { implicit txn =>
+        val wasWaiting = atomic { implicit txn =>
+          val wasWaiting = _waiting().contains(entry)
           _waiting() = _waiting() - entry
+          wasWaiting
         }
-        result.promise.tryComplete(Failure(ExecutionCancelled))
+        if (wasWaiting) result.promise.tryComplete(Failure(ExecutionCancelled))
       })
       .unsubscribeOn(result.promise.future)
     runNext()
