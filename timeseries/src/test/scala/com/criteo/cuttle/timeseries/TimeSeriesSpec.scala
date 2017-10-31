@@ -65,7 +65,7 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     val validationRes = TimeSeriesUtils.validate(workflow)
     assert(validationRes.isLeft, "workflow passed start date validation")
     assert(
-      validationRes.left.get === List(
+      validationRes.left.get.toSet === Set(
         "Job [2] starts at [2017-03-25T02:00:00Z] before his parent [badJob] at [2117-03-25T02:00:00Z]",
         "Job [1] starts at [2017-03-25T02:00:00Z] before his parent [badJob] at [2117-03-25T02:00:00Z]"
       ),
