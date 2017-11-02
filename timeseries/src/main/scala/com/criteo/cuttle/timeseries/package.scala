@@ -55,33 +55,45 @@ package object timeseries {
     * complete calendar hours starting at 00 minutes, 00 seconds.
     *
     * If the start instant does not match a round hour (0 minutes, 0 seconds), the calendar
-    * will actually start a the next hour immediatly following the start instant.
+    * will actually start the next hour immediatly following the start instant.
+    *
+    * The optional end instant allows to specify a finite calendar that will stop on the
+    * end instant if it is a round hour or at the start of the hour otherwise.
     *
     * @param start The instant this calendar will start.
+    * @param end The optional instant this calendar will end.
     */
-  def hourly(start: Instant) = TimeSeries(calendar = Hourly, start)
+  def hourly(start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Hourly, start, end)
 
   /** Defines an daily calendar starting at the specified instant, and using the specified time zone.
     * Days are defined as complete calendar days starting a midnight and during 24 hours. If the specified
     * timezone defines lightsaving it is possible that some days are 23 or 25 horus thus.
     *
     * If the start instant does not match a round day (midnight), the calendar
-    * will actually start a the next day immediatly following the start instant.
+    * will actually start the next day immediatly following the start instant.
+    *
+    * The optional end instant allows to specify a finite calendar that will stop on the
+    * end instant if it is a round day or at the start of the day otherwise.
     *
     * @param start The instant this calendar will start.
+    * @param end The optional instant this calendar will end.
     * @param tz The time zone for which these _days_ are defined.
     */
-  def daily(start: Instant, tz: ZoneId) = TimeSeries(calendar = Daily(tz), start)
+  def daily(tz: ZoneId, start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Daily(tz), start, end)
 
   /** Defines a monthly calendar. Months are defined as complete calendar months starting on the 1st day and
     * during 28,29,30 or 31 days. The specified time zone is used to define the exact month start instant.
     *
     * If the start instant does not match a round month (1st at midnight), the calendar
-    * will actually start a the next month immediatly following the start instant.
+    * will actually start the next month immediatly following the start instant.
+    *
+    * The optional end instant allows to specify a finite calendar that will stop on the
+    * end instant if it is a round month or at the start of the month otherwise.
     *
     * @param start The instant this calendar will start.
+    * @param end The optional instant this calendar will end.
     * @param tz The time zone for which these months are defined.
     */
-  def monthly(start: Instant, tz: ZoneId) = TimeSeries(calendar = Monthly(tz), start)
+  def monthly(tz: ZoneId, start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Monthly(tz), start, end)
 
 }
