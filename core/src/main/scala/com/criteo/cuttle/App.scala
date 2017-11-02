@@ -149,6 +149,23 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
   private def extractJobs(jobsQueryString: String) =
     Try(jobsQueryString.split(",").filter(_.nonEmpty).toSet).filter(_.nonEmpty)
 
+  private def extractJobsAndProcess(jobsQueryString: String)(process: Set[Job[S]] => Unit) = {
+    val filteredJobs = extractJobs(jobsQueryString).getOrElse(Set.empty)
+
+    if (filteredJobs.isEmpty) {
+      process(workflow.vertices)
+      Ok
+    } else {
+      lazy val jobsToProcess = workflow.vertices.filter(v => filteredJobs.contains(v.id))
+
+      if (jobsToProcess.isEmpty) NotFound
+      else {
+        process(jobsToProcess)
+        Ok
+      }
+    }
+  }
+
   val publicApi: PartialService = {
 
     case GET at url"/api/status" => {
@@ -273,7 +290,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
             ))
       }
 
-    case GET at url"/api/jobs/paused" =>
+    case GET at "/api/jobs/paused" =>
       Ok(executor.pausedJobs.asJson)
 
     case GET at "/api/project_definition" =>
@@ -289,53 +306,14 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
       Ok
     }
 
-    case POST at url"/api/jobs/all/pause" => { implicit user =>
-      executor.pauseJobs(workflow.vertices)
-      Ok
+    case POST at url"/api/jobs/pause?jobs=$jobs" => { implicit user =>
+      extractJobsAndProcess(jobs)(executor.pauseJobs)
     }
 
-    case POST at url"/api/jobs/filtered/pause?jobs=$jobs" => { implicit user =>
-      val filteredJobs = extractJobs(jobs).getOrElse(Set.empty)
-
-      val jobsToPause = workflow.vertices.filter(v => filteredJobs.contains(v.id))
-
-      if (jobsToPause.isEmpty) NotFound
-      else {
-        executor.pauseJobs(jobsToPause)
-        Ok
-      }
+    case POST at url"/api/jobs/resume?jobs=$jobs" => { implicit user =>
+      extractJobsAndProcess(jobs)(executor.resumeJobs)
     }
 
-    case POST at url"/api/jobs/$id/pause" => { implicit user =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.pauseJobs(Set(job))
-        Ok
-      }
-    }
-
-    case POST at url"/api/jobs/all/unpause" => { implicit user =>
-      executor.unpauseJobs(workflow.vertices)
-      Ok
-    }
-
-    case POST at url"/api/jobs/filtered/unpause?jobs=$jobs" => { implicit user =>
-      val filteredJobs = extractJobs(jobs).getOrElse(Set.empty)
-
-      val jobsToUnpause = workflow.vertices.filter(v => filteredJobs.contains(v.id))
-
-      if (jobsToUnpause.isEmpty) NotFound
-      else {
-        executor.unpauseJobs(jobsToUnpause)
-        Ok
-      }
-    }
-
-    case POST at url"/api/jobs/$id/unpause" => { implicit user =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.unpauseJobs(Set(job))
-        Ok
-      }
-    }
     case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>
       import scala.concurrent.duration._
 

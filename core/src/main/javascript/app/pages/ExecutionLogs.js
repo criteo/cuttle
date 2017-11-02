@@ -25,7 +25,7 @@ import TimeRangeLink from "../components/TimeRangeLink";
 import { listenEvents } from "../../Utils";
 import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
 import { urlFormat } from "../utils/Date";
-import JobStatus from "../components/JobStatus";
+import Status from "../components/Status";
 
 type Props = {
   classes: any,
@@ -257,7 +257,7 @@ class ExecutionLogs extends React.Component {
                       className={classes.openIcon}
                       href={`/executions/${id}`}
                     >
-                      <JobStatus status={status} />
+                      <Status status={status} />
                     </Link>
                   );
                 case "detail":
@@ -495,17 +495,19 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
         jobsFilter = `&jobs=${selectedJobsString}`;
 
         const pauseFiltered = () =>
-          fetch(`/api/jobs/filtered/pause?jobs=${selectedJobsString}`, {
+          fetch(`/api/jobs/pause?jobs=${selectedJobsString}`, {
             method: "POST",
             credentials: "include"
           });
 
         menuItems.push(
-          <span onClick={pauseFiltered}>{`Pause ${selectedJobsString}`}</span>
+          <span
+            onClick={pauseFiltered}
+          >{`Pause ${selectedJobs.length} filtered jobs`}</span>
         );
       } else {
         const pauseAll = () =>
-          fetch("/api/jobs/all/pause", {
+          fetch("/api/jobs/pause", {
             method: "POST",
             credentials: "include"
           });
@@ -558,25 +560,25 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
       if (isFilterApplied) {
         jobsFilter = `&jobs=${selectedJobsString}`;
 
-        const unpauseFiltered = () =>
-          fetch(`/api/jobs/filtered/unpause?jobs=${selectedJobsString}`, {
+        const resumeFiltered = () =>
+          fetch(`/api/jobs/resume?jobs=${selectedJobsString}`, {
             method: "POST",
             credentials: "include"
           });
 
         menuItems.push(
           <span
-            onClick={unpauseFiltered}
-          >{`Resume ${selectedJobsString}`}</span>
+            onClick={resumeFiltered}
+          >{`Resume ${selectedJobs.length} filtered jobs`}</span>
         );
       } else {
-        const unpauseAll = () =>
-          fetch("/api/jobs/all/unpause", {
+        const resumeAll = () =>
+          fetch("/api/jobs/resume", {
             method: "POST",
             credentials: "include"
           });
 
-        menuItems.push([<span onClick={unpauseAll}>Resume everything</span>]);
+        menuItems.push([<span onClick={resumeAll}>Resume everything</span>]);
       }
 
       return (

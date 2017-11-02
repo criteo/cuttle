@@ -530,7 +530,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def openStreams(executionId: String): fs2.Stream[fs2.Task, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
-  private[cuttle] def unpauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
+  private[cuttle] def resumeJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val executionsToResume = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit tx: InTxnEnd): Boolean = {

@@ -9,7 +9,7 @@ import Window from "../components/Window";
 import type { Backfill, ExecutionLog, Workflow } from "../../datamodel";
 import { listenEvents } from "../../Utils";
 import Context from "../components/Context";
-import JobStatus from "../components/JobStatus";
+import Status from "../components/Status";
 import { markdown } from "markdown";
 import Link from "../components/Link";
 
@@ -125,7 +125,7 @@ class BackfillDetail extends React.Component {
                 </dd>
                 <dt key="status">Status:</dt>
                 <dd key="status_">
-                  <JobStatus status={backfill.status} />
+                  <Status status={backfill.status} />
                   <span className="backfill-completion">
                     {this.state.completion
                       ? `${(this.state.completion * 100).toFixed(2)} % completed`
