@@ -228,13 +228,14 @@ case class TimeSeriesDependency(offset: Duration)
   *                   to a value more than `1` and if possible, the scheduler can trigger [[com.criteo.cuttle.Execution Executions]]
   *                   for more than 1 partition at once.
   */
-case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, maxPeriods: Int = 1) extends Scheduling {
+case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[Instant] = None, maxPeriods: Int = 1) extends Scheduling {
   import TimeSeriesCalendar._
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
   def toJson: Json =
     Json.obj(
       "start" -> start.asJson,
+      "end" -> end.asJson,
       "maxPeriods" -> maxPeriods.asJson,
       "calendar" -> calendar.asJson
     )
@@ -364,7 +365,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       _backfills() = _backfills() ++ incompleteBackfills
 
       workflow.vertices.foreach { job =>
-        val definedInterval = Interval(Finite(job.scheduling.start), Top)
+        val definedInterval = Interval(
+          Finite(job.scheduling.start),
+          job.scheduling.end.map(Finite.apply _).getOrElse(Top))
         val oldJobState = _state().getOrElse(job, IntervalMap.empty[Instant, JobState])
         val missingIntervals = IntervalMap(definedInterval -> (()))
           .whenIsUndef(oldJobState.intersect(definedInterval))
