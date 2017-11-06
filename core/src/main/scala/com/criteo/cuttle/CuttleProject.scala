@@ -36,7 +36,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ): Unit = {
     val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa, logger = logger)(retryStrategy)
+    val executor = new Executor[S](platforms, xa, logger = logger, cuttleProject = this)(retryStrategy)
 
     logger.info("Start workflow")
     scheduler.start(workflow, executor, xa, logger)
