@@ -311,6 +311,17 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
         Ok
       }
     }
+
+    case POST at url"/api/executions/relaunch?jobs=$jobs" => { implicit user =>
+      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
+        .filter(_.nonEmpty)
+        .getOrElse(allJobs)
+        .toSet
+
+      executor.relaunch(filteredJobs)
+      Ok
+    }
+
     case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>
       import scala.concurrent.duration._
 

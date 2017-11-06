@@ -94,7 +94,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                             xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
-      def watchState() = Some((state, executor.allFailing))
+      def watchState() = Some((state, executor.allFailingJobsWithContext))
 
       def getExecutions(watchedValue: Any = ()) = {
         val job = workflow.vertices.find(_.id == jobId).get
@@ -172,7 +172,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .getOrElse(workflow.vertices.map(_.id))
         .toSet
 
-      def watchState() = Some((state, executor.allFailing))
+      def watchState() = Some((state, executor.allFailingJobsWithContext))
 
       def getFocusView(watchedValue: Any = ()) = {
         val startDate = Instant.parse(start)
@@ -325,7 +325,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .getOrElse(workflow.vertices.map(_.id))
         .toSet
 
-      def watchState() = Some((state, executor.allFailing))
+      def watchState() = Some((state, executor.allFailingJobsWithContext))
 
       def getCalendar(watchedValue: Any = ()) = {
         val (state, backfills) = this.state
