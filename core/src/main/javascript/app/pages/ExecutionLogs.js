@@ -487,11 +487,11 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
       envCritical
     }) => {
       const isFilterApplied = selectedJobs.length > 0;
-      const selectedJobsString = selectedJobs.join(",");
 
       const menuItems = [];
       let jobsFilter = "";
       if (isFilterApplied) {
+        const selectedJobsString = selectedJobs.join(",");
         jobsFilter = `&jobs=${selectedJobsString}`;
 
         const pauseFiltered = () =>
@@ -553,11 +553,11 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
       envCritical
     }) => {
       const isFilterApplied = selectedJobs.length > 0;
-      const selectedJobsString = selectedJobs.join(",");
 
       const menuItems = [];
       let jobsFilter = "";
       if (isFilterApplied) {
+        const selectedJobsString = selectedJobs.join(",");
         jobsFilter = `&jobs=${selectedJobsString}`;
 
         const resumeFiltered = () =>

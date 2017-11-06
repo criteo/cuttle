@@ -53,6 +53,7 @@ trait WaitingExecutionQueue {
     }
     execution
       .onCancel(() => {
+        // we cancel only waiting executions because the running ones are not in responsibility of the queue.
         val wasWaiting = atomic { implicit txn =>
           val wasWaiting = _waiting().contains(entry)
           _waiting() = _waiting() - entry
