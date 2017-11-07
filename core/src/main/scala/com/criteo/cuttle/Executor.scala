@@ -129,6 +129,7 @@ class CancellationListener private[cuttle] (execution: Execution[_], private[cut
   * @param streams The execution streams are scoped stdout, stderr for the execution.
   * @param platforms The available [[ExecutionPlatform ExecutionPlatforms]] for this execution.
   * @param executionContext The scoped `scala.concurrent.ExecutionContext` for this execution.
+  * @param cuttleProject The [[CuttleProject]] in which this execution has been created.
   */
 case class Execution[S <: Scheduling](
   id: String,
@@ -136,7 +137,8 @@ case class Execution[S <: Scheduling](
   context: S#Context,
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
-  executionContext: ExecutionContext
+  executionContext: ExecutionContext,
+  cuttleProject: CuttleProject[S]
 ) {
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
@@ -299,7 +301,10 @@ private[cuttle] object ExecutionPlatform {
 
 /** An [[Executor]] is responsible to actually execute the [[SideEffect]] functions for the
   * given [[Execution Executions]]. */
-class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform], xa: XA, logger: Logger)(
+class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform],
+                                                 xa: XA,
+                                                 logger: Logger,
+                                                 cuttleProject: CuttleProject[S])(
   implicit retryStrategy: RetryStrategy)
     extends MetricProvider {
 
@@ -703,7 +708,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                       def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
                     },
                     platforms = platforms,
-                    executionContext = global
+                    executionContext = global,
+                    cuttleProject = this.cuttleProject
                   )
                   val promise = Promise[Completed]
 
