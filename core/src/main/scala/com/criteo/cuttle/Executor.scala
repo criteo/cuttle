@@ -304,8 +304,7 @@ private[cuttle] object ExecutionPlatform {
 class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform],
                                                  xa: XA,
                                                  logger: Logger,
-                                                 cuttleProject: CuttleProject[S])(
-  implicit retryStrategy: RetryStrategy)
+                                                 cuttleProject: CuttleProject[S])(implicit retryStrategy: RetryStrategy)
     extends MetricProvider {
 
   import ExecutionStatus._
@@ -541,7 +540,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     }
   }
 
-  private[cuttle] def unpauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
+  private[cuttle] def resumeJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val executionsToResume = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit tx: InTxnEnd): Boolean = {

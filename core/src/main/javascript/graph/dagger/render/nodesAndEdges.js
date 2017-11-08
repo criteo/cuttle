@@ -281,23 +281,25 @@ const tagBulletVerticalOffset = ({ height }) => {
 
 export const drawNode = (
   domContainer,
-  { x, y, width, height, id, order, tags, name, yPosition, kind },
-  allTags
+  { x, y, width, height, id, name, kind },
+  tags
 ) => {
   const node = domContainer.append("g").attr("id", id).attr("class", "oneNode");
 
   const newWidth = getRealWidth(id, name, width);
   const nameToDisplay = computeNewLabel(name, widthMax);
+  const color = (tags && tags[id]) || "#E1EFFA";
 
   node
     .append("rect")
     .attr("width", truncate(newWidth))
     .attr("height", truncate(height))
-    .style("fill", "#E1EFFA")
+    .style("fill", color)
     .attr("rx", 4)
     .attr("ry", 4)
     .style("stroke", "#909AB9")
     .style("stroke-width", 0.5)
+    .style("box-shadow", "10px 10px 5px #888888;")
     .attr("filter", "url(#blur)");
 
   node
