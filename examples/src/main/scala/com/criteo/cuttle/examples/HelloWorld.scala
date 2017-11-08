@@ -56,8 +56,7 @@ object HelloWorld {
 
     // Our second job is also on hourly job. We are looping for 20 seconds here.
     val hello2 = Job("hello2", hourly(start), "Hello 2") { implicit e =>
-      for {
-        completed <- exec"""sh -c '
+      exec"""sh -c '
          |    echo Looping for 20 seconds...
          |    for i in `seq 1 20`
          |    do
@@ -66,7 +65,6 @@ object HelloWorld {
          |    done
          |    echo Ok
          |'""" ()
-      } yield completed
     }
 
     // Here is our third job. Look how we can also define some metadata such as a human friendly
