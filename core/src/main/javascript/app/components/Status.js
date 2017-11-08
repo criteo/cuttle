@@ -12,7 +12,7 @@ type Props = {
   labelFormatter?: string => string
 };
 
-const JobStatusComponent = ({
+const StatusComponent = ({
   classes,
   className,
   status,
@@ -89,6 +89,6 @@ const JobStatusComponent = ({
 
 const styles = {};
 
-const JobStatus = injectSheet(styles)(JobStatusComponent);
+const Status = injectSheet(styles)(StatusComponent);
 
-export default JobStatus;
+export default Status;

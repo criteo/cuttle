@@ -25,7 +25,7 @@ import TimeRangeLink from "../components/TimeRangeLink";
 import { listenEvents } from "../../Utils";
 import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
 import { urlFormat } from "../utils/Date";
-import JobStatus from "../components/JobStatus";
+import Status from "../components/Status";
 
 type Props = {
   classes: any,
@@ -257,7 +257,7 @@ class ExecutionLogs extends React.Component {
                       className={classes.openIcon}
                       href={`/executions/${id}`}
                     >
-                      <JobStatus status={status} />
+                      <Status status={status} />
                     </Link>
                   );
                 case "detail":
@@ -486,21 +486,39 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
       selectedJobs,
       envCritical
     }) => {
-      let jobsFilter = selectedJobs.length
-        ? `&jobs=${selectedJobs.join(",")}`
-        : "";
-      let pauseAll = () =>
-        fetch("/api/jobs/all/pause", {
-          method: "POST",
-          credentials: "include"
-        });
+      const isFilterApplied = selectedJobs.length > 0;
+
+      const menuItems = [];
+      let jobsFilter = "";
+      if (isFilterApplied) {
+        const selectedJobsString = selectedJobs.join(",");
+        jobsFilter = `&jobs=${selectedJobsString}`;
+
+        const pauseFiltered = () =>
+          fetch(`/api/jobs/pause?jobs=${selectedJobsString}`, {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push(
+          <span
+            onClick={pauseFiltered}
+          >{`Pause ${selectedJobs.length} filtered jobs`}</span>
+        );
+      } else {
+        const pauseAll = () =>
+          fetch("/api/jobs/pause", {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push(<span onClick={pauseAll}>{"Pause everything"}</span>);
+      }
+
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Started executions</h1>
-          <PopoverMenu
-            className={classes.menu}
-            items={[<span onClick={pauseAll}>Pause everything</span>]}
-          />
+          <PopoverMenu className={classes.menu} items={menuItems} />
           <ExecutionLogs
             envCritical={envCritical}
             classes={classes}
@@ -534,21 +552,39 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
       selectedJobs,
       envCritical
     }) => {
-      let jobsFilter = selectedJobs.length
-        ? `&jobs=${selectedJobs.join(",")}`
-        : "";
-      let unpauseAll = () =>
-        fetch("/api/jobs/all/unpause", {
-          method: "POST",
-          credentials: "include"
-        });
+      const isFilterApplied = selectedJobs.length > 0;
+
+      const menuItems = [];
+      let jobsFilter = "";
+      if (isFilterApplied) {
+        const selectedJobsString = selectedJobs.join(",");
+        jobsFilter = `&jobs=${selectedJobsString}`;
+
+        const resumeFiltered = () =>
+          fetch(`/api/jobs/resume?jobs=${selectedJobsString}`, {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push(
+          <span
+            onClick={resumeFiltered}
+          >{`Resume ${selectedJobs.length} filtered jobs`}</span>
+        );
+      } else {
+        const resumeAll = () =>
+          fetch("/api/jobs/resume", {
+            method: "POST",
+            credentials: "include"
+          });
+
+        menuItems.push([<span onClick={resumeAll}>Resume everything</span>]);
+      }
+
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Paused executions</h1>
-          <PopoverMenu
-            className={classes.menu}
-            items={[<span onClick={unpauseAll}>Resume everything</span>]}
-          />
+          <PopoverMenu className={classes.menu} items={menuItems} />
           <ExecutionLogs
             envCritical={envCritical}
             classes={classes}

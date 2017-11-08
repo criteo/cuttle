@@ -2,13 +2,13 @@
 
 import injectSheet from "react-jss";
 import React from "react";
-import reduce from "lodash/reduce";
+import isEqual from "lodash/isEqual";
 import map from "lodash/map";
 import constant from "lodash/constant";
 
 import { Graph } from "./dagger/dataAPI/genericGraph";
 import type { Node, Edge } from "./dagger/dataAPI/genericGraph";
-import type { Tag } from "../datamodel";
+import type { Tags } from "../datamodel";
 
 import { transitionAction } from "./dagger/render/d3render";
 import { cleanRealWidths } from "./dagger/render/nodesAndEdges";
@@ -18,7 +18,7 @@ type Props = {
   classes: any,
   nodes: Node[],
   edges: Edge[],
-  tags: Tag[],
+  tags: Tags,
   startNodeId: string,
   onClickNode: string => void
 };
@@ -47,14 +47,17 @@ class DaggerComponent extends React.Component {
 
   componentWillReceiveProps(nextProps: Props) {
     const { nodes, edges, tags, startNodeId, onClickNode } = nextProps;
-    if (nextProps.nodes.length != this.props.nodes.length)
+    if (
+      nextProps.nodes.length !== this.props.nodes.length ||
+      !isEqual(nextProps.tags, this.props.tags)
+    )
       this.buildGraph(nodes, edges, tags, startNodeId, onClickNode);
 
     const transitionAction = this.dagger.transitionAction(
       this.nodesContainer,
       this.edgesContainer
     );
-    if (this.timeMachine && nextProps.startNodeId != this.props.startNodeId)
+    if (this.timeMachine && nextProps.startNodeId !== this.props.startNodeId)
       this.timeMachine
         .next(nextProps.startNodeId, transitionAction)
         .then(({ timeMachine }) => (this.timeMachine = timeMachine));
@@ -154,11 +157,7 @@ class DaggerComponent extends React.Component {
       onClickNode,
       nodesContainer: this.nodesContainer,
       edgesContainer: this.edgesContainer,
-      tags: reduce(
-        tags,
-        (acc, current) => ({ ...acc, [current.name]: current.color }),
-        {}
-      ),
+      tags: tags,
       minimap: {
         container: this.minimapContainer,
         onClickNode,

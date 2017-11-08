@@ -2,16 +2,13 @@ package com.criteo.cuttle
 
 import lol.json._
 import lol.http._
-
 import io.circe._
 import io.circe.syntax._
-
-import java.time.{Instant}
+import java.time.Instant
 
 import scala.util._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import Auth._
 import ExecutionStatus._
 import Metrics.{Gauge, Prometheus}
@@ -144,7 +141,17 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
   import App._
   import project.{scheduler, workflow}
 
-  private def allJobs = workflow.vertices.map(_.id)
+  private val allIds = workflow.vertices.map(_.id)
+
+  private def parseJobIds(jobsQueryString: String): Set[String] =
+    jobsQueryString.split(",").filter(_.trim().nonEmpty).toSet
+
+  private def getJobsOrNotFound(jobsQueryString: String): Either[Response, Set[Job[S]]] = {
+    val jobsNames = parseJobIds(jobsQueryString)
+    val jobs = workflow.vertices.filter(v => jobsNames.contains(v.id))
+    if (jobs.isEmpty) Left(NotFound)
+    else Right(jobs)
+  }
 
   val publicApi: PartialService = {
 
@@ -162,14 +169,12 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
     }
 
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
-      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
-        .filter(_.nonEmpty)
-        .getOrElse(allJobs)
-        .toSet
+      val jobIds = parseJobIds(jobs)
+      val ids = if (jobIds.isEmpty) allIds else jobIds
 
       def getStats() =
         Try(
-          executor.getStats(filteredJobs) -> scheduler.getStats(filteredJobs)
+          executor.getStats(ids) -> scheduler.getStats(ids)
         ).toOption
 
       def asJson(x: (Json, Json)) = x match {
@@ -191,36 +196,36 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
       Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
 
     case GET at "/metrics" =>
-      val metrics = executor.getMetrics(allJobs) ++ scheduler.getMetrics(allJobs) :+
+      val metrics = executor.getMetrics(allIds) ++ scheduler.getMetrics(allIds) :+
         Gauge("cuttle_jvm_uptime_seconds").set(getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
+      val jobIds = parseJobIds(jobs)
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
       val asc = (a.toLowerCase == "asc")
-      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
-        .filter(_.nonEmpty)
-        .getOrElse(allJobs)
-        .toSet
+      val ids = if (jobIds.isEmpty) allIds else jobIds
+
       def getExecutions() = kind match {
         case "started" =>
           Some(
-            executor.runningExecutionsSizeTotal(filteredJobs) -> executor
-              .runningExecutions(filteredJobs, sort, asc, offset, limit))
+            executor.runningExecutionsSizeTotal(ids) -> executor
+              .runningExecutions(ids, sort, asc, offset, limit))
         case "stuck" =>
           Some(
-            executor.failingExecutionsSize(filteredJobs) -> executor
-              .failingExecutions(filteredJobs, sort, asc, offset, limit))
+            executor.failingExecutionsSize(ids) -> executor
+              .failingExecutions(ids, sort, asc, offset, limit))
         case "paused" =>
           Some(
-            executor.pausedExecutionsSize(filteredJobs) -> executor
-              .pausedExecutions(filteredJobs, sort, asc, offset, limit))
+            executor.pausedExecutionsSize(ids) -> executor
+              .pausedExecutions(ids, sort, asc, offset, limit))
         case "finished" =>
-          Some(executor.archivedExecutionsSize(filteredJobs) -> executor.allRunning)
+          Some(executor.archivedExecutionsSize(ids) -> executor.allRunning)
         case _ =>
           None
       }
+
       def asJson(x: (Int, Seq[ExecutionLog])) = x match {
         case (total, executions) =>
           Json.obj(
@@ -231,12 +236,13 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
             "asc" -> asc.asJson,
             "data" -> (kind match {
               case "finished" =>
-                executor.archivedExecutions(scheduler.allContexts, filteredJobs, sort, asc, offset, limit).asJson
+                executor.archivedExecutions(scheduler.allContexts, ids, sort, asc, offset, limit).asJson
               case _ =>
                 executions.asJson
             })
           )
       }
+
       events match {
         case "true" | "yes" =>
           sse(getExecutions _, asJson)
@@ -274,7 +280,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
             ))
       }
 
-    case GET at url"/api/jobs/paused" =>
+    case GET at "/api/jobs/paused" =>
       Ok(executor.pausedJobs.asJson)
 
     case GET at "/api/project_definition" =>
@@ -290,27 +296,20 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
       Ok
     }
 
-    case POST at url"/api/jobs/all/pause" => { implicit user =>
-      executor.pauseJobs(workflow.vertices)
-      Ok
+    case POST at url"/api/jobs/pause?jobs=$jobs" => { implicit user =>
+      getJobsOrNotFound(jobs).fold(identity, jobs => {
+        executor.pauseJobs(jobs)
+        Ok
+      })
     }
 
-    case POST at url"/api/jobs/$id/pause" => { implicit user =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.pauseJobs(Set(job))
+    case POST at url"/api/jobs/resume?jobs=$jobs" => { implicit user =>
+      getJobsOrNotFound(jobs).fold(identity, jobs => {
+        executor.resumeJobs(jobs)
         Ok
-      }
+      })
     }
-    case POST at url"/api/jobs/all/unpause" => { implicit user =>
-      executor.unpauseJobs(workflow.vertices)
-      Ok
-    }
-    case POST at url"/api/jobs/$id/unpause" => { implicit user =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
-        executor.unpauseJobs(Set(job))
-        Ok
-      }
-    }
+
     case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>
       import scala.concurrent.duration._
 

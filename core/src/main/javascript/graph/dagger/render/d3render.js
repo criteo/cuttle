@@ -71,7 +71,7 @@ export const transitionAction: TransitionAction = ({
   pathTo,
   previousNode
 }) => {
-  if (node.length == 0) return Promise.resolve("nothing");
+  if (node.length === 0) return Promise.resolve("nothing");
 
   const resolvedTransition = transitionAction({
     allEdgesContainer,

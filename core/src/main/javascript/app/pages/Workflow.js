@@ -16,8 +16,8 @@ import mean from "lodash/mean";
 import reduce from "lodash/reduce";
 import some from "lodash/some";
 
-import type { Node, Edge } from "../../graph/dagger/dataAPI/genericGraph";
-import type { Workflow, Tag, Job, Dependency } from "../../datamodel";
+import type { Edge, Node } from "../../graph/dagger/dataAPI/genericGraph";
+import type { Dependency, Job, Tag, Workflow } from "../../datamodel";
 
 import Select from "react-select";
 import { navigate } from "redux-url";
@@ -31,6 +31,8 @@ import FancyTable from "../components/FancyTable";
 import Spinner from "../components/Spinner";
 
 import moment from "moment";
+import PopoverMenu from "../components/PopoverMenu";
+import Status from "../components/Status";
 
 type Props = {
   classes: any,
@@ -41,7 +43,10 @@ type Props = {
 };
 
 type State = {
-  data: ?(any[])
+  data: ?(any[]),
+  // job to box color map
+  // job is a member of this object wiht a particular color only if it's paused
+  jobColors: ?{ [string]: string }
 };
 
 const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
@@ -162,7 +167,7 @@ type ExecutionStat = {
 };
 
 /**
- * Unpivots execution stats to create 
+ * Unpivots execution stats to create
  * separate "run" & "wait" events aggregated
  * by date.
  */
@@ -202,30 +207,41 @@ class WorkflowComponent extends React.Component {
     super(props);
 
     this.updateCharts(props);
+    this.updatePausedJobs();
 
     this.state = {
-      data: undefined
+      data: undefined,
+      jobColors: undefined
     };
   }
 
   componentWillReceiveProps(nextProps: Props) {
-    this.updateCharts(nextProps);
-  }
-
-  updateCharts(nextProps: Props) {
-    const chartJob = nextProps.job || nextProps.workflow.jobs[0].id;
     if (nextProps && nextProps.job && nextProps.job !== this.props.job) {
       this.setState({
         data: undefined
       });
+      const jobId = nextProps.job || nextProps.workflow.jobs[0].id;
+      this.updateCharts(jobId);
     }
-    fetch(`/api/statistics/${chartJob}`)
-      .then(data => data.json())
-      .then(json => {
-        this.setState({
-          data: json
-        });
+  }
+
+  updateCharts(jobId: string) {
+    fetch(`/api/statistics/${jobId}`).then(data => data.json()).then(json => {
+      this.setState({
+        data: json
       });
+    });
+  }
+
+  updatePausedJobs() {
+    fetch(`/api/jobs/paused`).then(data => data.json()).then(json => {
+      this.setState({
+        jobColors: json.reduce(
+          (acc, job) => Object.assign(acc, { [job]: "#FFAAFF" }),
+          {}
+        )
+      });
+    });
   }
 
   render() {
@@ -317,12 +333,52 @@ class WorkflowComponent extends React.Component {
       );
     };
 
+    const JobMenu = ({ job }: { job: string }) => {
+      const menuItems = this.state.jobColors && this.state.jobColors[job]
+        ? [
+            <span
+              onClick={() =>
+                fetch(`/api/jobs/resume?jobs=${job}`, {
+                  method: "POST",
+                  credentials: "include"
+                }).then(() => this.updatePausedJobs(job))}
+            >
+              Resume
+            </span>
+          ]
+        : [
+            <span
+              onClick={() =>
+                fetch(`/api/jobs/pause?jobs=${job}`, {
+                  method: "POST",
+                  credentials: "include"
+                }).then(() => this.updatePausedJobs(job))}
+            >
+              Pause
+            </span>
+          ];
+
+      return <PopoverMenu className={classes.menu} items={menuItems} />;
+    };
+
+    const daggerTags =
+      this.state.jobColors &&
+      workflow.jobs.reduce((acc: {}, job: Job) => {
+        if (!acc[job.id]) {
+          return Object.assign({}, acc, {
+            [job.id]: "#E1EFFA"
+          });
+        } else {
+          return acc;
+        }
+      }, this.state.jobColors);
+
     return (
       <div className={classes.main}>
         <Dagger
           nodes={nodes}
           edges={edges}
-          tags={workflow.tags}
+          tags={daggerTags}
           startNodeId={startNode.id}
           onClickNode={id => navTo("/workflow/" + id)}
         />
@@ -332,8 +388,9 @@ class WorkflowComponent extends React.Component {
           options={map(nodes, n => ({ value: n.id, label: n.name }))}
           onChange={o => navTo("/workflow/" + o.value)}
         />
-        <SlidePanel>
+        <SlidePanel open={false}>
           <div className={classes.jobCard}>
+            <JobMenu job={startNode.id} />
             <FancyTable>
               <dt key="id">Id:</dt>
               <dd key="id_">
@@ -373,6 +430,13 @@ class WorkflowComponent extends React.Component {
                     __html: markdown.toHTML(startNode.description)
                   }}
                 />
+              ]}
+              {this.state.jobColors &&
+              this.state.jobColors[startNode.id] && [
+                <dt key="status">Status:</dt>,
+                <dd key="status_">
+                  <Status status="paused" />
+                </dd>
               ]}
             </FancyTable>
           </div>
@@ -453,7 +517,13 @@ const styles = {
     }
   },
   jobCard: {
-    color: "#3B4254"
+    color: "#3B4254",
+    position: "relative"
+  },
+  menu: {
+    position: "absolute",
+    top: "10px",
+    right: "1em"
   }
 };
 
