@@ -44,7 +44,7 @@ object HelloWorld {
           // and end date.
           val partitionToCompute = (e.context.start) + "-" + (e.context.end)
 
-          // The `sh` interpolation is provided by the local platform. It allows us to
+          // The `exec` interpolation is provided by the local platform. It allows us to
           // declare a bash command to execute. If you want use many commands you can combine them
           // in a for comprehension.
           for {
