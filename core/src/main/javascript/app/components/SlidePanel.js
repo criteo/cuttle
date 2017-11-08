@@ -7,7 +7,8 @@ import classNames from "classnames";
 type Props = {
   classes: any,
   title: string,
-  children: any
+  children: any,
+  open: boolean
 };
 
 type State = {
@@ -21,7 +22,7 @@ class SlidePanel extends React.Component {
   constructor(props: Props) {
     super(props);
     this.state = {
-      open: false
+      open: props.open
     };
   }
 

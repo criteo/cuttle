@@ -15,7 +15,7 @@ import FancyTable from "../components/FancyTable";
 import Spinner from "../components/Spinner";
 import Link from "../components/Link";
 import Clock from "../components/Clock";
-import JobStatus from "../components/JobStatus";
+import Status from "../components/Status";
 import { Badge } from "../components/Badge";
 import { listenEvents } from "../../Utils";
 import type { ExecutionLog, Job } from "../../datamodel";
@@ -175,7 +175,7 @@ class TimeSeriesExecutions extends React.Component {
               }}
               style={{ cursor: "pointer" }}
             >
-              <JobStatus
+              <Status
                 className={classes.executionBadge}
                 key={status}
                 status={status}
@@ -199,7 +199,7 @@ class TimeSeriesExecutions extends React.Component {
 
             return (
               <Link href={href}>
-                <JobStatus
+                <Status
                   className={classes.executionBadge}
                   status={e.status}
                   labelFormatter={_ => e.job}
@@ -303,9 +303,9 @@ class TimeSeriesExecutions extends React.Component {
                               className={classes.openIcon}
                               href={`/executions/${id}`}
                             >
-                              <JobStatus status={status} />
+                              <Status status={status} />
                             </Link>
-                          : <JobStatus status={status} />;
+                          : <Status status={status} />;
                       case "detail":
                         return id
                           ? <Link
