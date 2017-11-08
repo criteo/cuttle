@@ -267,7 +267,7 @@ case class Execution[S <: Scheduling](
   /**
     * Run this execution on its job.
     */
-  def run(): Future[Completed] =
+  private[cuttle] def run(): Future[Completed] =
     job.run(this)
 }
 
@@ -629,7 +629,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             execution.streams.error(stacktrace.toString)
             atomic {
               implicit tx =>
-                // retain jobs in a recent failures if a last failure happened in [now - retryStrategy.retryWindow, now]
+                // retain jobs in recent failures if last failure happened in [now - retryStrategy.retryWindow, now]
                 recentFailures.retain {
                   case (_, (retryExecution, failingJob)) =>
                     retryExecution.isDefined || failingJob.isLastFailureAfter(
