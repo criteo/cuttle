@@ -97,7 +97,7 @@ class LocalProcess(command: String) {
     * @param execution The execution for which this process is forked. The process out will be redirected to
     *                  the [[com.criteo.cuttle.ExecutionStreams execution streams]].
     */
-  def exec[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Completed] =
+  def apply[S <: Scheduling](env: Map[String, String] = sys.env)(implicit execution: Execution[S]): Future[Completed] =
     exec0(env, _ => (), _ => ())
 
   /** Fork this process for the given [[com.criteo.cuttle.Execution Execution]]. The returned

@@ -48,43 +48,34 @@ object HelloWorld {
           // declare a bash command to execute. If you want use many commands you can combine them
           // in a for comprehension.
           for {
-            _ <- sh"echo Hello for $partitionToCompute".exec()
-            _ <- sh"echo Check my project page at https://github.com/criteo/cuttle".exec()
-            completed <- sh"sleep 1".exec()
+            _ <- exec"echo Hello for $partitionToCompute" ()
+            _ <- exec"echo Check my project page at https://github.com/criteo/cuttle" ()
+            completed <- exec"sleep 1" ()
           } yield completed
       }
 
-    // Our second job is also on hourly job. Nothing special here.
-    // We still can do pretty sophisticated things with sh commands.
-    // For example you can create an executable file and run it.
-    val hello2 =
-      Job("hello2", hourly(start), "Hello 2") { implicit e =>
-        val scriptName = s"/tmp/run${e.id}"
-        for {
-          _ <- sh"echo Looping for 20 seconds...".exec()
-          _ <- sh"""
-                |echo "
-                |    number=\$$1
-                |    shift
-                |    for n in \$$(seq \$$number); do
-                |      sleep 1
-                |      \$$@
-                |    done
-                |" > /tmp/run${e.id}
-              """.exec()
-          _ <- sh"chmod +x $scriptName".exec()
-          _ <- sh"$scriptName 20 date".exec()
-          completed <- sh"echo OK".exec()
-        } yield completed
-      }
+    // Our second job is also on hourly job. We are looping for 20 seconds here.
+    val hello2 = Job("hello2", hourly(start), "Hello 2") { implicit e =>
+      for {
+        completed <- exec"""sh -c '
+         |    echo Looping for 20 seconds...
+         |    for i in `seq 1 20`
+         |    do
+         |        date
+         |        sleep 1
+         |    done
+         |    echo Ok
+         |'""" ()
+      } yield completed
+    }
 
     // Here is our third job. Look how we can also define some metadata such as a human friendly
     // name and a set of tags. This information is used in the UI to help retrieving your jobs.
     val hello3 =
       Job("hello3", hourly(start), "Hello 3", tags = Set(Tag("unsafe job"))) { implicit e =>
         val complete = for {
-          _ <- sh"echo Hello 3".exec()
-          completed <- sh"sleep 3".exec()
+          _ <- exec"echo Hello 3" ()
+          completed <- exec"sleep 3" ()
         } yield completed
 
         complete.map { _ =>
@@ -112,8 +103,8 @@ object HelloWorld {
     // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
     val world = Job("world", daily(UTC, start), "World") { implicit e =>
       for {
-        _ <- sh"echo World".exec()
-        completed <- sh"sleep 6".exec()
+        _ <- exec"echo World" ()
+        completed <- exec"sleep 6" ()
       } yield completed
     }
 
