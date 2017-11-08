@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.2"
+val VERSION = "0.2.1"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
