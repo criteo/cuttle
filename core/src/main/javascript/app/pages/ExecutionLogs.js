@@ -618,19 +618,28 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
       selectedJobs,
       envCritical
     }) => {
-      let jobsFilter = selectedJobs.length
-        ? `&jobs=${selectedJobs.join(",")}`
-        : "";
+      const isFilterApplied = selectedJobs.length > 0;
+      const selectedJobsString = selectedJobs.join(",");
+      const jobsFilter = `jobs=${selectedJobsString}`;
+
+      const relaunch = () => {
+        fetch(
+          `/api/executions/relaunch${isFilterApplied ? `?${jobsFilter}` : ""}`,
+          {
+            method: "POST",
+            credentials: "include"
+          }
+        );
+      };
+
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Stuck executions</h1>
           <PopoverMenu
             className={classes.menu}
             items={[
-              //TODO retry stuck implementation
-              // eslint-disable-next-line no-console
-              <span onClick={console.log}>
-                Retry everything now
+              <span onClick={relaunch}>
+                Relaunch everything now
               </span>
             ]}
           />
@@ -649,7 +658,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
               "detail"
             ]}
             request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+              `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}${isFilterApplied ? `&${jobsFilter}` : ""}`}
             label="stuck"
             sort={{ column: sort || "failed", order }}
             selectedJobs={selectedJobs}

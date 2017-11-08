@@ -309,6 +309,25 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
         Ok
       })
     }
+    case POST at url"/api/jobs/all/unpause" => { implicit user =>
+      executor.resumeJobs(workflow.vertices)
+      Ok
+    }
+    case POST at url"/api/jobs/$id/unpause" => { implicit user =>
+      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+        executor.resumeJobs(Set(job))
+        Ok
+      }
+    }
+    case POST at url"/api/executions/relaunch?jobs=$jobs" => { implicit user =>
+      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
+        .filter(_.nonEmpty)
+        .getOrElse(allIds)
+        .toSet
+
+      executor.relaunch(filteredJobs)
+      Ok
+    }
 
     case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>
       import scala.concurrent.duration._
