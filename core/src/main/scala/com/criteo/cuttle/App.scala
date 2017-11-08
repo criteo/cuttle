@@ -14,8 +14,6 @@ import ExecutionStatus._
 import Metrics.{Gauge, Prometheus}
 import utils.getJVMUptime
 
-import scala.concurrent.Future
-
 private[cuttle] object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
   private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
@@ -143,26 +141,17 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
   import App._
   import project.{scheduler, workflow}
 
-  private val allJobs = workflow.vertices.map(_.id)
+  private val allIds = workflow.vertices.map(_.id)
 
-  private def processOnJobIds[T](jobsQueryString: String)(process: Set[String] => T): T =
-    process(jobsQueryString.split(",").filter(_.trim().nonEmpty).toSet)
+  private def parseJobIds(jobsQueryString: String): Set[String] =
+    jobsQueryString.split(",").filter(_.trim().nonEmpty).toSet
 
-  private def processOnJobs[T](jobsQueryString: String)(process: Set[Job[S]] => T): Future[Response] =
-    processOnJobIds(jobsQueryString) { jobsNames: Set[String] =>
-      if (jobsNames.isEmpty) {
-        process(workflow.vertices)
-        Ok
-      } else {
-        lazy val jobsToProcess = workflow.vertices.filter(v => jobsNames.contains(v.id))
-
-        if (jobsToProcess.isEmpty) NotFound
-        else {
-          process(jobsToProcess)
-          Ok
-        }
-      }
-    }
+  private def getJobsOrNotFound(jobsQueryString: String): Either[Response, Set[Job[S]]] = {
+    val jobsNames = parseJobIds(jobsQueryString)
+    val jobs = workflow.vertices.filter(v => jobsNames.contains(v.id))
+    if (jobs.isEmpty) Left(NotFound)
+    else Right(jobs)
+  }
 
   val publicApi: PartialService = {
 
@@ -180,87 +169,85 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
     }
 
     case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
-      processOnJobIds(jobs) { jobsNames: Set[String] =>
-        def getStats() = {
-          val filteredJobs = if (jobsNames.isEmpty) allJobs else jobsNames
-          Try(
-            executor.getStats(filteredJobs) -> scheduler.getStats(filteredJobs)
-          ).toOption
-        }
+      val jobIds = parseJobIds(jobs)
+      val ids = if (jobIds.isEmpty) allIds else jobIds
 
-        def asJson(x: (Json, Json)) = x match {
-          case (executorStats, schedulerStats) =>
-            executorStats.deepMerge(
-              Json.obj(
-                "scheduler" -> schedulerStats
-              ))
-        }
+      def getStats() =
+        Try(
+          executor.getStats(ids) -> scheduler.getStats(ids)
+        ).toOption
 
-        events match {
-          case "true" | "yes" =>
-            sse(getStats _, asJson)
-          case _ =>
-            getStats().map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
-        }
+      def asJson(x: (Json, Json)) = x match {
+        case (executorStats, schedulerStats) =>
+          executorStats.deepMerge(
+            Json.obj(
+              "scheduler" -> schedulerStats
+            ))
+      }
+
+      events match {
+        case "true" | "yes" =>
+          sse(getStats _, asJson)
+        case _ =>
+          getStats().map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
       }
 
     case GET at url"/api/statistics/$jobName" =>
       Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
 
     case GET at "/metrics" =>
-      val metrics = executor.getMetrics(allJobs) ++ scheduler.getMetrics(allJobs) :+
+      val metrics = executor.getMetrics(allIds) ++ scheduler.getMetrics(allIds) :+
         Gauge("cuttle_jvm_uptime_seconds").set(getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
-      processOnJobIds(jobs) { jobsNames: Set[String] =>
-        val limit = Try(l.toInt).toOption.getOrElse(25)
-        val offset = Try(o.toInt).toOption.getOrElse(0)
-        val asc = (a.toLowerCase == "asc")
-        val filteredJobs = if (jobsNames.isEmpty) allJobs else jobsNames
+      val jobIds = parseJobIds(jobs)
+      val limit = Try(l.toInt).toOption.getOrElse(25)
+      val offset = Try(o.toInt).toOption.getOrElse(0)
+      val asc = (a.toLowerCase == "asc")
+      val ids = if (jobIds.isEmpty) allIds else jobIds
 
-        def getExecutions() = kind match {
-          case "started" =>
-            Some(
-              executor.runningExecutionsSizeTotal(filteredJobs) -> executor
-                .runningExecutions(filteredJobs, sort, asc, offset, limit))
-          case "stuck" =>
-            Some(
-              executor.failingExecutionsSize(filteredJobs) -> executor
-                .failingExecutions(filteredJobs, sort, asc, offset, limit))
-          case "paused" =>
-            Some(
-              executor.pausedExecutionsSize(filteredJobs) -> executor
-                .pausedExecutions(filteredJobs, sort, asc, offset, limit))
-          case "finished" =>
-            Some(executor.archivedExecutionsSize(filteredJobs) -> executor.allRunning)
-          case _ =>
-            None
-        }
+      def getExecutions() = kind match {
+        case "started" =>
+          Some(
+            executor.runningExecutionsSizeTotal(ids) -> executor
+              .runningExecutions(ids, sort, asc, offset, limit))
+        case "stuck" =>
+          Some(
+            executor.failingExecutionsSize(ids) -> executor
+              .failingExecutions(ids, sort, asc, offset, limit))
+        case "paused" =>
+          Some(
+            executor.pausedExecutionsSize(ids) -> executor
+              .pausedExecutions(ids, sort, asc, offset, limit))
+        case "finished" =>
+          Some(executor.archivedExecutionsSize(ids) -> executor.allRunning)
+        case _ =>
+          None
+      }
 
-        def asJson(x: (Int, Seq[ExecutionLog])) = x match {
-          case (total, executions) =>
-            Json.obj(
-              "total" -> total.asJson,
-              "offset" -> offset.asJson,
-              "limit" -> limit.asJson,
-              "sort" -> sort.asJson,
-              "asc" -> asc.asJson,
-              "data" -> (kind match {
-                case "finished" =>
-                  executor.archivedExecutions(scheduler.allContexts, filteredJobs, sort, asc, offset, limit).asJson
-                case _ =>
-                  executions.asJson
-              })
-            )
-        }
+      def asJson(x: (Int, Seq[ExecutionLog])) = x match {
+        case (total, executions) =>
+          Json.obj(
+            "total" -> total.asJson,
+            "offset" -> offset.asJson,
+            "limit" -> limit.asJson,
+            "sort" -> sort.asJson,
+            "asc" -> asc.asJson,
+            "data" -> (kind match {
+              case "finished" =>
+                executor.archivedExecutions(scheduler.allContexts, ids, sort, asc, offset, limit).asJson
+              case _ =>
+                executions.asJson
+            })
+          )
+      }
 
-        events match {
-          case "true" | "yes" =>
-            sse(getExecutions _, asJson)
-          case _ =>
-            getExecutions().map(e => Ok(asJson(e))).getOrElse(NotFound)
-        }
+      events match {
+        case "true" | "yes" =>
+          sse(getExecutions _, asJson)
+        case _ =>
+          getExecutions().map(e => Ok(asJson(e))).getOrElse(NotFound)
       }
 
     case GET at url"/api/executions/$id?events=$events" =>
@@ -310,11 +297,17 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
     }
 
     case POST at url"/api/jobs/pause?jobs=$jobs" => { implicit user =>
-      processOnJobs(jobs)(executor.pauseJobs)
+      getJobsOrNotFound(jobs).fold(identity, jobs => {
+        executor.pauseJobs(jobs)
+        Ok
+      })
     }
 
     case POST at url"/api/jobs/resume?jobs=$jobs" => { implicit user =>
-      processOnJobs(jobs)(executor.resumeJobs)
+      getJobsOrNotFound(jobs).fold(identity, jobs => {
+        executor.resumeJobs(jobs)
+        Ok
+      })
     }
 
     case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>
