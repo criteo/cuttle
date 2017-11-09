@@ -18,13 +18,17 @@ private[cuttle] object App {
   private implicit val S = fs2.Strategy.fromExecutionContext(global)
   private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
   def sse[A](thunk: () => Option[A], encode: A => Json) = {
-    val throttle = fs2.Stream.eval(fs2.Task.schedule((), 1.second))
+    val throttle = fs2.Stream.eval_(fs2.Task.schedule((), 1.second))
     def next(previous: Option[A] = None): fs2.Stream[fs2.Task, ServerSentEvents.Event[Json]] =
-      thunk()
-        .filterNot(_ == previous.getOrElse(()))
-        .map(a => fs2.Stream(ServerSentEvents.Event(encode(a))) ++ throttle.flatMap(_ => next(Some(a))))
-        .getOrElse(throttle.flatMap(_ => next(previous)))
-    thunk().map(_ => Ok(next().changes)).getOrElse(NotFound)
+      fs2.Stream.force {
+        fs2.Task.delay {
+          thunk()
+            .filterNot(_ == previous.getOrElse(()))
+            .map(a => fs2.Stream(ServerSentEvents.Event(encode(a))) ++ throttle ++ next(Some(a)))
+            .getOrElse(throttle ++ next(previous))
+        }
+      }
+    thunk().map(_ => Ok(next())).getOrElse(NotFound)
   }
 
   implicit def projectEncoder[S <: Scheduling] = new Encoder[CuttleProject[S]] {
@@ -148,9 +152,12 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
 
   private def getJobsOrNotFound(jobsQueryString: String): Either[Response, Set[Job[S]]] = {
     val jobsNames = parseJobIds(jobsQueryString)
-    val jobs = workflow.vertices.filter(v => jobsNames.contains(v.id))
-    if (jobs.isEmpty) Left(NotFound)
-    else Right(jobs)
+    if (jobsNames.isEmpty) Right(workflow.vertices)
+    else {
+      val jobs = workflow.vertices.filter(v => jobsNames.contains(v.id))
+      if (jobs.isEmpty) Left(NotFound)
+      else Right(jobs)
+    }
   }
 
   val publicApi: PartialService = {
