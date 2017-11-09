@@ -1,7 +1,7 @@
 // Example: Hello cuttle!
 
 // This a very simple cuttle project using the time series scheduler
-// to execute a bunch of shell commands
+// to execute a bunch of shell scripts
 package com.criteo.cuttle.examples
 
 // The main package contains everything needed to create
@@ -9,16 +9,18 @@ package com.criteo.cuttle.examples
 import com.criteo.cuttle._
 
 // The local platform allows to locally fork some processes
-// (_here we will just fork bash commands_).
-import platforms.local._
+// (_here we will just fork shell scripts_).
+import com.criteo.cuttle.platforms.local._
 
 // We will use the time series scheduler for this project.
-import timeseries._
+import com.criteo.cuttle.timeseries._
 
 // We also have to import the Java 8 time API, used by the
 // time series scheduler.
+import java.time.ZoneOffset.UTC
 import java.time._
-import java.time.ZoneOffset.{UTC}
+
+import scala.concurrent.duration._
 
 object HelloWorld {
 
@@ -44,36 +46,37 @@ object HelloWorld {
           // and end date.
           val partitionToCompute = (e.context.start) + "-" + (e.context.end)
 
-          // The `sh` interpolation is provided by the local platform. It allows us to
-          // declare a bash script to execute.
-          sh"""
-          echo "Hello for ${partitionToCompute}"
-          echo "Check my project page at https://github.com/criteo/cuttle"
-          sleep 1
-        """.exec()
+          e.streams.info(s"Hello 1 for $partitionToCompute")
+          e.streams.info("Check my project page at https://github.com/criteo/cuttle")
+          e.streams.info("Do it quickly! I will wait you here for 1 second")
+          e.park(1.seconds).map(_ => Completed)
       }
 
-    // Our second job is also on hourly job. Nothing special here.
-    val hello2 =
-      Job("hello2", hourly(start), "Hello 2") { implicit e =>
-        sh"""
-          echo "Looping for 20 seconds..."
-          for i in {1..20}; do
-            date
-            sleep 1
-          done
-          echo "Ok"
-        """.exec()
-      }
+    // Our second job is also on hourly job that executes a sh script.
+    // The `exec` interpolation is provided by the local platform.
+    // It allows us to declare a sh script to execute.
+    // More details are in [[exec]] doc.
+    val hello2 = Job("hello2", hourly(start), "Hello 2") { implicit e =>
+      exec"""sh -c '
+         |    echo Looping for 20 seconds...
+         |    for i in `seq 1 20`
+         |    do
+         |        date
+         |        sleep 1
+         |    done
+         |    echo Ok
+         |'""" ()
+    }
 
     // Here is our third job. Look how we can also define some metadata such as a human friendly
-    // name and a set of tags. These informations are used in the UI to help retrieving your jobs.
+    // name and a set of tags. This information is used in the UI to help retrieving your jobs.
     val hello3 =
       Job("hello3", hourly(start), "Hello 3", tags = Set(Tag("unsafe job"))) { implicit e =>
-        sh"""
-          echo "Hello 3"
-          sleep 3
-        """.exec().map { _ =>
+        // Here we mix a Scala code execution and a sh script execution.
+        e.streams.info("Hello 3 from an unsafe job")
+        val completed = exec"sleep 3" ()
+
+        completed.map { _ =>
           // We generate an artifical failure if the partition is for 2 days ago between 00 and 01
           // and if the `/tmp/hello3_success` file does not exist.
           if (e.context.start == LocalDate.now.minusDays(2).atStartOfDay.toInstant(UTC)
@@ -97,10 +100,12 @@ object HelloWorld {
     // we need to define the time zone for which _days_ must be considered. The partitions for
     // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
     val world = Job("world", daily(UTC, start), "World") { implicit e =>
-      sh"""
-        echo "World"
-        sleep 6
-      """.exec()
+      e.streams.info("World!")
+      // Here we compose our executions in a for-comprehension.
+      for {
+        _ <- e.park(3.seconds)
+        completed <- exec"sleep 3" ()
+      } yield completed
     }
 
     // Finally we bootstrap our cuttle project.
