@@ -28,7 +28,7 @@ private[cuttle] object App {
             .getOrElse(throttle ++ next(previous))
         }
       }
-      thunk().map(_ => Ok(next())).getOrElse(NotFound)
+    thunk().map(_ => Ok(next())).getOrElse(NotFound)
   }
 
   implicit def projectEncoder[S <: Scheduling] = new Encoder[CuttleProject[S]] {
@@ -152,9 +152,12 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
 
   private def getJobsOrNotFound(jobsQueryString: String): Either[Response, Set[Job[S]]] = {
     val jobsNames = parseJobIds(jobsQueryString)
-    val jobs = workflow.vertices.filter(v => jobsNames.contains(v.id))
-    if (jobs.isEmpty) Left(NotFound)
-    else Right(jobs)
+    if (jobsNames.isEmpty) Right(workflow.vertices)
+    else {
+      val jobs = workflow.vertices.filter(v => jobsNames.contains(v.id))
+      if (jobs.isEmpty) Left(NotFound)
+      else Right(jobs)
+    }
   }
 
   val publicApi: PartialService = {
