@@ -7,6 +7,8 @@ import lol.json._
 import io.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
+import cats.syntax.either._
+
 import scala.util.Try
 import scala.math.Ordering.Implicits._
 import java.time.Instant
@@ -17,6 +19,8 @@ import intervals._
 import Bound.{Bottom, Finite, Top}
 import ExecutionStatus._
 import Auth._
+
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
@@ -378,6 +382,51 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         sse(watchState _, getCalendar)
       else
         Ok(getCalendar())
+
+    case GET at url"/api/timeseries/lastruns?job=$jobId" =>
+
+      val contextQuery = Database.sqlGetContextsBetween(None, None)
+      val archivedExecutions = executor.archivedExecutions(contextQuery, Set(jobId), "", true, 0, Int.MaxValue)
+
+      implicit val decoder: Decoder[TimeSeriesContext] = new Decoder[TimeSeriesContext] {
+        final def apply(c: HCursor): Decoder.Result[TimeSeriesContext] =
+          for {
+            start <- c.downField("start").as[String]
+            end <- c.downField("end").as[String]
+          } yield {
+            new TimeSeriesContext(Instant.parse(start), Instant.parse(end))
+          }
+      }
+
+      val aggregatedSuccessfulRuns = archivedExecutions
+        .filter(e => e.status == ExecutionSuccessful && e.context.as[TimeSeriesContext].isRight)
+        .map{ e =>
+          val timeSeriesContext = e.context.as[TimeSeriesContext].right.get
+          Interval(timeSeriesContext.start, timeSeriesContext.end)
+        }
+        .sortBy(_.lo)
+        .foldLeft(ListBuffer.empty[Interval[Instant]]) { case (agg, thisInterval) =>
+          agg.lastOption match {
+            case Some(lastInterval) if lastInterval.hi == thisInterval.lo =>
+              agg(agg.size - 1) = Interval(lastInterval.lo, thisInterval.hi)
+            case _ => agg += thisInterval
+          }
+          agg
+        }
+
+      def boundToInstant(bound: Bound[Instant]): Instant = bound match {
+        case Finite(hi)  => hi
+        case _           => throw new IllegalArgumentException("expected finite interval")
+      }
+
+      if (aggregatedSuccessfulRuns.isEmpty) NotFound
+      else Ok(
+        Json.obj(
+          "lastCompleteTime" -> boundToInstant(aggregatedSuccessfulRuns.head.hi).asJson,
+          "lastTime" -> boundToInstant(aggregatedSuccessfulRuns.last.hi).asJson
+        )
+      )
+
 
     case GET at url"/api/timeseries/backfills" =>
       Ok(
