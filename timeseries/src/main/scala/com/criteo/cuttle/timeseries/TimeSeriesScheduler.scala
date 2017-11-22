@@ -274,7 +274,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
   val allContexts = Database.sqlGetContextsBetween(None, None)
 
-  private val _state = Ref(Map.empty[TimeSeriesJob, IntervalMap[Instant, JobState]])
+  protected val _state = Ref(Map.empty[TimeSeriesJob, IntervalMap[Instant, JobState]])
 
   private val _backfills = Ref(Set.empty[Backfill])
 
