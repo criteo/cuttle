@@ -406,7 +406,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         )
       }
 
-
     case GET at url"/api/timeseries/backfills" =>
       Ok(
         Database
