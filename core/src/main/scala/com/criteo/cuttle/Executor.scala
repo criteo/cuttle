@@ -612,9 +612,10 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private def unsafeDoRun(execution: Execution[S], promise: Promise[Completed]): Unit =
     promise.completeWith(
-      execution
-        .run()
-        .andThen {
+      (Try(execution.run()) match {
+        case Success(f) => f
+        case Failure(e) => Future.failed(e)
+      }).andThen {
           case Success(_) =>
             execution.streams.debug(s"Execution successful")
             atomic { implicit txn =>
