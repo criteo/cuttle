@@ -7,7 +7,6 @@ import lol.json._
 import io.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
-
 import scala.util.Try
 import scala.math.Ordering.Implicits._
 import java.time.Instant
@@ -18,7 +17,6 @@ import intervals._
 import Bound.{Bottom, Finite, Top}
 import ExecutionStatus._
 import Auth._
-
 import scala.concurrent.ExecutionContext.Implicits.global
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
@@ -383,14 +381,9 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
     case GET at url"/api/timeseries/lastruns?job=$jobId" =>
 
-      def toFiniteInstant(bound: Bound[Instant]): Instant = bound match {
-        case Finite(instant)  => instant
-        case _                => throw new IllegalArgumentException("expected finite instant")
-      }
+      val (state, _) = this.state
 
-      val successfulIntervalMaps = _state
-        .single
-        .get
+      val successfulIntervalMaps = state
         .filter(s => s._1.id == jobId)
         .values
         .flatMap(m => m.toList)
@@ -398,12 +391,15 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
       if (successfulIntervalMaps.isEmpty) NotFound
       else {
-        Ok(
-          Json.obj(
-            "lastCompleteTime" -> toFiniteInstant(successfulIntervalMaps.head._1.hi).asJson,
-            "lastTime" -> toFiniteInstant(successfulIntervalMaps.last._1.hi).asJson
+        (successfulIntervalMaps.head._1.hi, successfulIntervalMaps.last._1.hi) match {
+          case (Finite(lastCompleteTime), Finite(lastTime)) => Ok(
+            Json.obj(
+              "lastCompleteTime" -> lastCompleteTime.asJson,
+              "lastTime" -> lastTime.asJson
+            )
           )
-        )
+          case _ => BadRequest
+        }
       }
 
     case GET at url"/api/timeseries/backfills" =>
