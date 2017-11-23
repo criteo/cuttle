@@ -29,10 +29,6 @@ case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
     pool.routes("/api/platforms/local/pool")
 }
 
-private[cuttle] object LocalPlatform {
-  def fork(command: String) = new LocalProcess(command)
-}
-
 /** Represent a process to be locally foked.
   *
   * @param command The actual command to be run in a new `shell`.
