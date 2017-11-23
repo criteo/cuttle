@@ -330,24 +330,24 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
 
   // executions that failed recently and are now running
-  private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] = {
-    val runningIds = runningState.single.collect {
-      case (e: Execution[S], _) if filteredJobs.contains(e.job.id) => (e.job.id, e.context) -> e
-    }.toMap
+  private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] =
+    atomic { implicit txn =>
+      val runningIds = runningState.collect {
+        case (e: Execution[S], _) if filteredJobs.contains(e.job.id) => (e.job.id, e.context) -> e
+      }
 
-    recentFailures.single
-      .flatMap({
+      recentFailures.flatMap({
         case ((job, context), (_, failingJob)) =>
           runningIds.get((job.id, context)).map((_, failingJob, ExecutionRunning))
       })
       .toSeq
-  }
+    }
 
   private def retryingExecutionsSize(filteredJobs: Set[String]): Int =
     atomic { implicit txn =>
-      val runningIds = runningState.collect {
+      val runningIds = runningState.toSeq.collect {
         case (e: Execution[S], _) if filteredJobs.contains(e.job.id) => (e.job.id, e.context)
-      }.toSet
+      }
 
       recentFailures.count({ case ((job, context), _) => runningIds.contains((job.id, context)) })
     }
