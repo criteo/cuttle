@@ -12,6 +12,13 @@ import lol.http.{PartialService, Service}
 /** A set of basic utilities useful to write workflows. */
 package object utils {
 
+  private[cuttle] def createScheduler(threadPrefix: String): fs2.Scheduler = {
+    val threadFactory =
+      fs2.internal.ThreadFactories.named(threadPrefix, daemon = true, exitJvmOnFatalError = false)
+    val executor = Executors.newScheduledThreadPool(1, threadFactory)
+    fs2.Scheduler.fromScheduledExecutorService(executor)
+  }
+
   /** Creates a  [[scala.concurrent.Future Future]] that resolve automatically
     * after the given duration.
     */

@@ -2,8 +2,8 @@ package com.criteo.cuttle
 
 import org.scalatest.FunSuite
 import lol.http._
-
 import Auth._
+import cats.effect.IO
 
 class AuthenticationSpec extends FunSuite {
 
@@ -127,7 +127,7 @@ object SuiteUtils {
   def getBasicAuth() = basicAuth
 
   def assertCodeAtUrl(code: Int)(api: Service)(url: String): Unit =
-    assert(api(getFakeRequest(url)).value.get.get.status == code, url)
+    assert(api(getFakeRequest(url)).map(_.status) == IO.pure(code), url)
 
   def assertOk: (Service, String) => Unit = assertCodeAtUrl(200)(_)(_)
 

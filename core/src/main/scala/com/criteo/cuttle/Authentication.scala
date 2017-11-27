@@ -2,9 +2,9 @@ package com.criteo.cuttle
 
 import java.util.Base64
 
+import cats.effect.IO
 import lol.http._
 
-import scala.concurrent.Future
 import scala.util.Try
 
 /**
@@ -23,13 +23,13 @@ object Auth {
   trait Authenticator {
 
     private[cuttle] def apply(s: AuthenticatedService): PartialService =
-      new PartialFunction[Request, Future[Response]] {
+      new PartialFunction[Request, IO[Response]] {
         override def isDefinedAt(request: Request): Boolean =
           s.isDefinedAt(request)
 
-        override def apply(request: Request): Future[Response] =
+        override def apply(request: Request): IO[Response] =
           authenticate(request)
-            .fold(identity, user => {
+            .fold(IO.pure, user => {
               // pass through when authenticated
               s(request)(user)
             })
@@ -38,7 +38,7 @@ object Auth {
     /**
       * Authenticate an HTTP request.
       *
-      * @param rrequest the HTTP request to be authenticated.
+      * @param request the HTTP request to be authenticated.
       * @return either an authenticated user or an error response.
       */
     def authenticate(request: Request): Either[Response, User]
@@ -108,9 +108,9 @@ object Auth {
 
   /** A [[lol.http.PartialService PartialService]] that requires an authenticated
     * user in request handler's scope. */
-  type AuthenticatedService = PartialFunction[Request, (User => Future[Response])]
+  type AuthenticatedService = PartialFunction[Request, (User => IO[Response])]
 
-  private[cuttle] def defaultWith(response: Future[Response]): PartialService = {
+  private[cuttle] def defaultWith(response: IO[Response]): PartialService = {
     case _ => response
   }
 

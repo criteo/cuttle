@@ -1,13 +1,16 @@
 package com.criteo.cuttle
 
-import doobie.imports._
-import doobie.hikari.imports._
-
-import cats.data.{NonEmptyList}
-import cats.implicits._
+import doobie._
+import doobie.implicits._
+import doobie.hikari._
+import doobie.hikari.implicits._
 
 import io.circe._
 import io.circe.parser._
+
+import cats.data.NonEmptyList
+import cats.implicits._
+import cats.effect.IO
 
 import scala.util._
 
@@ -101,7 +104,7 @@ private[cuttle] object Database {
     """
   )
 
-  private def lockedTransactor(xa: HikariTransactor[IOLite]): HikariTransactor[IOLite] = {
+  private def lockedTransactor(xa: HikariTransactor[IO]): HikariTransactor[IO] = {
     val guid = java.util.UUID.randomUUID.toString
 
     // Try to insert our lock at bootstrap
@@ -117,14 +120,14 @@ private[cuttle] object Database {
       } else {
         sys.error(s"Database already locked: ${locks.head}")
       }
-    } yield ()).transact(xa).unsafePerformIO
+    } yield ()).transact(xa).unsafeRunSync
 
     // Remove lock on shutdown
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run =
         sql"""
-          DELETE FROM locks WHERE locked_by = ${guid};
-        """.update.run.transact(xa).unsafePerformIO
+          DELETE FROM locks WHERE locked_by = $guid;
+        """.update.run.transact(xa).unsafeRunSync
     })
 
     // Refresh our lock every minute (and check that we still are the lock owner)
@@ -135,8 +138,8 @@ private[cuttle] object Database {
           def run =
             if ((sql"""
             UPDATE locks SET locked_at = NOW() WHERE locked_by = ${guid}
-          """.update.run.transact(xa).unsafePerformIO: Int) != 1) {
-              xa.shutdown.unsafePerformIO
+          """.update.run.transact(xa).unsafeRunSync: Int) != 1) {
+              xa.shutdown.unsafeRunSync
               sys.error(s"Lock has been lost, shutting down the database connection.")
             }
         },
@@ -149,7 +152,7 @@ private[cuttle] object Database {
     xa
   }
 
-  private val doSchemaUpdates =
+  private val doSchemaUpdates: ConnectionIO[Unit] =
     (for {
       _ <- sql"""
         CREATE TABLE IF NOT EXISTS schema_evolutions (
@@ -182,17 +185,17 @@ private[cuttle] object Database {
     connections.getOrElseUpdate(
       c, {
         val xa = (for {
-          hikari <- HikariTransactor[IOLite](
+          hikari <- HikariTransactor[IO](
             "com.mysql.cj.jdbc.Driver",
             s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
             c.username,
             c.password
           )
           _ <- hikari.configure { datasource =>
-            IOLite.primitive( /* Configure datasource if needed */ ())
+            IO.pure( /* Configure datasource if needed */ ())
           }
-        } yield hikari).unsafePerformIO
-        doSchemaUpdates.transact(xa).unsafePerformIO
+        } yield hikari).unsafeRunSync
+        doSchemaUpdates.transact(xa).unsafeRunSync
         lockedTransactor(xa)
       }
     )

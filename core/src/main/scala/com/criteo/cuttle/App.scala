@@ -8,27 +8,37 @@ import java.time.Instant
 
 import scala.util._
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
 import Auth._
 import ExecutionStatus._
 import Metrics.{Gauge, Prometheus}
 import utils.getJVMUptime
+import cats.effect.IO
+import fs2.Stream
 
 private[cuttle] object App {
-  private implicit val S = fs2.Strategy.fromExecutionContext(global)
-  private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.App.SC")
-  def sse[A](thunk: () => Option[A], encode: A => Json) = {
-    val throttle = fs2.Stream.eval_(fs2.Task.schedule((), 1.second))
-    def next(previous: Option[A] = None): fs2.Stream[fs2.Task, ServerSentEvents.Event[Json]] =
-      fs2.Stream.force {
-        fs2.Task.delay {
-          thunk()
-            .filterNot(_ == previous.getOrElse(()))
-            .map(a => fs2.Stream(ServerSentEvents.Event(encode(a))) ++ throttle ++ next(Some(a)))
-            .getOrElse(throttle ++ next(previous))
-        }
-      }
-    thunk().map(_ => Ok(next())).getOrElse(NotFound)
+  private implicit val S = ExecutionContext.Implicits.global
+
+  private val SC = utils.createScheduler("com.criteo.cuttle.App.SC")
+
+  def sse[A](thunk: IO[Option[A]], encode: A => IO[Json]): lol.http.Response = {
+    val stream = (Stream.emit(()) ++ SC.fixedRate[IO](1.second))
+      .flatMap(_ => {
+        Stream.eval(IO.shift(S).flatMap(_ => thunk))
+      })
+      .flatMap({
+        case Some(x) => Stream(x)
+        case None    => Stream.fail(new RuntimeException("Could not get result to stream"))
+      })
+      .zipWithPrevious
+      .collect({
+        case (Some(previous), current) if previous != current => current
+        case (None, current)                                  => current
+      })
+      .flatMap(r => Stream.eval(encode(r)))
+      .map(ServerSentEvents.Event(_))
+
+    Ok(stream)
   }
 
   implicit def projectEncoder[S <: Scheduling] = new Encoder[CuttleProject[S]] {
@@ -179,10 +189,14 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
       val jobIds = parseJobIds(jobs)
       val ids = if (jobIds.isEmpty) allIds else jobIds
 
-      def getStats() =
-        Try(
-          executor.getStats(ids) -> scheduler.getStats(ids)
-        ).toOption
+      def getStats: IO[Option[(Json, Json)]] =
+        executor
+          .getStats(ids)
+          .map(
+            stats =>
+              Try(
+                stats -> scheduler.getStats(ids)
+              ).toOption)
 
       def asJson(x: (Json, Json)) = x match {
         case (executorStats, schedulerStats) =>
@@ -194,13 +208,14 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
 
       events match {
         case "true" | "yes" =>
-          sse(getStats _, asJson)
-        case _ =>
-          getStats().map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
+          sse(getStats, (x: (Json, Json)) => IO.pure(asJson(x)))
+        case _ => getStats.map(_.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError))
       }
 
     case GET at url"/api/statistics/$jobName" =>
-      Ok(executor.jobStatsForLastThirtyDays(jobName).asJson)
+      executor
+        .jobStatsForLastThirtyDays(jobName)
+        .map(stats => Ok(stats.asJson))
 
     case GET at "/metrics" =>
       val metrics = executor.getMetrics(allIds) ++ scheduler.getMetrics(allIds) :+
@@ -211,64 +226,77 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
       val jobIds = parseJobIds(jobs)
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
-      val asc = (a.toLowerCase == "asc")
+      val asc = a.toLowerCase == "asc"
       val ids = if (jobIds.isEmpty) allIds else jobIds
 
-      def getExecutions() = kind match {
+      def getExecutions: IO[Option[(Int, Seq[ExecutionLog])]] = kind match {
         case "started" =>
-          Some(
-            executor.runningExecutionsSizeTotal(ids) -> executor
-              .runningExecutions(ids, sort, asc, offset, limit))
+          IO.pure(
+            Some(
+              executor.runningExecutionsSizeTotal(ids) -> executor
+                .runningExecutions(ids, sort, asc, offset, limit)))
         case "stuck" =>
-          Some(
-            executor.failingExecutionsSize(ids) -> executor
-              .failingExecutions(ids, sort, asc, offset, limit))
+          IO.pure(
+            Some(
+              executor.failingExecutionsSize(ids) -> executor
+                .failingExecutions(ids, sort, asc, offset, limit)))
         case "paused" =>
-          Some(
-            executor.pausedExecutionsSize(ids) -> executor
-              .pausedExecutions(ids, sort, asc, offset, limit))
+          IO.pure(
+            Some(
+              executor.pausedExecutionsSize(ids) -> executor
+                .pausedExecutions(ids, sort, asc, offset, limit)))
         case "finished" =>
-          Some(executor.archivedExecutionsSize(ids) -> executor.allRunning)
+          executor
+            .archivedExecutionsSize(ids)
+            .map(ids => Some(ids -> executor.allRunning))
         case _ =>
-          None
+          IO.pure(None)
       }
 
-      def asJson(x: (Int, Seq[ExecutionLog])) = x match {
+      def asJson(x: (Int, Seq[ExecutionLog])): IO[Json] = x match {
         case (total, executions) =>
-          Json.obj(
-            "total" -> total.asJson,
-            "offset" -> offset.asJson,
-            "limit" -> limit.asJson,
-            "sort" -> sort.asJson,
-            "asc" -> asc.asJson,
-            "data" -> (kind match {
-              case "finished" =>
-                executor.archivedExecutions(scheduler.allContexts, ids, sort, asc, offset, limit).asJson
-              case _ =>
-                executions.asJson
-            })
-          )
+          (kind match {
+            case "finished" =>
+              executor
+                .archivedExecutions(scheduler.allContexts, ids, sort, asc, offset, limit, xa)
+                .map(execs => execs.asJson)
+            case _ =>
+              IO.pure(executions.asJson)
+          }).map(
+            data =>
+              Json.obj(
+                "total" -> total.asJson,
+                "offset" -> offset.asJson,
+                "limit" -> limit.asJson,
+                "sort" -> sort.asJson,
+                "asc" -> asc.asJson,
+                "data" -> data
+            ))
       }
 
       events match {
         case "true" | "yes" =>
-          sse(getExecutions _, asJson)
+          sse(getExecutions, asJson)
         case _ =>
-          getExecutions().map(e => Ok(asJson(e))).getOrElse(NotFound)
+          getExecutions
+            .flatMap(
+              _.map(e => asJson(e).map(json => Ok(json)))
+                .getOrElse(NotFound))
       }
 
     case GET at url"/api/executions/$id?events=$events" =>
-      def getExecution() = executor.getExecution(scheduler.allContexts, id)
+      def getExecution = executor.getExecution(scheduler.allContexts, id)
+
       events match {
         case "true" | "yes" =>
-          sse(getExecution _, (e: ExecutionLog) => e.asJson)
+          sse(getExecution, (e: ExecutionLog) => IO.pure(e.asJson))
         case _ =>
-          getExecution().map(e => Ok(e.asJson)).getOrElse(NotFound)
+          getExecution.map(_.map(e => Ok(e.asJson)).getOrElse(NotFound))
       }
 
     case req @ GET at url"/api/executions/$id/streams" =>
       lazy val streams = executor.openStreams(id)
-      req.headers.get(h"Accept").exists(_ == h"text/event-stream") match {
+      req.headers.get(h"Accept").contains(h"text/event-stream") match {
         case true =>
           Ok(
             fs2.Stream(ServerSentEvents.Event("BOS".asJson)) ++
@@ -304,14 +332,14 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
     }
 
     case POST at url"/api/jobs/pause?jobs=$jobs" => { implicit user =>
-      getJobsOrNotFound(jobs).fold(identity, jobs => {
+      getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
         executor.pauseJobs(jobs)
         Ok
       })
     }
 
     case POST at url"/api/jobs/resume?jobs=$jobs" => { implicit user =>
-      getJobsOrNotFound(jobs).fold(identity, jobs => {
+      getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
         executor.resumeJobs(jobs)
         Ok
       })
@@ -333,7 +361,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
         .toSet
 
       executor.relaunch(filteredJobs)
-      Ok
+      IO.pure(Ok)
     }
 
     case GET at url"/api/shutdown?gracePeriodSeconds=$gracePeriodSeconds" => { implicit user =>

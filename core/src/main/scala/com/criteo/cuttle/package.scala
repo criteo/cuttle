@@ -1,5 +1,7 @@
 package com.criteo
 
+import cats.effect.IO
+
 import scala.concurrent._
 import doobie.imports._
 import cats.free._
@@ -38,7 +40,7 @@ package cuttle {
 package object cuttle {
 
   /** Doobie transactor. See https://github.com/tpolecat/doobie. */
-  type XA = Transactor[IOLite]
+  type XA = Transactor[IO]
   private[cuttle] val NoUpdate: ConnectionIO[Int] = Free.pure(0)
 
   /** The side effect function represents the real job execution. It returns a `Future[Completed]` to
