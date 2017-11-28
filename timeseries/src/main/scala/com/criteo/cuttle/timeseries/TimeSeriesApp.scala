@@ -325,7 +325,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
 
       if (request.headers.get(h"Accept").contains(h"text/event-stream"))
-        sse(IO { watchState }, (_: WatchedState) => IO.pure(getFocusView))
+        sse(IO { watchState }, (_: WatchedState) => IO(getFocusView))
       else
         Ok(getFocusView)
 
@@ -446,7 +446,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           columnOrdering.reverse
         }
       }
-      def allExecutions(): IO[Option[(Int, Double, Seq[ExecutionLog])]] = {
+      def allExecutions(): IO[Option[(Int, Double, List[ExecutionLog])]] = {
 
         val runningExecutions = executor.runningExecutions
           .filter(t => {
@@ -468,13 +468,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 case total => (total - runningExecutions.size).toDouble / total
               }
             }
-            Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit)))
+            Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit).toList))
           })
       }
 
       events match {
         case "true" | "yes" =>
-          sse(allExecutions(), (e: (Int, Double, Seq[ExecutionLog])) => IO.pure(asTotalJson(e)))
+          sse(allExecutions(), (e: (Int, Double, List[ExecutionLog])) => IO.pure(asTotalJson(e)))
         case _ =>
           allExecutions().map(_.map(e => Ok(asTotalJson(e))).getOrElse(NotFound))
       }

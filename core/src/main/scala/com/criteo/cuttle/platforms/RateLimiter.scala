@@ -44,6 +44,8 @@ class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueu
       }
       fs2.Stream(runNext())
     })
+    .run
+    .unsafeRunAsync(_ => ())
 
   def canRunNextCondition(implicit txn: InTxn) = _tokens() >= 1
   def doRunNext()(implicit txn: InTxn) = _tokens() = _tokens() - 1

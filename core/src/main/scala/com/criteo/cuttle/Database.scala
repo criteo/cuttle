@@ -55,22 +55,20 @@ object DatabaseConfig {
 
 private[cuttle] object Database {
 
-  implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].nxmap(
+  implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].xmap(
     x => Instant.ofEpochMilli(x.getTime),
     x => new java.sql.Timestamp(x.toEpochMilli)
   )
 
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
-    x => if (x) ExecutionSuccessful else ExecutionFailed,
-    x =>
-      x match {
-        case ExecutionSuccessful => true
-        case ExecutionFailed     => false
-        case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
+    x => if (x) ExecutionSuccessful else ExecutionFailed, {
+      case ExecutionSuccessful => true
+      case ExecutionFailed     => false
+      case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
     }
   )
 
-  implicit val JsonMeta: Meta[Json] = Meta[String].nxmap(
+  implicit val JsonMeta: Meta[Json] = Meta[String].xmap(
     x => parse(x).fold(e => throw e, identity),
     x => x.noSpaces
   )

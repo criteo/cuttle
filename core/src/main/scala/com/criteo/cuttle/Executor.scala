@@ -4,7 +4,6 @@ import java.io.{PrintWriter, StringWriter}
 import java.util.{Timer, TimerTask}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.time.{Duration, Instant, ZoneId}
-import java.util.concurrent.Executors
 
 import platforms.ExecutionPool
 
@@ -20,6 +19,7 @@ import io.circe._
 import io.circe.syntax._
 import Auth._
 import Metrics._
+import cats.Eq
 import cats.implicits._
 import cats.effect.IO
 import doobie.util.fragment.Fragment
@@ -98,6 +98,10 @@ private[cuttle] class ExecutionStat(
   val waitingSeconds: Int,
   val status: ExecutionStatus
 )
+
+private[cuttle] object ExecutionLog {
+  implicit val execLogEq: Eq[ExecutionLog] = Eq.fromUniversalEquals[ExecutionLog]
+}
 
 /**
   * Used to fail an execution Future when the execution has been cancelled.
@@ -338,11 +342,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         case (e: Execution[S], _) if filteredJobs.contains(e.job.id) => (e.job.id, e.context) -> e
       }
 
-      recentFailures.flatMap({
-        case ((job, context), (_, failingJob)) =>
-          runningIds.get((job.id, context)).map((_, failingJob, ExecutionRunning))
-      })
-      .toSeq
+      recentFailures
+        .flatMap({
+          case ((job, context), (_, failingJob)) =>
+            runningIds.get((job.id, context)).map((_, failingJob, ExecutionRunning))
+        })
+        .toSeq
     }
 
   private def retryingExecutionsSize(filteredJobs: Set[String]): Int =
@@ -364,6 +369,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
           .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
       })
+      .run
+      .unsafeRunAsync(_ => ())
   }
 
   startMonitoringExecutions()

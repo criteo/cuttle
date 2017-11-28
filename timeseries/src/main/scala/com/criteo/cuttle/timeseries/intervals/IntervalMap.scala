@@ -160,6 +160,7 @@ private[timeseries] object IntervalMap {
     override def filter[A](fa: IntervalMap[K, A])(f: A => Boolean) = mapFilter(fa)(a => Some(a).filter(f))
   }
 
+  implicit def eqInstance[K: Ordering, A] = Eq.fromUniversalEquals[IntervalMap[K, A]]
 }
 
 private[timeseries] sealed trait IntervalMap[A, B] {

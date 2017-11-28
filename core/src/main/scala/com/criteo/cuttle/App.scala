@@ -16,26 +16,24 @@ import utils.getJVMUptime
 import cats.effect.IO
 import fs2.Stream
 
+import cats._
+import cats.implicits._
+import cats.Eq
+
 private[cuttle] object App {
   private implicit val S = ExecutionContext.Implicits.global
 
   private val SC = utils.createScheduler("com.criteo.cuttle.App.SC")
 
-  def sse[A](thunk: IO[Option[A]], encode: A => IO[Json]): lol.http.Response = {
+  def sse[A](thunk: IO[Option[A]], encode: A => IO[Json])(implicit eqInstance: Eq[A]): lol.http.Response = {
     val stream = (Stream.emit(()) ++ SC.fixedRate[IO](1.second))
-      .flatMap(_ => {
-        Stream.eval(IO.shift(S).flatMap(_ => thunk))
-      })
+      .evalMap(_ => IO.shift(S).flatMap(_ => thunk))
       .flatMap({
         case Some(x) => Stream(x)
         case None    => Stream.fail(new RuntimeException("Could not get result to stream"))
       })
-      .zipWithPrevious
-      .collect({
-        case (Some(previous), current) if previous != current => current
-        case (None, current)                                  => current
-      })
-      .flatMap(r => Stream.eval(encode(r)))
+      .changes
+      .evalMap(r => encode(r))
       .map(ServerSentEvents.Event(_))
 
     Ok(stream)
@@ -208,7 +206,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
 
       events match {
         case "true" | "yes" =>
-          sse(getStats, (x: (Json, Json)) => IO.pure(asJson(x)))
+          sse(IO.suspend(getStats), (x: (Json, Json)) => IO(asJson(x)))
         case _ => getStats.map(_.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError))
       }
 
@@ -229,26 +227,29 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
       val asc = a.toLowerCase == "asc"
       val ids = if (jobIds.isEmpty) allIds else jobIds
 
-      def getExecutions: IO[Option[(Int, Seq[ExecutionLog])]] = kind match {
+      def getExecutions: IO[Option[(Int, List[ExecutionLog])]] = kind match {
         case "started" =>
-          IO.pure(
+          IO(
             Some(
               executor.runningExecutionsSizeTotal(ids) -> executor
-                .runningExecutions(ids, sort, asc, offset, limit)))
+                .runningExecutions(ids, sort, asc, offset, limit)
+                .toList))
         case "stuck" =>
-          IO.pure(
+          IO(
             Some(
               executor.failingExecutionsSize(ids) -> executor
-                .failingExecutions(ids, sort, asc, offset, limit)))
+                .failingExecutions(ids, sort, asc, offset, limit)
+                .toList))
         case "paused" =>
-          IO.pure(
+          IO(
             Some(
               executor.pausedExecutionsSize(ids) -> executor
-                .pausedExecutions(ids, sort, asc, offset, limit)))
+                .pausedExecutions(ids, sort, asc, offset, limit)
+                .toList))
         case "finished" =>
           executor
             .archivedExecutionsSize(ids)
-            .map(ids => Some(ids -> executor.allRunning))
+            .map(ids => Some(ids -> executor.allRunning.toList))
         case _ =>
           IO.pure(None)
       }
@@ -261,7 +262,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
                 .archivedExecutions(scheduler.allContexts, ids, sort, asc, offset, limit, xa)
                 .map(execs => execs.asJson)
             case _ =>
-              IO.pure(executions.asJson)
+              IO(executions.asJson)
           }).map(
             data =>
               Json.obj(
@@ -285,11 +286,11 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
       }
 
     case GET at url"/api/executions/$id?events=$events" =>
-      def getExecution = executor.getExecution(scheduler.allContexts, id)
+      def getExecution = IO.suspend(executor.getExecution(scheduler.allContexts, id))
 
       events match {
         case "true" | "yes" =>
-          sse(getExecution, (e: ExecutionLog) => IO.pure(e.asJson))
+          sse(getExecution, (e: ExecutionLog) => IO(e.asJson))
         case _ =>
           getExecution.map(_.map(e => Ok(e.asJson)).getOrElse(NotFound))
       }

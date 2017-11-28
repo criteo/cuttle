@@ -23,6 +23,7 @@ import intervals.{Bound, Interval, IntervalMap}
 import Bound.{Bottom, Finite, Top}
 import Metrics._
 import cats.effect.IO
+import cats.Eq
 import cats.mtl.implicits._
 
 /** Represents calendar partitions for which a job will be run by the [[TimeSeriesScheduler]].
@@ -175,6 +176,7 @@ case class Backfill(id: String,
                     createdBy: String)
 
 private[timeseries] object Backfill {
+  implicit val eqInstance: Eq[Backfill] = Eq.fromUniversalEquals[Backfill]
   implicit val encoder: Encoder[Backfill] = deriveEncoder
   implicit def decoder(implicit jobs: Set[Job[TimeSeries]]) =
     deriveDecoder[Backfill]
@@ -260,6 +262,7 @@ private[timeseries] object JobState {
   implicit val encoder: Encoder[JobState] = deriveEncoder
   implicit def decoder(implicit jobs: Set[TimeSeriesJob]): Decoder[JobState] =
     deriveDecoder
+  implicit val eqInstance: Eq[JobState] = Eq.fromUniversalEquals[JobState]
 }
 
 /** A [[TimeSeriesScheduler]] executes the [[com.criteo.cuttle.Workflow Workflow]] for the
