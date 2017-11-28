@@ -195,6 +195,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               acc
           }
 
+        val pausedJobs = executor.pausedJobs
         val allFailing = executor.allFailingExecutions
         val allWaitingIds = executor.allRunning
           .filter(_.status == ExecutionWaiting)
@@ -230,13 +231,15 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               }
             }
 
-        def getStatusLabelFromState(jobState: JobState): String =
+        def getStatusLabelFromState(jobState: JobState, job: Job[TimeSeries]): String =
           jobState match {
             case Running(e) =>
               if (allFailing.exists(_.id == e))
                 "failed"
               else if (allWaitingIds.contains(e))
                 "waiting"
+              else if (pausedJobs.contains(job.id))
+                "paused"
               else "running"
             case Todo(_) => "todo"
             case Done    => "successful"
@@ -262,14 +265,14 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               if (calendarView.aggregationFactor == 1)
                 jobStatesOnIntervals match {
                   case (_, state) :: Nil =>
-                    Some(JobExecution(interval, getStatusLabelFromState(state), inBackfill))
+                    Some(JobExecution(interval, getStatusLabelFromState(state, job), inBackfill))
                   case _ => None
                 } else
                 jobStatesOnIntervals match {
                   case l if l.nonEmpty => {
                     val (duration, done, error) = l.foldLeft((0L, 0L, false))((acc, currentExecution) => {
                       val (lo, hi) = currentExecution._1.toPair
-                      val jobStatus = getStatusLabelFromState(currentExecution._2)
+                      val jobStatus = getStatusLabelFromState(currentExecution._2, job)
                       (acc._1 + lo.until(hi, SECONDS),
                        acc._2 + (if (jobStatus == "successful") lo.until(hi, SECONDS) else 0),
                        acc._3 || jobStatus == "failed")

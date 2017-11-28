@@ -28,7 +28,7 @@ package object local {
   /** The __exec__ string interpolation. */
   implicit class InlineCommands(val sc: StringContext) extends AnyVal {
     def exec(args: Any*) =
-      LocalPlatform.fork(sc.parts.zipAll(args, "", "").map { case (a, b) => a + b }.mkString.stripMargin)
+      new LocalProcess(sc.parts.zipAll(args, "", "").map { case (a, b) => a + b }.mkString.stripMargin)
   }
 
 }
