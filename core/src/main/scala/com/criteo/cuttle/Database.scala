@@ -16,23 +16,27 @@ import java.util.concurrent.{Executors, TimeUnit}
 
 import ExecutionStatus._
 
-/** Configuration for the MySQL database used by cuttle.
+/** Configuration of MySQL endpoint.
   *
   * @param host JDBC driver host
   * @param port JDBC driver port
+  */
+case class DBLocation(host: String, port: Int)
+
+/** Configuration for the MySQL database used by Cuttle.
+  *
   * @param database JDBC database
   * @param username JDBC username
   * @param password JDBC password
   */
-case class DatabaseConfig(host: String, port: Int, database: String, username: String, password: String)
+case class DatabaseConfig(locations: Seq[DBLocation], database: String, username: String, password: String)
 
 /** Utilities for [[DatabaseConfig]]. */
 object DatabaseConfig {
 
   /** Creates a [[DatabaseConfig]] instance from the following environment variables:
     *
-    *  - MYSQL_HOST (default to `localhost')
-    *  - MYSQL_PORT (default to `3306')
+    *  - MYSQL_LOCATIONS (default to `localhost:3306`)
     *  - MYSQL_DATABASE
     *  - MYSQL_USERNAME
     *  - MYSQL_PASSWORD
@@ -40,9 +44,14 @@ object DatabaseConfig {
   def fromEnv: DatabaseConfig = {
     def env(variable: String, default: Option[String] = None) =
       Option(System.getenv(variable)).orElse(default).getOrElse(sys.error(s"Missing env ${'$' + variable}"))
+
+    val dBLocations = env("MYSQL_LOCATIONS", Some("localhost:3306")).split(',').flatMap(_.split(":") match {
+      case Array(host, port) => Try(DBLocation(host, port.toInt)).toOption
+      case _ => None
+    })
+
     DatabaseConfig(
-      env("MYSQL_HOST", Some("localhost")),
-      Try(env("MYSQL_PORT", Some("3306")).toInt).getOrElse(3306),
+      if (dBLocations.nonEmpty) dBLocations else Seq(DBLocation("localhost", 3306)),
       env("MYSQL_DATABASE"),
       env("MYSQL_USERNAME"),
       env("MYSQL_PASSWORD")
@@ -178,24 +187,30 @@ private[cuttle] object Database {
     } yield ())
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
-  def connect(c: DatabaseConfig): XA =
+  def connect(dBConfig: DatabaseConfig): XA = {
+    val locationString = dBConfig.locations.map(dBLocation => s"${dBLocation.host}:${dBLocation.port}").mkString(",")
+
+    val jdbcString = s"jdbc:mysql://$locationString/${dBConfig.database}" +
+      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false"
+
     connections.getOrElseUpdate(
-      c, {
+      dBConfig, {
         val xa = (for {
           hikari <- HikariTransactor[IOLite](
             "com.mysql.cj.jdbc.Driver",
-            s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
-            c.username,
-            c.password
+            jdbcString,
+            dBConfig.username,
+            dBConfig.password
           )
           _ <- hikari.configure { datasource =>
-            IOLite.primitive( /* Configure datasource if needed */ ())
+            IOLite.primitive(/* Configure datasource if needed */ ())
           }
         } yield hikari).unsafePerformIO
         doSchemaUpdates.transact(xa).unsafePerformIO
         lockedTransactor(xa)
       }
     )
+  }
 }
 
 private[cuttle] trait Queries {
