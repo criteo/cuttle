@@ -382,6 +382,29 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       else
         Ok(getCalendar())
 
+    case GET at url"/api/timeseries/lastruns?job=$jobId" =>
+
+      val (state, _) = this.state
+
+      val successfulIntervalMaps = state
+        .filter(s => s._1.id == jobId)
+        .values
+        .flatMap(m => m.toList)
+        .filter(i => i._2 == JobState.Done)
+
+      if (successfulIntervalMaps.isEmpty) NotFound
+      else {
+        (successfulIntervalMaps.head._1.hi, successfulIntervalMaps.last._1.hi) match {
+          case (Finite(lastCompleteTime), Finite(lastTime)) => Ok(
+            Json.obj(
+              "lastCompleteTime" -> lastCompleteTime.asJson,
+              "lastTime" -> lastTime.asJson
+            )
+          )
+          case _ => BadRequest
+        }
+      }
+
     case GET at url"/api/timeseries/backfills" =>
       Ok(
         Database
