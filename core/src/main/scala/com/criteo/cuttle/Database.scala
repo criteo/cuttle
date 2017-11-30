@@ -16,7 +16,7 @@ import java.util.concurrent.{Executors, TimeUnit}
 
 import ExecutionStatus._
 
-/** Configuration of MySQL endpoint.
+/** Configuration of JDBC endpoint.
   *
   * @param host JDBC driver host
   * @param port JDBC driver port
@@ -25,6 +25,7 @@ case class DBLocation(host: String, port: Int)
 
 /** Configuration for the MySQL database used by Cuttle.
   *
+  * @param locations sequence of JDBC endpoints
   * @param database JDBC database
   * @param username JDBC username
   * @param password JDBC password
@@ -187,20 +188,20 @@ private[cuttle] object Database {
     } yield ())
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
-  def connect(dBConfig: DatabaseConfig): XA = {
-    val locationString = dBConfig.locations.map(dBLocation => s"${dBLocation.host}:${dBLocation.port}").mkString(",")
+  def connect(dbConfig: DatabaseConfig): XA = {
+    val locationString = dbConfig.locations.map(dBLocation => s"${dBLocation.host}:${dBLocation.port}").mkString(",")
 
-    val jdbcString = s"jdbc:mysql://$locationString/${dBConfig.database}" +
+    val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
       "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false"
 
     connections.getOrElseUpdate(
-      dBConfig, {
+      dbConfig, {
         val xa = (for {
           hikari <- HikariTransactor[IOLite](
             "com.mysql.cj.jdbc.Driver",
             jdbcString,
-            dBConfig.username,
-            dBConfig.password
+            dbConfig.username,
+            dbConfig.password
           )
           _ <- hikari.configure { datasource =>
             IOLite.primitive(/* Configure datasource if needed */ ())
