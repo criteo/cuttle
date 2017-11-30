@@ -46,13 +46,13 @@ object DatabaseConfig {
     def env(variable: String, default: Option[String] = None) =
       Option(System.getenv(variable)).orElse(default).getOrElse(sys.error(s"Missing env ${'$' + variable}"))
 
-    val dBLocations = env("MYSQL_LOCATIONS", Some("localhost:3306")).split(',').flatMap(_.split(":") match {
+    val dbLocations = env("MYSQL_LOCATIONS", Some("localhost:3306")).split(',').flatMap(_.split(":") match {
       case Array(host, port) => Try(DBLocation(host, port.toInt)).toOption
       case _ => None
     })
 
     DatabaseConfig(
-      if (dBLocations.nonEmpty) dBLocations else Seq(DBLocation("localhost", 3306)),
+      if (dbLocations.nonEmpty) dbLocations else Seq(DBLocation("localhost", 3306)),
       env("MYSQL_DATABASE"),
       env("MYSQL_USERNAME"),
       env("MYSQL_PASSWORD")
@@ -189,7 +189,7 @@ private[cuttle] object Database {
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
   def connect(dbConfig: DatabaseConfig): XA = {
-    val locationString = dbConfig.locations.map(dBLocation => s"${dBLocation.host}:${dBLocation.port}").mkString(",")
+    val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
 
     val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
       "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false"
