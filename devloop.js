@@ -17,7 +17,7 @@ let database = runServer({
   name: 'mysqld',
   httpPort: 3388,
   sh: 'java -cp `cat /tmp/classpath_com.criteo.cuttle.localdb` com.criteo.cuttle.localdb.LocalDB',
-}).dependsOn(generateClasspath)
+}).dependsOn(generateClasspath);
 
 let yarn = run({
   sh: 'yarn install',
@@ -37,8 +37,7 @@ let server = runServer({
   httpPort: 8888,
   sh: 'java -cp `cat /tmp/classpath_com.criteo.cuttle.examples` com.criteo.cuttle.examples.HelloWorld',
   env: {
-    MYSQL_HOST: 'localhost',
-    MYSQL_PORT: '3388',
+    MYSQL_LOCATIONS: 'localhost:3388',
     MYSQL_DATABASE: 'cuttle_dev',
     MYSQL_USERNAME: 'root',
     MYSQL_PASSWORD: ''
