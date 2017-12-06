@@ -563,6 +563,25 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     )
   }
 
+  override def getMetricsByTag(jobs: Set[String]): Seq[Metric] = {
+    val averageLastSuccess = getTimeOfLastSuccess(jobs)
+      .flatMap {
+        case (job, instant) =>
+          job.tags.map(_.name -> instant)
+      }
+      .groupBy(_._1)
+      .mapValues { xs =>
+        xs.map { case (_, instant) => Instant.now().getEpochSecond - instant.getEpochSecond }.sum / xs.size
+      }
+      .foldLeft(
+        Gauge(
+          "cuttle_timeseries_scheduler_last_success_epoch_seconds_avg_by_tag",
+          "The average seconds since last success of all jobs with the same tag"
+        )
+      ) { case (gauge, (tag, avg)) => gauge.labeled("tag" -> tag, avg) }
+    Seq(averageLastSuccess)
+  }
+
   override def getStats(jobs: Set[String]): Json =
     Map("backfills" -> getRunningBackfillsSize(jobs)).asJson
 }
