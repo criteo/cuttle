@@ -1,6 +1,10 @@
 package com.criteo.cuttle
 
+import java.util.concurrent.{ExecutorService, Executors, ThreadFactory}
+
 import lol.http._
+
+import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
@@ -42,10 +46,16 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     scheduler.start(workflow, executor, xa, logger)
 
     logger.info("Start server")
+    // There may be an unbounded number of users making call to the Cuttle server but requests made are short-lived.
+    // The default thread factory creates non daemon threads which will block the program termination if there are still running threads.
+    // Avoid a user blocking the termination by making the threads allocated for the HTTP server daemon threads.
+    val httpServerExecutionContext = ExecutionContext.fromExecutorService(
+      Executors.newCachedThreadPool(utils.createDaemonThreadFactory())
+    )
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(App(this, executor, xa, logger).routes)
+    })(App(this, executor, xa, logger).routes)(httpServerExecutionContext)
 
     logger.info(s"Listening on http://localhost:$httpPort")
   }

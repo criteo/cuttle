@@ -38,7 +38,7 @@ object Auth {
     /**
       * Authenticate an HTTP request.
       *
-      * @param rrequest the HTTP request to be authenticated.
+      * @param request the HTTP request to be authenticated.
       * @return either an authenticated user or an error response.
       */
     def authenticate(request: Request): Either[Response, User]
