@@ -18,7 +18,7 @@ Each job is defined by a set of metadata (_such as the job identifier, name, etc
 
 The side effect function is opaque for cuttle, so it can't exactly know what will happen there (_it can be any Scala code_), but it assumes that the function:
 
-- Is asynchronous and non-blocking. It will immediatly return a [Future](https://www.scala-lang.org/api/current/scala/concurrent/Future.html) value that will be resolved upon execution success or failure.
+- Is asynchronous and non-blocking. It will immediately return a [Future](https://www.scala-lang.org/api/current/scala/concurrent/Future.html) value that will be resolved upon execution success or failure.
 - Produces a side effect, so calling it actually will do some job and mutate some state somewhere.
 - Is idempotent, so calling it twice for the same input (_context_) won't be a problem.
 
@@ -30,7 +30,7 @@ The workflow is interpreted by a [Scheduler](https://criteo.github.io/cuttle/api
 
 The scheduler gets the workflow as input and starts producing [Executions](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Execution.html) for it. Because the workflow allows to express some dependencies via the DAG, a classical scheduler will start by executing root jobs, and then follow the dependencies until the graph is fully executed.
 
-But more sophisticated schedulers can exist. Cuttle comes with a [TimeSeries](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeries.html) scheduler that executes the whole graph accross time partitions. For example it can execute the graph hourly or daily. And it can even execute it accross different time partitions such as a daily job depending on several executions of an hourly job.
+But more sophisticated schedulers can exist. Cuttle comes with a [TimeSeries](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeries.html) scheduler that executes the whole graph across time partitions. For example it can execute the graph hourly or daily. And it can even execute it across different time partitions such as a daily job depending on several executions of an hourly job.
 
 The input context given to the side effect function depends of the scheduling. For example the input for a time series job is [TimeSeriesContext](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeriesContext.html) and contains basically the start and end time for the partition for which the job is being executed.
 
@@ -50,7 +50,7 @@ Finally executions can be __Finished__ either with a __Success__ of __Failed__ s
 
 The way to manage external resources in cuttle is via [ExecutionPlatform](https://criteo.github.io/cuttle/api/com/criteo/cuttle/ExecutionPlatform.html). An execution platforms defines the contract about how to use the resources. They are configured at project bootstrap and usually set limits on how resources will be used (_for example to only allow 10 external processes to be forked at the same time_).
 
-This is necessary because potentially thousand of concurrent executions can happen in cuttle. These executions will fight for shared resources via these execution platforms. Usually a platform will use priority queue to prioritize access to these shared resources, and the priority is based on the [SchedulingContext](https://criteo.github.io/cuttle/api/com/criteo/cuttle/SchedulingContext.html) of each execution (_so the most prioritary executions get access to the shared resources first_). For example the [TimeSeriesContext](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeriesContext.html) defines its [Ordering](https://www.scala-lang.org/api/current/scala/math/Ordering.html) in such way that oldest partitions are more prioritary.
+This is necessary because potentially thousands of concurrent executions can happen in cuttle. These executions will fight for shared resources via these execution platforms. Usually a platform will use a priority queue to prioritize access to these shared resources, and the priority is based on the [SchedulingContext](https://criteo.github.io/cuttle/api/com/criteo/cuttle/SchedulingContext.html) of each execution (_so the executions with highest priority get access to the shared resources first_). For example the [TimeSeriesContext](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeriesContext.html) defines its [Ordering](https://www.scala-lang.org/api/current/scala/math/Ordering.html) in such way that oldest partitions take priority.
 
 ## Time series scheduling
 
@@ -58,7 +58,7 @@ The built-in [TimeSeriesScheduler](https://criteo.github.io/cuttle/api/com/crite
 
 In case of failure the time series scheduler will submit the execution again and again until the partition is successfully completed (_depending of the retry strategy you have configured the delay between retries will vary_).
 
-It is also possible to [Backfill](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/Backfill.html) successfully completed past partitions, meaning that we want to recompute them anyway. The whole graph or only a part of the graph can be backfilled depending of what you need. A priority can be given to the backfill so the executions triggered by this backfill can be more or less prioritary than the day to day workload.
+It is also possible to [Backfill](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/Backfill.html) successfully completed past partitions, meaning that we want to recompute them anyway. The whole graph or only a part of the graph can be backfilled depending of what you need. A priority can be given to the backfill so the executions triggered by this backfill can be assigned more or less priority than the day to day workload.
 
 # Documentation
 
