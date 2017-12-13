@@ -519,28 +519,48 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   }
 
   /**
+    * We compute the last instant when job was in a valid state and all previous jobs are in a valid state
+    * @param jobs set of jobs to process
+    * @return Iterable of job to to last instant when job was in a valid state and all previous jobs are in a valid state
+    *         Iterable is empty when job doesn't contain any "DONE" interval.
+    */
+  private def getTimeOfLastCompleteSuccess(jobs: Set[String]) =
+    getTimeOf(
+      jobs,
+      _.toList.takeWhile {
+        case (_, Running(_)) => false
+        case (_, Todo(None)) => false
+        case _ => true
+      }.lastOption
+    )
+
+  /**
     * We compute the last instant when job was in a valid state
     * @param jobs set of jobs to process
     * @return Iterable of job to to last instant when job was in a valid state.
     *         Iterable is empty when job doesn't contain any "DONE" interval.
     */
   private def getTimeOfLastSuccess(jobs: Set[String]) =
+    getTimeOf(
+      jobs,
+      _.toList.filter {
+        case (_, Running(_)) => false
+        case (_, Todo(None)) => false
+        case _ => true
+      }.lastOption
+    )
+
+  private def getTimeOf(jobs: Set[String],
+                        f: IntervalMap[Instant, JobState] => Option[(Interval[Instant], JobState)]): Seq[(TimeSeriesJob, Instant)] =
     _state
       .single()
       .collect {
         case (job, intervals) if jobs.contains(job.id) =>
-          val intervalList = intervals.toList
-          val lastValidInterval = intervalList.takeWhile {
-            case (_, Running(_)) => false
-            case (_, Todo(None)) => false
-            case _               => true
-          }.lastOption
-
-          lastValidInterval.map {
+          f(intervals).map {
             case (interval, _) =>
               job -> (interval.hi match {
                 case Finite(instant) => instant
-                case _               => Instant.MAX
+                case _ => Instant.MAX
               })
           }
       }
@@ -548,23 +568,28 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       .toSeq
 
   override def getMetrics(jobs: Set[String]): Seq[Metric] = {
-
-    val timeOfLastSuccessGauge = getTimeOfLastSuccess(jobs).foldLeft(
-      Gauge("cuttle_timeseries_scheduler_last_success_epoch_seconds", "The seconds since a last job's success")) {
-      case (gauge, (job, instant)) =>
-        gauge.labeled(Set("job_id" -> job.id, "job_name" -> job.name),
-                      Instant.now().getEpochSecond - instant.getEpochSecond)
+    val lastTimeGauges = Seq(
+      ("cuttle_timeseries_scheduler_last_complete_success_epoch_seconds",
+        "The seconds since a last job's success where it's previous jobs are valid",
+        getTimeOfLastCompleteSuccess _),
+      ("cuttle_timeseries_scheduler_last_success_epoch_seconds",
+        "The seconds since a last job's success",
+        getTimeOfLastSuccess _)
+    ).map { case (name, desc, getMetric) =>
+      getMetric(jobs).foldLeft(Gauge(name, desc)) {
+        case (gauge, (job, instant)) =>
+          gauge.labeled(Set("job_id" -> job.id, "job_name" -> job.name), Instant.now().getEpochSecond - instant.getEpochSecond)
+      }
     }
 
     Seq(
       Gauge("cuttle_timeseries_scheduler_stat_count", "The number of backfills")
-        .labeled("type" -> "backfills", getRunningBackfillsSize(jobs)),
-      timeOfLastSuccessGauge
-    )
+        .labeled("type" -> "backfills", getRunningBackfillsSize(jobs))
+    ) ++ lastTimeGauges
   }
 
   override def getMetricsByTag(jobs: Set[String]): Seq[Metric] = {
-    val averageLastSuccess = getTimeOfLastSuccess(jobs)
+    val averageLastSuccess = getTimeOfLastCompleteSuccess(jobs)
       .flatMap {
         case (job, instant) =>
           job.tags.map(_.name -> instant)
