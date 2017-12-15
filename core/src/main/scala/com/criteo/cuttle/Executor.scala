@@ -129,7 +129,6 @@ class CancellationListener private[cuttle] (execution: Execution[_], private[cut
   * @param streams The execution streams are scoped stdout, stderr for the execution.
   * @param platforms The available [[ExecutionPlatform ExecutionPlatforms]] for this execution.
   * @param executionContext The scoped `scala.concurrent.ExecutionContext` for this execution.
-  * @param cuttleProject The [[CuttleProject]] in which this execution has been created.
   */
 case class Execution[S <: Scheduling](
   id: String,
@@ -138,7 +137,7 @@ case class Execution[S <: Scheduling](
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
   executionContext: ExecutionContext,
-  cuttleProject: CuttleProject[S]
+  projectName: String
 ) {
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
@@ -304,7 +303,7 @@ private[cuttle] object ExecutionPlatform {
 class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform],
                                                  xa: XA,
                                                  logger: Logger,
-                                                 cuttleProject: CuttleProject[S])(implicit retryStrategy: RetryStrategy)
+                                                 projectName: String)(implicit retryStrategy: RetryStrategy)
     extends MetricProvider {
 
   import ExecutionStatus._
@@ -312,7 +311,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
   private val queries = new Queries {
-    val appLogger = logger
+    val appLogger: Logger = logger
   }
 
   private val pausedState: TMap[String, Map[Execution[S], Promise[Completed]]] = {
@@ -336,11 +335,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         case (e: Execution[S], _) if filteredJobs.contains(e.job.id) => (e.job.id, e.context) -> e
       }
 
-      recentFailures.flatMap({
-        case ((job, context), (_, failingJob)) =>
-          runningIds.get((job.id, context)).map((_, failingJob, ExecutionRunning))
-      })
-      .toSeq
+      recentFailures
+        .flatMap({
+          case ((job, context), (_, failingJob)) =>
+            runningIds.get((job.id, context)).map((_, failingJob, ExecutionRunning))
+        })
+        .toSeq
     }
 
   private def retryingExecutionsSize(filteredJobs: Set[String]): Int =
@@ -709,7 +709,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                     },
                     platforms = platforms,
                     executionContext = global,
-                    cuttleProject = this.cuttleProject
+                    projectName = projectName
                   )
                   val promise = Promise[Completed]
 
@@ -862,15 +862,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     Seq(
       (
         running.groupBy(_._1).mapValues("running" -> _.size).toList ++
-        waiting.groupBy(_._1).mapValues("waiting" -> _.size).toList ++
-        pausedState.values
-          .flatMap(_.keys.flatMap(_.job.tags.map(_.name)))
-          .groupBy(identity)
-          .mapValues("paused" -> _.size).toList ++
-        allFailingExecutions
-          .flatMap(_.job.tags.map(_.name))
-          .groupBy(identity)
-          .mapValues("failing" -> _.size).toList
+          waiting.groupBy(_._1).mapValues("waiting" -> _.size).toList ++
+          pausedState.values
+            .flatMap(_.keys.flatMap(_.job.tags.map(_.name)))
+            .groupBy(identity)
+            .mapValues("paused" -> _.size)
+            .toList ++
+          allFailingExecutions
+            .flatMap(_.job.tags.map(_.name))
+            .groupBy(identity)
+            .mapValues("failing" -> _.size)
+            .toList
       ).foldLeft(
         Gauge("cuttle_scheduler_stat_count_by_tag", "The number of jobs that we have in concrete states by tag")
       ) {

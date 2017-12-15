@@ -140,8 +140,7 @@ private[cuttle] object App {
 
 private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
                                                 executor: Executor[S],
-                                                xa: XA,
-                                                logger: Logger) {
+                                                xa: XA) {
   import App._
   import project.{scheduler, workflow}
 
