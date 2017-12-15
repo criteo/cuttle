@@ -36,7 +36,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ): Unit = {
     val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa, logger = logger, cuttleProject = this)(retryStrategy)
+    val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
 
     logger.info("Start workflow")
     scheduler.start(workflow, executor, xa, logger)
@@ -45,7 +45,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(App(this, executor, xa, logger).routes)
+    })(App(this, executor, xa).routes)
 
     logger.info(s"Listening on http://localhost:$httpPort")
   }
