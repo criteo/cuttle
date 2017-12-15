@@ -21,18 +21,12 @@ package object utils {
     * after the given duration.
     */
   object Timeout {
-    private val scheduler = Executors.newScheduledThreadPool(1, new ThreadFactory() {
-      def newThread(r: Runnable): Thread = {
-        val t = Executors.defaultThreadFactory.newThread(r)
-        t.setDaemon(true)
-        t
-      }
-    })
+    private val scheduler = Executors.newScheduledThreadPool(1, createDaemonThreadFactory())
 
     /** Creates a  [[scala.concurrent.Future]] that resolve automatically
       * after the given duration.
       *
-      * @param duration Duration for the timeout.
+      * @param timeout Duration for the timeout.
       */
     def apply(timeout: Duration): Future[Unit] = {
       val p = Promise[Unit]()
@@ -69,4 +63,20 @@ package object utils {
   }
 
   private[cuttle] def getJVMUptime = ManagementFactory.getRuntimeMXBean.getUptime / 1000
+
+  private[cuttle] def createDaemonThreadFactory(): ThreadFactory {
+    def newThread(r: Runnable): Thread
+  } = new ThreadFactory() {
+    def newThread(r: Runnable): Thread = {
+      val t = Executors.defaultThreadFactory.newThread(r)
+      t.setDaemon(true)
+      t
+    }
+  }
+
+  private[cuttle] def createThreadFactory(newThreadImpl: Runnable => Thread): ThreadFactory {
+    def newThread(r: Runnable): Thread
+  } = new ThreadFactory() {
+    def newThread(r: Runnable): Thread = newThreadImpl(r)
+  }
 }

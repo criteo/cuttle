@@ -1,29 +1,30 @@
 package com.criteo.cuttle
 
 import java.io.{PrintWriter, StringWriter}
-import java.util.{Timer, TimerTask}
-import java.util.concurrent.atomic.AtomicBoolean
 import java.time.{Duration, Instant, ZoneId}
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.{Timer, TimerTask}
 
-import platforms.ExecutionPool
-
-import scala.util.{Failure, Success, Try}
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.stm._
-import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.duration._
-import scala.reflect.{classTag, ClassTag}
-import lol.http.PartialService
+import scala.concurrent.stm.Txn.ExternalDecider
+import scala.concurrent.stm._
+import scala.concurrent.{Future, Promise}
+import scala.reflect.{ClassTag, classTag}
+import scala.util.{Failure, Success, Try}
+
+import cats.Eq
+import cats.effect.IO
+import cats.implicits._
+import doobie.implicits._
+import doobie.util.fragment.Fragment
 import io.circe._
 import io.circe.syntax._
-import Auth._
-import Metrics._
-import cats.Eq
-import cats.implicits._
-import cats.effect.IO
-import doobie.util.fragment.Fragment
-import doobie.implicits._
+import lol.http.PartialService
+
+import com.criteo.cuttle.Auth._
+import com.criteo.cuttle.ExecutionContexts.{SideEffectExecutionContext, _}
+import com.criteo.cuttle.Metrics._
+import com.criteo.cuttle.platforms.ExecutionPool
 
 /** The strategy to use to retry stuck executions.
   *
@@ -124,7 +125,7 @@ class CancellationListener private[cuttle] (execution: Execution[_], private[cut
     * Detach the cancellation listener as soon as the specified future is completed (either with a success
     * or a failure).
     */
-  def unsubscribeOn[A](f: Future[A]) = f.andThen { case _ => unsubscribe() }
+  def unsubscribeOn[A](f: Future[A]) = f.andThen { case _ => unsubscribe() }(execution.executionContext)
 }
 
 /** [[Execution Executions]] are created by the [[Scheduler]].
@@ -137,14 +138,14 @@ class CancellationListener private[cuttle] (execution: Execution[_], private[cut
   * @param executionContext The scoped `scala.concurrent.ExecutionContext` for this execution.
   */
 case class Execution[S <: Scheduling](
-  id: String,
-  job: Job[S],
-  context: S#Context,
-  streams: ExecutionStreams,
-  platforms: Seq[ExecutionPlatform],
-  executionContext: ExecutionContext,
-  projectName: String
-) {
+    id: String,
+    job: Job[S],
+    context: S#Context,
+    streams: ExecutionStreams,
+    platforms: Seq[ExecutionPlatform],
+    projectName: String
+  )(implicit val executionContext: SideEffectExecutionContext) {
+
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
   private val cancelListeners = TSet.empty[CancellationListener]
@@ -313,6 +314,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     extends MetricProvider[S] {
 
   import ExecutionStatus._
+  import Implicits.sideEffectExecutionContext
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
@@ -610,9 +612,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
     Future
       .firstCompletedOf(List(Timeout(timeout), Future.sequence(runningFutures)))
-      .andThen({
+      .andThen {
         case _ => hardShutdown()
-      })
+      }
   }
 
   private[cuttle] def hardShutdown() = System.exit(0)
@@ -678,6 +680,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             }
         })
 
+
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
@@ -713,16 +716,16 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                 .orElse(maybeThrottled)
                 .toLeft {
                   val nextExecutionId = utils.randomUUID
+
                   val execution = Execution(
                     id = nextExecutionId,
-                    job = job,
-                    context = context,
+                    job,
+                    context,
                     streams = new ExecutionStreams {
                       def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
                     },
-                    platforms = platforms,
-                    executionContext = global,
-                    projectName = projectName
+                    platforms,
+                    projectName
                   )
                   val promise = Promise[Completed]
 
