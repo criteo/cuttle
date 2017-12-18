@@ -548,18 +548,43 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       .toSeq
 
   override def getMetrics(jobs: Set[String]): Seq[Metric] = {
+    val lastSuccessTime = getTimeOfLastSuccess(jobs)
+    val secondsSinceLastSuccess = lastSuccessTime.foldLeft(
+      Gauge(
+        "cuttle_timeseries_scheduler_last_success_epoch_seconds",
+        "The seconds since a job's last success with all previous executions being successful"
+      )
+    ) {
+      case (gauge, (job, lastSuccess)) =>
+        gauge.labeled(
+          Set("job_id" -> job.id, "job_name" -> job.name),
+          Instant.now.getEpochSecond - lastSuccess.getEpochSecond
+        )
+    }
 
-    val timeOfLastSuccessGauge = getTimeOfLastSuccess(jobs).foldLeft(
-      Gauge("cuttle_timeseries_scheduler_last_success_epoch_seconds", "The seconds since a last job's success")) {
-      case (gauge, (job, instant)) =>
-        gauge.labeled(Set("job_id" -> job.id, "job_name" -> job.name),
-                      Instant.now().getEpochSecond - instant.getEpochSecond)
+    val absoluteLatency = lastSuccessTime.foldLeft(
+      Gauge(
+        "cuttle_timeseries_scheduler_absolute_latency_epoch_seconds",
+        "Absolute latency of a job in seconds, with respect to its last success with all previous executions being successful"
+      )
+    ) {
+      case (gauge, (job, lastSuccess)) =>
+        val expectedSuccess = job.scheduling.calendar match {
+          case Hourly => Instant.now.minus(1, HOURS)
+          case Daily(tz) => Instant.now.atZone(tz).minus(1, DAYS).toInstant
+          case Monthly(tz) => Instant.now.atZone(tz).minus(1, MONTHS).toInstant
+        }
+        gauge.labeled(
+          Set("job_id" -> job.id, "job_name" -> job.name),
+          if (expectedSuccess.compareTo(lastSuccess) <= 0) 0L else expectedSuccess.getEpochSecond - lastSuccess.getEpochSecond
+        )
     }
 
     Seq(
       Gauge("cuttle_timeseries_scheduler_stat_count", "The number of backfills")
         .labeled("type" -> "backfills", getRunningBackfillsSize(jobs)),
-      timeOfLastSuccessGauge
+      secondsSinceLastSuccess,
+      absoluteLatency
     )
   }
 
