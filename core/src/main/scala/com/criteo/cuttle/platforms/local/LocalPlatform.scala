@@ -41,8 +41,7 @@ class LocalProcess(command: String) {
     errLogger: (String) => Unit
   )(implicit execution: Execution[S]): Future[Completed] = {
     val streams = execution.streams
-    streams.debug(s"Forking:")
-    streams.debug(this.toString)
+    streams.debug("Forking Process...")
 
     ExecutionPlatform
       .lookup[LocalPlatform]
