@@ -41,8 +41,8 @@ object Metrics {
   }
 
   /** Components able to provide metrics. */
-  trait MetricProvider {
-    def getMetrics(jobs: Set[String]): Seq[Metric]
+  trait MetricProvider[S <: Scheduling] {
+    def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric]
     def getMetricsByTag(jobs: Set[String]): Seq[Metric]
   }
 

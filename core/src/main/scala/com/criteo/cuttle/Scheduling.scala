@@ -14,7 +14,7 @@ import Auth._
   *
   * @tparam S The king of [[Scheduling]] managed by this [[Scheduler]].
   */
-trait Scheduler[S <: Scheduling] extends MetricProvider {
+trait Scheduler[S <: Scheduling] extends MetricProvider[S] {
 
   /** Starts the scheduler for the given [[Workflow]]. Immediatly the scheduler will start interpreting
     * the workflow and generate [[Execution Executions]] sent to the provided [[Executor]].

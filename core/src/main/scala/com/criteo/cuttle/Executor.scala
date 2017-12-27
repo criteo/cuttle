@@ -304,7 +304,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                                                  xa: XA,
                                                  logger: Logger,
                                                  projectName: String)(implicit retryStrategy: RetryStrategy)
-    extends MetricProvider {
+    extends MetricProvider[S] {
 
   import ExecutionStatus._
 
@@ -841,7 +841,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def healthCheck(): Try[Boolean] =
     Try(queries.healthCheck.transact(xa).unsafePerformIO)
 
-  override def getMetrics(jobs: Set[String]): Seq[Metric] = {
+  override def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric] = {
     val ((running, waiting), paused, failing) = getStateAtomic(jobs)
 
     Seq(
