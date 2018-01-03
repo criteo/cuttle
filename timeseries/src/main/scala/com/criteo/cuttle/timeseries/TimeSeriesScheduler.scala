@@ -553,24 +553,86 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       .flatten
       .toSeq
 
-  override def getMetrics(jobs: Set[String]): Seq[Metric] = {
+  override def getMetrics(jobs: Set[String], workflow: Workflow[TimeSeries]): Seq[Metric] = {
+    val lastSuccessTime = getTimeOfLastSuccess(jobs)
+    val secondsSinceLastSuccess = lastSuccessTime.foldLeft(
+      Gauge(
+        "cuttle_timeseries_scheduler_last_success_epoch_seconds",
+        "The seconds since a job's last success with all previous executions being successful"
+      )
+    ) {
+      case (gauge, (job, lastSuccess)) =>
+        gauge.labeled(
+          Set("job_id" -> job.id, "job_name" -> job.name),
+          Instant.now.getEpochSecond - lastSuccess.getEpochSecond
+        )
+    }
 
-    val timeOfLastSuccessGauge = getTimeOfLastSuccess(jobs).foldLeft(
-      Gauge("cuttle_timeseries_scheduler_last_success_epoch_seconds", "The seconds since a last job's success")) {
-      case (gauge, (job, instant)) =>
-        gauge.labeled(Set("job_id" -> job.id, "job_name" -> job.name),
-                      Instant.now().getEpochSecond - instant.getEpochSecond)
+    val absoluteLatency = lastSuccessTime.map {
+      case (job, lastSuccess) => job -> getAbsoluteLatency(job, lastSuccess)
+    }.toMap
+
+    val latencies = List(
+      Gauge(
+        "cuttle_timeseries_scheduler_absolute_latency_epoch_seconds",
+        "Absolute latency of a job in seconds, with respect to its last success with all previous executions being successful"
+      ) -> absoluteLatency,
+      Gauge(
+        "cuttle_timeseries_scheduler_relative_latency_epoch_seconds",
+        "Relative latency of a job in seconds, taking into account its parents' latencies"
+      ) -> absoluteLatency.map {
+        case (job, latency) =>
+          val maxParentLatency = workflow.edges
+            .collect { case (v, dep, _) if v == job => dep }
+            .flatMap(absoluteLatency.get)
+            .foldLeft(0L)(Math.max)
+          job -> Math.max(0, latency - maxParentLatency)
+      }
+    ).map {
+      case (gauge, latencyValues) =>
+        latencyValues.foldLeft(gauge) {
+          case (gauge, (job, latency)) =>
+            gauge.labeled(Set("job_id" -> job.id, "job_name" -> job.name), latency)
+        }
     }
 
     Seq(
       Gauge("cuttle_timeseries_scheduler_stat_count", "The number of backfills")
         .labeled("type" -> "backfills", getRunningBackfillsSize(jobs)),
-      timeOfLastSuccessGauge
-    )
+      secondsSinceLastSuccess
+    ) ++ latencies
+  }
+
+  override def getMetricsByTag(jobs: Set[String]): Seq[Metric] = {
+    val averageLastSuccess = getTimeOfLastSuccess(jobs)
+      .flatMap {
+        case (job, instant) =>
+          job.tags.map(_.name -> instant)
+      }
+      .groupBy(_._1)
+      .mapValues { xs =>
+        xs.map { case (_, instant) => Instant.now().getEpochSecond - instant.getEpochSecond }.sum / xs.size
+      }
+      .foldLeft(
+        Gauge(
+          "cuttle_timeseries_scheduler_last_success_epoch_seconds_avg_by_tag",
+          "The average seconds since last success of all jobs with the same tag"
+        )
+      ) { case (gauge, (tag, avg)) => gauge.labeled("tag" -> tag, avg) }
+    Seq(averageLastSuccess)
   }
 
   override def getStats(jobs: Set[String]): Json =
     Map("backfills" -> getRunningBackfillsSize(jobs)).asJson
+
+  private def getAbsoluteLatency(job: TimeSeriesJob, lastSuccess: Instant): Long = {
+    val expectedSuccess = job.scheduling.calendar match {
+      case Hourly      => Instant.now.minus(1, HOURS)
+      case Daily(tz)   => Instant.now.atZone(tz).minus(1, DAYS).toInstant
+      case Monthly(tz) => Instant.now.atZone(tz).minus(1, MONTHS).toInstant
+    }
+    if (expectedSuccess.compareTo(lastSuccess) <= 0) 0L else expectedSuccess.getEpochSecond - lastSuccess.getEpochSecond
+  }
 }
 
 private[timeseries] object TimeSeriesUtils {

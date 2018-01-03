@@ -146,10 +146,7 @@ private[cuttle] object App {
     }
 }
 
-private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
-                                                executor: Executor[S],
-                                                xa: XA,
-                                                logger: Logger) {
+private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
   import App._
   import project.{scheduler, workflow}
 
@@ -216,7 +213,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S],
         .map(stats => Ok(stats.asJson))
 
     case GET at "/metrics" =>
-      val metrics = executor.getMetrics(allIds) ++ scheduler.getMetrics(allIds) :+
+      val metrics = executor.getMetrics(allIds, workflow) ++ executor.getMetricsByTag(allIds) ++
+        scheduler.getMetrics(allIds, workflow) ++ scheduler.getMetricsByTag(allIds) :+
         Gauge("cuttle_jvm_uptime_seconds").set(getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 

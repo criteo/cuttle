@@ -3,7 +3,6 @@ package com.criteo.cuttle
 import org.scalatest.FunSuite
 import lol.http._
 import Auth._
-import cats.effect.IO
 
 class AuthenticationSpec extends FunSuite {
 
