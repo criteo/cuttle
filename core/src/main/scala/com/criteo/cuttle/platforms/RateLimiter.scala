@@ -1,22 +1,20 @@
 package com.criteo.cuttle.platforms
 
-import com.criteo.cuttle._
+import com.criteo.cuttle.App._
 
 import scala.concurrent.stm._
 import scala.concurrent.duration._
-
 import java.time._
 
 import lol.http._
 import lol.json._
-
 import io.circe._
 import io.circe.syntax._
-
-import App._
+import cats.effect.IO
+import com.criteo.cuttle.utils
 
 private[cuttle] object RateLimiter {
-  val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.platforms.RateLimiter.SC")
+  private val SC = utils.createScheduler("com.criteo.cuttle.platforms.RateLimiter.SC")
 }
 
 /**
@@ -33,15 +31,21 @@ class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueu
   private val _tokens = Ref(tokens)
   private val _lastRefill = Ref(Instant.now)
 
-  RateLimiter.SC.scheduleAtFixedRate(refillRateInMs.milliseconds) {
-    atomic { implicit txn =>
-      if (_tokens() < tokens) {
-        _tokens() = _tokens() + 1
-        _lastRefill() = Instant.now
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  RateLimiter.SC
+    .awakeEvery[IO](refillRateInMs.milliseconds)
+    .flatMap(_ => {
+      atomic { implicit txn =>
+        if (_tokens() < tokens) {
+          _tokens() = _tokens() + 1
+          _lastRefill() = Instant.now
+        }
       }
-    }
-    runNext()
-  }
+      fs2.Stream(runNext())
+    })
+    .run
+    .unsafeRunAsync(_ => ())
 
   def canRunNextCondition(implicit txn: InTxn) = _tokens() >= 1
   def doRunNext()(implicit txn: InTxn) = _tokens() = _tokens() - 1

@@ -7,11 +7,11 @@ import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
-import cats.implicits._
 import io.circe._
 import io.circe.syntax._
 import io.circe.generic.semiauto._
-import doobie.imports._
+import doobie._
+import doobie.implicits._
 import java.util.UUID
 import java.time._
 import java.time.temporal.ChronoUnit._
@@ -22,6 +22,9 @@ import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly}
 import intervals.{Bound, Interval, IntervalMap}
 import Bound.{Bottom, Finite, Top}
 import Metrics._
+import cats.effect.IO
+import cats.Eq
+import cats.mtl.implicits._
 
 /** Represents calendar partitions for which a job will be run by the [[TimeSeriesScheduler]].
   * See the companion object for the available calendars. */
@@ -173,6 +176,7 @@ case class Backfill(id: String,
                     createdBy: String)
 
 private[timeseries] object Backfill {
+  implicit val eqInstance: Eq[Backfill] = Eq.fromUniversalEquals[Backfill]
   implicit val encoder: Encoder[Backfill] = deriveEncoder
   implicit def decoder(implicit jobs: Set[Job[TimeSeries]]) =
     deriveDecoder[Backfill]
@@ -228,7 +232,8 @@ case class TimeSeriesDependency(offset: Duration)
   *                   to a value more than `1` and if possible, the scheduler can trigger [[com.criteo.cuttle.Execution Executions]]
   *                   for more than 1 partition at once.
   */
-case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[Instant] = None, maxPeriods: Int = 1) extends Scheduling {
+case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[Instant] = None, maxPeriods: Int = 1)
+    extends Scheduling {
   import TimeSeriesCalendar._
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
@@ -257,6 +262,7 @@ private[timeseries] object JobState {
   implicit val encoder: Encoder[JobState] = deriveEncoder
   implicit def decoder(implicit jobs: Set[TimeSeriesJob]): Decoder[JobState] =
     deriveDecoder
+  implicit val eqInstance: Eq[JobState] = Eq.fromUniversalEquals[JobState]
 }
 
 /** A [[TimeSeriesScheduler]] executes the [[com.criteo.cuttle.Workflow Workflow]] for the
@@ -288,7 +294,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
                                       start: Instant,
                                       end: Instant,
                                       priority: Int,
-                                      xa: XA)(implicit user: Auth.User) = {
+                                      xa: XA)(implicit user: Auth.User): IO[Boolean] = {
     val (isValid, newBackfill) = atomic { implicit txn =>
       val id = UUID.randomUUID().toString
       val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING", user.userId)
@@ -320,8 +326,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       (isValid, newBackfill)
     }
     if (isValid)
-      Database.createBackfill(newBackfill).transact(xa).unsafePerformIO
-    isValid
+      Database.createBackfill(newBackfill).transact(xa).map(_ => true)
+    else
+      IO.pure(false)
   }
 
   def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
@@ -335,12 +342,12 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
     logger.info("Workflow is valid")
 
-    Database.doSchemaUpdates.transact(xa).unsafePerformIO
+    Database.doSchemaUpdates.transact(xa).unsafeRunSync
 
     Database
       .deserializeState(workflow.vertices)
       .transact(xa)
-      .unsafePerformIO
+      .unsafeRunSync
       .foreach { state =>
         atomic { implicit txn =>
           _state() = state
@@ -360,14 +367,13 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
             Backfill(id, start, end, jobs, priority, name, description, status, createdBy)
         })
         .transact(xa)
-        .unsafePerformIO
+        .unsafeRunSync
 
       _backfills() = _backfills() ++ incompleteBackfills
 
       workflow.vertices.foreach { job =>
-        val definedInterval = Interval(
-          Finite(job.scheduling.start),
-          job.scheduling.end.map(Finite.apply _).getOrElse(Top))
+        val definedInterval =
+          Interval(Finite(job.scheduling.start), job.scheduling.end.map(Finite.apply _).getOrElse(Top))
         val oldJobState = _state().getOrElse(job, IntervalMap.empty[Instant, JobState])
         val missingIntervals = IntervalMap(definedInterval -> (()))
           .whenIsUndef(oldJobState.intersect(definedInterval))
@@ -408,7 +414,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       }
 
       if (completed.nonEmpty || toRun.nonEmpty)
-        runOrLogAndDie(Database.serializeState(stateSnapshot).transact(xa).unsafePerformIO,
+        runOrLogAndDie(Database.serializeState(stateSnapshot).transact(xa).unsafeRunSync,
                        "TimeseriesScheduler, cannot serialize state, shutting down")
 
       if (completedBackfills.nonEmpty)
@@ -416,7 +422,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
           Database
             .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
             .transact(xa)
-            .unsafePerformIO,
+            .unsafeRunSync,
           "TimeseriesScheduler, cannot serialize state, shutting down"
         )
 
@@ -578,7 +584,8 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         case (job, latency) =>
           val maxParentLatency = workflow.edges
             .collect { case (v, dep, _) if v == job => dep }
-            .flatMap(absoluteLatency.get).foldLeft(0L)(Math.max)
+            .flatMap(absoluteLatency.get)
+            .foldLeft(0L)(Math.max)
           job -> Math.max(0, latency - maxParentLatency)
       }
     ).map {
@@ -620,8 +627,8 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
   private def getAbsoluteLatency(job: TimeSeriesJob, lastSuccess: Instant): Long = {
     val expectedSuccess = job.scheduling.calendar match {
-      case Hourly => Instant.now.minus(1, HOURS)
-      case Daily(tz) => Instant.now.atZone(tz).minus(1, DAYS).toInstant
+      case Hourly      => Instant.now.minus(1, HOURS)
+      case Daily(tz)   => Instant.now.atZone(tz).minus(1, DAYS).toInstant
       case Monthly(tz) => Instant.now.atZone(tz).minus(1, MONTHS).toInstant
     }
     if (expectedSuccess.compareTo(lastSuccess) <= 0) 0L else expectedSuccess.getEpochSecond - lastSuccess.getEpochSecond

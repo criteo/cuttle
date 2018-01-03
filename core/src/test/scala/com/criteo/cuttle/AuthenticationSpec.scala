@@ -2,7 +2,6 @@ package com.criteo.cuttle
 
 import org.scalatest.FunSuite
 import lol.http._
-
 import Auth._
 
 class AuthenticationSpec extends FunSuite {
@@ -126,8 +125,12 @@ object SuiteUtils {
     */
   def getBasicAuth() = basicAuth
 
-  def assertCodeAtUrl(code: Int)(api: Service)(url: String): Unit =
-    assert(api(getFakeRequest(url)).value.get.get.status == code, url)
+  def assertCodeAtUrl(code: Int)(api: Service)(url: String): Unit = {
+    val runTest = for {
+      answer <- api(getFakeRequest(url))
+    } yield answer.status == code
+    assert(runTest.unsafeRunSync, url)
+  }
 
   def assertOk: (Service, String) => Unit = assertCodeAtUrl(200)(_)(_)
 

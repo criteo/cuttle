@@ -1,13 +1,16 @@
 package com.criteo.cuttle
 
-import doobie.imports._
-import doobie.hikari.imports._
-
-import cats.data.{NonEmptyList}
-import cats.implicits._
+import doobie._
+import doobie.implicits._
+import doobie.hikari._
+import doobie.hikari.implicits._
 
 import io.circe._
 import io.circe.parser._
+
+import cats.data.NonEmptyList
+import cats.implicits._
+import cats.effect.IO
 
 import scala.util._
 
@@ -46,10 +49,12 @@ object DatabaseConfig {
     def env(variable: String, default: Option[String] = None) =
       Option(System.getenv(variable)).orElse(default).getOrElse(sys.error(s"Missing env ${'$' + variable}"))
 
-    val dbLocations = env("MYSQL_LOCATIONS", Some("localhost:3306")).split(',').flatMap(_.split(":") match {
-      case Array(host, port) => Try(DBLocation(host, port.toInt)).toOption
-      case _ => None
-    })
+    val dbLocations = env("MYSQL_LOCATIONS", Some("localhost:3306"))
+      .split(',')
+      .flatMap(_.split(":") match {
+        case Array(host, port) => Try(DBLocation(host, port.toInt)).toOption
+        case _                 => None
+      })
 
     DatabaseConfig(
       if (dbLocations.nonEmpty) dbLocations else Seq(DBLocation("localhost", 3306)),
@@ -62,22 +67,20 @@ object DatabaseConfig {
 
 private[cuttle] object Database {
 
-  implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].nxmap(
+  implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].xmap(
     x => Instant.ofEpochMilli(x.getTime),
     x => new java.sql.Timestamp(x.toEpochMilli)
   )
 
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
-    x => if (x) ExecutionSuccessful else ExecutionFailed,
-    x =>
-      x match {
-        case ExecutionSuccessful => true
-        case ExecutionFailed     => false
-        case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
+    x => if (x) ExecutionSuccessful else ExecutionFailed, {
+      case ExecutionSuccessful => true
+      case ExecutionFailed     => false
+      case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
     }
   )
 
-  implicit val JsonMeta: Meta[Json] = Meta[String].nxmap(
+  implicit val JsonMeta: Meta[Json] = Meta[String].xmap(
     x => parse(x).fold(e => throw e, identity),
     x => x.noSpaces
   )
@@ -111,7 +114,7 @@ private[cuttle] object Database {
     """
   )
 
-  private def lockedTransactor(xa: HikariTransactor[IOLite]): HikariTransactor[IOLite] = {
+  private def lockedTransactor(xa: HikariTransactor[IO]): HikariTransactor[IO] = {
     val guid = java.util.UUID.randomUUID.toString
 
     // Try to insert our lock at bootstrap
@@ -127,14 +130,14 @@ private[cuttle] object Database {
       } else {
         sys.error(s"Database already locked: ${locks.head}")
       }
-    } yield ()).transact(xa).unsafePerformIO
+    } yield ()).transact(xa).unsafeRunSync
 
     // Remove lock on shutdown
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run =
         sql"""
-          DELETE FROM locks WHERE locked_by = ${guid};
-        """.update.run.transact(xa).unsafePerformIO
+          DELETE FROM locks WHERE locked_by = $guid;
+        """.update.run.transact(xa).unsafeRunSync
     })
 
     // Refresh our lock every minute (and check that we still are the lock owner)
@@ -145,8 +148,8 @@ private[cuttle] object Database {
           def run =
             if ((sql"""
             UPDATE locks SET locked_at = NOW() WHERE locked_by = ${guid}
-          """.update.run.transact(xa).unsafePerformIO: Int) != 1) {
-              xa.shutdown.unsafePerformIO
+          """.update.run.transact(xa).unsafeRunSync: Int) != 1) {
+              xa.shutdown.unsafeRunSync
               sys.error(s"Lock has been lost, shutting down the database connection.")
             }
         },
@@ -159,7 +162,7 @@ private[cuttle] object Database {
     xa
   }
 
-  private val doSchemaUpdates =
+  private val doSchemaUpdates: ConnectionIO[Unit] =
     (for {
       _ <- sql"""
         CREATE TABLE IF NOT EXISTS schema_evolutions (
@@ -197,17 +200,17 @@ private[cuttle] object Database {
     connections.getOrElseUpdate(
       dbConfig, {
         val xa = (for {
-          hikari <- HikariTransactor[IOLite](
+          hikari <- HikariTransactor.newHikariTransactor[IO](
             "com.mysql.cj.jdbc.Driver",
             jdbcString,
             dbConfig.username,
             dbConfig.password
           )
           _ <- hikari.configure { datasource =>
-            IOLite.primitive(/* Configure datasource if needed */ ())
+            IO.pure( /* Configure datasource if needed */ ())
           }
-        } yield hikari).unsafePerformIO
-        doSchemaUpdates.transact(xa).unsafePerformIO
+        } yield hikari).unsafeRunSync
+        doSchemaUpdates.transact(xa).unsafeRunSync
         lockedTransactor(xa)
       }
     )

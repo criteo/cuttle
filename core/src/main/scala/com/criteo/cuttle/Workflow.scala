@@ -1,6 +1,8 @@
 package com.criteo.cuttle
 
-import scala.concurrent.{Future}
+import cats.Eq
+
+import scala.concurrent.Future
 
 /**
   * The workflow to be run by cuttle. A workflow is defined for a given [[Scheduling]],
@@ -138,4 +140,8 @@ case class Job[S <: Scheduling](id: String,
     * @return A future indicating the execution result (Failed future means failed execution).
     */
   private[cuttle] def run(execution: Execution[S]): Future[Completed] = effect(execution)
+}
+
+case object Job {
+  implicit def eqInstance[S <: Scheduling] = Eq.fromUniversalEquals[Job[S]]
 }

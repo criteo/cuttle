@@ -1,7 +1,10 @@
 package com.criteo.cuttle
 
-import cats.Applicative
-import doobie.imports.ConnectionIO
+import cats.implicits._
+
+import doobie._
+import doobie.implicits._
+
 import io.circe.Json
 
 import scala.concurrent.Future
@@ -15,7 +18,7 @@ trait TestScheduling {
 
   case class TestContext() extends SchedulingContext {
     val toJson: Json = Json.Null
-    val log: ConnectionIO[String] = Applicative[ConnectionIO].pure("id")
+    val log: ConnectionIO[String] = "id".pure[ConnectionIO]
     def compareTo(other: SchedulingContext) = 0
   }
 

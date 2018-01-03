@@ -7,17 +7,18 @@ import lol.json._
 import io.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
+
 import scala.util.Try
-import scala.math.Ordering.Implicits._
 import java.time.Instant
 import java.time.temporal.ChronoUnit._
 
-import doobie.imports._
+import doobie.implicits._
 import intervals._
 import Bound.{Bottom, Finite, Top}
 import ExecutionStatus._
 import Auth._
-import scala.concurrent.ExecutionContext.Implicits.global
+import cats.effect.IO
+import cats.implicits._
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
@@ -94,16 +95,19 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                             xa: XA): PartialService = {
 
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
-      def watchState() = Some((state, executor.allFailingJobsWithContext))
+      type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
 
-      def getExecutions(watchedValue: Any = ()) = {
+      def watchState(): Option[WatchedState] = Some((state, executor.allFailingJobsWithContext))
+
+      def getExecutions: IO[Json] = {
         val job = workflow.vertices.find(_.id == jobId).get
         val calendar = job.scheduling.calendar
         val startDate = Instant.parse(start)
         val endDate = Instant.parse(end)
         val requestedInterval = Interval(startDate, endDate)
         val contextQuery = Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
-        val archivedExecutions = executor.archivedExecutions(contextQuery, Set(jobId), "", true, 0, Int.MaxValue)
+        val archivedExecutions =
+          executor.archivedExecutions(contextQuery, Set(jobId), "", asc = true, 0, Int.MaxValue, xa)
         val runningExecutions = executor.runningExecutions
           .filter {
             case (e, _) =>
@@ -126,8 +130,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .filter(e => e.job == job && e.context.toInterval.intersects(requestedInterval))
           .map(_.toExecutionLog(ExecutionThrottled))
 
-        ExecutionDetails(archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions,
-                         parentExecutions(requestedInterval, job, state)).asJson
+        archivedExecutions.map(
+          archivedExecutions =>
+            ExecutionDetails(archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions,
+                             parentExecutions(requestedInterval, job, state)).asJson)
       }
 
       def parentExecutions(requestedInterval: Interval[Instant],
@@ -161,20 +167,22 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         runningDependencies ++ failingDependencies ++ remainingDependenciesDeps.toSeq
       }
 
-      if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
-        sse(watchState _, getExecutions)
+      if (request.headers.get(h"Accept").contains(h"text/event-stream"))
+        sse(IO { watchState() }, (s: WatchedState) => getExecutions)
       else
-        Ok(getExecutions())
+        getExecutions.map(Ok(_))
 
     case request @ GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
+      type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
+
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
         .getOrElse(workflow.vertices.map(_.id))
         .toSet
 
-      def watchState() = Some((state, executor.allFailingJobsWithContext))
+      def watchState: Option[WatchedState] = Some((state, executor.allFailingJobsWithContext))
 
-      def getFocusView(watchedValue: Any = ()) = {
+      def getFocusView = {
         val startDate = Instant.parse(start)
         val endDate = Instant.parse(end)
         val period = Interval(startDate, endDate)
@@ -209,7 +217,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           calendarView: TimeSeriesCalendarView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
           calendarView.calendar
             .split(period)
-            .map { interval =>
+            .flatMap { interval =>
               {
                 val (start, end) = interval
                 val currentlyAggregatedPeriod = state(job)
@@ -222,7 +230,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 }
               }
             }
-            .flatten
 
         def getStatusLabelFromState(jobState: JobState, job: Job[TimeSeries]): String =
           jobState match {
@@ -245,7 +252,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               TimeSeriesCalendarView(job.scheduling.calendar),
               period
             )
-            val jobExecutions = (for {
+            val jobExecutions = for {
               (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, calendarView)
             } yield {
               val inBackfill = backfills.exists(
@@ -275,7 +282,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                   }
                   case Nil => None
                 }
-            })
+            }
             JobTimeline(job.id, calendarView, jobExecutions.flatten)
           }).toList
 
@@ -313,14 +320,14 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 }
             }
             .asJson,
-          "jobs" -> jobTimelines.map(jt => (jt.jobId -> jt)).toMap.asJson
+          "jobs" -> jobTimelines.map(jt => jt.jobId -> jt).toMap.asJson
         )
       }
 
-      if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
-        sse(watchState _, getFocusView)
+      if (request.headers.get(h"Accept").contains(h"text/event-stream"))
+        sse(IO { watchState }, (_: WatchedState) => IO(getFocusView))
       else
-        Ok(getFocusView())
+        Ok(getFocusView)
 
     case request @ GET at url"/api/timeseries/calendar?jobs=$jobs" =>
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
@@ -328,9 +335,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         .getOrElse(workflow.vertices.map(_.id))
         .toSet
 
-      def watchState() = Some((state, executor.allFailingJobsWithContext))
+      type WatchedState = ((TimeSeriesUtils.State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeries#Context)])
+      def watchState: Option[WatchedState] = Some((state, executor.allFailingJobsWithContext))
 
-      def getCalendar(watchedValue: Any = ()) = {
+      def getCalendar(): Json = {
         val (state, backfills) = this.state
         val backfillDomain =
           backfills.foldLeft(IntervalMap.empty[Instant, Unit]) { (acc, bf) =>
@@ -367,7 +375,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 else completion
               Map(
                 "date" -> date.asJson,
-                "completion" -> f"${correctedCompletion}%.1f".asJson
+                "completion" -> f"$correctedCompletion%.1f".asJson
               ) ++ (if (stuck) Map("stuck" -> true.asJson) else Map.empty) ++
                 (if (backfillDomain.intersect(Interval(date, Daily(UTC).next(date))).toList.nonEmpty)
                    Map("backfill" -> true.asJson)
@@ -377,8 +385,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
       }
 
-      if (request.headers.get(h"Accept").exists(_ == h"text/event-stream"))
-        sse(watchState _, getCalendar)
+      if (request.headers.get(h"Accept").contains(h"text/event-stream"))
+        sse(IO { watchState }, (_: WatchedState) => IO.pure(getCalendar()))
       else
         Ok(getCalendar())
 
@@ -406,33 +414,31 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       }
 
     case GET at url"/api/timeseries/backfills" =>
-      Ok(
-        Database
-          .queryBackfills()
-          .list
-          .map(_.map {
-            case (id, name, description, jobs, priority, start, end, created_at, status, created_by) =>
-              Json.obj(
-                "id" -> id.asJson,
-                "name" -> name.asJson,
-                "description" -> description.asJson,
-                "jobs" -> jobs.asJson,
-                "priority" -> priority.asJson,
-                "start" -> start.asJson,
-                "end" -> end.asJson,
-                "created_at" -> created_at.asJson,
-                "status" -> status.asJson,
-                "created_by" -> created_by.asJson
-              )
-          })
-          .transact(xa)
-          .unsafePerformIO
-          .asJson)
+      Database
+        .queryBackfills()
+        .list
+        .map(_.map {
+          case (id, name, description, jobs, priority, start, end, created_at, status, created_by) =>
+            Json.obj(
+              "id" -> id.asJson,
+              "name" -> name.asJson,
+              "description" -> description.asJson,
+              "jobs" -> jobs.asJson,
+              "priority" -> priority.asJson,
+              "start" -> start.asJson,
+              "end" -> end.asJson,
+              "created_at" -> created_at.asJson,
+              "status" -> status.asJson,
+              "created_by" -> created_by.asJson
+            )
+        })
+        .transact(xa)
+        .map(backfills => Ok(backfills.asJson))
     case GET at url"/api/timeseries/backfills/$id?events=$events" =>
-      val backfills = Database.getBackfillById(id).transact(xa).unsafePerformIO
+      val backfills = Database.getBackfillById(id).transact(xa)
       events match {
-        case "true" | "yes" => sse(() => backfills, (b: Json) => b)
-        case _              => Ok(backfills.asJson)
+        case "true" | "yes" => sse(backfills, (b: Json) => IO.pure(b))
+        case _              => backfills.map(bf => Ok(bf.asJson))
       }
     case GET at url"/api/timeseries/backfills/$backfillId/executions?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
       val limit = Try(l.toInt).toOption.getOrElse(25)
@@ -463,9 +469,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           columnOrdering.reverse
         }
       }
-      def allExecutions(): Option[(Int, Double, Seq[ExecutionLog])] = {
-        val archived =
-          Database.getExecutionLogsForBackfill(backfillId).transact(xa).unsafePerformIO
+      def allExecutions(): IO[Option[(Int, Double, List[ExecutionLog])]] = {
 
         val runningExecutions = executor.runningExecutions
           .filter(t => {
@@ -475,21 +479,27 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .map({ case (execution, status) => execution.toExecutionLog(status) })
 
         val runningExecutionsIds = runningExecutions.map(_.id).toSet
-        val archivedNotRunning = archived.filterNot(e => runningExecutionsIds.contains(e.id))
-        val executions = (runningExecutions ++ archivedNotRunning)
-        val completion = {
-          executions.size match {
-            case 0     => 0
-            case total => (total - runningExecutions.size).toDouble / total
-          }
-        }
-        Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit)))
+        Database
+          .getExecutionLogsForBackfill(backfillId)
+          .transact(xa)
+          .map(archived => {
+            val archivedNotRunning = archived.filterNot(e => runningExecutionsIds.contains(e.id))
+            val executions = runningExecutions ++ archivedNotRunning
+            val completion = {
+              executions.size match {
+                case 0     => 0
+                case total => (total - runningExecutions.size).toDouble / total
+              }
+            }
+            Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit).toList))
+          })
       }
+
       events match {
         case "true" | "yes" =>
-          sse(allExecutions _, asTotalJson)
+          sse(allExecutions(), (e: (Int, Double, List[ExecutionLog])) => IO.pure(asTotalJson(e)))
         case _ =>
-          allExecutions().map(e => Ok(asTotalJson(e))).getOrElse(NotFound)
+          allExecutions().map(_.map(e => Ok(asTotalJson(e))).getOrElse(NotFound))
       }
     }
   }
@@ -502,26 +512,25 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       implicit user =>
         req
           .readAs[Json]
-          .map(
+          .flatMap(
             _.as[BackfillCreate]
               .fold(
-                _ => BadRequest("cannot parse request body"),
+                _ => IO.pure(BadRequest("cannot parse request body")),
                 backfill => {
                   val jobIds = backfill.jobs.split(",")
                   val jobs = workflow.vertices
                     .filter((job: TimeSeriesJob) => jobIds.contains(job.id))
 
-                  if (backfillJob(backfill.name,
-                                  backfill.description,
-                                  jobs,
-                                  backfill.startDate,
-                                  backfill.endDate,
-                                  backfill.priority,
-                                  xa)) {
-                    Ok("ok".asJson)
-                  } else {
-                    BadRequest("invalid backfill")
-                  }
+                  backfillJob(backfill.name,
+                              backfill.description,
+                              jobs,
+                              backfill.startDate,
+                              backfill.endDate,
+                              backfill.priority,
+                              xa).map({
+                    case true => Ok("ok".asJson)
+                    case _    => BadRequest("invalid backfill")
+                  })
                 }
               )
           )
