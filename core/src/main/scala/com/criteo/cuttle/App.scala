@@ -30,7 +30,7 @@ private[cuttle] object App {
       .evalMap(_ => IO.shift(S).flatMap(_ => thunk))
       .flatMap({
         case Some(x) => Stream(x)
-        case None    => Stream.fail(new RuntimeException("Could not get result to stream"))
+        case None    => Stream.raiseError(new RuntimeException("Could not get result to stream"))
       })
       .changes
       .evalMap(r => encode(r))

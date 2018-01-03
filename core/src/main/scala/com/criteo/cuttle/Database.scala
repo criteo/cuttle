@@ -183,7 +183,7 @@ private[cuttle] object Database {
     connections.getOrElseUpdate(
       c, {
         val xa = (for {
-          hikari <- HikariTransactor[IO](
+          hikari <- HikariTransactor.newHikariTransactor[IO](
             "com.mysql.cj.jdbc.Driver",
             s"jdbc:mysql://${c.host}:${c.port}/${c.database}?serverTimezone=UTC&useSSL=false&allowMultiQueries=true",
             c.username,

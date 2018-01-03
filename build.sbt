@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.2.3"
+val VERSION = "0.3.0"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -179,22 +179,22 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "lolhttp",
         "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml"
-      ).map(_ % "0.8.1"),
+      ).map(_ % "0.9.0"),
       libraryDependencies ++= Seq("core", "generic", "parser")
-        .map(module => "io.circe" %% s"circe-${module}" % "0.9.0-M2"),
+        .map(module => "io.circe" %% s"circe-${module}" % "0.9.0-M3"),
       libraryDependencies ++= Seq(
         "de.sciss" %% "fingertree" % "1.5.2",
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-        "org.typelevel" %% "cats-core" % "1.0.0-RC1",
-        "org.typelevel" %% "cats-mtl-core" % "0.1.0",
+        "org.typelevel" %% "cats-core" % "1.0.0-RC2",
+        "org.typelevel" %% "cats-mtl-core" % "0.2.0",
         "codes.reactive" %% "scala-time" % "0.4.1",
         "com.zaxxer" % "nuprocess" % "1.1.0"
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
         "org.tpolecat" %% "doobie-hikari"
-      ).map(_ % "0.5.0-M9"),
+      ).map(_ % "0.5.0-M11"),
       libraryDependencies ++= Seq(
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),

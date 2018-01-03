@@ -112,7 +112,7 @@ object HttpPlatform {
           Client
             .run(request) { response =>
               streams.debug(s"Got response: $response")
-              IO.fromFuture(cats.Eval.later(thunk(response)))
+              IO.fromFuture(IO.pure(thunk(response)))
             }
             .unsafeToFuture()
         }
