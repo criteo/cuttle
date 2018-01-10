@@ -12,7 +12,8 @@ import cats.implicits._
 import io.circe._
 import io.circe.syntax._
 
-import doobie.imports._
+import doobie._
+import doobie.implicits._
 
 private[timeseries] object Database {
   import TimeSeriesUtils._

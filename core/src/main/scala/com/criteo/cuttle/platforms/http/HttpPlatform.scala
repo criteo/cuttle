@@ -4,8 +4,9 @@ import com.criteo.cuttle._
 import platforms.{ExecutionPool, RateLimiter}
 
 import scala.concurrent._
-import java.util.concurrent.{TimeUnit}
+import java.util.concurrent.TimeUnit
 
+import cats.effect.IO
 import io.circe._
 import io.circe.syntax._
 
@@ -108,10 +109,12 @@ object HttpPlatform {
           .getOrElse(sys.error(s"A rate limiter should be defined for `${host}'"))
 
         rateLimiter.run(execution, debug = request.toString) { () =>
-          Client.run(request) { response =>
-            streams.debug(s"Got response: ${response}")
-            thunk(response)
-          }
+          Client
+            .run(request) { response =>
+              streams.debug(s"Got response: $response")
+              IO.fromFuture(IO.pure(thunk(response)))
+            }
+            .unsafeToFuture()
         }
       } catch {
         case e: Throwable =>

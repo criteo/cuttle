@@ -3,10 +3,13 @@ package com.criteo.cuttle
 import java.io._
 import java.nio.file.Files
 import java.time.Instant
-import doobie.imports._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import cats.effect.IO
+
+import doobie.implicits._
+
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
 
 /** The scoped output streams for an [[Execution]]. Allows the execution to log its output. */
@@ -41,9 +44,8 @@ private[cuttle] object ExecutionStreams {
   // Note that we are limited by Int.maxValue
   private val maxExecutionLogSizeProp = "com.criteo.cuttle.maxExecutionLogSize"
   private val maxExecutionLogSize = sys.props.get(maxExecutionLogSizeProp).map(_.toInt).getOrElse(524288)
+  private val SC = utils.createScheduler("com.criteo.cuttle.ExecutionStreams.SC")
 
-  private implicit val S = fs2.Strategy.fromExecutionContext(global)
-  private implicit val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.ExecutionStreams.SC")
   logger.info(s"Transient execution streams go to $transientStorage")
 
   private def logFile(id: ExecutionId): File = new File(transientStorage, id)
@@ -75,29 +77,24 @@ private[cuttle] object ExecutionStreams {
     }
   }
 
-  def getStreams(id: ExecutionId, queries: Queries, xa: XA): fs2.Stream[fs2.Task, Byte] = {
-    def go(alreadySent: Int = 0): fs2.Stream[fs2.Task, Byte] =
-      fs2.Stream.eval(fs2.Task.delay(streamsAsString(id))).flatMap {
+  def getStreams(id: ExecutionId, queries: Queries, xa: XA): fs2.Stream[IO, Byte] = {
+    def go(alreadySent: Int = 0): fs2.Stream[IO, Byte] =
+      fs2.Stream.eval(IO { streamsAsString(id) }).flatMap {
         case Some(content) =>
-          fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))) ++ fs2.Stream
-            .eval(fs2.Task.schedule((), 1 second))
-            .flatMap(_ => go(content.size))
+          fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))) ++ SC.delay(go(content.length),
+                                                                                                    1 second)
         case None =>
           fs2.Stream
-            .eval(fs2.Task.delay {
+            .eval(
               queries
                 .archivedStreams(id)
                 .transact(xa)
-                .unsafePerformIO
-                .map { content =>
-                  fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8")))
-                }
-                .getOrElse {
-                  fs2.Stream.fail(new Exception(s"Streams not found for execution $id"))
-                }
-            })
-            .flatMap(identity)
+                .map(_.map(content => fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))))
+                  .getOrElse(fs2.Stream.raiseError(new Exception(s"Streams not found for execution $id"))))
+            )
+            .flatMap(x => x)
       }
+
     go()
   }
 
@@ -154,7 +151,7 @@ private[cuttle] object ExecutionStreams {
     queries
       .archiveStreams(id, streamsAsString(id).getOrElse(sys.error(s"Cannot archive streams for execution $id")))
       .transact(xa)
-      .unsafePerformIO
+      .unsafeRunSync()
     discard(id)
   }
 }

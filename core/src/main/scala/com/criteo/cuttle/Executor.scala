@@ -15,13 +15,15 @@ import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.duration._
 import scala.reflect.{classTag, ClassTag}
 import lol.http.PartialService
-import doobie.imports._
-import cats.implicits._
 import io.circe._
 import io.circe.syntax._
-
 import Auth._
 import Metrics._
+import cats.Eq
+import cats.implicits._
+import cats.effect.IO
+import doobie.util.fragment.Fragment
+import doobie.implicits._
 
 /** The strategy to use to retry stuck executions.
   *
@@ -96,6 +98,10 @@ private[cuttle] class ExecutionStat(
   val waitingSeconds: Int,
   val status: ExecutionStatus
 )
+
+private[cuttle] object ExecutionLog {
+  implicit val execLogEq: Eq[ExecutionLog] = Eq.fromUniversalEquals[ExecutionLog]
+}
 
 /**
   * Used to fail an execution Future when the execution has been cancelled.
@@ -304,7 +310,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                                                  xa: XA,
                                                  logger: Logger,
                                                  projectName: String)(implicit retryStrategy: RetryStrategy)
-    extends MetricProvider {
+    extends MetricProvider[S] {
 
   import ExecutionStatus._
 
@@ -316,7 +322,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private val pausedState: TMap[String, Map[Execution[S], Promise[Completed]]] = {
     val byId = TMap.empty[String, Map[Execution[S], Promise[Completed]]]
-    val pausedIds = queries.getPausedJobIds.transact(xa).unsafePerformIO
+    val pausedIds = queries.getPausedJobIds.transact(xa).unsafeRunSync
     byId.single ++= pausedIds.map((_, Map.empty[Execution[S], Promise[Completed]]))
     byId
   }
@@ -353,15 +359,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     }
 
   private def startMonitoringExecutions() = {
-    val SC = fs2.Scheduler.fromFixedDaemonPool(1, "com.criteo.cuttle.platforms.ExecutionMonitor.SC")
+    val SC = utils.createScheduler("com.criteo.cuttle.platforms.ExecutionMonitor.SC")
 
     val intervalSeconds = 1
-
-    SC.scheduleAtFixedRate(intervalSeconds.second) {
-      runningExecutions
-        .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
-        .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
-    }
+    SC.awakeEvery[IO](intervalSeconds.second)
+      .map(_ => {
+        runningExecutions
+          .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
+          .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
+      })
+      .run
+      .unsafeRunAsync(_ => ())
   }
 
   startMonitoringExecutions()
@@ -380,8 +388,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         execution.toExecutionLog(status)
     }
 
-  private[cuttle] def jobStatsForLastThirtyDays(jobId: String): Seq[ExecutionStat] =
-    queries.jobStatsForLastThirtyDays(jobId).transact(xa).unsafePerformIO
+  private[cuttle] def jobStatsForLastThirtyDays(jobId: String): IO[Seq[ExecutionStat]] =
+    queries.jobStatsForLastThirtyDays(jobId).transact(xa)
 
   private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
     flagWaitingExecutions(runningState.single.keys.toSeq)
@@ -483,15 +491,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           execution.toExecutionLog(executionStatus).copy(failing = Some(failingJob))
       })
 
-  private[cuttle] def archivedExecutionsSize(jobs: Set[String]): Int =
-    queries.getExecutionLogSize(jobs).transact(xa).unsafePerformIO
+  private[cuttle] def archivedExecutionsSize(jobs: Set[String]): IO[Int] =
+    queries.getExecutionLogSize(jobs).transact(xa)
+
   private[cuttle] def archivedExecutions(queryContexts: Fragment,
                                          jobs: Set[String],
                                          sort: String,
                                          asc: Boolean,
                                          offset: Int,
-                                         limit: Int): Seq[ExecutionLog] =
-    queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa).unsafePerformIO
+                                         limit: Int,
+                                         xa: XA): IO[Seq[ExecutionLog]] =
+    queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa)
 
   private[cuttle] def pausedJobs: Seq[String] =
     pausedState.single.keys.toSeq
@@ -503,7 +513,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     toCancel.foreach(_.cancel())
   }
 
-  private[cuttle] def getExecution(queryContexts: Fragment, executionId: String): Option[ExecutionLog] =
+  private[cuttle] def getExecution(queryContexts: Fragment, executionId: String): IO[Option[ExecutionLog]] =
     atomic { implicit tx =>
       val predicate = (e: Execution[S]) => e.id == executionId
       pausedState.values
@@ -516,16 +526,19 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         .orElse(runningState.keys.find(predicate).map { execution =>
           execution.toExecutionLog(flagWaitingExecutions(execution :: Nil).head._2)
         })
-    }.orElse(queries.getExecutionById(queryContexts, executionId).transact(xa).unsafePerformIO)
+    } match {
+      case None                      => queries.getExecutionById(queryContexts, executionId).transact(xa)
+      case (a: Option[ExecutionLog]) => IO.pure(a)
+    }
 
-  private[cuttle] def openStreams(executionId: String): fs2.Stream[fs2.Task, Byte] =
+  private[cuttle] def openStreams(executionId: String): fs2.Stream[IO, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
   private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val executionsToCancel = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit txn: InTxnEnd): Boolean = {
-          jobs.map(queries.pauseJob).reduceLeft(_ *> _).transact(xa).unsafePerformIO
+          jobs.map(queries.pauseJob).reduceLeft(_ *> _).transact(xa).unsafeRunSync
           true
         }
       })
@@ -544,7 +557,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     val executionsToResume = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit tx: InTxnEnd): Boolean = {
-          jobs.map(queries.unpauseJob).reduceLeft(_ *> _).transact(xa).unsafePerformIO
+          jobs.map(queries.unpauseJob).reduceLeft(_ *> _).transact(xa).unsafeRunSync
           true
         }
       })
@@ -661,7 +674,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   execution.context.log
                 )
                 .transact(xa)
-                .unsafePerformIO
+                .unsafeRunSync
             }
         })
 
@@ -825,23 +838,24 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     (runningExecutionsSizes(jobs), pausedExecutionsSize(jobs), failingExecutionsSize(jobs))
   }
 
-  private[cuttle] def getStats(jobs: Set[String]): Json = {
+  private[cuttle] def getStats(jobs: Set[String]): IO[Json] = {
     val ((running, waiting), paused, failing) = getStateAtomic(jobs)
     // DB state call
-    val finished = archivedExecutionsSize(jobs)
-    Map(
-      "running" -> running,
-      "waiting" -> waiting,
-      "paused" -> paused,
-      "failing" -> failing,
-      "finished" -> finished
-    ).asJson
+    archivedExecutionsSize(jobs).map(
+      finished =>
+        Map(
+          "running" -> running,
+          "waiting" -> waiting,
+          "paused" -> paused,
+          "failing" -> failing,
+          "finished" -> finished
+        ).asJson)
   }
 
   private[cuttle] def healthCheck(): Try[Boolean] =
-    Try(queries.healthCheck.transact(xa).unsafePerformIO)
+    Try(queries.healthCheck.transact(xa).unsafeRunSync)
 
-  override def getMetrics(jobs: Set[String]): Seq[Metric] = {
+  override def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric] = {
     val ((running, waiting), paused, failing) = getStateAtomic(jobs)
 
     Seq(

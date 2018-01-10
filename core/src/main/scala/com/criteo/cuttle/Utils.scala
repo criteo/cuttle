@@ -4,6 +4,8 @@ import java.util.UUID
 import java.util.concurrent.{Executors, ThreadFactory, TimeUnit}
 import java.lang.management.ManagementFactory
 
+import cats.effect.IO
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -11,6 +13,9 @@ import lol.http.{PartialService, Service}
 
 /** A set of basic utilities useful to write workflows. */
 package object utils {
+
+  private[cuttle] def createScheduler(threadPrefix: String): fs2.Scheduler =
+    fs2.Scheduler.allocate[IO](1, daemon = true, threadPrefix, exitJvmOnFatalError = false).unsafeRunSync._1
 
   /** Creates a  [[scala.concurrent.Future Future]] that resolve automatically
     * after the given duration.
