@@ -36,7 +36,7 @@ object HelloWorld {
     // __hello1__ is defined as a job computing hourly partitions starting at the start
     // date declared before.
     val hello1 =
-      Job("hello1", hourly(start), "Hello 1") {
+      Job("hello1", hourly(start), "Hello 1", tags = Set(Tag("hello"))) {
         // The side effect function takes the execution as parameter. The execution
         // contains useful meta data as well as the __context__ which is basically the
         // input data for our execution.
@@ -71,19 +71,19 @@ object HelloWorld {
     // Here is our third job. Look how we can also define some metadata such as a human friendly
     // name and a set of tags. This information is used in the UI to help retrieving your jobs.
     val hello3 =
-      Job("hello3", hourly(start), "Hello 3", tags = Set(Tag("unsafe job"))) { implicit e =>
+      Job("hello3", hourly(start), "Hello 3", tags = Set(Tag("hello"), Tag("unsafe"))) { implicit e =>
         // Here we mix a Scala code execution and a sh script execution.
         e.streams.info("Hello 3 from an unsafe job")
         val completed = exec"sleep 3" ()
 
         completed.map { _ =>
-          // We generate an artifical failure if the partition is for 2 days ago between 00 and 01
+          // We generate an artificial failure if the partition is for 2 days ago between 00 and 01
           // and if the `/tmp/hello3_success` file does not exist.
           if (e.context.start == LocalDate.now.minusDays(2).atStartOfDay.toInstant(UTC)
               && !new java.io.File("/tmp/hello3_success").exists) {
             e.streams.error("Oops, please create the /tmp/hello3_success file to make this execution pass...")
 
-            // Throwing an execption is enough to fail the execution, but you can also return
+            // Throwing an exception is enough to fail the execution, but you can also return
             // a failed Future.
             sys.error("Oops!!!")
           } else {
@@ -99,7 +99,7 @@ object HelloWorld {
     // Our last job is a daily job. For the daily job we still need to annouce a start date, plus
     // we need to define the time zone for which _days_ must be considered. The partitions for
     // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
-    val world = Job("world", daily(UTC, start), "World") { implicit e =>
+    val world = Job("world", daily(UTC, start), "World", tags = Set(Tag("world"))) { implicit e =>
       e.streams.info("World!")
       // Here we compose our executions in a for-comprehension.
       for {
