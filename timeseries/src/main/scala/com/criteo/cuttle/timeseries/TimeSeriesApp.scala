@@ -1,30 +1,31 @@
 package com.criteo.cuttle.timeseries
 
-import TimeSeriesUtils._
-import com.criteo.cuttle._
-import lol.http._
-import lol.json._
-import io.circe._
-import io.circe.syntax._
-import io.circe.generic.auto._
-
-import scala.util.Try
 import java.time.Instant
 import java.time.temporal.ChronoUnit._
 
-import doobie.implicits._
-import intervals._
-import Bound.{Bottom, Finite, Top}
-import ExecutionStatus._
-import Auth._
+import scala.util.Try
+
 import cats.effect.IO
 import cats.implicits._
+import doobie.implicits._
+import io.circe._
+import io.circe.generic.auto._
+import io.circe.syntax._
+import lol.http._
+import lol.json._
+
+import com.criteo.cuttle.Auth._
+import com.criteo.cuttle.ExecutionStatus._
+import com.criteo.cuttle._
+import com.criteo.cuttle.timeseries.TimeSeriesUtils._
+import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
+import com.criteo.cuttle.timeseries.intervals._
 
 private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
 
   import App._
-  import TimeSeriesCalendar._
   import JobState._
+  import TimeSeriesCalendar._
 
   private implicit val intervalEncoder = new Encoder[Interval[Instant]] {
     implicit val boundEncoder = new Encoder[Bound[Instant]] {

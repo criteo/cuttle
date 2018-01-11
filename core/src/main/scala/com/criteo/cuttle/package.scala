@@ -1,10 +1,10 @@
 package com.criteo
 
-import cats.effect.IO
-
 import scala.concurrent._
-import doobie.imports._
+
+import cats.effect.IO
 import cats.free._
+import doobie.imports._
 
 package cuttle {
 
@@ -48,7 +48,7 @@ package object cuttle {
     * discarding, but [[Completed]] do not maintain additional state).
     *
     * The cuttle [[Executor]] ensures that a scheduled side effect for a given [[SchedulingContext]] will be run
-    * a least once, but cannot garantee that it will be run execactly once. That's why the side effect function must
+    * a least once, but cannot guarantee that it will be run exactly once. That's why the side effect function must
     * be idempotent, meaning that if executed for the same [[SchedulingContext]] it must produce the same result.
     *
     * A failed future means a failed execution.
@@ -59,7 +59,7 @@ package object cuttle {
     * Automatically provide a scala `scala.concurrent.ExecutionContext` for a given [[Execution]].
     * The threadpool will be chosen carefully by the [[Executor]].
     */
-  implicit def scopedExecutionContext(implicit execution: Execution[_]) = execution.executionContext
+  implicit def scopedExecutionContext(implicit execution: Execution[_]): ExecutionContext = execution.executionContext
 
   /** Default implicit logger that output everything to __stdout__ */
   implicit val logger = new Logger {
