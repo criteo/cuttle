@@ -213,9 +213,10 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         .map(stats => Ok(stats.asJson))
 
     case GET at "/metrics" =>
-      val metrics = executor.getMetrics(allIds, workflow) ++ executor.getMetricsByTag(allIds) ++
-        scheduler.getMetrics(allIds, workflow) ++ scheduler.getMetricsByTag(allIds) :+
-        Gauge("cuttle_jvm_uptime_seconds").set(getJVMUptime)
+      val metrics =
+        executor.getMetrics(allIds, workflow) ++
+          scheduler.getMetrics(allIds, workflow) :+
+          Gauge("cuttle_jvm_uptime_seconds").set(getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
