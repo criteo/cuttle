@@ -1,30 +1,32 @@
 package com.criteo.cuttle.timeseries
 
-import Internal._
-import com.criteo.cuttle._
+import java.time.ZoneOffset.UTC
+import java.time._
+import java.time.temporal.ChronoUnit._
+import java.time.temporal.{ChronoUnit, TemporalAdjusters}
+import java.util.UUID
 
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
-import io.circe._
-import io.circe.syntax._
-import io.circe.generic.semiauto._
+
+import cats.Eq
+import cats.effect.IO
+import cats.mtl.implicits._
 import doobie._
 import doobie.implicits._
-import java.util.UUID
-import java.time._
-import java.time.temporal.ChronoUnit._
-import java.time.ZoneOffset.UTC
-import java.time.temporal.{ChronoUnit, TemporalAdjusters}
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.syntax._
 
+import com.criteo.cuttle.ExecutionContexts.Implicits.sideEffectExecutionContext
+import com.criteo.cuttle.ExecutionContexts._
+import com.criteo.cuttle.Metrics._
+import com.criteo.cuttle._
+import com.criteo.cuttle.timeseries.Internal._
 import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly}
-import intervals.{Bound, Interval, IntervalMap}
-import Bound.{Bottom, Finite, Top}
-import Metrics._
-import cats.effect.IO
-import cats.Eq
-import cats.mtl.implicits._
+import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
+import com.criteo.cuttle.timeseries.intervals.{Bound, Interval, IntervalMap}
 
 /** Represents calendar partitions for which a job will be run by the [[TimeSeriesScheduler]].
   * See the companion object for the available calendars. */
@@ -234,7 +236,6 @@ case class TimeSeriesDependency(offset: Duration)
   */
 case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[Instant] = None, maxPeriods: Int = 1)
     extends Scheduling {
-  import TimeSeriesCalendar._
   type Context = TimeSeriesContext
   type DependencyDescriptor = TimeSeriesDependency
   def toJson: Json =
@@ -275,8 +276,8 @@ private[timeseries] object JobState {
   * or not and an audit log of backfills is kept.
   */
 case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] with TimeSeriesApp {
-  import TimeSeriesUtils._
   import JobState.{Done, Running, Todo}
+  import TimeSeriesUtils._
 
   val allContexts = Database.sqlGetContextsBetween(None, None)
 

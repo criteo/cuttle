@@ -1,17 +1,18 @@
 package com.criteo.cuttle.platforms.http
 
-import com.criteo.cuttle._
-import platforms.{ExecutionPool, RateLimiter}
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent._
-import java.util.concurrent.TimeUnit
 
 import cats.effect.IO
 import io.circe._
 import io.circe.syntax._
-
 import lol.http._
 import lol.json._
+
+import com.criteo.cuttle._
+import com.criteo.cuttle.platforms.{ExecutionPool, RateLimiter}
+
 
 /** Allow to make HTTP calls in a managed way with rate limiting. Globally the platform limits the number
   * of concurrent requests on the platform. Additionnaly a rate limiter must be defined for each host allowed

@@ -1,33 +1,32 @@
 package com.criteo.cuttle
 
-import lol.json._
-import lol.http._
-import io.circe._
-import io.circe.syntax._
 import java.time.Instant
 
-import scala.util._
 import scala.concurrent.duration._
-import scala.concurrent._
-import Auth._
-import ExecutionStatus._
-import Metrics.{Gauge, Prometheus}
-import utils.getJVMUptime
-import cats.effect.IO
-import fs2.Stream
+import scala.util._
 
-import cats._
-import cats.implicits._
 import cats.Eq
+import cats.effect.IO
+import cats.implicits._
+import fs2.Stream
+import io.circe._
+import io.circe.syntax._
+import lol.http._
+import lol.json._
+
+import com.criteo.cuttle.Auth._
+import com.criteo.cuttle.ExecutionContexts.Implicits.serverExecutionContext
+import com.criteo.cuttle.ExecutionContexts._
+import com.criteo.cuttle.ExecutionStatus._
+import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
+import com.criteo.cuttle.utils.getJVMUptime
 
 private[cuttle] object App {
-  private implicit val S = ExecutionContext.Implicits.global
-
   private val SC = utils.createScheduler("com.criteo.cuttle.App.SC")
 
   def sse[A](thunk: IO[Option[A]], encode: A => IO[Json])(implicit eqInstance: Eq[A]): lol.http.Response = {
     val stream = (Stream.emit(()) ++ SC.fixedRate[IO](1.second))
-      .evalMap(_ => IO.shift(S).flatMap(_ => thunk))
+      .evalMap(_ => IO.shift.flatMap(_ => thunk))
       .flatMap({
         case Some(x) => Stream(x)
         case None    => Stream.raiseError(new RuntimeException("Could not get result to stream"))
@@ -147,8 +146,9 @@ private[cuttle] object App {
 }
 
 private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
-  import App._
   import project.{scheduler, workflow}
+
+  import App._
 
   private val allIds = workflow.vertices.map(_.id)
 
