@@ -392,7 +392,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         Ok(getCalendar())
 
     case GET at url"/api/timeseries/lastruns?job=$jobId" =>
-
       val (state, _) = this.state
 
       val successfulIntervalMaps = state
@@ -404,12 +403,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       if (successfulIntervalMaps.isEmpty) NotFound
       else {
         (successfulIntervalMaps.head._1.hi, successfulIntervalMaps.last._1.hi) match {
-          case (Finite(lastCompleteTime), Finite(lastTime)) => Ok(
-            Json.obj(
-              "lastCompleteTime" -> lastCompleteTime.asJson,
-              "lastTime" -> lastTime.asJson
+          case (Finite(lastCompleteTime), Finite(lastTime)) =>
+            Ok(
+              Json.obj(
+                "lastCompleteTime" -> lastCompleteTime.asJson,
+                "lastTime" -> lastTime.asJson
+              )
             )
-          )
           case _ => BadRequest
         }
       }
@@ -516,7 +516,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .flatMap(
             _.as[BackfillCreate]
               .fold(
-                _ => IO.pure(BadRequest("cannot parse request body")),
+                _ => IO.pure(BadRequest("Cannot parse request body")),
                 backfill => {
                   val jobIds = backfill.jobs.split(",")
                   val jobs = workflow.vertices
@@ -528,10 +528,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                               backfill.startDate,
                               backfill.endDate,
                               backfill.priority,
-                              xa).map({
-                    case true => Ok("ok".asJson)
-                    case _    => BadRequest("invalid backfill")
-                  })
+                              xa).map {
+                    case Right(true)  => Ok("ok".asJson)
+                    case Left(errors) => BadRequest(errors)
+                  }
                 }
               )
           )

@@ -26,7 +26,7 @@ import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.Internal._
 import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly}
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
-import com.criteo.cuttle.timeseries.intervals.{Bound, Interval, IntervalMap}
+import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 
 /** Represents calendar partitions for which a job will be run by the [[TimeSeriesScheduler]].
   * See the companion object for the available calendars. */
@@ -289,47 +289,74 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     (_state(), _backfills())
   }
 
+  private case class BackfillError(job: TimeSeriesJob, msg: String) {
+    override def toString: String =
+      s"""
+         |Error during backfill creation.
+         |Job id: ${job.id}
+         |Job name: ${job.name}
+         |$msg
+        """.stripMargin
+  }
+
+  private def assert(condition: Boolean, be: BackfillError): Either[BackfillError, Boolean] =
+    if (condition) Right(true) else Left(be)
+
   private[timeseries] def backfillJob(name: String,
                                       description: String,
                                       jobs: Set[TimeSeriesJob],
                                       start: Instant,
                                       end: Instant,
                                       priority: Int,
-                                      xa: XA)(implicit user: Auth.User): IO[Boolean] = {
-    val (isValid, newBackfill) = atomic { implicit txn =>
-      val id = UUID.randomUUID().toString
-      val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING", user.userId)
+                                      xa: XA)(implicit user: Auth.User): IO[Either[String, Boolean]] = {
 
-      val valid = for {
-        job <- jobs
-      } yield {
-        val st = _state().apply(job).intersect(Interval(start, end))
+    implicit def string2BackfillError(msg: String)(implicit job: TimeSeriesJob): BackfillError = BackfillError(job, msg)
+
+    val id = UUID.randomUUID().toString
+    val backfillInterval = Interval(start, end)
+    val newBackfill = Backfill(id, start, end, jobs, priority, name, description, "RUNNING", user.userId)
+
+    val (isBackfillValid, validationByJob) = atomic { implicit txn =>
+      val validationByJob = jobs.map { implicit job =>
         val calendar = job.scheduling.calendar
-        val validIn = st.toList
+        // collect all periods that are intersecting with [start, end]
+        val interval2State = _state().apply(job).intersect(backfillInterval).toList
+        // in a Done state, and correct periodicity
+        val validIn = interval2State
           .collect {
             case (Interval(Finite(lo), Finite(hi)), Done)
-                if (calendar.truncate(lo) == lo && calendar.truncate(hi) == hi) =>
+                // we verify that periodicity is correct
+                if calendar.truncate(lo) == lo && calendar.truncate(hi) == hi =>
               (lo, hi)
           }
           .sortBy(_._1)
-        validIn.nonEmpty &&
-        validIn.head._1 == start &&
-        validIn.last._2 == end &&
-        validIn.zip(validIn.tail).forall { case (pred, next) => pred._2 == next._1 }
+
+        for {
+          _ <- assert(validIn.nonEmpty, "There isn't any successful execution between start and end.").right
+          _ <- assert(validIn.head._1 == start,
+                      "The start date of first successful execution doesn't equal to backfill start date.").right
+          _ <- assert(validIn.last._2 == end,
+                      "The end date of last successful execution doesn't equal to backfill end date.").right
+          valid <- assert(validIn.zip(validIn.tail).forall { case (prev, next) => prev._2 == next._1 },
+                          "The end date of last successful execution doesn't equal to backfill end date.").right
+        } yield valid
       }
 
-      val isValid = valid.forall(x => x)
-      if (isValid) {
+      val isValidForAllJobs = validationByJob.forall(_.isRight)
+
+      if (isValidForAllJobs) {
         _backfills() = _backfills() + newBackfill
-        _state() = _state() ++ jobs.map((job: TimeSeriesJob) =>
-          job -> (_state().apply(job).update(Interval(start, end), Todo(Some(newBackfill)))))
+        _state() = _state() ++ jobs.map(
+          job => job -> _state().apply(job).update(backfillInterval, Todo(Some(newBackfill)))
+        )
       }
-      (isValid, newBackfill)
+      (isValidForAllJobs, validationByJob)
     }
-    if (isValid)
-      Database.createBackfill(newBackfill).transact(xa).map(_ => true)
+
+    if (isBackfillValid)
+      Database.createBackfill(newBackfill).transact(xa).map(_ => Right(true))
     else
-      IO.pure(false)
+      IO.pure(Left(validationByJob.filter(_.isLeft).map(_.left.get).mkString("\n")))
   }
 
   def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
