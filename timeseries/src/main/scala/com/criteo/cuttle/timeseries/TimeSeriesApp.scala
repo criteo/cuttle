@@ -383,7 +383,6 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         Ok(getCalendar())
 
     case GET at url"/api/timeseries/lastruns?job=$jobId" =>
-
       val (state, _) = this.state
 
       val successfulIntervalMaps = state
@@ -395,12 +394,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       if (successfulIntervalMaps.isEmpty) NotFound
       else {
         (successfulIntervalMaps.head._1.hi, successfulIntervalMaps.last._1.hi) match {
-          case (Finite(lastCompleteTime), Finite(lastTime)) => Ok(
-            Json.obj(
-              "lastCompleteTime" -> lastCompleteTime.asJson,
-              "lastTime" -> lastTime.asJson
+          case (Finite(lastCompleteTime), Finite(lastTime)) =>
+            Ok(
+              Json.obj(
+                "lastCompleteTime" -> lastCompleteTime.asJson,
+                "lastTime" -> lastTime.asJson
+              )
             )
-          )
           case _ => BadRequest
         }
       }
