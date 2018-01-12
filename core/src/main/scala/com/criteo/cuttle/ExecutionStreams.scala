@@ -16,13 +16,14 @@ import scala.concurrent.stm._
 trait ExecutionStreams {
 
   /** Output info messages */
-  def info(str: CharSequence = "") = this.writeln("INFO ", str)
+  def info(str: CharSequence = ""): Unit = this.writeln("INFO ", str)
 
   /** Output error messages */
-  def error(str: CharSequence = "") = this.writeln("ERROR", str)
+  def error(str: CharSequence = ""): Unit = this.writeln("ERROR", str)
 
   /** Output debug messages (usually used by the [[ExecutionPlatform]]) */
-  def debug(str: CharSequence = "") = this.writeln("DEBUG", str)
+  def debug(str: CharSequence = ""): Unit = this.writeln("DEBUG", str)
+
   private def writeln(tag: String, str: CharSequence): Unit = {
     val time = Instant.now.toString
     str.toString.split("\n").foreach(l => this.writeln(s"$time $tag - $l"))
@@ -33,9 +34,16 @@ trait ExecutionStreams {
 private[cuttle] object ExecutionStreams {
   private type ExecutionId = String
   private type LastUsageTime = Long
+
   private val transientStorage = Files.createTempDirectory("cuttle-logs").toFile
   private val openHandles = TMap.empty[ExecutionId, (PrintWriter, LastUsageTime)]
   private val maxHandles = 1024
+  // Size of string to be stored in MySQL MEDIUMTEXT column, must be >= 0 and <= 16,777,215 bytes = 16 MiB.
+  // By default our heuristic is 512Kb = 524288 bytes.
+  // This can be overridden with com.criteo.cuttle.maxExecutionLogSize JVM property.
+  // Note that we are limited by Int.maxValue
+  private val maxExecutionLogSizeProp = "com.criteo.cuttle.maxExecutionLogSize"
+  private val maxExecutionLogSize = sys.props.get(maxExecutionLogSizeProp).map(_.toInt).getOrElse(524288)
   private val SC = utils.createScheduler("com.criteo.cuttle.ExecutionStreams.SC")
 
   logger.info(s"Transient execution streams go to $transientStorage")
@@ -96,19 +104,24 @@ private[cuttle] object ExecutionStreams {
     w.flush()
   }
 
+  // Logs of an execution as a string.
+  // These logs are stored in MySQL column with type MEDIUMTEXT.
+  // This column can take up to 16,777,215 (224−1) bytes = 16 MiB.
+  // By default our heuristic is maxExecutionLogSize.
+  // @param id UUID of execution
+  // @return executions logs, truncated to size of maxExecutionLogSize
   def streamsAsString(id: ExecutionId): Option[String] = {
     val f = logFile(id)
     if (f.exists) {
-      val limit = 1024 * 64
-      val buffer = Array.ofDim[Byte](limit)
+      val buffer = Array.ofDim[Byte](maxExecutionLogSize)
       val in = new FileInputStream(f)
       try {
         val size = in.read(buffer)
         if (size >= 0) {
           Some {
             val content = new String(buffer, 0, size, "utf8")
-            if (f.length > limit) {
-              content + "\n--- CONTENT TRUNCATED AT 64kb --"
+            if (f.length > maxExecutionLogSize) {
+              content + s"\n--- CONTENT TRUNCATED AT $maxExecutionLogSize BYTES --"
             } else {
               content
             }
