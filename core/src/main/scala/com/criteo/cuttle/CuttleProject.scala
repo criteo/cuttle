@@ -1,7 +1,8 @@
 package com.criteo.cuttle
 
 import lol.http._
-import scala.concurrent.ExecutionContext.Implicits.global
+
+import com.criteo.cuttle.ExecutionContexts._, Implicits.serverExecutionContext
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
@@ -78,8 +79,9 @@ object CuttleProject {
     new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
+    import java.util.concurrent.TimeUnit.SECONDS
+
     import platforms._
-    import java.util.concurrent.TimeUnit.{SECONDS}
 
     Seq(
       local.LocalPlatform(
