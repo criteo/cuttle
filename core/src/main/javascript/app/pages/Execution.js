@@ -1,11 +1,7 @@
 // @flow
 
 import React from "react";
-import classNames from "classnames";
 import injectSheet from "react-jss";
-import FullscreenIcon from "react-icons/lib/md/fullscreen";
-import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
-import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
 import ReactTooltip from "react-tooltip";
 import PopoverMenu from "../components/PopoverMenu";
 import moment from "moment";
@@ -21,7 +17,7 @@ import Status from "../components/Status";
 import { Badge } from "../components/Badge";
 import { listenEvents } from "../../Utils";
 import type { ExecutionLog } from "../../datamodel";
-import { highlightURLs } from "../utils/URLHighlighter";
+import StreamView from "../components/StreamView";
 
 type Line = {
   timestamp: string,
@@ -29,20 +25,18 @@ type Line = {
   message: string
 };
 
-type Props = {
+type ExecutionProps = {
   classes: any,
   execution: string
 };
 
-type State = {
+type ExecutionState = {
   query: ?string,
   data: ?ExecutionLog,
   streams: Array<Line>,
   eventSource: ?any,
   streamsEventSource: ?any,
-  error: ?any,
-  fullscreen: boolean,
-  autoScroll: boolean
+  error: ?any
 };
 
 type ProgressBarProps = {
@@ -91,23 +85,51 @@ const ProgressBar = injectSheet({
   }
 })(ProgressBarComponent);
 
+const Menu = ({
+  executionLog,
+  classes
+}: {
+  executionLog: ExecutionLog,
+  classes: Object
+}) => {
+  const isCancellable =
+    executionLog.status === "running" || executionLog.status === "waiting";
+
+  return isCancellable
+    ? <PopoverMenu
+        keys="menu"
+        className={classes.menu}
+        items={[
+          <span
+            onClick={() => {
+              fetch(`/api/executions/${executionLog.id}/cancel`, {
+                method: "POST",
+                credentials: "include"
+              });
+            }}
+          >
+            Cancel
+          </span>
+        ]}
+      />
+    : null;
+};
+
 class Execution extends React.Component {
-  props: Props;
-  state: State;
-  scroller: ?any;
+  props: ExecutionProps;
+  state: ExecutionState;
   shouldOverwriteStreams: boolean = false;
 
-  constructor(props: Props) {
+  constructor(props: ExecutionProps) {
     super(props);
+
     this.state = {
       query: null,
       data: null,
       streams: [],
       eventSource: null,
       streamsEventSource: null,
-      error: null,
-      fullscreen: false,
-      autoScroll: false
+      error: null
     };
   }
 
@@ -132,9 +154,7 @@ class Execution extends React.Component {
         data: null,
         streams: [],
         eventSource,
-        streamsEventSource,
-        fullscreen: false,
-        autoScroll: true
+        streamsEventSource
       });
     }
   }
@@ -181,9 +201,6 @@ class Execution extends React.Component {
 
   componentDidUpdate() {
     this.listen();
-    if (this.scroller && this.state.autoScroll) {
-      this.scroller.scrollTop = this.scroller.scrollHeight;
-    }
   }
 
   componentWillMount() {
@@ -196,64 +213,21 @@ class Execution extends React.Component {
     streamsEventSource && streamsEventSource.close();
   }
 
-  onClickFullscreen(fullscreen: boolean) {
-    this.setState({
-      fullscreen
-    });
-  }
-
-  onClickAutoScroll(autoScroll: boolean) {
-    this.setState({
-      autoScroll
-    });
-  }
-
-  detectManualScroll() {
-    const manualScroll =
-      this.scroller &&
-      this.scroller.scrollHeight - this.scroller.offsetHeight !=
-        this.scroller.scrollTop;
-
-    if (manualScroll)
-      this.setState({
-        autoScroll: false
-      });
-  }
-
   render() {
     let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
 
-    const menu = (e: ExecutionLog) => {
-      const isCancellable = e.status == "running" || e.status == "waiting";
-
-      if (isCancellable) {
-        return (
-          <PopoverMenu
-            className={classes.menu}
-            items={[
-              <span
-                onClick={() => {
-                  fetch(`/api/executions/${e.id}/cancel`, {
-                    method: "POST",
-                    credentials: "include"
-                  });
-                }}
-              >
-                Cancel
-              </span>
-            ]}
-          />
-        );
-      }
-      return null;
-    };
+    const status =
+      !data ||
+      data.status === "waiting" ||
+      data.status === "throttled" ||
+      data.status === "paused";
 
     return (
       <Window title="Execution">
         {data
           ? [
-              menu(data),
+              <Menu key="menu" executionLog={data} classes={classes} />,
               <FancyTable key="properties">
                 <dt key="id">Id:</dt>
                 <dd key="id_">{data.id}</dd>
@@ -309,6 +283,7 @@ class Execution extends React.Component {
                                 )
                                 .format("HH:mm:ss"),
                               <ProgressBar
+                                key="progressBar"
                                 totalTimeSeconds={
                                   moment(data.endTime).diff(
                                     moment(data.startTime)
@@ -339,29 +314,11 @@ class Execution extends React.Component {
                     ]
                   : null}
               </FancyTable>,
-              <div
-                className={classNames(classes.streams, {
-                  [classes.fullscreen]: this.state.fullscreen
-                })}
+              <StreamView
                 key="streams"
-              >
-                <ul
-                  ref={r => (this.scroller = r)}
-                  onScroll={this.detectManualScroll.bind(this)}
-                >
-                  {streams.map(({ timestamp, level, message }, i) => {
-                    return (
-                      <li key={i}>
-                        <span>{timestamp}</span>
-                        <p className={classes[level]}>
-                          {highlightURLs(message)}
-                        </p>
-                      </li>
-                    );
-                  })}
-                  {data.status == "waiting" ||
-                    data.status == "throttled" ||
-                    data.status == "paused"
+                streams={streams}
+                placeholder={
+                  status
                     ? <li key="waiting" className={classes.waiting}>
                         <svg
                           width="100%"
@@ -373,27 +330,9 @@ class Execution extends React.Component {
                         </svg>
                         <span>Execution is waiting</span>
                       </li>
-                    : null}
-                </ul>
-                {this.state.fullscreen
-                  ? <ExitFullscreenIcon
-                      onClick={this.onClickFullscreen.bind(this, false)}
-                      className={classes.fullscreenButton}
-                    />
-                  : <FullscreenIcon
-                      onClick={this.onClickFullscreen.bind(this, true)}
-                      className={classes.fullscreenButton}
-                    />}
-                <AutoScrollIcon
-                  onClick={this.onClickAutoScroll.bind(
-                    this,
-                    !this.state.autoScroll
-                  )}
-                  className={classNames(classes.autoScrollButton, {
-                    [classes.activeAutoScroll]: this.state.autoScroll
-                  })}
-                />
-              </div>
+                    : null
+                }
+              />
             ]
           : error
               ? <Error message={`execution ${execution} not found`} />
@@ -411,74 +350,6 @@ const styles = {
   },
   failedLink: {
     color: "#e91e63"
-  },
-  streams: {
-    flex: "1",
-    display: "flex",
-    background: "#23252f",
-    position: "relative",
-
-    "& ul": {
-      flex: "1",
-      overflow: "scroll",
-      padding: "1em",
-      margin: "0",
-      listStyle: "none",
-      fontSize: "12px",
-      fontFamily: "Fira Mono",
-      lineHeight: "1.6em",
-      whiteSpace: "nowrap"
-    },
-
-    "& span": {
-      color: "#747a88",
-      display: "inline-block",
-      marginRight: "15px",
-      boxSizing: "border-box"
-    },
-
-    "& p": {
-      display: "inline-block",
-      margin: "0",
-      color: "#f1f1f1",
-      whiteSpace: "pre"
-    }
-  },
-  fullscreen: {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    right: "0",
-    bottom: "0",
-    margin: "0",
-    zIndex: "99999"
-  },
-  fullscreenButton: {
-    cursor: "pointer",
-    color: "#fff",
-    fontSize: "22px",
-    position: "absolute",
-    right: "20px",
-    top: "10px",
-    background: "rgba(35, 37, 47, 0.65)"
-  },
-  autoScrollButton: {
-    cursor: "pointer",
-    color: "#fff",
-    fontSize: "22px",
-    position: "absolute",
-    right: "46px",
-    top: "10px",
-    background: "rgba(35, 37, 47, 0.65)"
-  },
-  activeAutoScroll: {
-    color: "#66cb63"
-  },
-  DEBUG: {
-    color: "#FFFF91 !important"
-  },
-  ERROR: {
-    color: "#FF6C60 !important"
   },
   waiting: {
     position: "relative",
