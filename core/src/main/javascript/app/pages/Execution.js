@@ -18,6 +18,7 @@ import { Badge } from "../components/Badge";
 import { listenEvents } from "../../Utils";
 import type { ExecutionLog } from "../../datamodel";
 import StreamView from "../components/StreamView";
+import TextWithDashedLine from "../components/TextWithDashedLine";
 
 type Line = {
   timestamp: string,
@@ -25,12 +26,12 @@ type Line = {
   message: string
 };
 
-type ExecutionProps = {
+type Props = {
   classes: any,
   execution: string
 };
 
-type ExecutionState = {
+type State = {
   query: ?string,
   data: ?ExecutionLog,
   streams: Array<Line>,
@@ -116,11 +117,11 @@ const Menu = ({
 };
 
 class Execution extends React.Component {
-  props: ExecutionProps;
-  state: ExecutionState;
+  props: Props;
+  state: State;
   shouldOverwriteStreams: boolean = false;
 
-  constructor(props: ExecutionProps) {
+  constructor(props: Props) {
     super(props);
 
     this.state = {
@@ -217,7 +218,7 @@ class Execution extends React.Component {
     let { classes, execution } = this.props;
     let { data, error, streams } = this.state;
 
-    const status =
+    const isExecutionWaiting =
       !data ||
       data.status === "waiting" ||
       data.status === "throttled" ||
@@ -318,17 +319,9 @@ class Execution extends React.Component {
                 key="streams"
                 streams={streams}
                 placeholder={
-                  status
-                    ? <li key="waiting" className={classes.waiting}>
-                        <svg
-                          width="100%"
-                          height="2"
-                          version="1.1"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <line x1="-10" y1="0" x2="100%" y2="0" />
-                        </svg>
-                        <span>Execution is waiting</span>
+                  isExecutionWaiting
+                    ? <li key="waiting">
+                        <TextWithDashedLine text={"Execution is waiting"} />
                       </li>
                     : null
                 }
@@ -350,27 +343,6 @@ const styles = {
   },
   failedLink: {
     color: "#e91e63"
-  },
-  waiting: {
-    position: "relative",
-    margin: "5px 0",
-    "& line": {
-      stroke: "#FFFF91",
-      strokeWidth: "2px",
-      strokeDasharray: "5,5",
-      animation: "dashed 500ms linear infinite"
-    },
-    "& span": {
-      color: "#FFFF91",
-      position: "absolute",
-      textAlign: "center",
-      left: "50%",
-      top: "2px",
-      display: "inline-block",
-      width: "180px",
-      marginLeft: "-90px",
-      background: "#23252f"
-    }
   }
 };
 

@@ -14,6 +14,9 @@ import FancyTable from "../components/FancyTable";
 import JobSelector from "../components/JobSelector";
 import type { Backfill, ExecutionLog, Workflow } from "../../datamodel";
 import MaskedInput from "react-maskedinput";
+import StreamView from "../components/StreamView";
+import TextWithDashedLine from "../components/TextWithDashedLine";
+import Error from "../components/Error";
 
 type Props = {
   workflow: Workflow,
@@ -30,12 +33,6 @@ type Props = {
     name: ?string,
     critical: boolean
   }
-};
-
-type State = {
-  streams: Array<string>,
-  fullScreen: boolean,
-  autoScroll: boolean
 };
 
 const REQUIRED_MESSAGE = "Required";
@@ -106,7 +103,7 @@ const TextAreaField = ({
 const validateConfirmation = environment => value => {
   const errorMessage =
     "You are going to run a backfill, please type in the name of the environment to confirm.";
-  return undefined;
+  return environment && environment === value ? undefined : errorMessage;
 };
 
 const JobsField = ({ workflow, input: { value, onChange } }: any) => (
@@ -134,26 +131,10 @@ const DateWithMask = ({
   </span>
 );
 
-class BackfillCreate extends React.Component<any, Props, State> {
-  state: State;
-
+class BackfillCreate extends React.Component<any, Props, void> {
   constructor(props: Props) {
     super(props);
-    this.state = {
-      streams: [],
-      fullScreen: false,
-      autoScroll: false
-    };
     (this: any).createBackfill = this.createBackfill.bind(this);
-  }
-
-  componentWillReceiveProps(nextProps: Props) {
-    console.log(nextProps);
-    if (this.props.error !== nextProps.error) {
-      const newArray = this.state.streams.slice();
-      newArray.push(nextProps.error);
-      this.setState(Object.assign({}, this.state, { streams: newArray }));
-    }
   }
 
   createBackfill({ jobs, name, description, start, end, priority }: Backfill) {
@@ -188,7 +169,6 @@ class BackfillCreate extends React.Component<any, Props, State> {
   }
 
   render() {
-    console.log(this.state.streams);
     const {
       workflow,
       classes,
@@ -296,16 +276,7 @@ class BackfillCreate extends React.Component<any, Props, State> {
             </dd>
           </FancyTable>
         </form>
-        <div className={classes.streams}>
-          <ul>
-            <li>
-              <span>{Date.now()}</span>
-              <p className={classes.ERROR}>
-                {error}
-              </p>
-            </li>
-          </ul>
-        </div>
+        {error && <Error message={error} />}
       </Window>
     );
   }
@@ -394,44 +365,6 @@ const styles = {
     "& input::-ms-input-placeholder, textarea::-ms-input-placeholder": {
       /* Microsoft Edge */
       color: "#aaa"
-    }
-  },
-  ERROR: {
-    color: "#FF6C60 !important"
-  },
-  DEBUG: {
-    color: "#FFFF91 !important"
-  },
-  streams: {
-    flex: "1",
-    display: "flex",
-    background: "#23252f",
-    position: "relative",
-
-    "& ul": {
-      flex: "1",
-      overflow: "scroll",
-      padding: "1em",
-      margin: "0",
-      listStyle: "none",
-      fontSize: "12px",
-      fontFamily: "Fira Mono",
-      lineHeight: "1.6em",
-      whiteSpace: "nowrap"
-    },
-
-    "& span": {
-      color: "#747a88",
-      display: "inline-block",
-      marginRight: "15px",
-      boxSizing: "border-box"
-    },
-
-    "& p": {
-      display: "inline-block",
-      margin: "0",
-      color: "#f1f1f1",
-      whiteSpace: "pre"
     }
   }
 };
