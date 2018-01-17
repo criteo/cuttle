@@ -858,6 +858,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def healthCheck(): Try[Boolean] =
     Try(queries.healthCheck.transact(xa).unsafeRunSync)
 
+
+  private case class ExecutionInfo(tagName: String, jobId: String, status: ExecutionStatus)
+
+  /**
+    * @param jobs the list of jobs ids
+    */
   override def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric] = {
     val ((running, waiting), paused, failing) = getStateAtomic(jobs)
     val statMetrics = Seq(
@@ -867,32 +873,68 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         .labeled("type" -> "paused", paused)
         .labeled("type" -> "failing", failing))
     atomic { implicit txn =>
-      val (running, waiting) = runningExecutions
-        .flatMap {
-          case (exec, status) =>
-            exec.job.tags.map(_.name -> status)
+      val (running: Iterable[ExecutionInfo], waiting: Iterable[ExecutionInfo]) = runningExecutions
+        .flatMap { case (exec, status) =>
+          val jobId = exec.job.id
+          exec.job.tags.map(tag => ExecutionInfo(tag.name, jobId, status))
         }
-        .partition(_._2 == ExecutionStatus.ExecutionRunning)
-      statMetrics ++ Seq(
-        (
-          running.groupBy(_._1).mapValues("running" -> _.size).toList ++
-            waiting.groupBy(_._1).mapValues("waiting" -> _.size).toList ++
-            pausedState.values
-              .flatMap(_.keys.flatMap(_.job.tags.map(_.name)))
-              .groupBy(identity)
-              .mapValues("paused" -> _.size)
-              .toList ++
-            allFailingExecutions
-              .flatMap(_.job.tags.map(_.name))
-              .groupBy(identity)
-              .mapValues("failing" -> _.size)
-              .toList
-        ).foldLeft(
-          Gauge("cuttle_scheduler_stat_count_by_tag", "The number of jobs that we have in concrete states by tag")
-        ) {
-          case (gauge, (tag, (status, count))) =>
-            gauge.labeled(Set("tag" -> tag, "type" -> status), count)
-        })
+        .partition { execution =>
+          execution.status == ExecutionStatus.ExecutionRunning
+        }
+
+      val paused: Iterable[ExecutionInfo] = pausedState.values
+        .flatMap(executionMap =>
+          executionMap.keys.flatMap { exec =>
+            val jobId = exec.job.id
+            exec.job.tags.map(tag => ExecutionInfo(tag.name, jobId, ExecutionStatus.ExecutionPaused))
+          }
+        )
+
+      val failing: Iterable[ExecutionInfo] = allFailingExecutions
+        .flatMap { exec =>
+          val jobId = exec.job.id
+          exec.job.tags.map(tag => ExecutionInfo(tag.name, jobId, ExecutionStatus.ExecutionThrottled))
+        }
+
+      statMetrics ++
+        Seq(getMetricsByTag(running, waiting, paused, failing)) ++
+        Seq(getMetricsByJob(running, waiting, paused, failing))
+    }
+  }
+
+  private def getMetricsByTag(
+      running: Iterable[ExecutionInfo],
+      waiting: Iterable[ExecutionInfo],
+      paused: Iterable[ExecutionInfo],
+      failing: Iterable[ExecutionInfo]): Metrics.Metric = {
+    (
+      running.groupBy(_.tagName).mapValues("running" -> _.size).toList ++
+      waiting.groupBy(_.tagName).mapValues("waiting" -> _.size).toList ++
+      paused.groupBy(_.tagName).mapValues("paused" -> _.size).toList ++
+      failing.groupBy(_.tagName).mapValues("failing" -> _.size).toList
+    ).foldLeft(
+      Gauge("cuttle_scheduler_stat_count_by_tag", "The number of executions that we have in concrete states by tag")
+    ) {
+      case (gauge, (tag, (status, count))) =>
+        gauge.labeled(Set("tag" -> tag, "type" -> status), count)
+    }
+  }
+
+  private def getMetricsByJob(
+      running: Iterable[ExecutionInfo],
+      waiting: Iterable[ExecutionInfo],
+      paused: Iterable[ExecutionInfo],
+      failing: Iterable[ExecutionInfo]): Metrics.Metric = {
+    (
+      running.groupBy(_.jobId).mapValues("running" -> _.size).toList ++
+      waiting.groupBy(_.jobId).mapValues("waiting" -> _.size).toList ++
+      paused.groupBy(_.jobId).mapValues("paused" -> _.size).toList ++
+      failing.groupBy(_.jobId).mapValues("failing" -> _.size).toList
+    ).foldLeft(
+      Gauge("cuttle_scheduler_stat_count_by_job", "The number of executions that we have in concrete states by job")
+    ) {
+      case (gauge, (jobId, (status, count))) =>
+        gauge.labeled(Set("job" -> jobId, "type" -> status), count)
     }
   }
 }
