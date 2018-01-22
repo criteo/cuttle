@@ -637,7 +637,8 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       case (gauge, latencyValues) =>
         latencyValues.foldLeft(gauge) {
           case (gauge, (job, latency)) =>
-            gauge.labeled(Set("job_id" -> job.id, "job_name" -> job.name), latency)
+            val tags = if (!job.tags.isEmpty) Set("tags" -> job.tags.map(_.name).mkString(",")) else Nil
+            gauge.labeled(Set("job_id" -> job.id, "job_name" -> job.name) ++ tags, latency)
         }
     }
 
@@ -646,25 +647,6 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         .labeled("type" -> "backfills", getRunningBackfillsSize(jobs)),
       secondsSinceLastSuccess
     ) ++ latencies
-  }
-
-  override def getMetricsByTag(jobs: Set[String]): Seq[Metric] = {
-    val averageLastSuccess = getTimeOfLastSuccess(jobs)
-      .flatMap {
-        case (job, instant) =>
-          job.tags.map(_.name -> instant)
-      }
-      .groupBy(_._1)
-      .mapValues { xs =>
-        xs.map { case (_, instant) => Instant.now().getEpochSecond - instant.getEpochSecond }.sum / xs.size
-      }
-      .foldLeft(
-        Gauge(
-          "cuttle_timeseries_scheduler_last_success_epoch_seconds_avg_by_tag",
-          "The average seconds since last success of all jobs with the same tag"
-        )
-      ) { case (gauge, (tag, avg)) => gauge.labeled("tag" -> tag, avg) }
-    Seq(averageLastSuccess)
   }
 
   override def getStats(jobs: Set[String]): Json =
