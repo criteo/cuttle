@@ -26,7 +26,7 @@ import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.Internal._
 import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly, Weekly}
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
-import com.criteo.cuttle.timeseries.intervals.{Bound, Interval, IntervalMap}
+import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 
 /** Represents calendar partitions for which a job will be run by the [[TimeSeriesScheduler]].
   * See the companion object for the available calendars. */
@@ -98,11 +98,12 @@ object TimeSeriesCalendar {
     * at midnight and lasting 7 days. The specified time zone is used to define the exact week start instant.
     *
     * @param tz The time zone for which these _weeks_ are defined.
+    * @param firstDay The first day of the week for these weeks.
     */
-  case class Weekly(tz: ZoneId, startDay: DayOfWeek) extends TimeSeriesCalendar {
-    private def truncateToWeek(t: ZonedDateTime) = t.`with`(TemporalAdjusters.previous(startDay)).truncatedTo(DAYS)
+  case class Weekly(tz: ZoneId, firstDay: DayOfWeek) extends TimeSeriesCalendar {
+    private def truncateToWeek(t: ZonedDateTime) = t.`with`(TemporalAdjusters.previousOrSame(firstDay)).truncatedTo(DAYS)
     def truncate(t: Instant) = truncateToWeek(t.atZone(tz)).toInstant
-    def next(t: Instant) = truncateToWeek(t.atZone(tz).plus(1, WEEKS)).toInstant
+    def next(t: Instant) = truncateToWeek(t.atZone(tz)).plus(1, WEEKS).toInstant
   }
 
   /** An monthly calendar. Months are defined as complete calendar months starting on the 1st day and
@@ -125,11 +126,11 @@ object TimeSeriesCalendar {
           "period" -> "daily".asJson,
           "zoneId" -> tz.getId().asJson
         )
-      case Weekly(tz: ZoneId, startDay: DayOfWeek) =>
+      case Weekly(tz: ZoneId, firstDay: DayOfWeek) =>
         Json.obj(
           "period" -> "weekly".asJson,
           "zoneId" -> tz.getId.asJson,
-          "startDay" -> startDay.toString.asJson
+          "firstDay" -> firstDay.toString.asJson
         )
       case Monthly(tz: ZoneId) =>
         Json.obj(
@@ -142,10 +143,10 @@ object TimeSeriesCalendar {
 
 private[timeseries] object TimeSeriesCalendarView {
   def apply(calendar: TimeSeriesCalendar) = calendar match {
-    case TimeSeriesCalendar.Hourly        => new HourlyView(1)
-    case TimeSeriesCalendar.Daily(tz)     => new DailyView(tz, 1)
-    case TimeSeriesCalendar.Weekly(tz, _) => new WeeklyView(tz, 1)
-    case TimeSeriesCalendar.Monthly(tz)   => new MonthlyView(tz, 1)
+    case TimeSeriesCalendar.Hourly               => new HourlyView(1)
+    case TimeSeriesCalendar.Daily(tz)            => new DailyView(tz, 1)
+    case TimeSeriesCalendar.Weekly(tz, firstDay) => new WeeklyView(tz, firstDay, 1)
+    case TimeSeriesCalendar.Monthly(tz)          => new MonthlyView(tz, 1)
   }
   sealed trait GenericView extends TimeSeriesCalendarView {
     def over: (Int, TimeSeriesCalendar)
@@ -160,10 +161,10 @@ private[timeseries] object TimeSeriesCalendarView {
   }
   case class DailyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
     def over = (1, Daily(tz))
-    override def upper: TimeSeriesCalendarView = new WeeklyView(tz, aggregationFactor * 7)
+    override def upper: TimeSeriesCalendarView = new WeeklyView(tz, DayOfWeek.MONDAY, aggregationFactor * 7)
   }
-  case class WeeklyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
-    def over = (7, Daily(tz))
+  case class WeeklyView(tz: ZoneId, firstDay: DayOfWeek, aggregationFactor: Int) extends GenericView {
+    def over = (1, Weekly(tz, firstDay))
     override def upper: TimeSeriesCalendarView = new MonthlyView(tz, aggregationFactor * 4)
   }
   case class MonthlyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
