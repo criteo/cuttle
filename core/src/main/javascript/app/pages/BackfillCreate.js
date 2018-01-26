@@ -12,8 +12,11 @@ import ArrowIcon from "react-icons/lib/fa/long-arrow-right";
 import Window from "../components/Window";
 import FancyTable from "../components/FancyTable";
 import JobSelector from "../components/JobSelector";
-import type { Backfill, Workflow } from "../../datamodel";
+import type { Backfill, ExecutionLog, Workflow } from "../../datamodel";
 import MaskedInput from "react-maskedinput";
+import StreamView from "../components/StreamView";
+import TextWithDashedLine from "../components/TextWithDashedLine";
+import Error from "../components/Error";
 
 type Props = {
   workflow: Workflow,
@@ -270,10 +273,10 @@ class BackfillCreate extends React.Component<any, Props, void> {
               >
                 Start to backfill
               </button>
-              {error && <strong>{error}</strong>}
             </dd>
           </FancyTable>
         </form>
+        {error && <Error message={error} />}
       </Window>
     );
   }
