@@ -516,7 +516,15 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           .flatMap(
             _.as[BackfillCreate]
               .fold(
-                _ => IO.pure(BadRequest("cannot parse request body")),
+                df =>
+                  IO.pure(
+                    BadRequest(
+                      s"""
+                     |Error during backfill creation.
+                     |Error: Cannot parse request body.
+                     |$df
+                     |""".stripMargin
+                    )),
                 backfill => {
                   val jobIds = backfill.jobs.split(",")
                   val jobs = workflow.vertices
@@ -528,10 +536,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                               backfill.startDate,
                               backfill.endDate,
                               backfill.priority,
-                              xa).map({
-                    case true => Ok("ok".asJson)
-                    case _    => BadRequest("invalid backfill")
-                  })
+                              xa).map {
+                    case Right(_)     => Ok("ok".asJson)
+                    case Left(errors) => BadRequest(errors)
+                  }
                 }
               )
           )
