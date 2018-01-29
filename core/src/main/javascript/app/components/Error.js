@@ -12,8 +12,6 @@ type Props = {
   message?: string
 };
 
-const items = 3;
-
 const Error = ({ classes, className, message }: Props) => {
   return (
     <div className={classNames(classes.error, className)}>
@@ -27,11 +25,11 @@ const styles = {
   error: {
     display: "flex",
     margin: "auto",
-    textAlign: "center",
     paddingBottom: "15%",
     color: "rgb(233, 30, 99)",
     fontSize: ".85em",
-    lineHeight: "22px"
+    lineHeight: "22px",
+    whiteSpace: "pre-line"
   },
   icon: {
     fontSize: "22px",
