@@ -9,8 +9,10 @@ import java.util.UUID
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.stm._
+import scala.math.Ordering.Implicits._
 
-import cats.Eq
+import cats._
+import cats.implicits._
 import cats.effect.IO
 import cats.mtl.implicits._
 import doobie._
@@ -222,9 +224,15 @@ private[timeseries] object TimeSeriesContext {
 /** A [[TimeSeriesDependency]] qualify the dependency between 2 [[com.criteo.cuttle.Job Jobs]] in a
   * [[TimeSeries]] [[com.criteo.cuttle.Workflow Workflow]]. It can be configured to `offset` the dependency.
   *
-  * @param offset Time offest to apply when computing the partitions dependencies.
+  * Supposing job1 depends on job2 with dependency descriptor (offsetLow, offsetHigh).
+  * Then to execute period (low, high) of job1, we need period
+  * (low+offsetLow, high+offsetHigh) of job2.
+  *
+  * @param offsetLow   the offset for the low end of the duration
+  * @param offsetHigh  the offset for the high end of the duration
+  *
   */
-case class TimeSeriesDependency(offset: Duration)
+case class TimeSeriesDependency(offsetLow: Duration, offsetHigh: Duration)
 
 /** Configure a [[com.criteo.cuttle.Job Job]] as a [[TimeSeries]] job,
   *
@@ -527,20 +535,32 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     val parentsMap = workflow.edges.groupBy { case (child, _, _)   => child }
     val childrenMap = workflow.edges.groupBy { case (_, parent, _) => parent }
 
+    def reverseDescr(dep: TimeSeriesDependency) =
+      TimeSeriesDependency(dep.offsetHigh.negated, dep.offsetLow.negated)
+    def applyDep(dep: TimeSeriesDependency) = Function.unlift { (i: Interval[Instant]) =>
+      val low = i.lo.map(_.plus(dep.offsetLow))
+      val high = i.hi.map(_.plus(dep.offsetHigh))
+      if (low >= high) None else Some(Interval(low, high))
+    }
+
     workflow.vertices.toList.flatMap { job =>
       val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> (()))
       val dependenciesSatisfied = parentsMap
         .getOrElse(job, Set.empty)
         .map {
           case (_, parent, lbl) =>
-            state(parent).mapKeys(_.plus(lbl.offset)).collect { case Done => () }
+            val intervals: List[Interval[Instant]] = state(parent).collect { case Done => () }.toList.map(_._1)
+            val newIntervals = intervals.collect(applyDep(reverseDescr(lbl)))
+            newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
         }
         .fold(full)(_ whenIsDef _)
       val noChildrenRunning = childrenMap
         .getOrElse(job, Set.empty)
         .map {
           case (child, _, lbl) =>
-            state(child).mapKeys(_.minus(lbl.offset)).collect { case Running(_) => () }
+            val intervals = state(child).collect { case Running(_) => () }.toList.map(_._1)
+            val newIntervals = intervals.collect(applyDep(lbl))
+            newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
         }
         .fold(full)(_ whenIsUndef _)
       val toRun = state(job)
