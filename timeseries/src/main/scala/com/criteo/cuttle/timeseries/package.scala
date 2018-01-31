@@ -81,6 +81,25 @@ package object timeseries {
     */
   def daily(tz: ZoneId, start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Daily(tz), start, end)
 
+  /** Defines a weekly calendar. Weeks are defined as complete calendar weeks starting on a specific
+    * day of the week at midnight and lasting 7 days. The specified time zone is used to define the exact
+    * week start instant.
+    *
+    * The start instant is used to define the first day of the week for the weeks.
+    *
+    * If the start instant does not match a round week (midnight), the calendar
+    * will actually start the next week immediately following the start instant.
+    *
+    * The optional end instant allows to specify a finite calendar that will stop on the
+    * end instant if it is a round week or at the start of the week otherwise.
+    *
+    * @param start The instant this calendar will start.
+    * @param end The optional instant this calendar will end.
+    * @param tz The time zone for which these _weeks_ are defined.
+    */
+  def weekly(tz: ZoneId, start: Instant, end: Option[Instant] = None) =
+    TimeSeries(calendar = Weekly(tz, start.atZone(tz).getDayOfWeek), start, end)
+
   /** Defines a monthly calendar. Months are defined as complete calendar months starting on the 1st day and
     * during 28,29,30 or 31 days. The specified time zone is used to define the exact month start instant.
     *
