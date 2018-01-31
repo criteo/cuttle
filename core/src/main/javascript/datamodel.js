@@ -51,22 +51,30 @@ export type Tags = { [string]: string };
 
 export type NodeKind = "root" | "leaf" | "common";
 
-export type Scheduling =
+export type Calendar =
   | {
-      grid: {
-        period: "daily",
-        zoneId: string
-      },
-      start: string,
-      maxPeriods: number
+      period: "hourly"
     }
   | {
-      grid: {
-        period: "hourly" | "continuous"
-      },
-      start: string,
-      maxPeriods: number
+      period: "daily",
+      zoneId: string
+    }
+  | {
+      period: "weekly",
+      zoneId: string,
+      firstDay: string
+    }
+  | {
+      period: "monthly",
+      zoneId: string
     };
+
+export type Scheduling = {
+  calendar: Calendar,
+  start: string,
+  end: ?string,
+  maxPeriods: number
+};
 
 export type Job = {
   id: string,

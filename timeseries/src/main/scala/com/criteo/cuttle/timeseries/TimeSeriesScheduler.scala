@@ -24,7 +24,7 @@ import com.criteo.cuttle.ExecutionContexts._
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.Internal._
-import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly}
+import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly, Weekly}
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
 import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 
@@ -94,6 +94,18 @@ object TimeSeriesCalendar {
     def next(t: Instant) = t.atZone(tz).truncatedTo(DAYS).plus(1, DAYS).toInstant
   }
 
+  /** A weekly calendar. Weeks are defined as complete calendar weeks starting on a specified day of week
+    * at midnight and lasting 7 days. The specified time zone is used to define the exact week start instant.
+    *
+    * @param tz The time zone for which these _weeks_ are defined.
+    * @param firstDay The first day of the week for these weeks.
+    */
+  case class Weekly(tz: ZoneId, firstDay: DayOfWeek) extends TimeSeriesCalendar {
+    private def truncateToWeek(t: ZonedDateTime) = t.`with`(TemporalAdjusters.previousOrSame(firstDay)).truncatedTo(DAYS)
+    def truncate(t: Instant) = truncateToWeek(t.atZone(tz)).toInstant
+    def next(t: Instant) = truncateToWeek(t.atZone(tz)).plus(1, WEEKS).toInstant
+  }
+
   /** An monthly calendar. Months are defined as complete calendar months starting on the 1st day and
     * during 28,29,30 or 31 days. The specified time zone is used to define the exact month start instant.
     *
@@ -114,6 +126,12 @@ object TimeSeriesCalendar {
           "period" -> "daily".asJson,
           "zoneId" -> tz.getId().asJson
         )
+      case Weekly(tz: ZoneId, firstDay: DayOfWeek) =>
+        Json.obj(
+          "period" -> "weekly".asJson,
+          "zoneId" -> tz.getId.asJson,
+          "firstDay" -> firstDay.toString.asJson
+        )
       case Monthly(tz: ZoneId) =>
         Json.obj(
           "period" -> "monthly".asJson,
@@ -125,9 +143,10 @@ object TimeSeriesCalendar {
 
 private[timeseries] object TimeSeriesCalendarView {
   def apply(calendar: TimeSeriesCalendar) = calendar match {
-    case TimeSeriesCalendar.Hourly      => new HourlyView(1)
-    case TimeSeriesCalendar.Daily(tz)   => new DailyView(tz, 1)
-    case TimeSeriesCalendar.Monthly(tz) => new MonthlyView(tz, 1)
+    case TimeSeriesCalendar.Hourly               => new HourlyView(1)
+    case TimeSeriesCalendar.Daily(tz)            => new DailyView(tz, 1)
+    case TimeSeriesCalendar.Weekly(tz, firstDay) => new WeeklyView(tz, firstDay, 1)
+    case TimeSeriesCalendar.Monthly(tz)          => new MonthlyView(tz, 1)
   }
   sealed trait GenericView extends TimeSeriesCalendarView {
     def over: (Int, TimeSeriesCalendar)
@@ -142,10 +161,10 @@ private[timeseries] object TimeSeriesCalendarView {
   }
   case class DailyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
     def over = (1, Daily(tz))
-    override def upper: TimeSeriesCalendarView = new WeeklyView(tz, aggregationFactor * 7)
+    override def upper: TimeSeriesCalendarView = new WeeklyView(tz, DayOfWeek.MONDAY, aggregationFactor * 7)
   }
-  case class WeeklyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
-    def over = (7, Daily(tz))
+  case class WeeklyView(tz: ZoneId, firstDay: DayOfWeek, aggregationFactor: Int) extends GenericView {
+    def over = (1, Weekly(tz, firstDay))
     override def upper: TimeSeriesCalendarView = new MonthlyView(tz, aggregationFactor * 4)
   }
   case class MonthlyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
@@ -654,9 +673,10 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
   private def getAbsoluteLatency(job: TimeSeriesJob, lastSuccess: Instant): Long = {
     val expectedSuccess = job.scheduling.calendar match {
-      case Hourly      => Instant.now.minus(1, HOURS)
-      case Daily(tz)   => Instant.now.atZone(tz).minus(1, DAYS).toInstant
-      case Monthly(tz) => Instant.now.atZone(tz).minus(1, MONTHS).toInstant
+      case Hourly        => Instant.now.minus(1, HOURS)
+      case Daily(tz)     => Instant.now.atZone(tz).minus(1, DAYS).toInstant
+      case Weekly(tz, _) => Instant.now.atZone(tz).minus(1, WEEKS).toInstant
+      case Monthly(tz)   => Instant.now.atZone(tz).minus(1, MONTHS).toInstant
     }
     if (expectedSuccess.compareTo(lastSuccess) <= 0) 0L else expectedSuccess.getEpochSecond - lastSuccess.getEpochSecond
   }

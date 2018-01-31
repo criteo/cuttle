@@ -288,9 +288,9 @@ class WorkflowComponent extends React.Component {
     ReactTooltip.rebuild();
 
     const renderTimeSeriesSechduling = () => [
-      startNode.scheduling.grid && [
+      startNode.scheduling.calendar && [
         <dt key="period">Period:</dt>,
-        <dd key="period_">{startNode.scheduling.grid.period}</dd>
+        <dd key="period_">{startNode.scheduling.calendar.period}</dd>
       ],
       startNode.scheduling.start && [
         <dt key="start">Start Date:</dt>,
