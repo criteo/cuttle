@@ -537,11 +537,12 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
     def reverseDescr(dep: TimeSeriesDependency) =
       TimeSeriesDependency(dep.offsetHigh.negated, dep.offsetLow.negated)
-    def applyDep(dep: TimeSeriesDependency) = Function.unlift { (i: Interval[Instant]) =>
-      val low = i.lo.map(_.plus(dep.offsetLow))
-      val high = i.hi.map(_.plus(dep.offsetHigh))
-      if (low >= high) None else Some(Interval(low, high))
-    }
+    def applyDep(dep: TimeSeriesDependency): PartialFunction[Interval[Instant], Interval[Instant]] =
+      Function.unlift { (i: Interval[Instant]) =>
+        val low = i.lo.map(_.plus(dep.offsetLow))
+        val high = i.hi.map(_.plus(dep.offsetHigh))
+        if (low >= high) None else Some(Interval(low, high))
+      }
 
     workflow.vertices.toList.flatMap { job =>
       val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> (()))
