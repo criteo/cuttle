@@ -47,9 +47,9 @@ package object timeseries {
   }
 
   /** Defines an implicit default dependency descriptor for [[TimeSeries]] graphs.
-    * The default is `offset = 0`. */
+    * The default is `offsetLow = 0, offsetHigh = 0`. */
   implicit val defaultDependencyDescriptor: TimeSeriesDependency =
-    TimeSeriesDependency(0.hours)
+    TimeSeriesDependency(0.hours, 0.hours)
 
   /** Defines an hourly calendar starting at the specified instant. Hours are defined as
     * complete calendar hours starting at 00 minutes, 00 seconds.
