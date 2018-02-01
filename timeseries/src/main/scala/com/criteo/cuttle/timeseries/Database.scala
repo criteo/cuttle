@@ -22,6 +22,28 @@ private[timeseries] object Database {
 
   import intervals.{Interval, IntervalMap}
 
+  val contextIdMigration: ConnectionIO[Unit] = {
+    implicit val jobs: Set[TimeSeriesJob] = Set.empty
+    val chunkSize = 1024*10
+    val stream = sql"SELECT id, json FROM timeseries_contexts"
+      .query[(String, Json)].processWithChunkSize(chunkSize)
+    val insert = Update[(String, String)]("INSERT into tmp (id, new_id) VALUES (? , ?)")
+    for {
+      _ <- sql"CREATE TEMPORARY TABLE tmp (id VARCHAR(1000), new_id VARCHAR(1000))".update.run
+      _ <-
+        stream.chunkLimit(chunkSize).evalMap { oldContexts =>
+          insert.updateMany(oldContexts.map { case (id, json) =>
+            (id, json.as[TimeSeriesContext].right.get.toId)
+          })
+        }.run
+      _ <- sql"CREATE INDEX tmp_id ON tmp (id)".update.run
+      _ <- sql"""UPDATE timeseries_contexts ctx JOIN tmp ON ctx.id = tmp.id
+                 SET ctx.id = tmp.new_id""".update.run
+      _ <- sql"""UPDATE executions JOIN tmp ON executions.context_id = tmp.id
+                 SET executions.context_id = tmp.new_id""".update.run
+    } yield ()
+  }
+
   val schema = List(
     sql"""
       CREATE TABLE timeseries_state (
@@ -57,7 +79,8 @@ private[timeseries] object Database {
 
       CREATE INDEX timeseries_backfills_by_date ON timeseries_backfills (created_at);
       CREATE INDEX timeseries_backfills_by_status ON timeseries_backfills (status);
-    """.update
+    """.update.run,
+    contextIdMigration
   )
 
   val doSchemaUpdates: ConnectionIO[Unit] = {
@@ -73,9 +96,9 @@ private[timeseries] object Database {
         SELECT MAX(schema_version) FROM timeseries
       """.query[Option[Int]].unique.map(_.getOrElse(0))
 
-      _ <- schema.drop(currentSchemaVersion).zipWithIndex.foldLeft(NoUpdate) {
+      _ <- schema.zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
         case (evolutions, (evolution, i)) =>
-          evolutions *> evolution.run *> sql"""
+          evolutions *> evolution *> sql"""
             INSERT INTO timeseries (schema_version, schema_update)
             VALUES (${i + 1}, ${Instant.now()})
           """.update.run
@@ -95,11 +118,12 @@ private[timeseries] object Database {
       )
     """
 
-  def serializeContext(context: TimeSeriesContext): ConnectionIO[String] =
+  def serializeContext(context: TimeSeriesContext): ConnectionIO[String] = {
+    val id = context.toId
     sql"""
       REPLACE INTO timeseries_contexts (id, json, ctx_range, backfill_id)
       VALUES (
-        ${context.toString},
+        ${id},
         ${context.asJson},
         LineString(
           Point(-1, ${context.start.getEpochSecond}),
@@ -107,7 +131,8 @@ private[timeseries] object Database {
         ),
         ${context.backfill.map(_.id)}
       )
-    """.update.run *> Applicative[ConnectionIO].pure(context.toString)
+    """.update.run *> Applicative[ConnectionIO].pure(id)
+  }
 
   def deserializeState(implicit jobs: Set[Job[TimeSeries]]): ConnectionIO[Option[State]] = {
     type StoredState = List[(String, List[(Interval[Instant], JobState)])]
