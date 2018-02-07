@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.Auth</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.Auth" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.Auth" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.Auth</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.Auth" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.Auth" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -222,9 +222,15 @@ open for any read only operation.">
                           CuttleProject
                         </a>
                       </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="class" href="DBLocation.html" title="Configuration of JDBC endpoint."></a>
+                        <a href="DBLocation.html" title="Configuration of JDBC endpoint.">
+                          DBLocation
+                        </a>
+                      </li><li class="current-entities indented3">
                         <a class="object" href="DatabaseConfig$.html" title="Utilities for DatabaseConfig."></a>
-                        <a class="class" href="DatabaseConfig.html" title="Configuration for the MySQL database used by cuttle."></a>
-                        <a href="DatabaseConfig.html" title="Configuration for the MySQL database used by cuttle.">
+                        <a class="class" href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle."></a>
+                        <a href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle.">
                           DatabaseConfig
                         </a>
                       </li><li class="current-entities indented3">
@@ -238,6 +244,12 @@ open for any read only operation.">
                         <a class="object" href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled."></a>
                         <a href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled.">
                           ExecutionCancelled
+                        </a>
+                      </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="object" href="ExecutionContexts$.html" title=""></a>
+                        <a href="ExecutionContexts$.html" title="">
+                          ExecutionContexts
                         </a>
                       </li><li class="current-entities indented3">
                         <span class="separator"></span>
@@ -260,7 +272,7 @@ given Executions.">
                           Executor
                         </a>
                       </li><li class="current-entities indented3">
-                        <span class="separator"></span>
+                        <a class="object" href="Job$.html" title=""></a>
                         <a class="class" href="Job.html" title="The job SideEffect is the most important part as it represents the real
 job logic to execute."></a>
                         <a href="Job.html" title="The job SideEffect is the most important part as it represents the real
@@ -404,9 +416,9 @@ dangerous operations.</p><p>The UI access itself requires authentication.
         <div id="types" class="types members">
               <h3>Type Members</h3>
               <ol><li name="com.criteo.cuttle.Auth.AuthenticatedService" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="AuthenticatedService=PartialFunction[lol.http.Request,com.criteo.cuttle.Auth.User=&gt;scala.concurrent.Future[lol.http.Response]]"></a><a id="AuthenticatedService:AuthenticatedService"></a>
+      <a id="AuthenticatedService=PartialFunction[lol.http.Request,com.criteo.cuttle.Auth.User=&gt;cats.effect.IO[lol.http.Response]]"></a><a id="AuthenticatedService:AuthenticatedService"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Auth$.html#AuthenticatedService=PartialFunction[lol.http.Request,com.criteo.cuttle.Auth.User=&gt;scala.concurrent.Future[lol.http.Response]]" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Auth$.html#AuthenticatedService=PartialFunction[lol.http.Request,com.criteo.cuttle.Auth.User=&gt;cats.effect.IO[lol.http.Response]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -415,10 +427,10 @@ dangerous operations.</p><p>The UI access itself requires authentication.
         <span class="kind">type</span>
       </span>
       <span class="symbol">
-        <span class="name">AuthenticatedService</span><span class="result alias"> = <a href="https://www.scala-lang.org/api/current/scala/PartialFunction.html#scala.PartialFunction" class="extype" name="scala.PartialFunction">PartialFunction</a>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Request.html#lol.http.Request" class="extype" name="lol.http.Request">Request</a>, (<a href="Auth$$User.html" class="extype" name="com.criteo.cuttle.Auth.User">User</a>) ⇒ <a href="https://www.scala-lang.org/api/current/scala/concurrent/Future.html#scala.concurrent.Future" class="extype" name="scala.concurrent.Future">Future</a>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Response.html#lol.http.Response" class="extype" name="lol.http.Response">Response</a>]]</span>
+        <span class="name">AuthenticatedService</span><span class="result alias"> = <a href="https://www.scala-lang.org/api/current/scala/PartialFunction.html#scala.PartialFunction" class="extype" name="scala.PartialFunction">PartialFunction</a>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Request.html#lol.http.Request" class="extype" name="lol.http.Request">Request</a>, (<a href="Auth$$User.html" class="extype" name="com.criteo.cuttle.Auth.User">User</a>) ⇒ <span class="extype" name="cats.effect.IO">IO</span>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Response.html#lol.http.Response" class="extype" name="lol.http.Response">Response</a>]]</span>
       </span>
       
-      <p class="shortcomment cmt">A <a href="https://criteo.github.io/lolhttp/api/lol/http/index.html#PartialService=PartialFunction[lol.http.Request,scala.concurrent.Future[lol.http.Response]]" class="extype" name="lol.http">PartialService</a> that requires an authenticated
+      <p class="shortcomment cmt">A <a href="https://criteo.github.io/lolhttp/api/lol/http/index.html#PartialService=PartialFunction[lol.http.Request,cats.effect.IO[lol.http.Response]]" class="extype" name="lol.http">PartialService</a> that requires an authenticated
 user in request handler's scope.</p>
     </li><li name="com.criteo.cuttle.Auth.Authenticator" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="AuthenticatorextendsAnyRef"></a><a id="Authenticator:Authenticator"></a>

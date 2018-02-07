@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.DatabaseConfig</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.DatabaseConfig" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.DatabaseConfig" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.DatabaseConfig</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.DatabaseConfig" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.DatabaseConfig" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -222,9 +222,15 @@ open for any read only operation.">
                           CuttleProject
                         </a>
                       </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="class" href="DBLocation.html" title="Configuration of JDBC endpoint."></a>
+                        <a href="DBLocation.html" title="Configuration of JDBC endpoint.">
+                          DBLocation
+                        </a>
+                      </li><li class="current-entities indented3">
                         <a class="object" href="DatabaseConfig$.html" title="Utilities for DatabaseConfig."></a>
-                        <a class="class" href="" title="Configuration for the MySQL database used by cuttle."></a>
-                        <a href="" title="Configuration for the MySQL database used by cuttle.">
+                        <a class="class" href="" title="Configuration for the MySQL database used by Cuttle."></a>
+                        <a href="" title="Configuration for the MySQL database used by Cuttle.">
                           DatabaseConfig
                         </a>
                       </li><li class="current-entities indented3">
@@ -238,6 +244,12 @@ open for any read only operation.">
                         <a class="object" href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled."></a>
                         <a href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled.">
                           ExecutionCancelled
+                        </a>
+                      </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="object" href="ExecutionContexts$.html" title=""></a>
+                        <a href="ExecutionContexts$.html" title="">
+                          ExecutionContexts
                         </a>
                       </li><li class="current-entities indented3">
                         <span class="separator"></span>
@@ -260,7 +272,7 @@ given Executions.">
                           Executor
                         </a>
                       </li><li class="current-entities indented3">
-                        <span class="separator"></span>
+                        <a class="object" href="Job$.html" title=""></a>
                         <a class="class" href="Job.html" title="The job SideEffect is the most important part as it represents the real
 job logic to execute."></a>
                         <a href="Job.html" title="The job SideEffect is the most important part as it represents the real
@@ -344,13 +356,13 @@ for a given Scheduling.">
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <span class="name">DatabaseConfig</span><span class="params">(<span name="host">host: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="port">port: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>, <span name="database">database: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="username">username: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="password">password: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <span class="name">DatabaseConfig</span><span class="params">(<span name="locations">locations: <span class="extype" name="scala.Seq">Seq</span>[<a href="DBLocation.html" class="extype" name="com.criteo.cuttle.DBLocation">DBLocation</a>]</span>, <span name="database">database: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="username">username: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="password">password: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Configuration for the MySQL database used by cuttle.
-</p></div><dl class="paramcmts block"><dt class="param">host</dt><dd class="cmt"><p>JDBC driver host</p></dd><dt class="param">port</dt><dd class="cmt"><p>JDBC driver port</p></dd><dt class="param">database</dt><dd class="cmt"><p>JDBC database</p></dd><dt class="param">username</dt><dd class="cmt"><p>JDBC username</p></dd><dt class="param">password</dt><dd class="cmt"><p>JDBC password</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/Database.scala" target="_blank">Database.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Configuration for the MySQL database used by Cuttle.
+</p></div><dl class="paramcmts block"><dt class="param">locations</dt><dd class="cmt"><p>sequence of JDBC endpoints</p></dd><dt class="param">database</dt><dd class="cmt"><p>JDBC database</p></dd><dt class="param">username</dt><dd class="cmt"><p>JDBC username</p></dd><dt class="param">password</dt><dd class="cmt"><p>JDBC password</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/Database.scala" target="_blank">Database.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -401,9 +413,9 @@ for a given Scheduling.">
         <div id="constructors" class="members">
               <h3>Instance Constructors</h3>
               <ol><li name="com.criteo.cuttle.DatabaseConfig#&lt;init&gt;" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="&lt;init&gt;(host:String,port:Int,database:String,username:String,password:String):com.criteo.cuttle.DatabaseConfig"></a><a id="&lt;init&gt;:DatabaseConfig"></a>
+      <a id="&lt;init&gt;(locations:Seq[com.criteo.cuttle.DBLocation],database:String,username:String,password:String):com.criteo.cuttle.DatabaseConfig"></a><a id="&lt;init&gt;:DatabaseConfig"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/DatabaseConfig.html#&lt;init&gt;(host:String,port:Int,database:String,username:String,password:String):com.criteo.cuttle.DatabaseConfig" title="Permalink">
+      <a href="../../../com/criteo/cuttle/DatabaseConfig.html#&lt;init&gt;(locations:Seq[com.criteo.cuttle.DBLocation],database:String,username:String,password:String):com.criteo.cuttle.DatabaseConfig" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -412,10 +424,10 @@ for a given Scheduling.">
         <span class="kind">new</span>
       </span>
       <span class="symbol">
-        <span class="name">DatabaseConfig</span><span class="params">(<span name="host">host: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="port">port: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>, <span name="database">database: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="username">username: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="password">password: <span class="extype" name="scala.Predef.String">String</span></span>)</span>
+        <span class="name">DatabaseConfig</span><span class="params">(<span name="locations">locations: <span class="extype" name="scala.Seq">Seq</span>[<a href="DBLocation.html" class="extype" name="com.criteo.cuttle.DBLocation">DBLocation</a>]</span>, <span name="database">database: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="username">username: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="password">password: <span class="extype" name="scala.Predef.String">String</span></span>)</span>
       </span>
       
-      <p class="shortcomment cmt"></p><div class="fullcomment"><div class="comment cmt"></div><dl class="paramcmts block"><dt class="param">host</dt><dd class="cmt"><p>JDBC driver host</p></dd><dt class="param">port</dt><dd class="cmt"><p>JDBC driver port</p></dd><dt class="param">database</dt><dd class="cmt"><p>JDBC database</p></dd><dt class="param">username</dt><dd class="cmt"><p>JDBC username</p></dd><dt class="param">password</dt><dd class="cmt"><p>JDBC password</p></dd></dl></div>
+      <p class="shortcomment cmt"></p><div class="fullcomment"><div class="comment cmt"></div><dl class="paramcmts block"><dt class="param">locations</dt><dd class="cmt"><p>sequence of JDBC endpoints</p></dd><dt class="param">database</dt><dd class="cmt"><p>JDBC database</p></dd><dt class="param">username</dt><dd class="cmt"><p>JDBC username</p></dd><dt class="param">password</dt><dd class="cmt"><p>JDBC password</p></dd></dl></div>
     </li></ol>
             </div>
 
@@ -582,22 +594,6 @@ for a given Scheduling.">
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li name="com.criteo.cuttle.DatabaseConfig#host" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="host:String"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/DatabaseConfig.html#host:String" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">val</span>
-      </span>
-      <span class="symbol">
-        <span class="name">host</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
-      </span>
-      
-      
     </li><li name="scala.Any#isInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <span class="permalink">
@@ -614,6 +610,22 @@ for a given Scheduling.">
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li name="com.criteo.cuttle.DatabaseConfig#locations" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="locations:Seq[com.criteo.cuttle.DBLocation]"></a><a id="locations:Seq[DBLocation]"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/DatabaseConfig.html#locations:Seq[com.criteo.cuttle.DBLocation]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">locations</span><span class="result">: <span class="extype" name="scala.Seq">Seq</span>[<a href="DBLocation.html" class="extype" name="com.criteo.cuttle.DBLocation">DBLocation</a>]</span>
+      </span>
+      
+      
     </li><li name="scala.AnyRef#ne" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ne(x$1:AnyRef):Boolean"></a><a id="ne(AnyRef):Boolean"></a>
       <span class="permalink">
@@ -675,22 +687,6 @@ for a given Scheduling.">
       </span>
       <span class="symbol">
         <span class="name">password</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
-      </span>
-      
-      
-    </li><li name="com.criteo.cuttle.DatabaseConfig#port" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="port:Int"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/DatabaseConfig.html#port:Int" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">val</span>
-      </span>
-      <span class="symbol">
-        <span class="name">port</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>
       </span>
       
       

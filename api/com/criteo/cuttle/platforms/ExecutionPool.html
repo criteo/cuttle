@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.platforms.ExecutionPool</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.platforms.ExecutionPool" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.platforms.ExecutionPool" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.platforms.ExecutionPool</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.platforms.ExecutionPool" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.platforms.ExecutionPool" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -187,7 +187,11 @@
             </a>
       </span>
       
-      <p class="shortcomment cmt">Allow to fork process locally in a managed way.</p><div class="fullcomment"><div class="comment cmt"><p>Allow to fork process locally in a managed way.</p><p>It provides the <code>sh</code> interpolator that you can use to fork shell scripts:</p><pre>sh<span class="lit">""</span><span class="lit">"hdfs dfs -cp /from /to"</span><span class="lit">""</span>.exec()</pre></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle.platforms">platforms</a></dd></dl></div>
+      <p class="shortcomment cmt">Allow to fork process locally in a managed way.</p><div class="fullcomment"><div class="comment cmt"><p>Allow to fork process locally in a managed way.</p><p>It provides the <code>exec</code> interpolator that you can use to fork shell scripts:</p><pre>exec<span class="lit">""</span><span class="lit">"hdfs dfs -cp /from /to"</span><span class="lit">""</span>()</pre><p>The script your provide will be forked into another process.
+Note that if you provide several commands separated by <code>;' only the first one will be forked
+and the other ones will be ignored.</code></p><p>If you really need to run several commands, you can use one of the followed ways:</p><p>1. Chain multiple execs in a for-comprehension. Because of platform mechanism
+it will require several platform allocations to run completely.</p><p>2. Wrap it in one <code>sh -c' _In this case we cannot guarantee that
+all process spawned inside this fork will be successfully killed when we kill the parent process._</code></p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle.platforms">platforms</a></dd></dl></div>
     </li><li class="current-entities indented4">
                         <span class="separator"></span>
                         <a class="class" href="" title="An execution pool backed by a priority queue."></a>
@@ -635,9 +639,9 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
     </li><li name="com.criteo.cuttle.platforms.ExecutionPool#routes" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="routes(urlPrefix:String):PartialFunction[lol.http.Request,scala.concurrent.Future[lol.http.Response]]"></a><a id="routes(String):PartialFunction[Request,Future[Response]]"></a>
+      <a id="routes(urlPrefix:String):PartialFunction[lol.http.Request,cats.effect.IO[lol.http.Response]]"></a><a id="routes(String):PartialFunction[Request,IO[Response]]"></a>
       <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#routes(urlPrefix:String):PartialFunction[lol.http.Request,scala.concurrent.Future[lol.http.Response]]" title="Permalink">
+      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#routes(urlPrefix:String):PartialFunction[lol.http.Request,cats.effect.IO[lol.http.Response]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -646,7 +650,7 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">routes</span><span class="params">(<span name="urlPrefix">urlPrefix: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/PartialFunction.html#scala.PartialFunction" class="extype" name="scala.PartialFunction">PartialFunction</a>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Request.html#lol.http.Request" class="extype" name="lol.http.Request">Request</a>, <a href="https://www.scala-lang.org/api/current/scala/concurrent/Future.html#scala.concurrent.Future" class="extype" name="scala.concurrent.Future">Future</a>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Response.html#lol.http.Response" class="extype" name="lol.http.Response">Response</a>]]</span>
+        <span class="name">routes</span><span class="params">(<span name="urlPrefix">urlPrefix: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/PartialFunction.html#scala.PartialFunction" class="extype" name="scala.PartialFunction">PartialFunction</a>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Request.html#lol.http.Request" class="extype" name="lol.http.Request">Request</a>, <span class="extype" name="cats.effect.IO">IO</span>[<a href="https://criteo.github.io/lolhttp/api/lol/http/Response.html#lol.http.Response" class="extype" name="lol.http.Response">Response</a>]]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="" class="extype" name="com.criteo.cuttle.platforms.ExecutionPool">ExecutionPool</a> → <a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a></dd></dl></div>

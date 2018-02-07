@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.3.0 - com.criteo.cuttle.Workflow</title>
-          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.Workflow" />
-          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.Workflow" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -132,204 +132,59 @@
       <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> are defined for a given <a href="Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
    access underlying resources.
 </li></ul></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="com.criteo">criteo</a></dd></dl></div>
-    </li><li name="com.criteo.cuttle.platforms" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="platforms"></a><a id="platforms:platforms"></a>
+    </li><li name="com.criteo.cuttle.ExecutionContexts" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="ExecutionContexts"></a><a id="ExecutionContexts:ExecutionContexts"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/index.html#platforms" title="Permalink">
+      <a href="../../../com/criteo/cuttle/index.html#ExecutionContexts" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
       <span class="modifier_kind">
         <span class="modifier"></span>
-        <span class="kind">package</span>
+        <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="Defines useful ExecutionPlatforms:" href="platforms/index.html">
-              <span class="name">platforms</span>
+        <a title="" href="ExecutionContexts$.html">
+              <span class="name">ExecutionContexts</span>
             </a>
       </span>
       
-      <p class="shortcomment cmt">Defines useful <a href="ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatforms</a>:</p><div class="fullcomment"><div class="comment cmt"><p>Defines useful <a href="ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatforms</a>:</p><ul><li><a href="platforms/local/index.html" class="extype" name="com.criteo.cuttle.platforms.local">local</a> to fork process locally in a managed way.</li><li><a href="platforms/http/index.html" class="extype" name="com.criteo.cuttle.platforms.http">http</a> to make HTTP calls with rate limiting.
-</li></ul></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></dd></dl></div>
-    </li><li name="com.criteo.cuttle.timeseries" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="timeseries"></a><a id="timeseries:timeseries"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/index.html#timeseries" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">package</span>
-      </span>
-      <span class="symbol">
-        <a title="A TimeSeries scheduler executes the Workflow for the
-time partitions defined in a calendar." href="timeseries/index.html">
-              <span class="name">timeseries</span>
-            </a>
-      </span>
-      
-      <p class="shortcomment cmt">A <a href="timeseries/TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> scheduler executes the <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> for the
-time partitions defined in a calendar.</p><div class="fullcomment"><div class="comment cmt"><p>A <a href="timeseries/TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> scheduler executes the <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> for the
-time partitions defined in a calendar. Each <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> defines how it mnaps
-to the calendar (for example Hourly or Daily UTC), and the <a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a>
-ensure that at least one <a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a> is created and successfully run
-for each defined Job/Period.</p><p>The scheduler also allow to <a href="timeseries/Backfill.html" class="extype" name="com.criteo.cuttle.timeseries.Backfill">Backfill</a> already computed partitions. The <a href="timeseries/Backfill.html" class="extype" name="com.criteo.cuttle.timeseries.Backfill">Backfill</a> can be recursive
-or not and an audit log of backfills is kept.
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></dd></dl></div>
-    </li><li name="com.criteo.cuttle.utils" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="utils"></a><a id="utils:utils"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/index.html#utils" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">package</span>
-      </span>
-      <span class="symbol">
-        <a title="A set of basic utilities useful to write workflows." href="utils/index.html">
-              <span class="name">utils</span>
-            </a>
-      </span>
-      
-      <p class="shortcomment cmt">A set of basic utilities useful to write workflows.</p><div class="fullcomment"><div class="comment cmt"><p>A set of basic utilities useful to write workflows.</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></dd></dl></div>
-    </li><li class="current-entities indented3">
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></dd></dl></div>
+    </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="object" href="Auth$.html" title="The cuttle API is private for any write operation while it is publicly
-open for any read only operation."></a>
-                        <a href="Auth$.html" title="The cuttle API is private for any write operation while it is publicly
-open for any read only operation.">
-                          Auth
+                        <a class="object" href="ExecutionContexts$$Implicits$.html" title=""></a>
+                        <a href="ExecutionContexts$$Implicits$.html" title="">
+                          Implicits
                         </a>
-                      </li><li class="current-entities indented3">
+                      </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="class" href="CancellationListener.html" title="Allows to unsubscribe a cancel listener."></a>
-                        <a href="CancellationListener.html" title="Allows to unsubscribe a cancel listener.">
-                          CancellationListener
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <a class="object" href="Completed$.html" title="The object to use to successfully complete a job side effect."></a>
-                        <a class="trait" href="Completed.html" title="Used a return type for the Job side effect instead of Unit."></a>
-                        <a href="Completed.html" title="Used a return type for the Job side effect instead of Unit.">
-                          Completed
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <a class="object" href="CuttleProject$.html" title="Create new projects."></a>
-                        <a class="class" href="CuttleProject.html" title="A cuttle project is a workflow to execute with the appropriate scheduler."></a>
-                        <a href="CuttleProject.html" title="A cuttle project is a workflow to execute with the appropriate scheduler.">
-                          CuttleProject
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="class" href="DBLocation.html" title="Configuration of JDBC endpoint."></a>
-                        <a href="DBLocation.html" title="Configuration of JDBC endpoint.">
-                          DBLocation
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <a class="object" href="DatabaseConfig$.html" title="Utilities for DatabaseConfig."></a>
-                        <a class="class" href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle."></a>
-                        <a href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle.">
-                          DatabaseConfig
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="class" href="Execution.html" title="Executions are created by the Scheduler."></a>
-                        <a href="Execution.html" title="Executions are created by the Scheduler.">
-                          Execution
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="object" href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled."></a>
-                        <a href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled.">
-                          ExecutionCancelled
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="object" href="ExecutionContexts$.html" title=""></a>
-                        <a href="ExecutionContexts$.html" title="">
-                          ExecutionContexts
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="trait" href="ExecutionPlatform.html" title="An ExecutionPlatform provides controlled access to shared resources."></a>
-                        <a href="ExecutionPlatform.html" title="An ExecutionPlatform provides controlled access to shared resources.">
-                          ExecutionPlatform
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="trait" href="ExecutionStreams.html" title="The scoped output streams for an Execution."></a>
-                        <a href="ExecutionStreams.html" title="The scoped output streams for an Execution.">
-                          ExecutionStreams
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="class" href="Executor.html" title="An Executor is responsible to actually execute the SideEffect functions for the
-given Executions."></a>
-                        <a href="Executor.html" title="An Executor is responsible to actually execute the SideEffect functions for the
-given Executions.">
-                          Executor
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <a class="object" href="Job$.html" title=""></a>
-                        <a class="class" href="Job.html" title="The job SideEffect is the most important part as it represents the real
-job logic to execute."></a>
-                        <a href="Job.html" title="The job SideEffect is the most important part as it represents the real
-job logic to execute.">
-                          Job
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="trait" href="Logger.html" title="A logger used to output internal informations."></a>
-                        <a href="Logger.html" title="A logger used to output internal informations.">
-                          Logger
-                        </a>
-                      </li><li class="current-entities indented3">
-                        <span class="separator"></span>
-                        <a class="object" href="Metrics$.html" title="Expose cuttle metrics via the prometheus protocol."></a>
-                        <a href="Metrics$.html" title="Expose cuttle metrics via the prometheus protocol.">
+                        <a class="trait" href="ExecutionContexts$$Metrics.html" title=""></a>
+                        <a href="ExecutionContexts$$Metrics.html" title="">
                           Metrics
                         </a>
-                      </li><li class="current-entities indented3">
-                        <a class="object" href="RetryStrategy$.html" title="Built-in RetryStrategy"></a>
-                        <a class="trait" href="RetryStrategy.html" title="The strategy to use to retry stuck executions."></a>
-                        <a href="RetryStrategy.html" title="The strategy to use to retry stuck executions.">
-                          RetryStrategy
-                        </a>
-                      </li><li class="current-entities indented3">
+                      </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="trait" href="Scheduler.html" title="A scheduler interpret a Workflow and instanciate Executions for all
-defined Jobs."></a>
-                        <a href="Scheduler.html" title="A scheduler interpret a Workflow and instanciate Executions for all
-defined Jobs.">
-                          Scheduler
+                        <a class="trait" href="ExecutionContexts$$ServerExecutionContext.html" title=""></a>
+                        <a href="ExecutionContexts$$ServerExecutionContext.html" title="">
+                          ServerExecutionContext
                         </a>
-                      </li><li class="current-entities indented3">
+                      </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="trait" href="Scheduling.html" title="Represent a type of scheduling."></a>
-                        <a href="Scheduling.html" title="Represent a type of scheduling.">
-                          Scheduling
+                        <a class="trait" href="ExecutionContexts$$SideEffectExecutionContext.html" title=""></a>
+                        <a href="ExecutionContexts$$SideEffectExecutionContext.html" title="">
+                          SideEffectExecutionContext
                         </a>
-                      </li><li class="current-entities indented3">
-                        <a class="object" href="SchedulingContext$.html" title="Utilities for SchedulingContext"></a>
-                        <a class="trait" href="SchedulingContext.html" title="A scheduling context is the input given to each Execution that will be created
-for a given Scheduling."></a>
-                        <a href="SchedulingContext.html" title="A scheduling context is the input given to each Execution that will be created
-for a given Scheduling.">
-                          SchedulingContext
-                        </a>
-                      </li><li class="current-entities indented3">
+                      </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="class" href="Tag.html" title="Allow to tag a job."></a>
-                        <a href="Tag.html" title="Allow to tag a job.">
-                          Tag
+                        <a class="object" href="" title=""></a>
+                        <a href="" title="">
+                          ThreadPoolSystemProperties
                         </a>
-                      </li><li class="current-entities indented3">
-                        <a class="object" href="" title="Utilities for Workflow."></a>
-                        <a class="trait" href="Workflow.html" title="The workflow to be run by cuttle."></a>
-                        <a href="Workflow.html" title="The workflow to be run by cuttle.">
-                          Workflow
+                      </li><li class="current-entities indented4">
+                        <span class="separator"></span>
+                        <a class="trait" href="ExecutionContexts$$WrappedExecutionContext.html" title=""></a>
+                        <a href="ExecutionContexts$$WrappedExecutionContext.html" title="">
+                          WrappedExecutionContext
                         </a>
                       </li>
               </ul>
@@ -338,16 +193,14 @@ for a given Scheduling.">
           <div id="content">
             <body class="object value">
       <div id="definition">
-        <a href="Workflow.html" title="See companion trait"><div class="big-circle object-companion-trait">o</div></a>
-        <p id="owner"><a href="../../index.html" class="extype" name="com">com</a>.<a href="../index.html" class="extype" name="com.criteo">criteo</a>.<a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></p>
-        <h1><a href="Workflow.html" title="See companion trait">Workflow</a><span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html" title="Permalink">
+        <div class="big-circle object">o</div>
+        <p id="owner"><a href="../../index.html" class="extype" name="com">com</a>.<a href="../index.html" class="extype" name="com.criteo">criteo</a>.<a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a>.<a href="ExecutionContexts$.html" class="extype" name="com.criteo.cuttle.ExecutionContexts">ExecutionContexts</a></p>
+        <h1>ThreadPoolSystemProperties<span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span></h1>
-        <h3><span class="morelinks"><div>
-            Companion <a href="Workflow.html" title="See companion trait">trait Workflow</a>
-          </div></span></h3>
+        <h3><span class="morelinks"></span></h3>
       </div>
 
       <h4 id="signature" class="signature">
@@ -356,16 +209,16 @@ for a given Scheduling.">
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <span class="name">Workflow</span>
+        <span class="name">ThreadPoolSystemProperties</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/Enumeration.html#scala.Enumeration" class="extype" name="scala.Enumeration">Enumeration</a></span>
       </span>
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Utilities for <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>.</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/Workflow.scala" target="_blank">Workflow.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/ExecutionContexts.scala" target="_blank">ExecutionContexts.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
-          <div class="superTypes hiddenContent"><a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></div>
+          <div class="superTypes hiddenContent"><a href="https://www.scala-lang.org/api/current/scala/Enumeration.html#scala.Enumeration" class="extype" name="scala.Enumeration">Enumeration</a>, <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a>, <span class="extype" name="java.io.Serializable">Serializable</span>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></div>
         </div></div>
         
 
@@ -391,7 +244,7 @@ for a given Scheduling.">
                   <span class="filtertype">Inherited<br />
                   </span>
                   <ol id="linearization">
-                    <li class="in" name="com.criteo.cuttle.Workflow"><span>Workflow</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                    <li class="in" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties"><span>ThreadPoolSystemProperties</span></li><li class="in" name="scala.Enumeration"><span>Enumeration</span></li><li class="in" name="scala.Serializable"><span>Serializable</span></li><li class="in" name="java.io.Serializable"><span>Serializable</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
                   </ol>
                 </div><div class="ancestors">
               <span class="filtertype"></span>
@@ -411,7 +264,80 @@ for a given Scheduling.">
         <div id="allMembers">
         
 
-        
+        <div id="types" class="types members">
+              <h3>Type Members</h3>
+              <ol><li name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.ThreadPoolSystemProperties" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ThreadPoolSystemProperties=com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value"></a><a id="ThreadPoolSystemProperties:ThreadPoolSystemProperties"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#ThreadPoolSystemProperties=com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">type</span>
+      </span>
+      <span class="symbol">
+        <span class="name">ThreadPoolSystemProperties</span><span class="result alias"> = <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      
+    </li><li name="scala.Enumeration.Val" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="ValextendsEnumeration.this.ValuewithSerializable"></a><a id="Val:Val"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#ValextendsEnumeration.this.ValuewithSerializable" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <span class="name">Val</span><span class="result"> extends <span class="extype" name="scala.Enumeration.Value">Value</span> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd><dt>Annotations</dt><dd>
+                <span class="name">@SerialVersionUID</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li name="scala.Enumeration.Value" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="ValueextendsOrdered[Enumeration.this.Value]withSerializable"></a><a id="Value:Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#ValueextendsOrdered[Enumeration.this.Value]withSerializable" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <span class="name">Value</span><span class="result"> extends <span class="extype" name="scala.Ordered">Ordered</span>[<span class="extype" name="scala.Enumeration.Value">Value</span>] with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Enumeration</dd><dt>Annotations</dt><dd>
+                <span class="name">@SerialVersionUID</span><span class="args">()</span>
+              
+        </dd></dl></div>
+    </li><li name="scala.Enumeration.ValueSet" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="ValueSetextendsAbstractSet[Enumeration.this.Value]withSortedSet[Enumeration.this.Value]withSortedSetLike[Enumeration.this.Value,Enumeration.this.ValueSet]withSerializable"></a><a id="ValueSet:ValueSet"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#ValueSetextendsAbstractSet[Enumeration.this.Value]withSortedSet[Enumeration.this.Value]withSortedSetLike[Enumeration.this.Value,Enumeration.this.ValueSet]withSerializable" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <span class="name">ValueSet</span><span class="result"> extends <span class="extype" name="scala.collection.AbstractSet">AbstractSet</span>[<span class="extype" name="scala.Enumeration.Value">Value</span>] with <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/SortedSet.html#scala.collection.immutable.SortedSet" class="extype" name="scala.collection.immutable.SortedSet">SortedSet</a>[<span class="extype" name="scala.Enumeration.Value">Value</span>] with <a href="https://www.scala-lang.org/api/current/scala/collection/SortedSetLike.html#scala.collection.SortedSetLike" class="extype" name="scala.collection.SortedSetLike">SortedSetLike</a>[<span class="extype" name="scala.Enumeration.Value">Value</span>, <span class="extype" name="scala.Enumeration.ValueSet">ValueSet</span>] with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
+    </li></ol>
+            </div>
 
         
 
@@ -421,7 +347,7 @@ for a given Scheduling.">
                 <li name="scala.AnyRef#!=" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="!=(x$1:Any):Boolean"></a><a id="!=(Any):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#!=(x$1:Any):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#!=(x$1:Any):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -437,7 +363,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef###" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="##():Int"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html###():Int" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html###():Int" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -453,7 +379,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#==" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="==(x$1:Any):Boolean"></a><a id="==(Any):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#==(x$1:Any):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#==(x$1:Any):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -466,10 +392,122 @@ for a given Scheduling.">
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties#ServerECThreadCount" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ServerECThreadCount:com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value"></a><a id="ServerECThreadCount:Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#ServerECThreadCount:com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">ServerECThreadCount</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      
+    </li><li name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties#SideEffectECThreadCount" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="SideEffectECThreadCount:com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value"></a><a id="SideEffectECThreadCount:Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#SideEffectECThreadCount:com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">SideEffectECThreadCount</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      
+    </li><li name="scala.Enumeration#Value" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="Value(i:Int,name:String):Enumeration.this.Value"></a><a id="Value(Int,String):Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#Value(i:Int,name:String):Enumeration.this.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">Value</span><span class="params">(<span name="i">i: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>, <span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
+    </li><li name="scala.Enumeration#Value" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="Value(name:String):Enumeration.this.Value"></a><a id="Value(String):Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#Value(name:String):Enumeration.this.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">Value</span><span class="params">(<span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
+    </li><li name="scala.Enumeration#Value" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="Value(i:Int):Enumeration.this.Value"></a><a id="Value(Int):Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#Value(i:Int):Enumeration.this.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">Value</span><span class="params">(<span name="i">i: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>)</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
+    </li><li name="scala.Enumeration#Value" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="Value:Enumeration.this.Value"></a><a id="Value:Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#Value:Enumeration.this.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">Value</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
+    </li><li name="scala.Enumeration#apply" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="apply(x:Int):Enumeration.this.Value"></a><a id="apply(Int):Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#apply(x:Int):Enumeration.this.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">apply</span><span class="params">(<span name="x">x: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>)</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#asInstanceOf[T0]:T0" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#asInstanceOf[T0]:T0" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -485,7 +523,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#clone():Object" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#clone():Object" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -504,26 +542,10 @@ for a given Scheduling.">
     </span>)</span>
               
         </dd></dl></div>
-    </li><li name="com.criteo.cuttle.Workflow#empty" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="empty[S&lt;:com.criteo.cuttle.Scheduling]:com.criteo.cuttle.Workflow[S]"></a><a id="empty[S&lt;:Scheduling]:Workflow[S]"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#empty[S&lt;:com.criteo.cuttle.Scheduling]:com.criteo.cuttle.Workflow[S]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">empty</span><span class="tparams">[<span name="S">S &lt;: <a href="Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a></span>]</span><span class="result">: <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>[<span class="extype" name="com.criteo.cuttle.Workflow.empty.S">S</span>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">An empty <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> (empty graph).</p>
     </li><li name="scala.AnyRef#eq" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="eq(x$1:AnyRef):Boolean"></a><a id="eq(AnyRef):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#eq(x$1:AnyRef):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#eq(x$1:AnyRef):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -539,7 +561,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#equals" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="equals(x$1:Any):Boolean"></a><a id="equals(Any):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#equals(x$1:Any):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#equals(x$1:Any):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -555,7 +577,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#finalize" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="finalize():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#finalize():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#finalize():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -574,10 +596,26 @@ for a given Scheduling.">
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties#fromSystemProperties" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="fromSystemProperties(value:com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value,defaultValue:Int):Int"></a><a id="fromSystemProperties(Value,Int):Int"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#fromSystemProperties(value:com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value,defaultValue:Int):Int" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">fromSystemProperties</span><span class="params">(<span name="value">value: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>, <span name="defaultValue">defaultValue: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>
+      </span>
+      
+      
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#getClass():Class[_]" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#getClass():Class[_]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -593,7 +631,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#hashCode" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="hashCode():Int"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#hashCode():Int" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#hashCode():Int" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -609,7 +647,7 @@ for a given Scheduling.">
     </li><li name="scala.Any#isInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#isInstanceOf[T0]:Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#isInstanceOf[T0]:Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -622,10 +660,26 @@ for a given Scheduling.">
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li name="scala.Enumeration#maxId" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="maxId:Int"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#maxId:Int" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">maxId</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
     </li><li name="scala.AnyRef#ne" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ne(x$1:AnyRef):Boolean"></a><a id="ne(AnyRef):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#ne(x$1:AnyRef):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#ne(x$1:AnyRef):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -638,10 +692,42 @@ for a given Scheduling.">
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li name="scala.Enumeration#nextId" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="nextId:Int"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#nextId:Int" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">var</span>
+      </span>
+      <span class="symbol">
+        <span class="name">nextId</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
+    </li><li name="scala.Enumeration#nextName" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="nextName:Iterator[String]"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#nextName:Iterator[String]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">var</span>
+      </span>
+      <span class="symbol">
+        <span class="name">nextName</span><span class="result">: <span class="extype" name="scala.Iterator">Iterator</span>[<span class="extype" name="scala.Predef.String">String</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
     </li><li name="scala.AnyRef#notify" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="notify():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#notify():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#notify():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -657,7 +743,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#notifyAll" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="notifyAll():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#notifyAll():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#notifyAll():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -670,10 +756,26 @@ for a given Scheduling.">
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li name="scala.Enumeration#readResolve" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="readResolve():AnyRef"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#readResolve():AnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">readResolve</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#synchronized[T0](x$1:=&gt;T0):T0" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#synchronized[T0](x$1:=&gt;T0):T0" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -686,10 +788,10 @@ for a given Scheduling.">
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li name="scala.AnyRef#toString" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+    </li><li name="scala.Enumeration#toString" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="toString():String"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#toString():String" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#toString():String" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -701,11 +803,27 @@ for a given Scheduling.">
         <span class="name">toString</span><span class="params">()</span><span class="result">: <span class="extype" name="java.lang.String">String</span></span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Enumeration → AnyRef → Any</dd></dl></div>
+    </li><li name="scala.Enumeration#values" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="values:Enumeration.this.ValueSet"></a><a id="values:ValueSet"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#values:Enumeration.this.ValueSet" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">values</span><span class="result">: <a href="#ValueSetextendsAbstractSet[Enumeration.this.Value]withSortedSet[Enumeration.this.Value]withSortedSetLike[Enumeration.this.Value,Enumeration.this.ValueSet]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.ValueSet">ValueSet</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#wait():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#wait():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -727,7 +845,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait(x$1:Long,x$2:Int):Unit"></a><a id="wait(Long,Int):Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#wait(x$1:Long,x$2:Int):Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#wait(x$1:Long,x$2:Int):Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -749,7 +867,7 @@ for a given Scheduling.">
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait(x$1:Long):Unit"></a><a id="wait(Long):Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Workflow$.html#wait(x$1:Long):Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#wait(x$1:Long):Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -768,6 +886,22 @@ for a given Scheduling.">
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="scala.Enumeration#withName" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="withName(s:String):Enumeration.this.Value"></a><a id="withName(String):Value"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ThreadPoolSystemProperties$.html#withName(s:String):Enumeration.this.Value" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">withName</span><span class="params">(<span name="s">s: <span class="extype" name="scala.Predef.String">String</span></span>)</span><span class="result">: <a href="#ValueextendsOrdered[Enumeration.this.Value]withSerializable" class="extmbr" name="com.criteo.cuttle.ExecutionContexts.ThreadPoolSystemProperties.Value">Value</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Enumeration</dd></dl></div>
     </li>
               </ol>
             </div>
@@ -778,7 +912,13 @@ for a given Scheduling.">
         </div>
 
         <div id="inheritedMembers">
-        <div class="parent" name="scala.AnyRef">
+        <div class="parent" name="scala.Enumeration">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Enumeration.html#scala.Enumeration" class="extype" name="scala.Enumeration">Enumeration</a></h3>
+            </div><div class="parent" name="scala.Serializable">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></h3>
+            </div><div class="parent" name="java.io.Serializable">
+              <h3>Inherited from <span class="extype" name="java.io.Serializable">Serializable</span></h3>
+            </div><div class="parent" name="scala.AnyRef">
               <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a></h3>
             </div><div class="parent" name="scala.Any">
               <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></h3>

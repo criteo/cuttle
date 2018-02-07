@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.Metrics.MetricProvider</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.Metrics.MetricProvider" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.Metrics.MetricProvider" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.Metrics.MetricProvider</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.Metrics.MetricProvider" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.Metrics.MetricProvider" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -197,7 +197,7 @@
         <span class="kind">trait</span>
       </span>
       <span class="symbol">
-        <span class="name">MetricProvider</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a></span>
+        <span class="name">MetricProvider</span><span class="tparams">[<span name="S">S &lt;: <a href="Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a></span>]</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a></span>
       </span>
       </h4>
 
@@ -262,9 +262,9 @@
         <div class="values members">
               <h3>Abstract Value Members</h3>
               <ol><li name="com.criteo.cuttle.Metrics.MetricProvider#getMetrics" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
-      <a id="getMetrics(jobs:Set[String]):Seq[com.criteo.cuttle.Metrics.Metric]"></a><a id="getMetrics(Set[String]):Seq[Metric]"></a>
+      <a id="getMetrics(jobs:Set[String],workflow:com.criteo.cuttle.Workflow[S]):Seq[com.criteo.cuttle.Metrics.Metric]"></a><a id="getMetrics(Set[String],Workflow[S]):Seq[Metric]"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Metrics$$MetricProvider.html#getMetrics(jobs:Set[String]):Seq[com.criteo.cuttle.Metrics.Metric]" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$MetricProvider.html#getMetrics(jobs:Set[String],workflow:com.criteo.cuttle.Workflow[S]):Seq[com.criteo.cuttle.Metrics.Metric]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -273,7 +273,7 @@
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">getMetrics</span><span class="params">(<span name="jobs">jobs: <span class="extype" name="scala.Predef.Set">Set</span>[<span class="extype" name="scala.Predef.String">String</span>]</span>)</span><span class="result">: <span class="extype" name="scala.Seq">Seq</span>[<a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a>]</span>
+        <span class="name">getMetrics</span><span class="params">(<span name="jobs">jobs: <span class="extype" name="scala.Predef.Set">Set</span>[<span class="extype" name="scala.Predef.String">String</span>]</span>, <span name="workflow">workflow: <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>[<span class="extype" name="com.criteo.cuttle.Metrics.MetricProvider.S">S</span>]</span>)</span><span class="result">: <span class="extype" name="scala.Seq">Seq</span>[<a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a>]</span>
       </span>
       
       

@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.timeseries.TimeSeries</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.timeseries.TimeSeries" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.timeseries.TimeSeries" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.timeseries.TimeSeries</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.timeseries.TimeSeries" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.timeseries.TimeSeries" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -233,7 +233,7 @@ time partitions defined in a calendar.">
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <span class="name">TimeSeries</span><span class="params">(<span name="calendar">calendar: <a href="TimeSeriesCalendar.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesCalendar">TimeSeriesCalendar</a></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="maxPeriods">maxPeriods: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a> = <span class="symbol">1</span></span>)</span><span class="result"> extends <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+        <span class="name">TimeSeries</span><span class="params">(<span name="calendar">calendar: <a href="TimeSeriesCalendar.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesCalendar">TimeSeriesCalendar</a></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="end">end: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>] = <span class="symbol">None</span></span>, <span name="maxPeriods">maxPeriods: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a> = <span class="symbol">1</span></span>)</span><span class="result"> extends <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       </h4>
 
@@ -292,9 +292,9 @@ time partitions defined in a calendar.">
         <div id="constructors" class="members">
               <h3>Instance Constructors</h3>
               <ol><li name="com.criteo.cuttle.timeseries.TimeSeries#&lt;init&gt;" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="&lt;init&gt;(calendar:com.criteo.cuttle.timeseries.TimeSeriesCalendar,start:java.time.Instant,maxPeriods:Int):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="&lt;init&gt;:TimeSeries"></a>
+      <a id="&lt;init&gt;(calendar:com.criteo.cuttle.timeseries.TimeSeriesCalendar,start:java.time.Instant,end:Option[java.time.Instant],maxPeriods:Int):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="&lt;init&gt;:TimeSeries"></a>
       <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/timeseries/TimeSeries.html#&lt;init&gt;(calendar:com.criteo.cuttle.timeseries.TimeSeriesCalendar,start:java.time.Instant,maxPeriods:Int):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
+      <a href="../../../../com/criteo/cuttle/timeseries/TimeSeries.html#&lt;init&gt;(calendar:com.criteo.cuttle.timeseries.TimeSeriesCalendar,start:java.time.Instant,end:Option[java.time.Instant],maxPeriods:Int):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -303,7 +303,7 @@ time partitions defined in a calendar.">
         <span class="kind">new</span>
       </span>
       <span class="symbol">
-        <span class="name">TimeSeries</span><span class="params">(<span name="calendar">calendar: <a href="TimeSeriesCalendar.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesCalendar">TimeSeriesCalendar</a></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="maxPeriods">maxPeriods: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a> = <span class="symbol">1</span></span>)</span>
+        <span class="name">TimeSeries</span><span class="params">(<span name="calendar">calendar: <a href="TimeSeriesCalendar.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesCalendar">TimeSeriesCalendar</a></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="end">end: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>] = <span class="symbol">None</span></span>, <span name="maxPeriods">maxPeriods: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a> = <span class="symbol">1</span></span>)</span>
       </span>
       
       <p class="shortcomment cmt"></p><div class="fullcomment"><div class="comment cmt"></div><dl class="paramcmts block"><dt class="param">calendar</dt><dd class="cmt"><p>The calendar partitions configuration for this job (for example hourly or daily).</p></dd><dt class="param">start</dt><dd class="cmt"><p>The start instant at which this job must start being executed.</p></dd><dt class="param">maxPeriods</dt><dd class="cmt"><p>The maximum number of partitions the job can handle at once. If this is defined
@@ -462,6 +462,22 @@ hourly job B with a 3 hours time offset).</p></div><dl class="attributes block">
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="com.criteo.cuttle.timeseries.TimeSeries#end" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="end:Option[java.time.Instant]"></a><a id="end:Option[Instant]"></a>
+      <span class="permalink">
+      <a href="../../../../com/criteo/cuttle/timeseries/TimeSeries.html#end:Option[java.time.Instant]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">end</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>]</span>
+      </span>
+      
+      
     </li><li name="scala.AnyRef#eq" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="eq(x$1:AnyRef):Boolean"></a><a id="eq(AnyRef):Boolean"></a>
       <span class="permalink">

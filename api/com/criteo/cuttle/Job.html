@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.Job</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.Job" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.Job" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.Job</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.Job" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.Job" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -222,9 +222,15 @@ open for any read only operation.">
                           CuttleProject
                         </a>
                       </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="class" href="DBLocation.html" title="Configuration of JDBC endpoint."></a>
+                        <a href="DBLocation.html" title="Configuration of JDBC endpoint.">
+                          DBLocation
+                        </a>
+                      </li><li class="current-entities indented3">
                         <a class="object" href="DatabaseConfig$.html" title="Utilities for DatabaseConfig."></a>
-                        <a class="class" href="DatabaseConfig.html" title="Configuration for the MySQL database used by cuttle."></a>
-                        <a href="DatabaseConfig.html" title="Configuration for the MySQL database used by cuttle.">
+                        <a class="class" href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle."></a>
+                        <a href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle.">
                           DatabaseConfig
                         </a>
                       </li><li class="current-entities indented3">
@@ -238,6 +244,12 @@ open for any read only operation.">
                         <a class="object" href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled."></a>
                         <a href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled.">
                           ExecutionCancelled
+                        </a>
+                      </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="object" href="ExecutionContexts$.html" title=""></a>
+                        <a href="ExecutionContexts$.html" title="">
+                          ExecutionContexts
                         </a>
                       </li><li class="current-entities indented3">
                         <span class="separator"></span>
@@ -260,7 +272,7 @@ given Executions.">
                           Executor
                         </a>
                       </li><li class="current-entities indented3">
-                        <span class="separator"></span>
+                        <a class="object" href="Job$.html" title=""></a>
                         <a class="class" href="" title="The job SideEffect is the most important part as it represents the real
 job logic to execute."></a>
                         <a href="" title="The job SideEffect is the most important part as it represents the real
@@ -326,14 +338,16 @@ for a given Scheduling.">
           <div id="content">
             <body class="class type">
       <div id="definition">
-        <div class="big-circle class">c</div>
+        <a href="Job$.html" title="See companion object"><div class="big-circle class-companion-object">c</div></a>
         <p id="owner"><a href="../../index.html" class="extype" name="com">com</a>.<a href="../index.html" class="extype" name="com.criteo">criteo</a>.<a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></p>
-        <h1>Job<span class="permalink">
+        <h1><a href="Job$.html" title="See companion object">Job</a><span class="permalink">
       <a href="../../../com/criteo/cuttle/Job.html" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span></h1>
-        <h3><span class="morelinks"></span></h3>
+        <h3><span class="morelinks"><div>
+            Companion <a href="Job$.html" title="See companion object">object Job</a>
+          </div></span></h3>
       </div>
 
       <h4 id="signature" class="signature">
@@ -758,23 +772,6 @@ default dependency descriptors implicitly provided by the <a href="Scheduling.ht
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li name="com.criteo.cuttle.Job#run" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="run(execution:com.criteo.cuttle.Execution[S]):scala.concurrent.Future[com.criteo.cuttle.Completed]"></a><a id="run(Execution[S]):Future[Completed]"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/Job.html#run(execution:com.criteo.cuttle.Execution[S]):scala.concurrent.Future[com.criteo.cuttle.Completed]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">run</span><span class="params">(<span name="execution">execution: <a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>[<span class="extype" name="com.criteo.cuttle.Job.S">S</span>]</span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/concurrent/Future.html#scala.concurrent.Future" class="extype" name="scala.concurrent.Future">Future</a>[<a href="Completed.html" class="extype" name="com.criteo.cuttle.Completed">Completed</a>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">Run this job for the given <a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Run this job for the given <a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>.
-</p></div><dl class="paramcmts block"><dt class="param">execution</dt><dd class="cmt"><p>The execution instance.</p></dd><dt>returns</dt><dd class="cmt"><p>A future indicating the execution result (Failed future means failed execution).</p></dd></dl></div>
     </li><li name="com.criteo.cuttle.Job#scheduling" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="scheduling:S"></a>
       <span class="permalink">

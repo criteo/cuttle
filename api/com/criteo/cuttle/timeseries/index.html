@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.timeseries</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.timeseries" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.timeseries" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.timeseries</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.timeseries" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.timeseries" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -383,7 +383,7 @@ will fail if the date literal cannot be parsed into a UTC instant.</p><pre><span
         <a title="Configure a Job as a TimeSeries job,
 " href="TimeSeries.html">
               <span class="name">TimeSeries</span>
-            </a><span class="params">(<span name="calendar">calendar: <a href="TimeSeriesCalendar.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesCalendar">TimeSeriesCalendar</a></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="maxPeriods">maxPeriods: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a> = <span class="symbol">1</span></span>)</span><span class="result"> extends <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+            </a><span class="params">(<span name="calendar">calendar: <a href="TimeSeriesCalendar.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesCalendar">TimeSeriesCalendar</a></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="end">end: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>] = <span class="symbol">None</span></span>, <span name="maxPeriods">maxPeriods: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a> = <span class="symbol">1</span></span>)</span><span class="result"> extends <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">Configure a <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> as a <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> job,
@@ -447,13 +447,15 @@ the <a href="TimeSeriesScheduler.html" class="extype" name="com.criteo.cuttle.ti
         <a title="A TimeSeriesDependency qualify the dependency between 2 Jobs in a
 TimeSeries Workflow." href="TimeSeriesDependency.html">
               <span class="name">TimeSeriesDependency</span>
-            </a><span class="params">(<span name="offset">offset: <span class="extype" name="java.time.Duration">Duration</span></span>)</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+            </a><span class="params">(<span name="offsetLow">offsetLow: <span class="extype" name="java.time.Duration">Duration</span></span>, <span name="offsetHigh">offsetHigh: <span class="extype" name="java.time.Duration">Duration</span></span>)</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <p class="shortcomment cmt">A <a href="TimeSeriesDependency.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesDependency">TimeSeriesDependency</a> qualify the dependency between 2 <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Jobs</a> in a
 <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> <a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>.</p><div class="fullcomment"><div class="comment cmt"><p>A <a href="TimeSeriesDependency.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeriesDependency">TimeSeriesDependency</a> qualify the dependency between 2 <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Jobs</a> in a
-<a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> <a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>. It can be configured to <code>offset</code> the dependency.
-</p></div><dl class="paramcmts block"><dt class="param">offset</dt><dd class="cmt"><p>Time offest to apply when computing the partitions dependencies.</p></dd></dl></div>
+<a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> <a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>. It can be configured to <code>offset</code> the dependency.</p><p>Supposing job1 depends on job2 with dependency descriptor (offsetLow, offsetHigh).
+Then to execute period (low, high) of job1, we need period
+(low+offsetLow, high+offsetHigh) of job2.
+</p></div><dl class="paramcmts block"><dt class="param">offsetLow</dt><dd class="cmt"><p>the offset for the low end of the duration</p></dd><dt class="param">offsetHigh</dt><dd class="cmt"><p>the offset for the high end of the duration</p></dd></dl></div>
     </li><li name="com.criteo.cuttle.timeseries.TimeSeriesScheduler" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="TimeSeriesSchedulerextendsScheduler[com.criteo.cuttle.timeseries.TimeSeries]withTimeSeriesAppwithProductwithSerializable"></a><a id="TimeSeriesScheduler:TimeSeriesScheduler"></a>
       <span class="permalink">
@@ -489,9 +491,9 @@ or not and an audit log of backfills is kept.
               <h3>Value Members</h3>
               <ol>
                 <li name="com.criteo.cuttle.timeseries#daily" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="daily(start:java.time.Instant,tz:java.time.ZoneId):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="daily(Instant,ZoneId):TimeSeries"></a>
+      <a id="daily(tz:java.time.ZoneId,start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="daily(ZoneId,Instant,Option[Instant]):TimeSeries"></a>
       <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/timeseries/index.html#daily(start:java.time.Instant,tz:java.time.ZoneId):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
+      <a href="../../../../com/criteo/cuttle/timeseries/index.html#daily(tz:java.time.ZoneId,start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -500,14 +502,15 @@ or not and an audit log of backfills is kept.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">daily</span><span class="params">(<span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="tz">tz: <span class="extype" name="java.time.ZoneId">ZoneId</span></span>)</span><span class="result">: <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a></span>
+        <span class="name">daily</span><span class="params">(<span name="tz">tz: <span class="extype" name="java.time.ZoneId">ZoneId</span></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="end">end: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>] = <span class="symbol">None</span></span>)</span><span class="result">: <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a></span>
       </span>
       
       <p class="shortcomment cmt">Defines an daily calendar starting at the specified instant, and using the specified time zone.</p><div class="fullcomment"><div class="comment cmt"><p>Defines an daily calendar starting at the specified instant, and using the specified time zone.
 Days are defined as complete calendar days starting a midnight and during 24 hours. If the specified
 timezone defines lightsaving it is possible that some days are 23 or 25 horus thus.</p><p>If the start instant does not match a round day (midnight), the calendar
-will actually start a the next day immediatly following the start instant.
-</p></div><dl class="paramcmts block"><dt class="param">start</dt><dd class="cmt"><p>The instant this calendar will start.</p></dd><dt class="param">tz</dt><dd class="cmt"><p>The time zone for which these _days_ are defined.</p></dd></dl></div>
+will actually start the next day immediatly following the start instant.</p><p>The optional end instant allows to specify a finite calendar that will stop on the
+end instant if it is a round day or at the start of the day otherwise.
+</p></div><dl class="paramcmts block"><dt class="param">tz</dt><dd class="cmt"><p>The time zone for which these _days_ are defined.</p></dd><dt class="param">start</dt><dd class="cmt"><p>The instant this calendar will start.</p></dd><dt class="param">end</dt><dd class="cmt"><p>The optional instant this calendar will end.</p></dd></dl></div>
     </li><li name="com.criteo.cuttle.timeseries#defaultDependencyDescriptor" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="defaultDependencyDescriptor:com.criteo.cuttle.timeseries.TimeSeriesDependency"></a><a id="defaultDependencyDescriptor:TimeSeriesDependency"></a>
       <span class="permalink">
@@ -524,11 +527,11 @@ will actually start a the next day immediatly following the start instant.
       </span>
       
       <p class="shortcomment cmt">Defines an implicit default dependency descriptor for <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> graphs.</p><div class="fullcomment"><div class="comment cmt"><p>Defines an implicit default dependency descriptor for <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a> graphs.
-The default is <code>offset = 0</code>.</p></div></div>
+The default is <code>offsetLow = 0, offsetHigh = 0</code>.</p></div></div>
     </li><li name="com.criteo.cuttle.timeseries#hourly" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="hourly(start:java.time.Instant):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="hourly(Instant):TimeSeries"></a>
+      <a id="hourly(start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="hourly(Instant,Option[Instant]):TimeSeries"></a>
       <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/timeseries/index.html#hourly(start:java.time.Instant):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
+      <a href="../../../../com/criteo/cuttle/timeseries/index.html#hourly(start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -537,17 +540,18 @@ The default is <code>offset = 0</code>.</p></div></div>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">hourly</span><span class="params">(<span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>)</span><span class="result">: <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a></span>
+        <span class="name">hourly</span><span class="params">(<span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="end">end: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>] = <span class="symbol">None</span></span>)</span><span class="result">: <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a></span>
       </span>
       
       <p class="shortcomment cmt">Defines an hourly calendar starting at the specified instant.</p><div class="fullcomment"><div class="comment cmt"><p>Defines an hourly calendar starting at the specified instant. Hours are defined as
 complete calendar hours starting at 00 minutes, 00 seconds.</p><p>If the start instant does not match a round hour (0 minutes, 0 seconds), the calendar
-will actually start a the next hour immediatly following the start instant.
-</p></div><dl class="paramcmts block"><dt class="param">start</dt><dd class="cmt"><p>The instant this calendar will start.</p></dd></dl></div>
+will actually start the next hour immediatly following the start instant.</p><p>The optional end instant allows to specify a finite calendar that will stop on the
+end instant if it is a round hour or at the start of the hour otherwise.
+</p></div><dl class="paramcmts block"><dt class="param">start</dt><dd class="cmt"><p>The instant this calendar will start.</p></dd><dt class="param">end</dt><dd class="cmt"><p>The optional instant this calendar will end.</p></dd></dl></div>
     </li><li name="com.criteo.cuttle.timeseries#monthly" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="monthly(start:java.time.Instant,tz:java.time.ZoneId):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="monthly(Instant,ZoneId):TimeSeries"></a>
+      <a id="monthly(tz:java.time.ZoneId,start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="monthly(ZoneId,Instant,Option[Instant]):TimeSeries"></a>
       <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/timeseries/index.html#monthly(start:java.time.Instant,tz:java.time.ZoneId):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
+      <a href="../../../../com/criteo/cuttle/timeseries/index.html#monthly(tz:java.time.ZoneId,start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -556,13 +560,14 @@ will actually start a the next hour immediatly following the start instant.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">monthly</span><span class="params">(<span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="tz">tz: <span class="extype" name="java.time.ZoneId">ZoneId</span></span>)</span><span class="result">: <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a></span>
+        <span class="name">monthly</span><span class="params">(<span name="tz">tz: <span class="extype" name="java.time.ZoneId">ZoneId</span></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="end">end: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>] = <span class="symbol">None</span></span>)</span><span class="result">: <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a></span>
       </span>
       
       <p class="shortcomment cmt">Defines a monthly calendar.</p><div class="fullcomment"><div class="comment cmt"><p>Defines a monthly calendar. Months are defined as complete calendar months starting on the 1st day and
 during 28,29,30 or 31 days. The specified time zone is used to define the exact month start instant.</p><p>If the start instant does not match a round month (1st at midnight), the calendar
-will actually start a the next month immediatly following the start instant.
-</p></div><dl class="paramcmts block"><dt class="param">start</dt><dd class="cmt"><p>The instant this calendar will start.</p></dd><dt class="param">tz</dt><dd class="cmt"><p>The time zone for which these months are defined.</p></dd></dl></div>
+will actually start the next month immediatly following the start instant.</p><p>The optional end instant allows to specify a finite calendar that will stop on the
+end instant if it is a round month or at the start of the month otherwise.
+</p></div><dl class="paramcmts block"><dt class="param">tz</dt><dd class="cmt"><p>The time zone for which these months are defined.</p></dd><dt class="param">start</dt><dd class="cmt"><p>The instant this calendar will start.</p></dd><dt class="param">end</dt><dd class="cmt"><p>The optional instant this calendar will end.</p></dd></dl></div>
     </li><li name="com.criteo.cuttle.timeseries#safeLiteralDate" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="safeLiteralDate(c:scala.reflect.macros.blackbox.Context)(args:c.Expr[Any]*):c.Expr[java.time.Instant]"></a><a id="safeLiteralDate(Context)(scala.reflect.macros.blackbox.Context.Expr[Any]*):scala.reflect.macros.blackbox.Context.Expr[Instant]"></a>
       <span class="permalink">
@@ -579,6 +584,27 @@ will actually start a the next month immediatly following the start instant.
       </span>
       
       
+    </li><li name="com.criteo.cuttle.timeseries#weekly" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="weekly(tz:java.time.ZoneId,start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries"></a><a id="weekly(ZoneId,Instant,Option[Instant]):TimeSeries"></a>
+      <span class="permalink">
+      <a href="../../../../com/criteo/cuttle/timeseries/index.html#weekly(tz:java.time.ZoneId,start:java.time.Instant,end:Option[java.time.Instant]):com.criteo.cuttle.timeseries.TimeSeries" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">weekly</span><span class="params">(<span name="tz">tz: <span class="extype" name="java.time.ZoneId">ZoneId</span></span>, <span name="start">start: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="end">end: <a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>] = <span class="symbol">None</span></span>)</span><span class="result">: <a href="TimeSeries.html" class="extype" name="com.criteo.cuttle.timeseries.TimeSeries">TimeSeries</a></span>
+      </span>
+      
+      <p class="shortcomment cmt">Defines a weekly calendar.</p><div class="fullcomment"><div class="comment cmt"><p>Defines a weekly calendar. Weeks are defined as complete calendar weeks starting on a specific
+day of the week at midnight and lasting 7 days. The specified time zone is used to define the exact
+week start instant.</p><p>The start instant is used to define the first day of the week for the weeks.</p><p>If the start instant does not match a round week (midnight), the calendar
+will actually start the next week immediately following the start instant.</p><p>The optional end instant allows to specify a finite calendar that will stop on the
+end instant if it is a round week or at the start of the week otherwise.
+</p></div><dl class="paramcmts block"><dt class="param">tz</dt><dd class="cmt"><p>The time zone for which these _weeks_ are defined.</p></dd><dt class="param">start</dt><dd class="cmt"><p>The instant this calendar will start.</p></dd><dt class="param">end</dt><dd class="cmt"><p>The optional instant this calendar will end.</p></dd></dl></div>
     </li><li name="com.criteo.cuttle.timeseries.TimeSeries" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="TimeSeries"></a><a id="TimeSeries:TimeSeries"></a>
       <span class="permalink">

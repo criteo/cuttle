@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.SchedulingContext</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.SchedulingContext" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.SchedulingContext" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.SchedulingContext</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.SchedulingContext" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.SchedulingContext" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -222,9 +222,15 @@ open for any read only operation.">
                           CuttleProject
                         </a>
                       </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="class" href="DBLocation.html" title="Configuration of JDBC endpoint."></a>
+                        <a href="DBLocation.html" title="Configuration of JDBC endpoint.">
+                          DBLocation
+                        </a>
+                      </li><li class="current-entities indented3">
                         <a class="object" href="DatabaseConfig$.html" title="Utilities for DatabaseConfig."></a>
-                        <a class="class" href="DatabaseConfig.html" title="Configuration for the MySQL database used by cuttle."></a>
-                        <a href="DatabaseConfig.html" title="Configuration for the MySQL database used by cuttle.">
+                        <a class="class" href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle."></a>
+                        <a href="DatabaseConfig.html" title="Configuration for the MySQL database used by Cuttle.">
                           DatabaseConfig
                         </a>
                       </li><li class="current-entities indented3">
@@ -238,6 +244,12 @@ open for any read only operation.">
                         <a class="object" href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled."></a>
                         <a href="ExecutionCancelled$.html" title="Used to fail an execution Future when the execution has been cancelled.">
                           ExecutionCancelled
+                        </a>
+                      </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="object" href="ExecutionContexts$.html" title=""></a>
+                        <a href="ExecutionContexts$.html" title="">
+                          ExecutionContexts
                         </a>
                       </li><li class="current-entities indented3">
                         <span class="separator"></span>
@@ -260,7 +272,7 @@ given Executions.">
                           Executor
                         </a>
                       </li><li class="current-entities indented3">
-                        <span class="separator"></span>
+                        <a class="object" href="Job$.html" title=""></a>
                         <a class="class" href="Job.html" title="The job SideEffect is the most important part as it represents the real
 job logic to execute."></a>
                         <a href="Job.html" title="The job SideEffect is the most important part as it represents the real
@@ -428,7 +440,7 @@ contain the time partition for which the job is running.</p></div><dl class="att
       <p class="shortcomment cmt">Compare to another context.</p><div class="fullcomment"><div class="comment cmt"><p>Compare to another context. In the current design only context of the same types will be
 compared to each other because a workflow/project is defined for a single <a href="Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> type.</p></div></div>
     </li><li name="com.criteo.cuttle.SchedulingContext#log" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
-      <a id="log:doobie.imports.ConnectionIO[String]"></a><a id="log:ConnectionIO[String]"></a>
+      <a id="log:doobie.imports.ConnectionIO[String]"></a>
       <span class="permalink">
       <a href="../../../com/criteo/cuttle/SchedulingContext.html#log:doobie.imports.ConnectionIO[String]" title="Permalink">
         <i class="material-icons"></i>
@@ -439,7 +451,7 @@ compared to each other because a workflow/project is defined for a single <a hre
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">log</span><span class="result">: <span class="extype" name="doobie.imports.ConnectionIO">ConnectionIO</span>[<span class="extype" name="scala.Predef.String">String</span>]</span>
+        <span class="name">log</span><span class="result">: <span class="extype" name="doobie.free.Types.ConnectionIO">doobie.imports.ConnectionIO</span>[<span class="extype" name="scala.Predef.String">String</span>]</span>
       </span>
       
       <p class="shortcomment cmt">The doobie effect needed to serialize the context to the database.</p>

@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.2 - com.criteo.cuttle.platforms</title>
-          <meta name="description" content="cuttle 0.2 - com.criteo.cuttle.platforms" />
-          <meta name="keywords" content="cuttle 0.2 com.criteo.cuttle.platforms" />
+          <title>cuttle 0.3.0 - com.criteo.cuttle.platforms</title>
+          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.platforms" />
+          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.platforms" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.2</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -185,7 +185,11 @@
             </a>
       </span>
       
-      <p class="shortcomment cmt">Allow to fork process locally in a managed way.</p><div class="fullcomment"><div class="comment cmt"><p>Allow to fork process locally in a managed way.</p><p>It provides the <code>sh</code> interpolator that you can use to fork shell scripts:</p><pre>sh<span class="lit">""</span><span class="lit">"hdfs dfs -cp /from /to"</span><span class="lit">""</span>.exec()</pre></div></div>
+      <p class="shortcomment cmt">Allow to fork process locally in a managed way.</p><div class="fullcomment"><div class="comment cmt"><p>Allow to fork process locally in a managed way.</p><p>It provides the <code>exec</code> interpolator that you can use to fork shell scripts:</p><pre>exec<span class="lit">""</span><span class="lit">"hdfs dfs -cp /from /to"</span><span class="lit">""</span>()</pre><p>The script your provide will be forked into another process.
+Note that if you provide several commands separated by <code>;' only the first one will be forked
+and the other ones will be ignored.</code></p><p>If you really need to run several commands, you can use one of the followed ways:</p><p>1. Chain multiple execs in a for-comprehension. Because of platform mechanism
+it will require several platform allocations to run completely.</p><p>2. Wrap it in one <code>sh -c' _In this case we cannot guarantee that
+all process spawned inside this fork will be successfully killed when we kill the parent process._</code></p></div></div>
     </li><li class="current-entities indented4">
                         <span class="separator"></span>
                         <a class="class" href="ExecutionPool.html" title="An execution pool backed by a priority queue."></a>
