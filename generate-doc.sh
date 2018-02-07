@@ -1,4 +1,4 @@
-git checkout guillaume/doc
+git checkout master
 sbt "++2.12.3" unidoc -DdevMode=true
 sbt "++2.12.3" examples/compile -DgenerateExamples -DdevMode=true
 git checkout gh-pages
