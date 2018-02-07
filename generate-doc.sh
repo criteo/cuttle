@@ -11,4 +11,3 @@ cp -rf examples0 examples
 rm -rf examples0
 git add api examples
 git commit -m "Update documentation"
-git push origin gh-pages
