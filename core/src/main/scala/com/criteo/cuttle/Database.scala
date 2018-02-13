@@ -195,7 +195,7 @@ private[cuttle] object Database {
     val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
 
     val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
-      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false"
+      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true"
 
     connections.getOrElseUpdate(
       dbConfig, {

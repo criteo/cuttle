@@ -216,6 +216,12 @@ case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Back
     extends SchedulingContext {
 
   def toJson: Json = this.asJson
+  def toId: String = {
+    val priority = backfill.fold(0)(_.priority)
+    val bytesPriority = BigInt(priority).toByteArray
+    val paddedPriority: Array[Byte] = bytesPriority.reverse.padTo(10, '\u0000'.toByte).reverse
+    s"${start}${paddedPriority.mkString}${UUID.randomUUID().toString}"
+  }
 
   def log: ConnectionIO[String] = Database.serializeContext(this)
 
@@ -414,7 +420,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
     logger.info("Workflow is valid")
 
+    logger.info("Applying migrations to database")
     Database.doSchemaUpdates.transact(xa).unsafeRunSync
+    logger.info("Database up-to-date")
 
     Database
       .deserializeState(workflow.vertices)
