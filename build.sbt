@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.3.0"
+val VERSION = "0.3.1"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -221,9 +221,16 @@ lazy val cuttle =
             override def out(s: => String): Unit = streams0.log.info(s)
           }
           logger.out(s"Generating UI assets to $webpackOutputDir...")
-          assert(s"yarn install" ! logger == 0, "yarn failed")
+          val operatingSystem = System.getProperty("os.name").toLowerCase
+          if (operatingSystem.indexOf("win") >= 0) {
+            val yarnJsPath = ("where yarn.js" !!).trim()
+            assert(s"""node "$yarnJsPath" install""" ! logger == 0, "yarn failed")
+          }
+          else {
+            assert("yarn install" ! logger == 0, "yarn failed")
+          }
           logger.out("Running webpack...")
-          assert(s"./node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail" ! logger == 0,
+          assert(s"node node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail" ! logger == 0,
                  "webpack failed")
           listFiles(webpackOutputDir)
         }
