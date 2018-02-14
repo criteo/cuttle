@@ -103,7 +103,8 @@ object TimeSeriesCalendar {
     * @param firstDay The first day of the week for these weeks.
     */
   case class Weekly(tz: ZoneId, firstDay: DayOfWeek) extends TimeSeriesCalendar {
-    private def truncateToWeek(t: ZonedDateTime) = t.`with`(TemporalAdjusters.previousOrSame(firstDay)).truncatedTo(DAYS)
+    private def truncateToWeek(t: ZonedDateTime) =
+      t.`with`(TemporalAdjusters.previousOrSame(firstDay)).truncatedTo(DAYS)
     def truncate(t: Instant) = truncateToWeek(t.atZone(tz)).toInstant
     def next(t: Instant) = truncateToWeek(t.atZone(tz)).plus(1, WEEKS).toInstant
   }
@@ -216,6 +217,12 @@ case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Back
     extends SchedulingContext {
 
   def toJson: Json = this.asJson
+  def toId: String = {
+    val priority = backfill.fold(0)(_.priority)
+    val bytesPriority = BigInt(priority).toByteArray
+    val paddedPriority: Array[Byte] = bytesPriority.reverse.padTo(10, '\u0000'.toByte).reverse
+    s"${start}${paddedPriority.mkString}${UUID.randomUUID().toString}"
+  }
 
   def log: ConnectionIO[String] = Database.serializeContext(this)
 
@@ -414,7 +421,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
     logger.info("Workflow is valid")
 
+    logger.info("Applying migrations to database")
     Database.doSchemaUpdates.transact(xa).unsafeRunSync
+    logger.info("Database up-to-date")
 
     Database
       .deserializeState(workflow.vertices)
@@ -712,9 +721,10 @@ private[timeseries] object TimeSeriesUtils {
   val UTC: ZoneId = ZoneId.of("UTC")
 
   /**
-    * Validation of cycle absence in workflow DAG and an absence the (execution, dependency) tuple that execution has
-    * a start date after an execution's start date.
-    * It's implemented based on Kahn's algorithm.
+    * Validation of:
+    * - cycle absence in workflow DAG, implemented based on Kahn's algorithm
+    * - absence the (child, parent) tuple that child has a start date before parent's start date
+    * - absence of jobs with the same id
     * @param workflow workflow to be validated
     * @return either a validation errors list or an unit
     */
@@ -746,6 +756,12 @@ private[timeseries] object TimeSeriesUtils {
     }
 
     if (edges.nonEmpty) errors += "Workflow has at least one cycle"
+
+    workflow.vertices.groupBy(_.id).collect {
+      case (id: String, jobs) if jobs.size > 1 => id
+    } foreach (id => {
+      errors += s"Id $id is used by more than 1 job"
+    })
 
     if (errors.nonEmpty) Left(errors.toList)
     else Right(())

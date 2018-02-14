@@ -81,4 +81,22 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     assert(validationRes.isLeft, "workflow passed start date validation")
     assert(validationRes.left.get === List("Workflow has at least one cycle"), "errors messages are bad")
   }
+
+  test("it shouldn't validate a workflow that contains jobs with same ids") {
+    val id = "badJob"
+    val badJob = Job(id, hourly(date"2117-03-25T02:00:00Z"))(completed)
+    val badJobClone = Job(id, hourly(date"2117-03-24T02:00:00Z"))(completed)
+    val workflowParentChild = badJob dependsOn badJobClone
+    val workflowSiblings = badJob and badJobClone
+
+    val validationParentChild = TimeSeriesUtils.validate(workflowParentChild)
+    assert(validationParentChild.isLeft, "it means that workflow passed duplicate id validation")
+    assert(validationParentChild.left.get === List(s"Id badJob is used by more than 1 job"),
+           "it means that errors messages are bad")
+
+    val validationSiblings = TimeSeriesUtils.validate(workflowSiblings)
+    assert(validationSiblings.isLeft, "it means that workflow passed duplicate id validation")
+    assert(validationSiblings.left.get === List(s"Id badJob is used by more than 1 job"),
+           "it means that errors messages are bad")
+  }
 }
