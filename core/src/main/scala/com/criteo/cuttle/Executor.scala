@@ -349,6 +349,10 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   // signals whether the instance is shutting down
   private val isShuttingDown: Ref[Boolean] = Ref(false)
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
+  private val executionsCounters: Ref[Counter[Long]] = Ref(Counter[Long](
+    "cuttle_executions_total",
+    help = "The number of finished executions that we have in concrete states by job and by tag"
+  ))
 
   // executions that failed recently and are now running
   private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] =
@@ -658,6 +662,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             atomic { implicit txn =>
               runningState -= execution
               recentFailures -= (execution.job -> execution.context)
+              updateFinishedExecutionCounters(execution, "success")
             }
           case Failure(e) =>
             val stacktrace = new StringWriter()
@@ -666,6 +671,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             execution.streams.error(stacktrace.toString)
             atomic {
               implicit tx =>
+                updateFinishedExecutionCounters(execution, "failure")
                 // retain jobs in recent failures if last failure happened in [now - retryStrategy.retryWindow, now]
                 recentFailures.retain {
                   case (_, (retryExecution, failingJob)) =>
@@ -702,6 +708,16 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             }
         })
 
+  private[cuttle] def updateFinishedExecutionCounters(execution: Execution[S], status: String): Unit =
+    atomic { implicit txn =>
+      val tagsLabel = if (execution.job.tags.nonEmpty)
+        Set("tags" -> execution.job.tags.map(_.name).mkString(","))
+      else
+        Set.empty
+      executionsCounters() = executionsCounters().inc(
+        Set("type" -> status, "job_id" -> execution.job.id) ++ tagsLabel
+      )
+    }
 
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
@@ -923,7 +939,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
     statMetrics ++
       Seq(getMetricsByTag(running, waiting, paused, failing)) ++
-      Seq(getMetricsByJob(running, waiting, paused, failing))
+      Seq(getMetricsByJob(running, waiting, paused, failing)) ++
+      Seq(executionsCounters.single())
   }
 
   /**

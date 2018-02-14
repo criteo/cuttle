@@ -7,32 +7,39 @@ import scala.concurrent.Future
 import cats.effect.IO
 import com.mysql.cj.jdbc.PreparedStatement
 import doobie.util.transactor.Transactor
+import org.mockito.Matchers._
+import org.mockito.Mockito._
 import org.scalatest.FunSuite
 
 import com.criteo.cuttle.ExecutionContexts.Implicits.sideEffectExecutionContext
 import com.criteo.cuttle.ExecutionContexts._
 import com.criteo.cuttle.Metrics.Prometheus
-import org.mockito.Mockito._
-import org.mockito.Matchers._
 
 class ExecutorSpec extends FunSuite with TestScheduling {
-  val connection: Connection = {
-    val mockConnection = mock(classOf[Connection])
-    val statement = mock(classOf[PreparedStatement])
-    val resultSet = mock(classOf[ResultSet])
-    when(mockConnection.prepareStatement(any(classOf[String]))).thenReturn(statement)
-    when(statement.executeQuery()).thenReturn(resultSet)
-    mockConnection
-  }
+  test("Executor should return metrics aggregated by job and tag") {
+    val connection: Connection = {
+      val mockConnection = mock(classOf[Connection])
+      val statement = mock(classOf[PreparedStatement])
+      val resultSet = mock(classOf[ResultSet])
+      when(mockConnection.prepareStatement(any(classOf[String]))).thenReturn(statement)
+      when(statement.executeQuery()).thenReturn(resultSet)
+      mockConnection
+    }
 
-  private val testExecutor = new Executor[TestScheduling](
+    val testExecutor = new Executor[TestScheduling](
       Seq.empty,
       xa = Transactor.fromConnection[IO](connection).copy(strategy0 = doobie.util.transactor.Strategy.void),
       logger,
       "test_project"
     )(RetryStrategy.ExponentialBackoffRetryStrategy)
 
-  test("Executor should return metrics aggregated by job and tag") {
+    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooJob), "success")
+    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooJob), "success")
+    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(untaggedJob), "success")
+    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooBarJob), "success")
+    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(untaggedJob), "failure")
+    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooBarJob), "failure")
+
     val metrics = Prometheus.serialize(
       testExecutor.getMetrics(Set("jobA"))(
         getStateAtomic = _ => {
@@ -58,6 +65,8 @@ class ExecutorSpec extends FunSuite with TestScheduling {
         )
       )
     )
+
+    println(metrics)
 
     val expectedMetrics =
       """# HELP cuttle_scheduler_stat_count The number of jobs that we have in concrete states
@@ -87,6 +96,13 @@ class ExecutorSpec extends FunSuite with TestScheduling {
          |cuttle_scheduler_stat_count_by_job {job="foo_bar_job", type="paused"} 1
          |cuttle_scheduler_stat_count_by_job {job="foo_bar_job", type="failing"} 2
          |cuttle_scheduler_stat_count_by_job {job="untagged_job", type="paused"} 1
+         |# HELP cuttle_executions_total The number of finished executions that we have in concrete states by job and by tag
+         |# TYPE cuttle_executions_total counter
+         |cuttle_executions_total {type="success", job_id="foo_bar_job", tags="foo,bar"} 1
+         |cuttle_executions_total {type="success", job_id="foo_job", tags="foo"} 2
+         |cuttle_executions_total {type="failure", job_id="foo_bar_job", tags="foo,bar"} 1
+         |cuttle_executions_total {type="success", job_id="untagged_job"} 1
+         |cuttle_executions_total {type="failure", job_id="untagged_job"} 1
          |""".stripMargin
 
     assert(metrics == expectedMetrics)
