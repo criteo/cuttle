@@ -199,7 +199,8 @@ lazy val cuttle =
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
       libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "3.0.1"
+        "org.scalatest" %% "scalatest" % "3.0.1",
+        "org.mockito" % "mockito-all" % "1.10.19"
       ).map(_ % "test"),
       // Webpack
       resourceGenerators in Compile += Def.task {
