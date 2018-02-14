@@ -1,6 +1,5 @@
 package com.criteo.cuttle
 
-import scala.concurrent.stm.{atomic, TMap}
 import scala.math.Numeric
 
 /** Expose cuttle metrics via the [[https://prometheus.io prometheus]] protocol. */
