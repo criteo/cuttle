@@ -1,11 +1,15 @@
 package com.criteo.cuttle
 
+import scala.concurrent.stm.{atomic, TMap}
+import scala.math.Numeric
+
 /** Expose cuttle metrics via the [[https://prometheus.io prometheus]] protocol. */
 object Metrics {
 
   object MetricType extends Enumeration {
     type MetricType = Value
     val gauge = Value
+    val counter = Value
   }
 
   import MetricType._
@@ -20,11 +24,11 @@ object Metrics {
     def isDefined: Boolean = labels2Value.nonEmpty
   }
 
-  /** A __Gauge__ metric epresents a single numerical value that can arbitrarily go up and down.
+  /** A __Gauge__ metric represents a single numerical value that can arbitrarily go up and down.
     *
     * @param name The metric name.
     * @param help Metric description if provided.
-    * @param labels2Value The current value.s
+    * @param labels2Value map of (label name, label value) pairs to the current gauge values
     */
   case class Gauge(name: String, help: String = "", labels2Value: Map[Set[(String, String)], AnyVal] = Map.empty)
       extends Metric {
@@ -38,6 +42,28 @@ object Metrics {
       copy(labels2Value = labels2Value + (Set(label) -> value))
 
     def set(value: AnyVal): Gauge = copy(labels2Value = labels2Value + (Set.empty[(String, String)] -> value))
+  }
+
+  /**
+    * A __Counter__ contains a value that can only be incremented. Increments are not threadsafe.
+    *
+    * @param name The metric name.
+    * @param help Metric description if provided.
+    * @param labels2Value map of (label name, label value) pairs to counter values
+    */
+  case class Counter[T](
+    name: String,
+    help: String = "",
+    labels2Value: Map[Set[(String, String)], AnyVal] = Map.empty
+  )(implicit number: Numeric[T])
+      extends Metric {
+
+    override val metricType: MetricType = counter
+
+    def inc(label: Set[(String, String)]): Counter[T] = {
+      val currentCount = labels2Value.getOrElse(label, number.zero).asInstanceOf[T]
+      copy(labels2Value = labels2Value + (label -> number.plus(currentCount, number.one).asInstanceOf[AnyVal]))
+    }
   }
 
   /** Components able to provide metrics. */

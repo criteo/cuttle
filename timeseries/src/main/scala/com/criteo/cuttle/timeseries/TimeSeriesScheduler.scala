@@ -721,9 +721,10 @@ private[timeseries] object TimeSeriesUtils {
   val UTC: ZoneId = ZoneId.of("UTC")
 
   /**
-    * Validation of cycle absence in workflow DAG and an absence the (execution, dependency) tuple that execution has
-    * a start date after an execution's start date.
-    * It's implemented based on Kahn's algorithm.
+    * Validation of:
+    * - cycle absence in workflow DAG, implemented based on Kahn's algorithm
+    * - absence the (child, parent) tuple that child has a start date before parent's start date
+    * - absence of jobs with the same id
     * @param workflow workflow to be validated
     * @return either a validation errors list or an unit
     */
@@ -755,6 +756,12 @@ private[timeseries] object TimeSeriesUtils {
     }
 
     if (edges.nonEmpty) errors += "Workflow has at least one cycle"
+
+    workflow.vertices.groupBy(_.id).collect {
+      case (id: String, jobs) if jobs.size > 1 => id
+    } foreach (id => {
+      errors += s"Id $id is used by more than 1 job"
+    })
 
     if (errors.nonEmpty) Left(errors.toList)
     else Right(())
