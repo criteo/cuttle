@@ -9,7 +9,7 @@ import scala.concurrent.duration._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 import scala.util.{Failure, Success, Try}
 
 import cats.Eq
@@ -138,18 +138,19 @@ class CancellationListener private[cuttle] (execution: Execution[_], private[cut
   * @param executionContext The scoped `scala.concurrent.ExecutionContext` for this execution.
   */
 case class Execution[S <: Scheduling](
-    id: String,
-    job: Job[S],
-    context: S#Context,
-    streams: ExecutionStreams,
-    platforms: Seq[ExecutionPlatform],
-    projectName: String
-  )(implicit val executionContext: SideEffectExecutionContext) {
+  id: String,
+  job: Job[S],
+  context: S#Context,
+  streams: ExecutionStreams,
+  platforms: Seq[ExecutionPlatform],
+  projectName: String
+)(implicit val executionContext: SideEffectExecutionContext) {
 
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
   private val cancelListeners = TSet.empty[CancellationListener]
   private val cancelled = Ref(false)
+
   /**
     * An execution with forcedSuccess set to true will have its side effect return a successful Future instance even if the
     * user code raised an exception or returned a failed Future instance.
@@ -208,14 +209,14 @@ case class Execution[S <: Scheduling](
     hasBeenCancelled
   }
 
-  def forceSuccess()(implicit user: User): Unit = {
+  def forceSuccess()(implicit user: User): Unit =
     if (!atomic { implicit txn =>
-      forcedSuccess.getAndTransform(_ => true)
-    }) {
-      streams.debug(s"""Possible execution failures will be ignored and final execution status will be marked as success.
+          forcedSuccess.getAndTransform(_ => true)
+        }) {
+      streams.debug(
+        s"""Possible execution failures will be ignored and final execution status will be marked as success.
                        |Change initiated by user ${user.userId} at ${Instant.now().toString}.""".stripMargin)
     }
-  }
 
   private[cuttle] def toExecutionLog(status: ExecutionStatus, failing: Option[FailingJob] = None) =
     ExecutionLog(
@@ -384,7 +385,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
           .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
       })
-      .run
+      .compile
+      .drain
       .unsafeRunAsync(_ => ())
   }
 
@@ -701,7 +703,6 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                 .unsafeRunSync
             }
         })
-
 
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution

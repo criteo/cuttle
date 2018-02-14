@@ -103,7 +103,8 @@ object TimeSeriesCalendar {
     * @param firstDay The first day of the week for these weeks.
     */
   case class Weekly(tz: ZoneId, firstDay: DayOfWeek) extends TimeSeriesCalendar {
-    private def truncateToWeek(t: ZonedDateTime) = t.`with`(TemporalAdjusters.previousOrSame(firstDay)).truncatedTo(DAYS)
+    private def truncateToWeek(t: ZonedDateTime) =
+      t.`with`(TemporalAdjusters.previousOrSame(firstDay)).truncatedTo(DAYS)
     def truncate(t: Instant) = truncateToWeek(t.atZone(tz)).toInstant
     def next(t: Instant) = truncateToWeek(t.atZone(tz)).plus(1, WEEKS).toInstant
   }
@@ -437,7 +438,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     atomic { implicit txn =>
       val incompleteBackfills = Database
         .queryBackfills(Some(sql"""status = 'RUNNING'"""))
-        .list
+        .to[List]
         .map(_.map {
           case (id, name, description, jobsIdsString, priority, start, end, _, status, createdBy) =>
             val jobsIds = jobsIdsString.split(",")
