@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.3.1"
+val VERSION = "0.3.2"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -179,9 +179,9 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "lolhttp",
         "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml"
-      ).map(_ % "0.9.0"),
+      ).map(_ % "0.9.2"),
       libraryDependencies ++= Seq("core", "generic", "parser")
-        .map(module => "io.circe" %% s"circe-${module}" % "0.9.0-M3"),
+        .map(module => "io.circe" %% s"circe-${module}" % "0.9.1"),
       libraryDependencies ++= Seq(
         "de.sciss" %% "fingertree" % "1.5.2",
         "org.scala-stm" %% "scala-stm" % "0.8",
@@ -194,7 +194,7 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
         "org.tpolecat" %% "doobie-hikari"
-      ).map(_ % "0.5.0-M11"),
+      ).map(_ % "0.5.0"),
       libraryDependencies ++= Seq(
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
@@ -226,8 +226,7 @@ lazy val cuttle =
           if (operatingSystem.indexOf("win") >= 0) {
             val yarnJsPath = ("where yarn.js" !!).trim()
             assert(s"""node "$yarnJsPath" install""" ! logger == 0, "yarn failed")
-          }
-          else {
+          } else {
             assert("yarn install" ! logger == 0, "yarn failed")
           }
           logger.out("Running webpack...")

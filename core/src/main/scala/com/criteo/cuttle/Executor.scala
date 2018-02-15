@@ -9,7 +9,7 @@ import scala.concurrent.duration._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 import scala.util.{Failure, Success, Try}
 
 import cats.Eq
@@ -138,18 +138,19 @@ class CancellationListener private[cuttle] (execution: Execution[_], private[cut
   * @param executionContext The scoped `scala.concurrent.ExecutionContext` for this execution.
   */
 case class Execution[S <: Scheduling](
-    id: String,
-    job: Job[S],
-    context: S#Context,
-    streams: ExecutionStreams,
-    platforms: Seq[ExecutionPlatform],
-    projectName: String
-  )(implicit val executionContext: SideEffectExecutionContext) {
+  id: String,
+  job: Job[S],
+  context: S#Context,
+  streams: ExecutionStreams,
+  platforms: Seq[ExecutionPlatform],
+  projectName: String
+)(implicit val executionContext: SideEffectExecutionContext) {
 
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
   private val cancelListeners = TSet.empty[CancellationListener]
   private val cancelled = Ref(false)
+
   /**
     * An execution with forcedSuccess set to true will have its side effect return a successful Future instance even if the
     * user code raised an exception or returned a failed Future instance.
@@ -208,14 +209,14 @@ case class Execution[S <: Scheduling](
     hasBeenCancelled
   }
 
-  def forceSuccess()(implicit user: User): Unit = {
+  def forceSuccess()(implicit user: User): Unit =
     if (!atomic { implicit txn =>
-      forcedSuccess.getAndTransform(_ => true)
-    }) {
-      streams.debug(s"""Possible execution failures will be ignored and final execution status will be marked as success.
+          forcedSuccess.getAndTransform(_ => true)
+        }) {
+      streams.debug(
+        s"""Possible execution failures will be ignored and final execution status will be marked as success.
                        |Change initiated by user ${user.userId} at ${Instant.now().toString}.""".stripMargin)
     }
-  }
 
   private[cuttle] def toExecutionLog(status: ExecutionStatus, failing: Option[FailingJob] = None) =
     ExecutionLog(
@@ -349,10 +350,11 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   // signals whether the instance is shutting down
   private val isShuttingDown: Ref[Boolean] = Ref(false)
   private val timer = new Timer("com.criteo.cuttle.Executor.timer")
-  private val executionsCounters: Ref[Counter[Long]] = Ref(Counter[Long](
-    "cuttle_executions_total",
-    help = "The number of finished executions that we have in concrete states by job and by tag"
-  ))
+  private val executionsCounters: Ref[Counter[Long]] = Ref(
+    Counter[Long](
+      "cuttle_executions_total",
+      help = "The number of finished executions that we have in concrete states by job and by tag"
+    ))
 
   // executions that failed recently and are now running
   private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] =
@@ -388,7 +390,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
           .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
       })
-      .run
+      .compile
+      .drain
       .unsafeRunAsync(_ => ())
   }
 
@@ -710,15 +713,15 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private[cuttle] def updateFinishedExecutionCounters(execution: Execution[S], status: String): Unit =
     atomic { implicit txn =>
-      val tagsLabel = if (execution.job.tags.nonEmpty)
-        Set("tags" -> execution.job.tags.map(_.name).mkString(","))
-      else
-        Set.empty
+      val tagsLabel =
+        if (execution.job.tags.nonEmpty)
+          Set("tags" -> execution.job.tags.map(_.name).mkString(","))
+        else
+          Set.empty
       executionsCounters() = executionsCounters().inc(
         Set("type" -> status, "job_id" -> execution.job.id) ++ tagsLabel
       )
     }
-
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
@@ -896,7 +899,6 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def healthCheck(): Try[Boolean] =
     Try(queries.healthCheck.transact(xa).unsafeRunSync)
 
-
   private case class ExecutionInfo(jobId: String, tags: Set[String], status: ExecutionStatus)
 
   /**
@@ -922,8 +924,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     )
 
     val (running: Seq[ExecutionInfo], waiting: Seq[ExecutionInfo]) = runningExecutions
-      .map { case (exec, status) =>
-        ExecutionInfo(exec.job.id, exec.job.tags.map(_.name), status)
+      .map {
+        case (exec, status) =>
+          ExecutionInfo(exec.job.id, exec.job.tags.map(_.name), status)
       }
       .partition { execution =>
         execution.status == ExecutionStatus.ExecutionRunning
@@ -956,21 +959,39 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
       )
     }
 
-  private def getMetricsByTag(
-      running: Seq[ExecutionInfo],
-      waiting: Seq[ExecutionInfo],
-      paused: Seq[ExecutionInfo],
-      failing: Seq[ExecutionInfo]): Metrics.Metric = {
-    (      // Explode by tag
-      running.flatMap { info => info.tags }
-        .groupBy(identity).mapValues("running" -> _.size).toList ++
-        waiting.flatMap { info => info.tags }
-          .groupBy(identity).mapValues("waiting" -> _.size).toList ++
-        paused.flatMap { info => info.tags }
-          .groupBy(identity).mapValues("paused" -> _.size).toList ++
-        failing.flatMap { info => info.tags }
-          .groupBy(identity).mapValues("failing" -> _.size).toList
-    ).foldLeft(
+  private def getMetricsByTag(running: Seq[ExecutionInfo],
+                              waiting: Seq[ExecutionInfo],
+                              paused: Seq[ExecutionInfo],
+                              failing: Seq[ExecutionInfo]): Metrics.Metric =
+    (// Explode by tag
+    running
+      .flatMap { info =>
+        info.tags
+      }
+      .groupBy(identity)
+      .mapValues("running" -> _.size)
+      .toList ++
+      waiting
+        .flatMap { info =>
+          info.tags
+        }
+        .groupBy(identity)
+        .mapValues("waiting" -> _.size)
+        .toList ++
+      paused
+        .flatMap { info =>
+          info.tags
+        }
+        .groupBy(identity)
+        .mapValues("paused" -> _.size)
+        .toList ++
+      failing
+        .flatMap { info =>
+          info.tags
+        }
+        .groupBy(identity)
+        .mapValues("failing" -> _.size)
+        .toList).foldLeft(
       Gauge("cuttle_scheduler_stat_count_by_tag", "The number of executions that we have in concrete states by tag")
     ) {
       case (gauge, (tag, (status, count))) =>
@@ -978,23 +999,20 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
       case (gauge, _) =>
         gauge
     }
-  }
 
-  private def getMetricsByJob(
-      running: Seq[ExecutionInfo],
-      waiting: Seq[ExecutionInfo],
-      paused: Seq[ExecutionInfo],
-      failing: Seq[ExecutionInfo]): Metrics.Metric = {
+  private def getMetricsByJob(running: Seq[ExecutionInfo],
+                              waiting: Seq[ExecutionInfo],
+                              paused: Seq[ExecutionInfo],
+                              failing: Seq[ExecutionInfo]): Metrics.Metric =
     (
       running.groupBy(_.jobId).mapValues("running" -> _.size).toList ++
-      waiting.groupBy(_.jobId).mapValues("waiting" -> _.size).toList ++
-      paused.groupBy(_.jobId).mapValues("paused" -> _.size).toList ++
-      failing.groupBy(_.jobId).mapValues("failing" -> _.size).toList
+        waiting.groupBy(_.jobId).mapValues("waiting" -> _.size).toList ++
+        paused.groupBy(_.jobId).mapValues("paused" -> _.size).toList ++
+        failing.groupBy(_.jobId).mapValues("failing" -> _.size).toList
     ).foldLeft(
       Gauge("cuttle_scheduler_stat_count_by_job", "The number of executions that we have in concrete states by job")
     ) {
       case (gauge, (jobId, (status, count))) =>
         gauge.labeled(Set("job" -> jobId, "type" -> status), count)
     }
-  }
 }

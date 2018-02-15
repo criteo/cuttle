@@ -438,7 +438,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     atomic { implicit txn =>
       val incompleteBackfills = Database
         .queryBackfills(Some(sql"""status = 'RUNNING'"""))
-        .list
+        .to[List]
         .map(_.map {
           case (id, name, description, jobsIdsString, priority, start, end, _, status, createdBy) =>
             val jobsIds = jobsIdsString.split(",")

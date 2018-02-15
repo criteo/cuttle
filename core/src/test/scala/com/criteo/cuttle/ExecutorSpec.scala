@@ -109,8 +109,8 @@ class ExecutorSpec extends FunSuite with TestScheduling {
   }
 
   private def buildJob(jobId: String, tags: Set[Tag] = Set.empty): Job[TestScheduling] =
-    Job(jobId, TestScheduling(), jobId, tags = tags) {
-      implicit execution => Future { Completed }(execution.executionContext)
+    Job(jobId, TestScheduling(), jobId, tags = tags) { implicit execution =>
+      Future { Completed }(execution.executionContext)
     }
 
   private def buildExecutionForJob(job: Job[TestScheduling]): Execution[TestScheduling] =
@@ -132,5 +132,5 @@ class ExecutorSpec extends FunSuite with TestScheduling {
 
   private val fooBarJob: Job[TestScheduling] = buildJob("foo_bar_job", Set(fooTag, barTag))
 
-  private val untaggedJob :Job[TestScheduling] = buildJob("untagged_job")
+  private val untaggedJob: Job[TestScheduling] = buildJob("untagged_job")
 }

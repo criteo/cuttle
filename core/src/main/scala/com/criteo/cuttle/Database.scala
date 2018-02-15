@@ -121,7 +121,7 @@ private[cuttle] object Database {
     (for {
       locks <- sql"""
           SELECT locked_by, locked_at FROM locks WHERE TIMESTAMPDIFF(MINUTE, locked_at, NOW()) < 5;
-        """.query[(String, Instant)].list
+        """.query[(String, Instant)].to[List]
       _ <- if (locks.isEmpty) {
         sql"""
             DELETE FROM locks;
@@ -260,7 +260,7 @@ private[cuttle] trait Queries {
       fr"job",
       NonEmptyList.fromListUnsafe(jobs.toList)) ++ orderBy ++ sql""" LIMIT $limit OFFSET $offset""")
       .query[(String, String, Instant, Instant, Json, ExecutionStatus, Int)]
-      .list
+      .to[List]
       .map(_.map {
         case (id, job, startTime, endTime, context, status, waitingSeconds) =>
           ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
@@ -317,7 +317,7 @@ private[cuttle] trait Queries {
          where job=$jobId and end_time > DATE_SUB(CURDATE(), INTERVAL 30 DAY) order by start_time asc, end_time asc
        """
       .query[(Instant, Instant, Int, Int, ExecutionStatus)]
-      .list
+      .to[List]
       .map(_.map {
         case (startTime, endTime, durationSeconds, waitingSeconds, status) =>
           new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)

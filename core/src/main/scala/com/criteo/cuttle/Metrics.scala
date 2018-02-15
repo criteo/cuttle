@@ -1,6 +1,5 @@
 package com.criteo.cuttle
 
-import scala.concurrent.stm.{TMap, atomic}
 import scala.math.Numeric
 
 /** Expose cuttle metrics via the [[https://prometheus.io prometheus]] protocol. */
@@ -50,12 +49,13 @@ object Metrics {
     * @param name The metric name.
     * @param help Metric description if provided.
     * @param labels2Value map of (label name, label value) pairs to counter values
-  */
+    */
   case class Counter[T](
-      name: String,
-      help: String = "",
-      labels2Value: Map[Set[(String, String)], AnyVal] = Map.empty
-  )(implicit number: Numeric[T]) extends Metric {
+    name: String,
+    help: String = "",
+    labels2Value: Map[Set[(String, String)], AnyVal] = Map.empty
+  )(implicit number: Numeric[T])
+      extends Metric {
 
     override val metricType: MetricType = counter
 
