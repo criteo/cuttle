@@ -1,53 +1,69 @@
-let path = require('path');
-let HtmlWebpackPlugin = require('html-webpack-plugin');
-let FlowStatusWebpackPlugin = require('flow-status-webpack-plugin');
+const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
+const FlowStatusWebpackPlugin = require("flow-status-webpack-plugin");
+
+const outputPath = path.resolve(
+  __dirname,
+  "core/target/scala-2.11/classes/public"
+);
 
 module.exports = {
   entry: {
-    app: [
-      path.resolve(__dirname, 'core/src/main/javascript/index.js')
-    ]
+    app: [path.resolve(__dirname, "core/src/main/javascript/index.js")]
   },
+
+  devServer: {
+    contentBase: outputPath,
+    historyApiFallback: true,
+    port: 9000,
+    proxy: {
+      "/api": "http://localhost:8888"
+    }
+  },
+
   output: {
-    path: path.resolve(__dirname, 'core/target/scala-2.11/classes/public'),
-    filename: '[name].js',
-    publicPath: "public/"
+    filename: "[name].js",
+    path: outputPath,
+    publicPath: "/public"
   },
-  devtool: 'sourcemap',
+
+  devtool: "sourcemap",
+
   module: {
     rules: [
       {
         test: /\.jsx?$/,
-        use: [{
-          loader: 'babel-loader',
-          options: {
-            cacheDirectory: true,
-            presets: ['react', 'es2015', 'stage-0'],
-            plugins: []
+        use: [
+          {
+            loader: "babel-loader",
+            options: {
+              cacheDirectory: true,
+              presets: ["react", "es2015", "stage-0"],
+              plugins: []
+            }
           }
-        }],
-        include: path.join(__dirname, 'core/src'),
-        exclude: [
-          path.resolve(__dirname, 'core/node_modules/')
-        ]
+        ],
+        include: path.join(__dirname, "core/src"),
+        exclude: [path.resolve(__dirname, "core/node_modules/")]
       },
       {
         test: /\.(less|css)/,
-        use: ['style-loader', 'css-loader', 'less-loader']
+        use: ["style-loader", "css-loader", "less-loader"]
       },
       {
         test: /\.(jpe?g|png|woff|woff2|eot|ttf|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: 'file-loader?name=[name].[ext]'
+        use: "file-loader?name=[name].[ext]"
       }
     ]
   },
+
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, 'core/src/main/html/index.html'),
-      inject: 'body'
+      template: path.resolve(__dirname, "core/src/main/html/index.html"),
+      inject: "body"
     }),
     new FlowStatusWebpackPlugin({
-      binaryPath: path.resolve(__dirname, 'node_modules/.bin/flow'),
+      binaryPath: path.resolve(__dirname, "node_modules/.bin/flow"),
       failOnError: true
     })
   ]
