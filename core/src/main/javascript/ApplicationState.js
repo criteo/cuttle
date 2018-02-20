@@ -9,7 +9,8 @@ export type Page =
   | { id: "" }
   | {
       id: "workflow",
-      jobId?: string
+      jobId?: string,
+      showDetail: boolean
     }
   | {
       id: "executions/started",
