@@ -17,7 +17,7 @@ import reduce from "lodash/reduce";
 import some from "lodash/some";
 
 import type { Edge, Node } from "../../graph/dagger/dataAPI/genericGraph";
-import type { Dependency, Job, Tag, Workflow } from "../../datamodel";
+import type { Dependency, Job, Workflow } from "../../datamodel";
 
 import Select from "react-select";
 import { navigate } from "redux-url";
@@ -25,10 +25,12 @@ import { connect } from "react-redux";
 import { markdown } from "markdown";
 
 import TagIcon from "react-icons/lib/md/label";
+import MdList from "react-icons/lib/md/list";
 import Dagger from "../../graph/Dagger";
-import SlidePanel from "../components/SlidePanel";
+import Window from "../components/Window";
 import FancyTable from "../components/FancyTable";
 import Spinner from "../components/Spinner";
+import Link from "../components/Link";
 
 import moment from "moment";
 import PopoverMenu from "../components/PopoverMenu";
@@ -39,7 +41,8 @@ type Props = {
   workflow: Workflow,
   selectedJobs: string[],
   job: string,
-  navTo: () => void
+  navTo: () => void,
+  showDetail: boolean
 };
 
 type State = {
@@ -250,7 +253,8 @@ class WorkflowComponent extends React.Component {
       workflow = {},
       job,
       selectedJobs = [],
-      navTo
+      navTo,
+      showDetail
     } = this.props;
 
     const filteredJobs = filter(workflow.jobs, j =>
@@ -305,7 +309,7 @@ class WorkflowComponent extends React.Component {
     const charts = (data: any) => {
       if (data) {
         return (
-          <div>
+          <div className={classes.charts}>
             <div className={classes.chartSection}>
               <h3>Average run/wait times over last 30 days</h3>
               <AverageRunWaitChart
@@ -382,66 +386,74 @@ class WorkflowComponent extends React.Component {
           startNodeId={startNode.id}
           onClickNode={id => navTo("/workflow/" + id)}
         />
-        <Select
-          className={classes.jobSelector}
-          name="jobSelector"
-          options={map(nodes, n => ({ value: n.id, label: n.name }))}
-          onChange={o => navTo("/workflow/" + o.value)}
-        />
-        <SlidePanel open={false}>
-          <div className={classes.jobCard}>
-            <JobMenu job={startNode.id} />
-            <FancyTable>
-              <dt key="id">Id:</dt>
-              <dd key="id_">
-                {startNode.id}
-              </dd>
-              <dt key="name">Name:</dt>
-              <dd key="name_">
-                {startNode.name}
-              </dd>
-              {renderTimeSeriesSechduling()}
-              {startNode.tags.length > 0 && [
-                <dt key="tags">Tags:</dt>,
-                <dd key="tags_" className={classes.tags}>
-                  {map(startNode.tags, t => [
-                    <span
-                      key={tagsDictionnary[t].name}
-                      className={classes.tag}
-                      data-for={"tag" + tagsDictionnary[t].name}
-                      data-tip={tagsDictionnary[t].description}
-                    >
-                      <TagIcon className="tagIcon" />
-                      {tagsDictionnary[t].name}
-                    </span>,
-                    <ReactTooltip
-                      id={"tag" + tagsDictionnary[t].name}
-                      effect="float"
-                    />
-                  ])}
-                </dd>
-              ]}
-              {startNode.description && [
-                <dt key="description">Description:</dt>,
-                <dd
-                  key="description_"
-                  className={classes.description}
-                  dangerouslySetInnerHTML={{
-                    __html: markdown.toHTML(startNode.description)
-                  }}
-                />
-              ]}
-              {this.state.jobColors &&
-              this.state.jobColors[startNode.id] && [
-                <dt key="status">Status:</dt>,
-                <dd key="status_">
-                  <Status status="paused" />
-                </dd>
-              ]}
-            </FancyTable>
-          </div>
-          {charts(this.state.data)}
-        </SlidePanel>
+        <div className={classes.controller}>
+          <Select
+            className={classes.jobSelector}
+            name="jobSelector"
+            options={map(nodes, n => ({ value: n.id, label: n.name }))}
+            onChange={o => navTo("/workflow/" + o.value)}
+            value={startNode.id}
+            clearable={false}
+          />
+          <Link
+            className={classes.detailIcon}
+            title="Job details"
+            href={`/workflow/${startNode.id}?showDetail=true`}
+          >
+            <MdList />
+          </Link>
+        </div>
+        {showDetail &&
+          <Window closeUrl={`/workflow/${job}`} title="Job details">
+            <div className={classes.jobCard}>
+              <JobMenu job={startNode.id} />
+              <FancyTable>
+                <dt key="id">Id:</dt>
+                <dd key="id_">{startNode.id}</dd>
+                <dt key="name">Name:</dt>
+                <dd key="name_">{startNode.name}</dd>
+                {renderTimeSeriesSechduling()}
+                {startNode.tags.length > 0 && [
+                  <dt key="tags">Tags:</dt>,
+                  <dd key="tags_" className={classes.tags}>
+                    {map(startNode.tags, t => [
+                      <span
+                        key={tagsDictionnary[t].name}
+                        className={classes.tag}
+                        data-for={"tag" + tagsDictionnary[t].name}
+                        data-tip={tagsDictionnary[t].description}
+                      >
+                        <TagIcon className="tagIcon" />
+                        {tagsDictionnary[t].name}
+                      </span>,
+                      <ReactTooltip
+                        id={"tag" + tagsDictionnary[t].name}
+                        effect="float"
+                      />
+                    ])}
+                  </dd>
+                ]}
+                {startNode.description && [
+                  <dt key="description">Description:</dt>,
+                  <dd
+                    key="description_"
+                    className={classes.description}
+                    dangerouslySetInnerHTML={{
+                      __html: markdown.toHTML(startNode.description)
+                    }}
+                  />
+                ]}
+                {this.state.jobColors &&
+                this.state.jobColors[startNode.id] && [
+                  <dt key="status">Status:</dt>,
+                  <dd key="status_">
+                    <Status status="paused" />
+                  </dd>
+                ]}
+              </FancyTable>
+            </div>
+            {charts(this.state.data)}
+          </Window>}
       </div>
     );
   }
@@ -454,6 +466,12 @@ const styles = {
     width: "100%",
     height: "calc(100vh - 4em)",
     position: "relative"
+  },
+  charts: {
+    overflow: "auto",
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "space-around"
   },
   chartSection: {
     "& > .chart": {
@@ -487,11 +505,20 @@ const styles = {
     textAlign: "justify !important",
     overflowY: "scroll"
   },
-  jobSelector: {
+  controller: {
     position: "absolute",
     top: "2em",
-    left: "50%",
-    marginLeft: "-300px",
+    display: "flex",
+    justifyContent: "center",
+    width: "100%"
+  },
+  detailIcon: {
+    fontSize: "30px",
+    color: "#607e96",
+    marginLeft: ".25em",
+    cursor: "pointer"
+  },
+  jobSelector: {
     width: "600px",
     "& .Select-control": {
       height: "1em",
@@ -527,9 +554,8 @@ const styles = {
   }
 };
 
-export default connect(
-  () => ({}),
-  dispatch => ({
-    navTo: link => dispatch(navigate(link))
-  })
-)(injectSheet(styles)(WorkflowComponent));
+const mapStateToProps = ({ app: { page: { showDetail } } }) => ({ showDetail });
+
+export default connect(mapStateToProps, dispatch => ({
+  navTo: link => dispatch(navigate(link))
+}))(injectSheet(styles)(WorkflowComponent));
