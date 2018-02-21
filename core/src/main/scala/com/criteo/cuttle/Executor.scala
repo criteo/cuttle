@@ -356,6 +356,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
       help = "The number of finished executions that we have in concrete states by job and by tag"
     ))
 
+  private sealed trait NewExecution
+  private case object ToRunNow extends NewExecution
+  private case class ToRunLater(launchDate: Instant) extends NewExecution
+  private case object Paused extends NewExecution
+  private case class Throttled(launchDate: Instant) extends NewExecution
+
   // executions that failed recently and are now running
   private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] =
     atomic { implicit txn =>
@@ -577,7 +583,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   }
 
   private[cuttle] def resumeJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
-    val executionsToResume = atomic { implicit tx =>
+    atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit tx: InTxnEnd): Boolean = {
           jobs.map(queries.unpauseJob).reduceLeft(_ *> _).transact(xa).unsafeRunSync
@@ -586,16 +592,36 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
       })
       val executions = jobs.flatMap(job => pausedState.get(job.id).map(_.toSeq).getOrElse(Nil))
       jobs.foreach(job => pausedState -= job.id)
-      executions.map {
-        case (execution, promise) =>
+
+      val numRunningExecutionsByJob = jobs.map(job =>
+        job -> runningState.count { case (e, _) => e.job == job }
+      ).toMap
+
+      val executionsToResume = executions.map { case (execution, promise) =>
+        if (numRunningExecutionsByJob(execution.job) < execution.job.maxParallelExecutions) {
           addExecution2RunningState(execution, promise)
-          (execution -> promise)
+          (execution, promise, ToRunNow)
+        } else {
+          val throttleFor = retryStrategy(execution.job, execution.context, List.empty)
+          val launchDate = Instant.now().plus(throttleFor)
+          (execution, promise, ToRunLater(launchDate))
+        }
       }
-    }
-    executionsToResume.toList.sortBy(_._1.context).foreach {
-      case (execution, promise) =>
-        execution.streams.debug(s"Job has been resumed by user ${user.userId}.")
-        unsafeDoRun(execution, promise)
+
+      executionsToResume.toList.sortBy { case(execution, _, _) => execution.context }.foreach {
+        case (execution, promise, ToRunNow) =>
+          execution.streams.debug(s"Job has been resumed by user ${user.userId}.")
+          unsafeDoRun(execution, promise)
+        case (execution, promise, ToRunLater(launchDate)) =>
+          execution.streams.debug(s"Delayed until $launchDate")
+          val timerTask = new TimerTask {
+            def run = {
+              addExecution2RunningState(execution, promise)
+              unsafeDoRun(execution, promise)
+            }
+          }
+          timer.schedule(timerTask, java.util.Date.from(launchDate.atZone(ZoneId.systemDefault()).toInstant))
+      }
     }
   }
 
@@ -722,12 +748,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         Set("type" -> status, "job_id" -> execution.job.id) ++ tagsLabel
       )
     }
-  private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
-    sealed trait NewExecution
-    case object ToRunNow extends NewExecution
-    case object Paused extends NewExecution
-    case class Throttled(launchDate: Instant) extends NewExecution
 
+  private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     val existingOrNew
       : Seq[Either[(Execution[S], Future[Completed]), (Job[S], Execution[S], Promise[Completed], NewExecution)]] =
       atomic { implicit txn =>
@@ -736,6 +758,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         } else
           all.map {
             case (job, context) =>
+              val numRunningExecutions = runningState.count { case (e, _) => e.job == job }
               val maybeAlreadyRunning: Option[(Execution[S], Future[Completed])] =
                 runningState.find { case (e, _) => e.job == job && e.context == context }
 
@@ -783,8 +806,14 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                     throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
                     (job, execution, promise, Throttled(launchDate))
                   } else {
-                    addExecution2RunningState(execution, promise)
-                    (job, execution, promise, ToRunNow)
+                    if (numRunningExecutions < job.maxParallelExecutions) {
+                      addExecution2RunningState(execution, promise)
+                      (job, execution, promise, ToRunNow)
+                    } else {
+                      val throttleFor = retryStrategy(job, context, List.empty)
+                      val launchDate = Instant.now().plus(throttleFor)
+                      (job, execution, promise, ToRunLater(launchDate))
+                    }
                   }
                 }
           }
@@ -801,6 +830,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
               whatToDo match {
                 case ToRunNow =>
                   unsafeDoRun(execution, promise)
+
+                case ToRunLater(launchDate) =>
+                  execution.streams.debug(s"Delayed until $launchDate")
+                  val timerTask = new TimerTask {
+                    def run = {
+                      addExecution2RunningState(execution, promise)
+                      unsafeDoRun(execution, promise)
+                    }
+                  }
+                  timer.schedule(timerTask, java.util.Date.from(launchDate.atZone(ZoneId.systemDefault()).toInstant))
+
                 case Paused =>
                   execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
                   execution.onCancel { () =>
@@ -816,6 +856,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                     }
                     if (cancelNow) promise.tryFailure(ExecutionCancelled)
                   }
+
                 case Throttled(launchDate) =>
                   execution.streams.debug(s"Delayed until $launchDate because previous execution failed")
                   val timerTask = new TimerTask {
