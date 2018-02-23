@@ -24,6 +24,7 @@ import Backfills from "./app/pages/Backfills";
 import BackfillCreate from "./app/pages/BackfillCreate";
 import Favicon from "./app/components/Favicon";
 import type { Statistics } from "./datamodel";
+import { Jobs } from "./app/pages/Jobs";
 
 type Props = {
   page: Page,
@@ -107,6 +108,12 @@ class App extends React.Component {
             return <BackfillCreate />;
           case "timeseries/backfills/detail":
             return <Backfill backfillId={page.backfillId} />;
+          case "jobs/all":
+            return <Jobs status="All" />;
+          case "jobs/active":
+            return <Jobs status="Active" />;
+          case "jobs/paused":
+            return <Jobs status="Paused" />;
           default:
             return null;
         }

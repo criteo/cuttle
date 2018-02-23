@@ -58,7 +58,13 @@ const routes = {
       id: "timeseries/executions",
       ...parseExecutionsRoute(_)
     });
-  }
+  },
+  "/jobs/all": (_, { sort, order }) =>
+    openPage({ id: "jobs/all", sort, order }),
+  "/jobs/active": (_, { sort, order }) =>
+    openPage({ id: "jobs/active", sort, order }),
+  "/jobs/paused": (_, { sort, order }) =>
+    openPage({ id: "jobs/paused", sort, order })
 };
 
 const parseExecutionsRoute = (() => {

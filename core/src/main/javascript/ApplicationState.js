@@ -5,6 +5,12 @@ import type { Project, Workflow, Statistics } from "./datamodel";
 
 import { prepareWorkflow } from "./datamodel";
 
+type JobsPage = {
+  id: "jobs" | "jobs/active" | "jobs/paused" | "jobs/all",
+  sort?: string,
+  order?: "asc" | "desc"
+};
+
 export type Page =
   | { id: "" }
   | {
@@ -58,7 +64,8 @@ export type Page =
   | {
       id: "timeseries/backfills/detail",
       backfillId: string
-    };
+    }
+  | JobsPage;
 
 export type State = {
   page: Page,
