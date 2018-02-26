@@ -108,12 +108,8 @@ class App extends React.Component {
             return <BackfillCreate />;
           case "timeseries/backfills/detail":
             return <Backfill backfillId={page.backfillId} />;
-          case "jobs/all":
-            return <Jobs status="All" />;
-          case "jobs/active":
-            return <Jobs status="Active" />;
-          case "jobs/paused":
-            return <Jobs status="Paused" />;
+          case "jobs":
+            return <Jobs status={page.status} />;
           default:
             return null;
         }

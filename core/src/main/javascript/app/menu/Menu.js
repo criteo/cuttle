@@ -100,16 +100,16 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
           link="/timeseries/backfills"
           badges={[
             statistics.scheduler &&
-            statistics.scheduler.backfills && {
-              label: statistics.scheduler.backfills,
-              kind: "alt"
-            }
+              statistics.scheduler.backfills && {
+                label: statistics.scheduler.backfills,
+                kind: "alt"
+              }
           ]}
         />
       ]}
     />
     <MenuEntry
-      active={active.id.indexOf("jobs/") === 0}
+      active={active.id.indexOf("jobs") === 0}
       label="Jobs"
       link="/jobs/all"
       icon={<ListIcon style={{ transform: "translateY(-3px)" }} />}

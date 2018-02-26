@@ -59,12 +59,8 @@ const routes = {
       ...parseExecutionsRoute(_)
     });
   },
-  "/jobs/all": (_, { sort, order }) =>
-    openPage({ id: "jobs/all", sort, order }),
-  "/jobs/active": (_, { sort, order }) =>
-    openPage({ id: "jobs/active", sort, order }),
-  "/jobs/paused": (_, { sort, order }) =>
-    openPage({ id: "jobs/paused", sort, order })
+  "/jobs/:status": ({ status }, { sort, order }) =>
+    openPage({ id: "jobs", status, sort, order })
 };
 
 const parseExecutionsRoute = (() => {
@@ -98,7 +94,9 @@ router.sync();
 store.dispatch(Actions.loadAppData());
 
 // Global stats listener
-let statisticsQuery = null, statisticsListener = null, statisticsError = null;
+let statisticsQuery = null,
+  statisticsListener = null,
+  statisticsError = null;
 let listenForStatistics = (query: string) => {
   if (query != statisticsQuery) {
     statisticsListener && statisticsListener.close();

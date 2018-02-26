@@ -9,6 +9,7 @@ import { displayFormat } from "../utils/Date";
 import Spinner from "../components/Spinner";
 import Table from "../components/Table";
 import { Badge } from "../components/Badge";
+import type { JobStatus } from "../../ApplicationState";
 
 type Props = {
   classes: any,
@@ -36,8 +37,6 @@ type Columns = "id" | "name" | "description";
 type Scheduling = {
   start: string
 };
-
-type JobStatus = "Paused" | "Active";
 
 type Job = {
   [Columns]: string,
@@ -77,7 +76,7 @@ const column2Comp: {
       label={status}
       width={75}
       light={true}
-      kind={status === "Paused" ? "default" : "info"}
+      kind={status === "paused" ? "default" : "info"}
     />
   )
 };
@@ -170,12 +169,12 @@ class JobsComp extends React.Component<any, Props, State> {
         const preparedData = data
           .map(datum => ({
             ...datum,
-            status: pausedJobs.has(datum.id) ? "Paused" : "Active"
+            status: pausedJobs.has(datum.id) ? "paused" : "active"
           }))
           .filter(
             job =>
               (setOfSelectedJobs.size === 0 || setOfSelectedJobs.has(job.id)) &&
-              (job.status === status || status === "All")
+              (job.status === status || status === "all")
           )
           .sort(sortFunction(sort));
 

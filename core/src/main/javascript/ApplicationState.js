@@ -5,8 +5,11 @@ import type { Project, Workflow, Statistics } from "./datamodel";
 
 import { prepareWorkflow } from "./datamodel";
 
+export type JobStatus = "all" | "active" | "paused";
+
 type JobsPage = {
-  id: "jobs" | "jobs/active" | "jobs/paused" | "jobs/all",
+  id: "jobs",
+  status: JobStatus,
   sort?: string,
   order?: "asc" | "desc"
 };
