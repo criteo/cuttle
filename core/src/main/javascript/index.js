@@ -32,8 +32,9 @@ const routes = {
     openPage({ id: "executions/paused", page, sort, order }),
   "/executions/:id": ({ id }) =>
     openPage({ id: "executions/detail", execution: id }),
-  "/workflow/*": ({ _ }) => openPage({ id: "workflow", jobId: _ }),
-  "/workflow": () => openPage({ id: "workflow" }),
+  "/workflow/*": ({ _ }, { showDetail }) =>
+    openPage({ id: "workflow", jobId: _, showDetail: Boolean(showDetail) }),
+  "/workflow": () => openPage({ id: "workflow", showDetail: false }),
   "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
   "/timeseries/calendar/:start_:end": ({ start, end }) =>
     openPage({ id: "timeseries/calendar/focus", start, end }),
@@ -57,7 +58,9 @@ const routes = {
       id: "timeseries/executions",
       ...parseExecutionsRoute(_)
     });
-  }
+  },
+  "/jobs/:status": ({ status }, { sort, order }) =>
+    openPage({ id: "jobs", status, sort, order })
 };
 
 const parseExecutionsRoute = (() => {
@@ -91,7 +94,9 @@ router.sync();
 store.dispatch(Actions.loadAppData());
 
 // Global stats listener
-let statisticsQuery = null, statisticsListener = null, statisticsError = null;
+let statisticsQuery = null,
+  statisticsListener = null,
+  statisticsError = null;
 let listenForStatistics = (query: string) => {
   if (query != statisticsQuery) {
     statisticsListener && statisticsListener.close();

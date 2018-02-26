@@ -12,7 +12,8 @@ type Props = {
   className: string,
   children: any,
   open: (href: string) => void,
-  replace: boolean
+  replace: boolean,
+  title: string
 };
 
 const Link = ({
@@ -21,13 +22,15 @@ const Link = ({
   className,
   children,
   open,
-  replace = false
+  replace = false,
+  title = ""
 }: Props) => {
   return (
     <a
       onClick={open(href, replace)}
       href={href}
       className={classNames(classes.link, className)}
+      title={title}
     >
       {children}
     </a>

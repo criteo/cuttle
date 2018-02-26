@@ -1,12 +1,11 @@
 import { nodeKind, edgeKind } from "../layout/symbolic/annotatedGraph";
 import * as d3 from "d3";
-
-import forEach from "lodash/forEach";
+import { textWrap } from "d3plus-text";
+import { forEach, identity } from "lodash";
 import { interpolatePath } from "d3-interpolate-path";
 
 const transitionDuration = 500;
 const transitionDelay = 0;
-const transitionEase = d3.easeLinear;
 
 const computeNewWidth = (
   label: string,
@@ -26,9 +25,8 @@ const computeNewWidth = (
 };
 
 const computeNewLabel = (label: string, widthMax: number) => {
-  const labelLength = Array.from(label).length;
+  const labelLength = label.length;
   const overflowCharacters = Math.max(labelLength - widthMax, 0);
-
   const labelToDisplay = overflowCharacters > 0
     ? label.substring(0, labelLength - overflowCharacters - 4) + "..."
     : label;
@@ -284,10 +282,9 @@ export const drawNode = (
   { x, y, width, height, id, name, kind },
   tags
 ) => {
+  const fontSize = 12;
   const node = domContainer.append("g").attr("id", id).attr("class", "oneNode");
-
   const newWidth = getRealWidth(id, name, width);
-  const nameToDisplay = computeNewLabel(name, widthMax);
   const color = (tags && tags[id]) || "#E1EFFA";
 
   node
@@ -302,32 +299,48 @@ export const drawNode = (
     .style("box-shadow", "10px 10px 5px #888888;")
     .attr("filter", "url(#blur)");
 
+  const wrapped = textWrap()
+    .fontSize(fontSize)
+    .overflow(true)
+    .width(newWidth * 0.8)(name);
+  const [first, ...rest] = wrapped.lines;
+  const textPadding = (height - 2 * fontSize) / 4;
+  // display 2 lines at most, if there's enough space
+  if (rest.length === 0 || textPadding < 3) {
+    node
+      .append("text")
+      .style("text-anchor", "middle")
+      .text(
+        computeNewLabel(first + rest.join(""), newWidth / (fontSize / 1.5))
+      );
+  } else {
+    node
+      .append("text")
+      .selectAll("tspan")
+      .data(
+        [first, rest.join("")].map(line =>
+          computeNewLabel(line, newWidth / (fontSize / 1.5))
+        )
+      )
+      .enter()
+      .append("tspan")
+      .attr("x", fontSize)
+      .attr("dy", (d, i) => -textPadding + i * (2 * textPadding + fontSize))
+      .text(identity);
+  }
+
+  // adjust styles
   node
-    .append("text")
+    .selectAll("text")
     .attr("x", truncate(newWidth / 2))
     .attr("y", truncate(height / 2))
+    .style("font-size", `${fontSize}px`)
     .style("fill", "black")
     .style("font-family", "Fira Mono")
     .style("font-weight", "500")
     .style("alignment-baseline", "middle")
-    .style("pointer-events", "none")
-    .style("text-anchor", "middle")
-    .style("font-size", "14px")
-    .text(nameToDisplay);
-
-  /*
-  const bulletOffsetComputer = tagBulletVerticalOffset({ height });
-  forEach(tags, (name, i) => {
-    node
-      .append("rect")
-      .attr("width", 10)
-      .attr("height", 10)
-      .attr("rx", 3)
-      .attr("ry", 3)
-      .style("fill", allTags[name] || "#AAA")
-      .attr("x", 6)
-      .attr("y", bulletOffsetComputer(i));
-  });*/
+    .append("title")
+    .text(name);
 
   node.attr(
     "transform",
