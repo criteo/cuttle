@@ -129,8 +129,10 @@ case class Job[S <: Scheduling](id: String,
                                 scheduling: S,
                                 name: String = "",
                                 description: String = "",
-                                tags: Set[Tag] = Set.empty[Tag])(val effect: SideEffect[S])
-    extends Workflow[S] {
+                                tags: Set[Tag] = Set.empty[Tag],
+                                maxParallelExecutions: Long = Long.MaxValue
+                               )(val effect: SideEffect[S]) extends Workflow[S] {
+
   private[criteo] val vertices = Set(this)
   private[criteo] val edges = Set.empty[Dependency]
 
