@@ -1,8 +1,9 @@
 package com.criteo.cuttle
 
-import cats.Eq
-
+import scala.collection.mutable
 import scala.concurrent.Future
+
+import cats.Eq
 
 /**
   * The workflow to be run by cuttle. A workflow is defined for a given [[Scheduling]],
@@ -16,30 +17,145 @@ trait Workflow[S <: Scheduling] {
   private[criteo] def vertices: Set[Job[S]]
   private[criteo] def edges: Set[Dependency]
 
-  // Kahn's algorithm
-  // We construct the best linear representation for our DAG. At the
-  // same time it checks that there is no cycle.
-  private[cuttle] lazy val jobsInOrder: List[Job[S]] = {
-    val result = collection.mutable.ListBuffer.empty[Job[S]]
-    val edges = collection.mutable.Set(this.edges.toSeq: _*)
-    val orderedRoots = collection.mutable.SortedSet(roots.toSeq: _*)(Ordering.by(_.id))
-    while (orderedRoots.nonEmpty) {
-      val root = orderedRoots.head
-      orderedRoots.remove(root)
-      result.append(root)
-      val edgesToRemove = edges.filter(_._2 == root)
+  def roots: Set[Job[S]] = {
+    val childNodes = edges.map { case (child, _, _) => child }
+    vertices.filter(!childNodes.contains(_))
+  }
 
-      edgesToRemove.foreach {
-        case edge @ (child, _, _) =>
-          edges.remove(edge)
-          if (!edges.exists(_._1 == child)) {
-            orderedRoots.add(child)
+  def leaves: Set[Job[S]] = {
+    val parentNodes = edges.map { case (_, parent, _) => parent }
+    vertices.filter(!parentNodes.contains(_))
+  }
+
+  // Returns a list of jobs in the workflow sorted topologically, using Kahn's algorithm. At the
+  // same time checks that there is no cycle.
+  private[cuttle] lazy val jobsInOrder: List[Job[S]] = topologicalSort((_, _) => ()) match {
+    case Some(sortedJobs) => sortedJobs
+    case None => throw new IllegalArgumentException("Workflow has at least one cycle")
+  }
+
+  /**
+    * @return the list of strongly connected components in the workflow with more than 1 node, which
+    * are the cycles in the graph
+    * @note Tarjan algorithm
+    */
+  def findCycles(): List[List[Job[S]]] = {
+    case class NodeWithMetadata(node: Job[S], children: mutable.Set[NodeWithMetadata] = mutable.Set.empty) {
+      var discoveryTime: Long = Long.MaxValue
+      // Discovery time of the earliest discovered ancestor
+      var earliestAncestor: Long = Long.MaxValue
+
+      def addChild(child: NodeWithMetadata): Boolean = children.add(child)
+
+      def removeChild(child: NodeWithMetadata): Boolean = children.remove(child)
+
+      def visited: Boolean = discoveryTime < Long.MaxValue
+
+      // Override hash computation to prevent stack overflow when trying to compute the hash of a node using the
+      // default hash method on workflows with cycles
+      override def hashCode(): Int = node.hashCode()
+    }
+
+    // Perform DFS on each non visited node and pop up elements each time a strongly connected component is identified
+    val stack = new mutable.Stack[NodeWithMetadata]
+    // Bookkeeping of nodes whose SCC has not yet been identified
+    val nodesInStack = mutable.Set.empty[NodeWithMetadata]
+    var time = 0L
+    val stronglyConnectedComponents = mutable.ListBuffer.empty[List[Job[S]]]
+
+    def dfs(node: NodeWithMetadata): Unit = {
+      stack.push(node)
+      nodesInStack += node
+      time += 1
+      node.discoveryTime = time
+      node.earliestAncestor = time
+      node.children.foreach { child =>
+        if (!child.visited) {
+          // (node -> child) is a tree edge
+          dfs(child)
+          node.earliestAncestor = Math.min(node.earliestAncestor, child.earliestAncestor)
+        } else {
+          if (nodesInStack.contains(child)) {
+            // (node -> child) is a back edge
+            node.earliestAncestor = Math.min(node.earliestAncestor, child.discoveryTime)
           }
+          // Otherwise (node -> child) is a cross edge and 'child' was already added to a SCC
+        }
+      }
+
+      // DFS of 'node' complete.
+      if (node.discoveryTime == node.earliestAncestor) {
+        // The nodes added in the 'stack' above 'node' are part of a same SCC
+        val scc = mutable.ListBuffer.empty[Job[S]]
+        while (stack.top != node) {
+          scc += stack.top.node
+          nodesInStack -= stack.top
+          stack.pop()
+        }
+        scc += stack.top.node
+        nodesInStack -= stack.top
+        stack.pop()
+        stronglyConnectedComponents += scc.toList
       }
     }
 
-    require(edges.isEmpty, "Workflow has at least one cycle")
-    result.toList
+    val nodesWithMetadata = vertices.map(job => NodeWithMetadata(job))
+      .map(node => node.node -> node).toMap
+    edges.foreach { case(child, parent, _) => nodesWithMetadata(parent).addChild(nodesWithMetadata(child)) }
+
+    nodesWithMetadata.values.foreach { node =>
+      if (!node.visited) dfs(node)
+    }
+
+    stronglyConnectedComponents.filter(_.size >= 2).toList
+  }
+
+  /**
+    * @param edgeVisitor method called for each edge (parent node, child node) visited by Kahn's algorithm
+    * @return the jobs in the workflow sorted in topological order, None if the graph contains a cycle
+    * */
+  def topologicalSort(edgeVisitor: (Job[S], Job[S]) => Unit = (_, _) => ()): Option[List[Job[S]]] = {
+    val topologicalOrder = mutable.ListBuffer.empty[Job[S]]
+
+    case class NodeWithMetadata(node: Job[S], children: mutable.Set[NodeWithMetadata] = mutable.Set.empty) {
+      private var numIncomingEdges: Long = 0
+
+      def addChild(child: NodeWithMetadata): Boolean = {
+        child.numIncomingEdges += 1
+        children.add(child)
+      }
+      def removeChild(child: NodeWithMetadata): Boolean = {
+        child.numIncomingEdges -= 1
+        children.remove(child)
+      }
+      /** @return true if the node has no incoming edges */
+      def isOrphanNode: Boolean = numIncomingEdges == 0
+
+      // Override hash computation to prevent stack overflow when trying to compute the hash of a node using the
+      // default hash method on workflows with cycles
+      override def hashCode(): Int = node.hashCode()
+    }
+
+    val nodesWithMetadata = vertices.map(job => NodeWithMetadata(job))
+      .map(node => node.node -> node).toMap
+    edges.foreach { case(child, parent, _) => nodesWithMetadata(parent).addChild(nodesWithMetadata(child)) }
+
+    val rootsToVisit = collection.mutable.Set(roots.map(nodesWithMetadata(_)).toSeq:_*)
+
+    while (rootsToVisit.nonEmpty) {
+      val root = rootsToVisit.head
+      topologicalOrder.append(root.node)
+      rootsToVisit.remove(root)
+
+      root.children.foreach { child =>
+        edgeVisitor(root.node, child.node)
+        root.removeChild(child)
+        if (child.isOrphanNode) rootsToVisit.add(child)
+      }
+    }
+
+    val hasCycle = !nodesWithMetadata.values.forall(node => node.isOrphanNode)
+    if(hasCycle) None else Some(topologicalOrder.toList)
   }
 
   /**
@@ -55,9 +171,6 @@ trait Workflow[S <: Scheduling] {
       val edges = leftWorkflow.edges ++ otherWorflow.edges
     }
   }
-
-  private[cuttle] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _)  => v1 != v })
-  private[cuttle] lazy val leaves = vertices.filter(v => edges.forall { case (_, v2, _) => v2 != v })
 
   /**
     * Compose a [[Workflow]] with a second [[Workflow]] with a dependencies added between
@@ -90,6 +203,18 @@ trait Workflow[S <: Scheduling] {
       val edges = leftWorkflow.edges ++ rightWorkflow.edges ++ newEdges
     }
   }
+
+  case class DependencyBuilder(workflow: Workflow[S], parentJob: Job[S])(implicit dependencyDescriptor: S#DependencyDescriptor) {
+    def to(childJob: Job[S]): Workflow[S] = {
+      new Workflow[S] {
+        val vertices = workflow.vertices ++ Set(childJob, parentJob)
+        val edges = workflow.edges + ((childJob, parentJob, dependencyDescriptor))
+      }
+    }
+  }
+
+  def withDependencyFrom(parentJob: Job[S])(implicit dependencyDescriptor: S#DependencyDescriptor): DependencyBuilder =
+    DependencyBuilder(this, parentJob)
 }
 
 /** Utilities for [[Workflow]]. */
