@@ -58,7 +58,9 @@ const routes = {
       id: "timeseries/executions",
       ...parseExecutionsRoute(_)
     });
-  }
+  },
+  "/jobs/:status": ({ status }, { sort, order }) =>
+    openPage({ id: "jobs", status, sort, order })
 };
 
 const parseExecutionsRoute = (() => {
@@ -92,7 +94,9 @@ router.sync();
 store.dispatch(Actions.loadAppData());
 
 // Global stats listener
-let statisticsQuery = null, statisticsListener = null, statisticsError = null;
+let statisticsQuery = null,
+  statisticsListener = null,
+  statisticsError = null;
 let listenForStatistics = (query: string) => {
   if (query != statisticsQuery) {
     statisticsListener && statisticsListener.close();
