@@ -30,7 +30,8 @@ lazy val commonSettings = Seq(
     case _ =>
       Nil
   }),
-  devMode := Option(System.getProperty("devMode")).isDefined,
+  //devMode := Option(System.getProperty("devMode")).isDefined,
+  devMode := true,
   writeClasspath := {
     val f = file(s"/tmp/classpath_${organization.value}.${name.value}")
     val classpath = (fullClasspath in Runtime).value
