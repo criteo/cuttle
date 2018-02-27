@@ -35,6 +35,81 @@ trait Workflow[S <: Scheduling] {
   }
 
   /**
+    * @return the list of strongly connected components (SCCs) in the workflow with more than 1 node, which
+    * are the cycles in the graph
+    * @note Tarjan algorithm
+    */
+  def findCycles(): List[List[Job[S]]] = {
+    case class NodeWithMetadata(node: Job[S], children: mutable.Set[NodeWithMetadata] = mutable.Set.empty) {
+      var discoveryTime: Long = Long.MaxValue
+      // Discovery time of the earliest discovered ancestor
+      var earliestAncestor: Long = Long.MaxValue
+
+      def addChild(child: NodeWithMetadata): Boolean = children.add(child)
+
+      def removeChild(child: NodeWithMetadata): Boolean = children.remove(child)
+
+      def visited: Boolean = discoveryTime < Long.MaxValue
+
+      // Override hash computation to prevent stack overflow when trying to compute the hash of a node using the
+      // default hash method on workflows with cycles
+      override def hashCode(): Int = node.hashCode()
+    }
+
+    // Perform DFS on each non visited node and pop up elements each time a strongly connected component is identified
+    val stack = new mutable.Stack[NodeWithMetadata]
+    // Bookkeeping of nodes whose SCC has not yet been identified
+    val nodesInStack = mutable.Set.empty[NodeWithMetadata]
+    var time = 0L
+    val stronglyConnectedComponents = mutable.ListBuffer.empty[List[Job[S]]]
+
+    def dfs(node: NodeWithMetadata): Unit = {
+      stack.push(node)
+      nodesInStack += node
+      time += 1
+      node.discoveryTime = time
+      node.earliestAncestor = time
+      node.children.foreach { child =>
+        if (!child.visited) {
+          // (node -> child) is a tree edge
+          dfs(child)
+          node.earliestAncestor = Math.min(node.earliestAncestor, child.earliestAncestor)
+        }
+        else if (nodesInStack.contains(child)) {
+            // (node -> child) is a back edge
+            node.earliestAncestor = Math.min(node.earliestAncestor, child.discoveryTime)
+        }
+        // Otherwise 'child' was already added to a SCC
+      }
+
+      // Depth-first search tree of 'node' full explored
+      if (node.discoveryTime == node.earliestAncestor) {
+        // 'node' is the head node of a SCC. The nodes in the 'stack' above it are part of the same SCC
+        val scc = mutable.ListBuffer.empty[Job[S]]
+        while (stack.top != node) {
+          scc += stack.top.node
+          nodesInStack -= stack.top
+          stack.pop()
+        }
+        scc += stack.top.node
+        nodesInStack -= stack.top
+        stack.pop()
+        stronglyConnectedComponents += scc.toList
+      }
+    }
+
+    val nodesWithMetadata = vertices.map(job => NodeWithMetadata(job))
+      .map(node => node.node -> node).toMap
+    edges.foreach { case(child, parent, _) => nodesWithMetadata(parent).addChild(nodesWithMetadata(child)) }
+
+    nodesWithMetadata.values.foreach { node =>
+      if (!node.visited) dfs(node)
+    }
+
+    stronglyConnectedComponents.filter(_.size >= 2).toList
+  }
+
+  /**
     * @param edgeVisitor method called for each edge (parent node, child node) visited by Kahn's algorithm
     * @return the jobs in the workflow sorted in topological order, None if the graph contains a cycle
     * */
@@ -54,7 +129,12 @@ trait Workflow[S <: Scheduling] {
       }
       /** @return true if the node has no incoming edges */
       def isOrphanNode: Boolean = numIncomingEdges == 0
+
+      // Override hash computation to prevent stack overflow when trying to compute the hash of a node using the
+      // default hash method on workflows with cycles
+      override def hashCode(): Int = node.hashCode()
     }
+
     val nodesWithMetadata = vertices.map(job => NodeWithMetadata(job))
       .map(node => node.node -> node).toMap
     edges.foreach { case(child, parent, _) => nodesWithMetadata(parent).addChild(nodesWithMetadata(child)) }
@@ -122,6 +202,18 @@ trait Workflow[S <: Scheduling] {
       val edges = leftWorkflow.edges ++ rightWorkflow.edges ++ newEdges
     }
   }
+
+  case class DependencyBuilder(workflow: Workflow[S], parentJob: Job[S])(implicit dependencyDescriptor: S#DependencyDescriptor) {
+    def to(childJob: Job[S]): Workflow[S] = {
+      new Workflow[S] {
+        val vertices = workflow.vertices ++ Set(childJob, parentJob)
+        val edges = workflow.edges + ((childJob, parentJob, dependencyDescriptor))
+      }
+    }
+  }
+
+  def withDependencyFrom(parentJob: Job[S])(implicit dependencyDescriptor: S#DependencyDescriptor): DependencyBuilder =
+    DependencyBuilder(this, parentJob)
 }
 
 /** Utilities for [[Workflow]]. */
