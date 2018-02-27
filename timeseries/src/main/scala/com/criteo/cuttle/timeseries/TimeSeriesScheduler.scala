@@ -41,27 +41,27 @@ sealed trait TimeSeriesCalendar {
     else next(t)
   }
   private[timeseries] def inInterval(interval: Interval[Instant], maxPeriods: Int) = {
-    def go(lo: Instant, hi: Instant): List[(Instant, Instant)] = {
+    def go(lo: Instant, hi: Instant, acc: List[(Instant, Instant)]): List[(Instant, Instant)] = {
       val nextLo = next(lo)
-      if (nextLo.isAfter(hi)) List.empty
-      else ((lo, nextLo) +: go(nextLo, hi))
+      if (nextLo.isAfter(hi)) acc
+      else go(nextLo, hi, (lo, nextLo) +: acc)
     }
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
-        go(ceil(lo), hi).grouped(maxPeriods).map(xs => (xs.head._1, xs.last._2))
+        go(ceil(lo), hi, List.empty).reverse.grouped(maxPeriods).map(xs => (xs.head._1, xs.last._2))
       case _ =>
         sys.error("panic")
     }
   }
   private[timeseries] def split(interval: Interval[Instant]) = {
-    def go(lo: Instant, hi: Instant): List[(Instant, Instant)] = {
+    def go(lo: Instant, hi: Instant, acc: List[(Instant, Instant)]): List[(Instant, Instant)] = {
       val nextLo = next(lo)
-      if (nextLo.isBefore(hi)) ((lo, nextLo) +: go(nextLo, hi))
-      else List((lo, hi))
+      if (nextLo.isBefore(hi)) go(nextLo, hi, (lo, nextLo) +: acc)
+      else (lo, hi) +: acc
     }
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
-        go(lo, hi)
+        go(lo, hi, List.empty).reverse
       case _ =>
         sys.error("panic")
     }
