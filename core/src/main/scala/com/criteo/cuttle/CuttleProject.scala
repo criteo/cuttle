@@ -50,6 +50,31 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
 
     logger.info(s"Listening on http://localhost:$httpPort")
   }
+
+  /**
+    * Connect to database and build routes. It allows you to start externally a server and decide when to start the scheduling.
+    *
+    * @param platforms The configured [[ExecutionPlatform ExecutionPlatforms]] to use to execute jobs.
+    * @param databaseConfig JDBC configuration for MySQL server 5.7.
+    * @param retryStrategy The strategy to use for execution retry. Default to exponential backoff.
+    *
+    * @return a tuple with cuttleRoutes (needed to start a server) and a function to start the scheduler
+    */
+  def build(
+    platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
+    databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
+    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
+  ): (Service, () => Unit) = {
+    val xa = Database.connect(databaseConfig)
+    val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
+
+    val startScheduler = () => {
+      logger.info("Start workflow")
+      scheduler.start(workflow, executor, xa, logger)
+    }
+
+    (App(this, executor, xa).routes, startScheduler)
+  }
 }
 
 /**
