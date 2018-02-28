@@ -242,7 +242,7 @@ case class Execution[S <: Scheduling](
     *
     * While waiting for the lock, the [[Execution]] will be seen as __WAITING__ in the UI and the API.
     */
-  def withMaxParallelRuns[A, B](lock: A, concurrencyLimit: Int)(thunk: => Future[B]) = {
+  def withMaxParallelRuns[A, B](lock: A, concurrencyLimit: Int)(thunk: => Future[B]): Future[B] = {
     if (isWaiting.get) {
       sys.error(s"Already waiting")
     } else {
@@ -254,7 +254,11 @@ case class Execution[S <: Scheduling](
         }
         Execution.locks(lock)
       }
-      pool.run(this, s"Locked on ${lock}") { () =>
+      require(
+        pool.concurrencyLimit == concurrencyLimit,
+        s"Inconsistent concurrency limits defined for the execution pool for $lock"
+      )
+      pool.run(this, s"Locked on $lock") { () =>
         streams.debug(s"Resuming")
         isWaiting.set(false)
         thunk
