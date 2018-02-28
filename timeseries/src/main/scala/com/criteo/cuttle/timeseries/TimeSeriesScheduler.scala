@@ -564,7 +564,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     val childrenMap = workflow.edges.groupBy { case (_, parent, _) => parent }
 
     def reverseDescr(dep: TimeSeriesDependency) =
-      TimeSeriesDependency(dep.offsetHigh.negated, dep.offsetLow.negated)
+      TimeSeriesDependency(dep.offsetLow.negated, dep.offsetHigh.negated)
     def applyDep(dep: TimeSeriesDependency): PartialFunction[Interval[Instant], Interval[Instant]] =
       Function.unlift { (i: Interval[Instant]) =>
         val low = i.lo.map(_.plus(dep.offsetLow))
