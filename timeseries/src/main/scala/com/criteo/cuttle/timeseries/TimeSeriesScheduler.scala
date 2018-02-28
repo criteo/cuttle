@@ -730,38 +730,20 @@ private[timeseries] object TimeSeriesUtils {
     */
   def validate(workflow: Workflow[TimeSeries]): Either[List[String], Unit] = {
     val errors = collection.mutable.ListBuffer.empty[String]
-    val edges = collection.mutable.Set(workflow.edges.toSeq: _*)
-    val roots = collection.mutable.Set(workflow.roots.toSeq: _*)
 
-    while (roots.nonEmpty) {
-      val root = roots.head
-
-      roots.remove(root)
-
-      val edgesWithoutParent = edges.filter(_._2 == root)
-
-      edgesWithoutParent.foreach {
-        case edge @ (child, _, _) =>
-          if (child.scheduling.start.isBefore(root.scheduling.start)) {
-            errors += s"Job [${child.id}] starts at [${child.scheduling.start.toString}] " +
-              s"before his parent [${root.id}] at [${root.scheduling.start.toString}]"
-          }
-
-          edges.remove(edge)
-
-          if (!edges.exists(_._1 == child)) {
-            roots.add(child)
-          }
+    workflow.topologicalSort((parentJob, childJob) => {
+      if (childJob.scheduling.start.isBefore(parentJob.scheduling.start)) {
+        errors += s"Job [${childJob.id}] starts at [${childJob.scheduling.start.toString}] " +
+          s"before his parent [${parentJob.id}] at [${parentJob.scheduling.start.toString}]"
       }
+    }) match {
+      case None => errors += "Workflow has at least one cycle"
+      case _ =>
     }
-
-    if (edges.nonEmpty) errors += "Workflow has at least one cycle"
 
     workflow.vertices.groupBy(_.id).collect {
       case (id: String, jobs) if jobs.size > 1 => id
-    } foreach (id => {
-      errors += s"Id $id is used by more than 1 job"
-    })
+    } foreach (id => errors += s"Id $id is used by more than 1 job")
 
     if (errors.nonEmpty) Left(errors.toList)
     else Right(())
