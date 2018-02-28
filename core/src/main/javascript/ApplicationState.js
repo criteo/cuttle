@@ -5,11 +5,21 @@ import type { Project, Workflow, Statistics } from "./datamodel";
 
 import { prepareWorkflow } from "./datamodel";
 
+export type JobStatus = "all" | "active" | "paused";
+
+type JobsPage = {
+  id: "jobs",
+  status: JobStatus,
+  sort?: string,
+  order?: "asc" | "desc"
+};
+
 export type Page =
   | { id: "" }
   | {
       id: "workflow",
-      jobId?: string
+      jobId?: string,
+      showDetail: boolean
     }
   | {
       id: "executions/started",
@@ -57,7 +67,8 @@ export type Page =
   | {
       id: "timeseries/backfills/detail",
       backfillId: string
-    };
+    }
+  | JobsPage;
 
 export type State = {
   page: Page,
