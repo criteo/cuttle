@@ -187,6 +187,7 @@ private[cuttle] object Database {
     } yield ()
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
+
   def connect(dbConfig: DatabaseConfig): XA = {
     val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
 
@@ -195,18 +196,17 @@ private[cuttle] object Database {
 
     connections.getOrElseUpdate(
       dbConfig, {
-        val xa = (for {
-          hikari <- HikariTransactor.newHikariTransactor[IO](
+        val xa = HikariTransactor
+          .newHikariTransactor[IO](
             "com.mysql.cj.jdbc.Driver",
             jdbcString,
             dbConfig.username,
             dbConfig.password
           )
-          _ <- hikari.configure { datasource =>
-            IO.pure( /* Configure datasource if needed */ ())
-          }
-        } yield hikari).unsafeRunSync
+          .unsafeRunSync
+
         doSchemaUpdates.transact(xa).unsafeRunSync
+
         lockedTransactor(xa)
       }
     )
