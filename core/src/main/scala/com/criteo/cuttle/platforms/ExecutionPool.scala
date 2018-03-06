@@ -15,7 +15,7 @@ import io.circe.syntax._
   *
   * @param concurrencyLimit The maximum number of concurrent executions.
   */
-class ExecutionPool(concurrencyLimit: Int) extends WaitingExecutionQueue {
+case class ExecutionPool(concurrencyLimit: Int) extends WaitingExecutionQueue {
   def canRunNextCondition(implicit txn: InTxn) = _running().size < concurrencyLimit
   def doRunNext()(implicit txn: InTxn): Unit = ()
 
