@@ -67,11 +67,6 @@ object DatabaseConfig {
 
 private[cuttle] object Database {
 
-  implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].xmap(
-    x => Instant.ofEpochMilli(x.getTime),
-    x => new java.sql.Timestamp(x.toEpochMilli)
-  )
-
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
     x => if (x) ExecutionSuccessful else ExecutionFailed, {
       case ExecutionSuccessful => true
@@ -163,7 +158,7 @@ private[cuttle] object Database {
   }
 
   private val doSchemaUpdates: ConnectionIO[Unit] =
-    (for {
+    for {
       _ <- sql"""
         CREATE TABLE IF NOT EXISTS schema_evolutions (
           schema_version  SMALLINT NOT NULL,
@@ -183,12 +178,13 @@ private[cuttle] object Database {
 
       _ <- schemaEvolutions.map(_.update).zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
         case (evolutions, (evolution, i)) =>
-          evolutions *> evolution.run *> sql"""
+          evolutions *> evolution.run *>
+            sql"""
             INSERT INTO schema_evolutions (schema_version, schema_update)
             VALUES (${i + 1}, ${Instant.now()})
           """.update.run
       }
-    } yield ())
+    } yield ()
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
   def connect(dbConfig: DatabaseConfig): XA = {
