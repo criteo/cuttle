@@ -77,7 +77,7 @@ private[cuttle] object ExecutionStreams {
     }
   }
 
-  def getStreams(id: ExecutionId, queries: Queries, xa: XA): fs2.Stream[IO, Byte] = {
+  def getStreams(id: ExecutionId, xa: XA): fs2.Stream[IO, Byte] = {
     def go(alreadySent: Int = 0): fs2.Stream[IO, Byte] =
       fs2.Stream.eval(IO { streamsAsString(id) }).flatMap {
         case Some(content) =>
@@ -86,7 +86,7 @@ private[cuttle] object ExecutionStreams {
         case None =>
           fs2.Stream
             .eval(
-              queries
+              Queries
                 .archivedStreams(id)
                 .transact(xa)
                 .map(_.map(content => fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))))
@@ -147,8 +147,8 @@ private[cuttle] object ExecutionStreams {
     logFile(id).delete()
   }
 
-  def archive(id: ExecutionId, queries: Queries, xa: XA): Unit = {
-    queries
+  def archive(id: ExecutionId, xa: XA): Unit = {
+    Queries
       .archiveStreams(id, streamsAsString(id).getOrElse(sys.error(s"Cannot archive streams for execution $id")))
       .transact(xa)
       .unsafeRunSync()

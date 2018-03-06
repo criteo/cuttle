@@ -22,13 +22,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused-import",
     "-Ypartial-unification"
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) =>
-      Nil
-      Seq(
-        "-Ywarn-unused:-params"
-      )
-    case _ =>
-      Nil
+    case Some((2, 12)) => Seq("-Ywarn-unused:-params")
+    case _             => Nil
   }),
   devMode := Option(System.getProperty("devMode")).isDefined,
   writeClasspath := {
@@ -38,6 +33,8 @@ lazy val commonSettings = Seq(
     streams.value.log.info(f.getAbsolutePath)
     f
   },
+  // test config
+  testOptions in IntegrationTest := Seq(Tests.Filter(_ endsWith "ITest")),
   // Maven config
   credentials += Credentials(
     "Sonatype Nexus Repository Manager",
@@ -173,7 +170,9 @@ lazy val localdb = {
 
 lazy val cuttle =
   (project in file("core"))
+    .configs(IntegrationTest)
     .settings(commonSettings: _*)
+    .settings(Defaults.itSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
         "com.criteo.lolhttp" %% "lolhttp",
@@ -193,7 +192,8 @@ lazy val cuttle =
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
-        "org.tpolecat" %% "doobie-hikari"
+        "org.tpolecat" %% "doobie-hikari",
+        "org.tpolecat" %% "doobie-scalatest"
       ).map(_ % "0.5.0"),
       libraryDependencies ++= Seq(
         "mysql" % "mysql-connector-java" % "6.0.6"
@@ -201,7 +201,7 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1",
         "org.mockito" % "mockito-all" % "1.10.19"
-      ).map(_ % "test"),
+      ).map(_ % "it,test"),
       // Webpack
       resourceGenerators in Compile += Def.task {
         import scala.sys.process._

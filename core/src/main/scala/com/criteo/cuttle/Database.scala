@@ -80,7 +80,7 @@ private[cuttle] object Database {
     x => x.noSpaces
   )
 
-  val schemaEvolutions = List(
+  private val schemaEvolutions = List(
     sql"""
       CREATE TABLE executions (
         id          CHAR(36) NOT NULL,
@@ -188,32 +188,35 @@ private[cuttle] object Database {
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
 
-  def connect(dbConfig: DatabaseConfig): XA = {
+  private[cuttle] def newHikariTransactor(dbConfig: DatabaseConfig): HikariTransactor[IO] = {
     val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
 
     val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
-      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true"
+      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true&generateSimpleParameterMetadata=true"
 
-    connections.getOrElseUpdate(
-      dbConfig, {
-        val xa = HikariTransactor
-          .newHikariTransactor[IO](
-            "com.mysql.cj.jdbc.Driver",
-            jdbcString,
-            dbConfig.username,
-            dbConfig.password
-          )
-          .unsafeRunSync
-
-        doSchemaUpdates.transact(xa).unsafeRunSync
-
-        lockedTransactor(xa)
-      }
-    )
+    HikariTransactor
+      .newHikariTransactor[IO](
+        "com.mysql.cj.jdbc.Driver",
+        jdbcString,
+        dbConfig.username,
+        dbConfig.password
+      )
+      .unsafeRunSync
   }
+
+  private[cuttle] def reset(): Unit =
+    connections.clear()
+
+  def connect(dbConfig: DatabaseConfig): XA = connections.getOrElseUpdate(
+    dbConfig, {
+      val xa = newHikariTransactor(dbConfig)
+      doSchemaUpdates.transact(xa).unsafeRunSync
+      lockedTransactor(xa)
+    }
+  )
 }
 
-private[cuttle] trait Queries {
+private[cuttle] object Queries {
   import Database._
 
   def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]): ConnectionIO[Int] =
@@ -280,15 +283,16 @@ private[cuttle] trait Queries {
       DELETE FROM paused_jobs WHERE id = ${job.id}
     """.update.run
 
-  def pauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
-    unpauseJob(job) *> sql"""
-      INSERT INTO paused_jobs VALUES (${job.id});
-    """.update.run
+  private[cuttle] def pauseJobQuery[S <: Scheduling](job: Job[S]) = sql"""
+      INSERT INTO paused_jobs VALUES (${job.id})
+    """.update
 
-  def getPausedJobIds: ConnectionIO[Set[String]] =
-    sql"SELECT id FROM paused_jobs"
-      .query[String]
-      .to[Set]
+  def pauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
+    unpauseJob(job) *> pauseJobQuery(job).run
+
+  private[cuttle] val getPausedJobIdsQuery = sql"SELECT id FROM paused_jobs".query[String]
+
+  def getPausedJobIds: ConnectionIO[Set[String]] = getPausedJobIdsQuery.to[Set]
 
   def archiveStreams(id: String, streams: String): ConnectionIO[Int] =
     sql"""

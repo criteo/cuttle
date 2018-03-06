@@ -242,7 +242,7 @@ case class Execution[S <: Scheduling](
     *
     * While waiting for the lock, the [[Execution]] will be seen as __WAITING__ in the UI and the API.
     */
-  def withMaxParallelRuns[A, B](lock: A, concurrencyLimit: Int)(thunk: => Future[B]): Future[B] = {
+  def withMaxParallelRuns[A, B](lock: A, concurrencyLimit: Int)(thunk: => Future[B]): Future[B] =
     if (isWaiting.get) {
       sys.error(s"Already waiting")
     } else {
@@ -264,7 +264,6 @@ case class Execution[S <: Scheduling](
         thunk
       }
     }
-  }
 
   /** Synchronize a code block over a lock. If several [[SideEffect]] functions need to race
     * for a shared thread unsafe resource, they can use this helper function to ensure that only
@@ -348,9 +347,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
-  private val queries = new Queries {
-    val appLogger: Logger = logger
-  }
+  private val queries = Queries
 
   private val pausedState: TMap[String, Map[Execution[S], Promise[Completed]]] = {
     val byId = TMap.empty[String, Map[Execution[S], Promise[Completed]]]
@@ -570,7 +567,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     }
 
   private[cuttle] def openStreams(executionId: String): fs2.Stream[IO, Byte] =
-    ExecutionStreams.getStreams(executionId, queries, xa)
+    ExecutionStreams.getStreams(executionId, xa)
 
   private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val executionsToCancel = atomic { implicit tx =>
@@ -708,7 +705,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         .andThen {
           case result =>
             try {
-              ExecutionStreams.archive(execution.id, queries, xa)
+              ExecutionStreams.archive(execution.id, xa)
             } catch {
               case e: Throwable =>
                 e.printStackTrace()
