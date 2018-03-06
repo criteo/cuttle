@@ -3,10 +3,11 @@ package com.criteo.cuttle.timeseries
 import java.time._
 import java.time.temporal.ChronoUnit._
 
+import org.scalatest.FunSuite
+
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.intervals.Bound.{Finite, Top}
 import com.criteo.cuttle.timeseries.intervals._
-import org.scalatest.FunSuite
 
 class TimeSeriesSpec extends FunSuite with TestScheduling {
   val scheduling: TimeSeries = hourly(date"2017-03-25T02:00:00Z")
@@ -79,7 +80,11 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
 
     val validationRes = TimeSeriesUtils.validate(workflow)
     assert(validationRes.isLeft, "workflow passed start date validation")
-    assert(validationRes.left.get === List("Workflow has at least one cycle"), "errors messages are bad")
+    assert(validationRes.left.get === List(
+      "Workflow has at least one cycle",
+      "Job [0] starts at [2017-03-25T02:00:00Z] before his parent [badJob] at [2117-03-25T02:00:00Z]",
+      "Job [1] starts at [2017-03-25T02:00:00Z] before his parent [badJob] at [2117-03-25T02:00:00Z]"
+    ), "errors messages are bad")
   }
 
   test("it shouldn't validate a workflow that contains jobs with same ids") {

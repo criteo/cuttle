@@ -712,7 +712,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   }
 }
 
-private[timeseries] object TimeSeriesUtils {
+object TimeSeriesUtils {
   type TimeSeriesJob = Job[TimeSeries]
   type Executable = (TimeSeriesJob, TimeSeriesContext)
   type Run = (TimeSeriesJob, TimeSeriesContext, Future[Completed])
@@ -722,46 +722,21 @@ private[timeseries] object TimeSeriesUtils {
 
   /**
     * Validation of:
-    * - cycle absence in workflow DAG, implemented based on Kahn's algorithm
-    * - absence the (child, parent) tuple that child has a start date before parent's start date
+    * - absence of cycles in the workflow, implemented based on Kahn's algorithm
+    * - absence of (parent job, child job) dependencies where child has a start date before parent's start date
     * - absence of jobs with the same id
     * @param workflow workflow to be validated
-    * @return either a validation errors list or an unit
+    * @return either a validation errors list or a unit
     */
   def validate(workflow: Workflow[TimeSeries]): Either[List[String], Unit] = {
-    val errors = collection.mutable.ListBuffer.empty[String]
-    val edges = collection.mutable.Set(workflow.edges.toSeq: _*)
-    val roots = collection.mutable.Set(workflow.roots.toSeq: _*)
+    val errors = collection.mutable.ListBuffer(Workflow.validate(workflow): _*)
 
-    while (roots.nonEmpty) {
-      val root = roots.head
-
-      roots.remove(root)
-
-      val edgesWithoutParent = edges.filter(_._2 == root)
-
-      edgesWithoutParent.foreach {
-        case edge @ (child, _, _) =>
-          if (child.scheduling.start.isBefore(root.scheduling.start)) {
-            errors += s"Job [${child.id}] starts at [${child.scheduling.start.toString}] " +
-              s"before his parent [${root.id}] at [${root.scheduling.start.toString}]"
-          }
-
-          edges.remove(edge)
-
-          if (!edges.exists(_._1 == child)) {
-            roots.add(child)
-          }
+    workflow.edges.map { case (childJob, parentJob, _) =>
+      if (childJob.scheduling.start.isBefore(parentJob.scheduling.start)) {
+        errors += s"Job [${childJob.id}] starts at [${childJob.scheduling.start.toString}] " +
+          s"before his parent [${parentJob.id}] at [${parentJob.scheduling.start.toString}]"
       }
     }
-
-    if (edges.nonEmpty) errors += "Workflow has at least one cycle"
-
-    workflow.vertices.groupBy(_.id).collect {
-      case (id: String, jobs) if jobs.size > 1 => id
-    } foreach (id => {
-      errors += s"Id $id is used by more than 1 job"
-    })
 
     if (errors.nonEmpty) Left(errors.toList)
     else Right(())
