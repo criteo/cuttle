@@ -1,9 +1,10 @@
 package com.criteo.cuttle
 
+import java.time.Instant
+
 import cats.effect.IO
-import doobie.scalatest.IOChecker
 import doobie.implicits._
-import cats.implicits._
+import doobie.scalatest.IOChecker
 
 import scala.concurrent.Future
 
@@ -28,7 +29,7 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
     check(Queries.getPausedJobIdsQuery)
   }
 
-  test("should validate query") {
+  test("should validate paused jobs queries") {
     Database.reset()
     val xa = Database.connect(dbConfig)
     val id = "id1"
@@ -36,7 +37,7 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
       Future.successful(Completed)
     }
 
-    assert(Queries.pauseJob(job).transact(xa).unsafeRunSync() == 1)
+    assert(Queries.pauseJob(job, "user", Instant.now()).transact(xa).unsafeRunSync() == 1)
     assert(Queries.getPausedJobIds.transact(xa).unsafeRunSync() == Set(id))
   }
 }

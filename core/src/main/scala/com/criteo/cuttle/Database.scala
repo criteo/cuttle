@@ -4,16 +4,13 @@ import doobie._
 import doobie.implicits._
 import doobie.hikari._
 import doobie.hikari.implicits._
-
 import io.circe._
 import io.circe.parser._
-
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.IO
 
 import scala.util._
-
 import java.time._
 import java.util.concurrent.{Executors, TimeUnit}
 
@@ -106,6 +103,9 @@ private[cuttle] object Database {
         id          CHAR(36) NOT NULL,
         streams     MEDIUMTEXT
       ) ENGINE = INNODB;
+    """,
+    sql"""
+      ALTER TABLE paused_jobs ADD COLUMN user VARCHAR(256) NOT NULL DEFAULT 'not defined user', ADD COLUMN date DATETIME NOT NULL
     """
   )
 
@@ -192,7 +192,7 @@ private[cuttle] object Database {
     val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
 
     val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
-      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true&generateSimpleParameterMetadata=true"
+      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true"
 
     HikariTransactor
       .newHikariTransactor[IO](
@@ -283,12 +283,12 @@ private[cuttle] object Queries {
       DELETE FROM paused_jobs WHERE id = ${job.id}
     """.update.run
 
-  private[cuttle] def pauseJobQuery[S <: Scheduling](job: Job[S]) = sql"""
-      INSERT INTO paused_jobs VALUES (${job.id})
+  private[cuttle] def pauseJobQuery[S <: Scheduling](job: Job[S], user: String, date: Instant) = sql"""
+      INSERT INTO paused_jobs VALUES (${job.id}, $user, $date)
     """.update
 
-  def pauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
-    unpauseJob(job) *> pauseJobQuery(job).run
+  def pauseJob[S <: Scheduling](job: Job[S], user: String, date: Instant): ConnectionIO[Int] =
+    unpauseJob(job) *> pauseJobQuery(job, user, date).run
 
   private[cuttle] val getPausedJobIdsQuery = sql"SELECT id FROM paused_jobs".query[String]
 

@@ -573,7 +573,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     val executionsToCancel = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit txn: InTxnEnd): Boolean = {
-          jobs.map(queries.pauseJob).reduceLeft(_ *> _).transact(xa).unsafeRunSync
+          val pauseDate = Instant.now()
+          jobs.map(queries.pauseJob(_, user.userId, pauseDate)).reduceLeft(_ *> _).transact(xa).unsafeRunSync
           true
         }
       })

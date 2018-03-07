@@ -34,7 +34,7 @@ lazy val commonSettings = Seq(
     f
   },
   // test config
-  testOptions in IntegrationTest := Seq(Tests.Filter(_ endsWith "ITest")),
+  testOptions in IntegrationTest := Seq(Tests.Filter(_ endsWith "ITest"), Tests.Argument("-oF")),
   // Maven config
   credentials += Credentials(
     "Sonatype Nexus Repository Manager",
