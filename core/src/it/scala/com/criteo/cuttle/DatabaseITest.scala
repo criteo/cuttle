@@ -1,6 +1,6 @@
 package com.criteo.cuttle
 
-import java.time.Instant
+import java.time.{Instant, LocalDateTime, ZoneOffset}
 import java.time.temporal.ChronoUnit
 
 import cats.effect.IO
@@ -43,5 +43,21 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
 
     assert(Queries.pauseJob(pausedJob).transact(xa).unsafeRunSync() == 1)
     assert(Queries.getPausedJobs.transact(xa).unsafeRunSync() == Seq(pausedJob))
+  }
+
+  test("paused_jobs migration(1) should set default values for old pauses") {
+    Database.reset()
+
+    Database.schemaEvolutions.head.update.run.transact(transactor).unsafeRunSync()
+    sql"INSERT INTO paused_jobs VALUES ('1')".update.run.transact(transactor).unsafeRunSync()
+    val id = sql"SELECT * FROM paused_jobs".query[String].unique.transact(transactor).unsafeRunSync()
+    assert(id == "1")
+
+    Database.schemaEvolutions(1).update.run.transact(transactor).unsafeRunSync()
+
+    val pausedJob = sql"SELECT * FROM paused_jobs".query[PausedJob].unique.transact(transactor).unsafeRunSync()
+    assert(pausedJob.id == "1")
+    assert(pausedJob.user == User("not defined user"))
+    assert(pausedJob.date == LocalDateTime.parse("1991-11-01T15:42:00").toInstant(ZoneOffset.UTC))
   }
 }

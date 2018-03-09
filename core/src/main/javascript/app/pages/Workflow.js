@@ -240,7 +240,7 @@ class WorkflowComponent extends React.Component {
     fetch(`/api/jobs/paused`).then(data => data.json()).then(json => {
       this.setState({
         jobColors: json.reduce(
-          (acc, job) => Object.assign(acc, { [job]: "#FFAAFF" }),
+          (acc, job) => Object.assign(acc, { [job.id]: "#FFAAFF" }),
           {}
         )
       });

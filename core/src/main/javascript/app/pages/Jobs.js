@@ -22,7 +22,7 @@ type Props = {
 
 type State = {
   data: Array<Job> | null,
-  pausedJobs: Set<string> | null
+  pausedJobs: Map<string, PausedJob> | null
 };
 
 type Order = "asc" | "desc";
@@ -32,22 +32,33 @@ type Sort = {
   order: Order
 };
 
-type Columns = "id" | "name" | "description";
+type Columns = "id" | "name" | "description" | "date";
 
 type Scheduling = {
   start: string
 };
 
+type User = {
+  userId: string
+};
+
 type Job = {
   [Columns]: string,
   scheduling: Scheduling,
-  status: JobStatus
+  status: JobStatus,
+  user: User
+};
+
+type PausedJob = {
+  id: string,
+  user: User,
+  date: string
 };
 
 type JobsOrder = (Job, Job) => number;
 
 const columns: Array<{
-  id: Columns | "startDate" | "status",
+  id: Columns | "startDate" | "status" | "user",
   label: string,
   sortable: boolean
 }> = [
@@ -55,13 +66,17 @@ const columns: Array<{
   { id: "name", label: "Name", sortable: true },
   { id: "description", label: "Description", sortable: false },
   { id: "startDate", label: "Start Date", sortable: true },
-  { id: "status", label: "Status", sortable: true }
+  { id: "status", label: "Status", sortable: true },
+  { id: "user", label: "Paused By", sortable: true },
+  { id: "date", label: "Paused At", sortable: true }
 ];
 
 const column2Comp: {
   [Columns]: ({ [Columns]: string }) => any,
   startDate: ({ scheduling: Scheduling }) => any,
-  status: ({ status: JobStatus }) => any
+  status: ({ status: JobStatus }) => any,
+  user: ({ user: User }) => any,
+  date: ({ date: string }) => any
 } = {
   id: ({ id }: { id: string }) => <span>{id}</span>,
   name: ({ name }: { name: string }) => <span>{name}</span>,
@@ -78,6 +93,10 @@ const column2Comp: {
       light={true}
       kind={status === "paused" ? "default" : "info"}
     />
+  ),
+  user: ({ user }: { user: User }) => <span>{user.userId}</span>,
+  date: ({ date }: { date: string }) => (
+    <span>{date ? displayFormat(new Date(date)) : ""}</span>
   )
 };
 
@@ -88,6 +107,8 @@ const sortFunction: Sort => JobsOrder = (sort: Sort) => (a: Job, b: Job) => {
   const idOrder = (a: Job, b: Job) => a.id.localeCompare(b.id);
   const nameOrder = (a: Job, b: Job) => a.name.localeCompare(b.name);
   const statusOrder = (a: Job, b: Job) => a.status.localeCompare(b.status);
+  const userOrder = (a: Job, b: Job) =>
+    a.user.userId.localeCompare(b.user.userId);
   const sortFn = (sort: Sort) => {
     switch (sort.column) {
       case "id":
@@ -96,6 +117,8 @@ const sortFunction: Sort => JobsOrder = (sort: Sort) => (a: Job, b: Job) => {
         return nameOrder;
       case "status":
         return statusOrder;
+      case "user":
+        return userOrder;
       default:
         return idOrder;
     }
@@ -116,10 +139,18 @@ const fetchWorkflow = (persist: ({ data: Array<Job> }) => void) => {
     .then(persist);
 };
 
-const fetchPausedJobs = (persist: ({ pausedJobs: Set<string> }) => void) => {
+const fetchPausedJobs = (
+  persist: ({ pausedJobs: Map<string, PausedJob> }) => void
+) => {
   return fetch("/api/jobs/paused")
     .then(processResponse)
-    .then(jsonArr => ({ pausedJobs: new Set(jsonArr) }))
+    .then((jsonArr: Array<PausedJob>) => {
+      const pausedJobs = new Map();
+      jsonArr.forEach(pausedJob => {
+        pausedJobs.set(pausedJob.id, pausedJob);
+      });
+      return { pausedJobs: pausedJobs };
+    })
     .then(persist);
 };
 
@@ -137,6 +168,14 @@ const NoJobs = ({
     {selectedJobs.length ? " (some may have been filtered)" : ""}
   </div>
 );
+
+const activeJobsProps = {
+  user: {
+    userId: ""
+  },
+  date: "",
+  status: "active"
+};
 
 class JobsComp extends React.Component<any, Props, State> {
   state: State;
@@ -163,14 +202,18 @@ class JobsComp extends React.Component<any, Props, State> {
     const { classes, status, sort, selectedJobs, envCritical } = this.props;
     const { data, pausedJobs } = this.state;
     const setOfSelectedJobs = new Set(selectedJobs);
-
     const Data = () => {
       if (data && data.length && pausedJobs) {
-        const preparedData = data
-          .map(datum => ({
-            ...datum,
-            status: pausedJobs.has(datum.id) ? "paused" : "active"
-          }))
+        const jobs = data.map((job: Job) =>
+          Object.assign(
+            {},
+            job,
+            pausedJobs.has(job.id)
+              ? { ...pausedJobs.get(job.id), status: "paused" }
+              : activeJobsProps
+          )
+        );
+        const preparedData = jobs
           .filter(
             job =>
               (setOfSelectedJobs.size === 0 || setOfSelectedJobs.has(job.id)) &&

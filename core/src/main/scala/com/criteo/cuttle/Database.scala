@@ -77,7 +77,7 @@ private[cuttle] object Database {
     x => x.noSpaces
   )
 
-  private val schemaEvolutions = List(
+  private[cuttle] val schemaEvolutions = List(
     sql"""
       CREATE TABLE executions (
         id          CHAR(36) NOT NULL,
