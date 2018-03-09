@@ -24,7 +24,7 @@ module.exports = {
   output: {
     filename: "[name].js",
     path: outputPath,
-    publicPath: "/public"
+    publicPath: "/public/"
   },
 
   devtool: "sourcemap",
