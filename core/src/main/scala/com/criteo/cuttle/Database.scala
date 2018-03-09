@@ -105,7 +105,7 @@ private[cuttle] object Database {
       ) ENGINE = INNODB;
     """,
     sql"""
-      ALTER TABLE paused_jobs ADD COLUMN user VARCHAR(256) NOT NULL DEFAULT 'not defined user', ADD COLUMN date DATETIME NOT NULL
+      ALTER TABLE paused_jobs ADD COLUMN user VARCHAR(256) NOT NULL DEFAULT 'not defined user', ADD COLUMN date DATETIME NOT NULL DEFAULT '1991-11-01:15:42:00'
     """
   )
 
@@ -278,21 +278,21 @@ private[cuttle] object Queries {
           ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
       })
 
-  def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
+  def resumeJob(id: String): ConnectionIO[Int] =
     sql"""
-      DELETE FROM paused_jobs WHERE id = ${job.id}
+      DELETE FROM paused_jobs WHERE id = $id
     """.update.run
 
-  private[cuttle] def pauseJobQuery[S <: Scheduling](job: Job[S], user: String, date: Instant) = sql"""
-      INSERT INTO paused_jobs VALUES (${job.id}, $user, $date)
+  private[cuttle] def pauseJobQuery[S <: Scheduling](pausedJob: PausedJob) = sql"""
+      INSERT INTO paused_jobs VALUES (${pausedJob.id}, ${pausedJob.user}, ${pausedJob.date})
     """.update
 
-  def pauseJob[S <: Scheduling](job: Job[S], user: String, date: Instant): ConnectionIO[Int] =
-    unpauseJob(job) *> pauseJobQuery(job, user, date).run
+  def pauseJob(pausedJob: PausedJob): ConnectionIO[Int] =
+    resumeJob(pausedJob.id) *> pauseJobQuery(pausedJob).run
 
-  private[cuttle] val getPausedJobIdsQuery = sql"SELECT id FROM paused_jobs".query[String]
+  private[cuttle] val getPausedJobIdsQuery = sql"SELECT id, user, date FROM paused_jobs".query[PausedJob]
 
-  def getPausedJobIds: ConnectionIO[Set[String]] = getPausedJobIdsQuery.to[Set]
+  def getPausedJobs: ConnectionIO[Seq[PausedJob]] = getPausedJobIdsQuery.to[Seq]
 
   def archiveStreams(id: String, streams: String): ConnectionIO[Int] =
     sql"""

@@ -11,6 +11,7 @@ import cats.implicits._
 import fs2.Stream
 import io.circe._
 import io.circe.syntax._
+import io.circe.generic.auto._
 import lol.http._
 import lol.json._
 
@@ -369,7 +370,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       IO.pure(Ok)
     }
 
-    case req@GET at url"/api/shutdown" => { implicit user =>
+    case req @ GET at url"/api/shutdown" => { implicit user =>
       import scala.concurrent.duration._
 
       req.queryStringParameters.get("gracePeriodSeconds") match {

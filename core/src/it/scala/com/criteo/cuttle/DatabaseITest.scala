@@ -1,8 +1,10 @@
 package com.criteo.cuttle
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 import cats.effect.IO
+import com.criteo.cuttle.Auth.User
 import doobie.implicits._
 import doobie.scalatest.IOChecker
 
@@ -37,7 +39,9 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
       Future.successful(Completed)
     }
 
-    assert(Queries.pauseJob(job, "user", Instant.now()).transact(xa).unsafeRunSync() == 1)
-    assert(Queries.getPausedJobIds.transact(xa).unsafeRunSync() == Set(id))
+    val pausedJob = PausedJob(job.id, User("user1"), Instant.now().truncatedTo(ChronoUnit.SECONDS))
+
+    assert(Queries.pauseJob(pausedJob).transact(xa).unsafeRunSync() == 1)
+    assert(Queries.getPausedJobs.transact(xa).unsafeRunSync() == Seq(pausedJob))
   }
 }
