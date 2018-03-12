@@ -55,7 +55,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   }
 
   private case class AggregatedJobExecution(period: Interval[Instant],
-                                            completion: String,
+                                            completion: Double,
                                             error: Boolean,
                                             backfill: Boolean)
       extends ExecutionPeriod {
@@ -279,7 +279,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                        acc._3 || jobStatus == "failed")
                     })
                     Some(
-                      AggregatedJobExecution(interval, f"${done.toDouble / duration.toDouble}%2.2f", error, inBackfill))
+                      AggregatedJobExecution(interval, done.toDouble / duration.toDouble, error, inBackfill))
                   }
                   case Nil => None
                 }
@@ -312,7 +312,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                     .reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 || b._3))
                   Some(
                     AggregatedJobExecution(Interval(lo, hi),
-                                           f"${done.toDouble / duration.toDouble}%2.2f",
+                                           done.toDouble / duration.toDouble,
                                            failing,
                                            isInbackfill)
                   )
@@ -376,7 +376,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 else completion
               Map(
                 "date" -> date.asJson,
-                "completion" -> f"$correctedCompletion%.1f".asJson
+                "completion" -> correctedCompletion.asJson
               ) ++ (if (stuck) Map("stuck" -> true.asJson) else Map.empty) ++
                 (if (backfillDomain.intersect(Interval(date, Daily(UTC).next(date))).toList.nonEmpty)
                    Map("backfill" -> true.asJson)
