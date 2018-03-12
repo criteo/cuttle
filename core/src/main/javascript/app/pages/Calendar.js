@@ -112,7 +112,7 @@ class Calendar extends React.Component {
                                 ? "todo"
                                 : `progress-${completion
                                     .toString()
-                                    .substring(2)}`
+                                    .substring(2,3)}`
                     ].concat(backfill ? ["backfill"] : []),
                     component: ["day"]
                   };
