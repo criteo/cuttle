@@ -1,8 +1,8 @@
 package com.criteo.cuttle
 
-import cats.Eq
-
 import scala.concurrent.Future
+
+import cats.Eq
 
 /**
   * The workflow to be run by cuttle. A workflow is defined for a given [[Scheduling]],
@@ -16,30 +16,24 @@ trait Workflow[S <: Scheduling] {
   private[criteo] def vertices: Set[Job[S]]
   private[criteo] def edges: Set[Dependency]
 
-  // Kahn's algorithm
-  // We construct the best linear representation for our DAG. At the
-  // same time it checks that there is no cycle.
-  private[cuttle] lazy val jobsInOrder: List[Job[S]] = {
-    val result = collection.mutable.ListBuffer.empty[Job[S]]
-    val edges = collection.mutable.Set(this.edges.toSeq: _*)
-    val orderedRoots = collection.mutable.SortedSet(roots.toSeq: _*)(Ordering.by(_.id))
-    while (orderedRoots.nonEmpty) {
-      val root = orderedRoots.head
-      orderedRoots.remove(root)
-      result.append(root)
-      val edgesToRemove = edges.filter(_._2 == root)
+  private[cuttle] def roots: Set[Job[S]] = {
+    val childNodes = edges.map { case (child, _, _) => child }
+    vertices.filter(!childNodes.contains(_))
+  }
 
-      edgesToRemove.foreach {
-        case edge @ (child, _, _) =>
-          edges.remove(edge)
-          if (!edges.exists(_._1 == child)) {
-            orderedRoots.add(child)
-          }
-      }
-    }
+  private[cuttle] def leaves: Set[Job[S]] = {
+    val parentNodes = edges.map { case (_, parent, _) => parent }
+    vertices.filter(!parentNodes.contains(_))
+  }
 
-    require(edges.isEmpty, "Workflow has at least one cycle")
-    result.toList
+  // Returns a list of jobs in the workflow sorted topologically, using Kahn's algorithm. At the
+  // same time checks that there is no cycle.
+  private[cuttle] lazy val jobsInOrder: List[Job[S]] = graph.topologicalSort[Job[S]](
+    vertices,
+    edges.map { case (child, parent, _) => parent -> child }
+  ) match {
+    case Some(sortedNodes) => sortedNodes
+    case None => throw new IllegalArgumentException("Workflow has at least one cycle")
   }
 
   /**
@@ -55,9 +49,6 @@ trait Workflow[S <: Scheduling] {
       val edges = leftWorkflow.edges ++ otherWorflow.edges
     }
   }
-
-  private[cuttle] lazy val roots = vertices.filter(v => edges.forall { case (v1, _, _)  => v1 != v })
-  private[cuttle] lazy val leaves = vertices.filter(v => edges.forall { case (_, v2, _) => v2 != v })
 
   /**
     * Compose a [[Workflow]] with a second [[Workflow]] with a dependencies added between
@@ -99,6 +90,29 @@ object Workflow {
   def empty[S <: Scheduling]: Workflow[S] = new Workflow[S] {
     def vertices = Set.empty
     def edges = Set.empty
+  }
+
+  /**
+    * Validation of:
+    * - absence of cycles in the workflow
+    * - absence of jobs with the same id
+    *  @return the list of errors in the workflow, if any
+    */
+  def validate[S <: Scheduling](workflow: Workflow[S]): List[String] = {
+    val errors = collection.mutable.ListBuffer.empty[String]
+
+    if(graph.topologicalSort[Job[S]](
+      workflow.vertices,
+      workflow.edges.map { case (child, parent, _) => parent -> child }
+    ).isEmpty) {
+      errors += "Workflow has at least one cycle"
+    }
+
+    workflow.vertices.groupBy(_.id).collect {
+      case (id: String, jobs) if jobs.size > 1 => id
+    } foreach (id => errors += s"Id $id is used by more than 1 job")
+
+    errors.toList
   }
 }
 
