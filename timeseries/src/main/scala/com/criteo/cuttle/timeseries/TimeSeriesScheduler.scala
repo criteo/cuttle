@@ -453,8 +453,10 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       _backfills() = _backfills() ++ incompleteBackfills
 
       workflow.vertices.foreach { job =>
-        val definedInterval =
-          Interval(Finite(job.scheduling.start), job.scheduling.end.map(Finite.apply _).getOrElse(Top))
+        val calendar = job.scheduling.calendar
+        val definedInterval = Interval(
+          Finite(calendar.ceil(job.scheduling.start)),
+          job.scheduling.end.map(calendar.truncate _).map(Finite.apply _).getOrElse(Top))
         val oldJobState = _state().getOrElse(job, IntervalMap.empty[Instant, JobState])
         val missingIntervals = IntervalMap(definedInterval -> (()))
           .whenIsUndef(oldJobState.intersect(definedInterval))
@@ -462,7 +464,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
           .map(_._1)
         val jobState = missingIntervals.foldLeft(oldJobState) { (st, interval) =>
           st.update(interval, Todo(None))
-        }
+        }.intersect(definedInterval)
         _state() = _state() + (job -> jobState)
       }
     }
