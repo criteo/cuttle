@@ -1,9 +1,14 @@
 package com.criteo.cuttle
 
+import doobie._
+import doobie.implicits._
+
 import java.util.UUID
 import java.util.concurrent.{Executors, ThreadFactory, TimeUnit}
 import java.lang.management.ManagementFactory
+import java.time.Instant
 
+import cats.implicits._
 import cats.effect.IO
 
 import scala.concurrent.duration.Duration
@@ -13,6 +18,34 @@ import lol.http.{PartialService, Service}
 
 /** A set of basic utilities useful to write workflows. */
 package object utils {
+
+  /** Executes unapplied schema evolutions
+    *
+    * @param table Name of the table that keeps track of applied schema changes
+    * @param schemaEvolutions List of schema evolutions (should be append-only)
+    */
+  def updateSchema(table: String, schemaEvolutions: List[ConnectionIO[_]]) =
+    (for {
+      _ <- Fragment.const(s"""
+        CREATE TABLE IF NOT EXISTS ${table} (
+          schema_version  SMALLINT NOT NULL,
+          schema_update   DATETIME NOT NULL,
+          PRIMARY KEY     (schema_version)
+        ) ENGINE = INNODB;
+      """).update.run
+
+      currentSchemaVersion <- Fragment.const(s"""
+        SELECT MAX(schema_version) FROM ${table}
+      """).query[Option[Int]].unique.map(_.getOrElse(0))
+
+      _ <- schemaEvolutions.zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
+        case (evolutions, (evolution, i)) =>
+          val insertEvolutionQuery =
+            fr"INSERT INTO" ++ Fragment.const(table) ++ fr"(schema_version, schema_update)" ++
+            fr"VALUES(${i + 1}, ${Instant.now()})"
+          evolutions *> evolution *> insertEvolutionQuery.update.run
+      }
+    } yield ())
 
   private[cuttle] def createScheduler(threadPrefix: String): fs2.Scheduler =
     fs2.Scheduler.allocate[IO](1, daemon = true, threadPrefix, exitJvmOnFatalError = false).unsafeRunSync._1
