@@ -417,13 +417,14 @@ const styles = {
   }
 };
 
+
 const mapStateToProps = ({
   app: { project, workflow, page, selectedJobs }
 }) => ({
   workflow,
   page: page.page || 1,
   sort: page.sort,
-  order: page.order || "asc",
+  order: page.order,
   selectedJobs: selectedJobs,
   envCritical: project.env.critical
 });
@@ -463,7 +464,7 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label="finished"
-            sort={{ column: sort || "endTime", order }}
+            sort={{ column: sort || "endTime", order:  order || "desc" }}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -529,7 +530,7 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label="started"
-            sort={{ column: sort || "context", order }}
+            sort={{ column: sort || "context", order: order || "asc"}}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -595,7 +596,7 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label="paused"
-            sort={{ column: sort || "context", order }}
+            sort={{ column: sort || "context", order: order || "asc" }}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -660,7 +661,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
             request={(page, rowsPerPage, sort) =>
               `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}${isFilterApplied ? `&${jobsFilter}` : ""}`}
             label="stuck"
-            sort={{ column: sort || "failed", order }}
+            sort={{ column: sort || "failed", order: order || "asc" }}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -700,7 +701,7 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
             request={(page, rowsPerPage, sort) =>
               `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
             label=""
-            sort={{ column: sort || "failed", order }}
+            sort={{ column: sort || "failed", order: order || "asc" }}
             selectedJobs={selectedJobs}
             completionNotifier={completionNotifier}
           />
