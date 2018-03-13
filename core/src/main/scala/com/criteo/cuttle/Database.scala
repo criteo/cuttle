@@ -79,11 +79,6 @@ private[cuttle] object Database {
 
   val schemaEvolutions = List(
     sql"""
-      CREATE TABLE locks (
-        locked_by       VARCHAR(36) NOT NULL,
-        locked_at       DATETIME NOT NULL
-      ) ENGINE = INNODB;
-
       CREATE TABLE executions (
         id          CHAR(36) NOT NULL,
         job         VARCHAR(1000) NOT NULL,
@@ -119,6 +114,11 @@ private[cuttle] object Database {
 
     // Try to insert our lock at bootstrap
     (for {
+      _ <- sql"""CREATE TABLE IF NOT EXISTS locks (
+          locked_by       VARCHAR(36) NOT NULL,
+          locked_at       DATETIME NOT NULL
+        ) ENGINE = INNODB
+      """.update.run
       locks <- sql"""
           SELECT locked_by, locked_at FROM locks WHERE TIMESTAMPDIFF(MINUTE, locked_at, NOW()) < 5;
         """.query[(String, Instant)].to[List]
@@ -189,9 +189,9 @@ private[cuttle] object Database {
 
   def connect(dbConfig: DatabaseConfig): XA = connections.getOrElseUpdate(
     dbConfig, {
-      val xa = newHikariTransactor(dbConfig)
+      val xa = lockedTransactor(newHikariTransactor(dbConfig))
       doSchemaUpdates.transact(xa).unsafeRunSync
-      lockedTransactor(xa)
+      xa
     }
   )
 }
