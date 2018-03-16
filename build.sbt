@@ -192,15 +192,15 @@ lazy val cuttle =
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
-        "org.tpolecat" %% "doobie-hikari",
-        "org.tpolecat" %% "doobie-scalatest"
+        "org.tpolecat" %% "doobie-hikari"
       ).map(_ % "0.5.0"),
       libraryDependencies ++= Seq(
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1",
-        "org.mockito" % "mockito-all" % "1.10.19"
+        "org.mockito" % "mockito-all" % "1.10.19",
+        "org.tpolecat" %% "doobie-scalatest" % "0.5.0"
       ).map(_ % "it,test"),
       // Webpack
       resourceGenerators in Compile += Def.task {
