@@ -79,6 +79,11 @@ private[cuttle] object Database {
 
   val schemaEvolutions = List(
     sql"""
+      CREATE TABLE locks (
+        locked_by       VARCHAR(36) NOT NULL,
+        locked_at       DATETIME NOT NULL
+      ) ENGINE = INNODB;
+
       CREATE TABLE executions (
         id          CHAR(36) NOT NULL,
         job         VARCHAR(1000) NOT NULL,
@@ -103,10 +108,10 @@ private[cuttle] object Database {
         id          CHAR(36) NOT NULL,
         streams     MEDIUMTEXT
       ) ENGINE = INNODB;
-    """,
+    """.update.run,
     sql"""
       ALTER TABLE paused_jobs ADD COLUMN user VARCHAR(256) NOT NULL DEFAULT 'not defined user', ADD COLUMN date DATETIME NOT NULL DEFAULT '1991-11-01:15:42:00'
-    """
+    """.update.run
   )
 
   private def lockedTransactor(xa: HikariTransactor[IO]): HikariTransactor[IO] = {
@@ -157,34 +162,7 @@ private[cuttle] object Database {
     xa
   }
 
-  private val doSchemaUpdates: ConnectionIO[Unit] =
-    for {
-      _ <- sql"""
-        CREATE TABLE IF NOT EXISTS schema_evolutions (
-          schema_version  SMALLINT NOT NULL,
-          schema_update   DATETIME NOT NULL,
-          PRIMARY KEY     (schema_version)
-        ) ENGINE = INNODB;
-
-        CREATE TABLE IF NOT EXISTS locks (
-          locked_by       VARCHAR(36) NOT NULL,
-          locked_at       DATETIME NOT NULL
-        ) ENGINE = INNODB;
-      """.update.run
-
-      currentSchemaVersion <- sql"""
-        SELECT MAX(schema_version) FROM schema_evolutions
-      """.query[Option[Int]].unique.map(_.getOrElse(0))
-
-      _ <- schemaEvolutions.map(_.update).zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
-        case (evolutions, (evolution, i)) =>
-          evolutions *> evolution.run *>
-            sql"""
-            INSERT INTO schema_evolutions (schema_version, schema_update)
-            VALUES (${i + 1}, ${Instant.now()})
-          """.update.run
-      }
-    } yield ()
+  private val doSchemaUpdates = utils.updateSchema("schema_evolutions", schemaEvolutions)
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
 

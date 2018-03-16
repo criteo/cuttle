@@ -18,7 +18,6 @@ import doobie.implicits._
 private[timeseries] object Database {
   import TimeSeriesUtils._
   import com.criteo.cuttle.Database._
-  import com.criteo.cuttle.NoUpdate
 
   import intervals.{Interval, IntervalMap}
 
@@ -88,28 +87,7 @@ private[timeseries] object Database {
     contextIdMigration
   )
 
-  val doSchemaUpdates: ConnectionIO[Unit] = {
-    for {
-      _ <- sql"""
-        CREATE TABLE IF NOT EXISTS timeseries (
-          schema_version  SMALLINT NOT NULL,
-          schema_update   DATETIME NOT NULL
-        ) ENGINE = INNODB;
-      """.update.run
-
-      currentSchemaVersion <- sql"""
-        SELECT MAX(schema_version) FROM timeseries
-      """.query[Option[Int]].unique.map(_.getOrElse(0))
-
-      _ <- schema.zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
-        case (evolutions, (evolution, i)) =>
-          evolutions *> evolution *> sql"""
-            INSERT INTO timeseries (schema_version, schema_update)
-            VALUES (${i + 1}, ${Instant.now()})
-          """.update.run
-      }
-    } yield ()
-  }
+  val doSchemaUpdates: ConnectionIO[Unit] = utils.updateSchema("timeseries", schema)
 
   def sqlGetContextsBetween(start: Option[Instant], end: Option[Instant]): Fragment =
     sql"""

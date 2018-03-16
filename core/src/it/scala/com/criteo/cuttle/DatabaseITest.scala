@@ -48,12 +48,12 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
   test("paused_jobs migration(1) should set default values for old pauses") {
     Database.reset()
 
-    Database.schemaEvolutions.head.update.run.transact(transactor).unsafeRunSync()
+    Database.schemaEvolutions.head.transact(transactor).unsafeRunSync()
     sql"INSERT INTO paused_jobs VALUES ('1')".update.run.transact(transactor).unsafeRunSync()
     val id = sql"SELECT * FROM paused_jobs".query[String].unique.transact(transactor).unsafeRunSync()
     assert(id == "1")
 
-    Database.schemaEvolutions(1).update.run.transact(transactor).unsafeRunSync()
+    Database.schemaEvolutions(1).transact(transactor).unsafeRunSync()
 
     val pausedJob = sql"SELECT * FROM paused_jobs".query[PausedJob].unique.transact(transactor).unsafeRunSync()
     assert(pausedJob.id == "1")
