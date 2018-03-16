@@ -31,10 +31,16 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
         active.id.indexOf("executions/") === 0
           ? []
           : [
-              statistics.running && { label: statistics.running, kind: "info" },
+              statistics.running && {
+                label: statistics.running,
+                kind: "info"
+              },
               statistics.waiting && {
                 label: statistics.waiting,
                 kind: "warning"
+              },
+              statistics.paused && {
+                label: statistics.paused
               },
               statistics.failing && {
                 label: statistics.failing,
