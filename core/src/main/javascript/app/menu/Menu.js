@@ -94,6 +94,17 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
       label="Time series"
       link="/timeseries/calendar"
       icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
+      badges={
+        active.id.indexOf("timeseries/") === 0
+          ? []
+          : [
+            statistics.scheduler &&
+            statistics.scheduler.backfills && {
+              label: statistics.scheduler.backfills,
+              kind: "alt"
+            }
+          ]
+      }
       subEntries={[
         <MenuSubEntry
           active={active.id.indexOf("timeseries/calendar") === 0}
