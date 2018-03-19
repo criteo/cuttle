@@ -129,9 +129,9 @@ class CancellationListener private[cuttle] (execution: Execution[_], private[cut
 }
 
 private[cuttle] case class PausedJobWithExecutions[S <: Scheduling](id: String,
-                                                    user: User,
-                                                    date: Instant,
-                                                    executions: Map[Execution[S], Promise[Completed]]) {
+                                                                    user: User,
+                                                                    date: Instant,
+                                                                    executions: Map[Execution[S], Promise[Completed]]) {
   def toPausedJob(): PausedJob = PausedJob(id, user, date)
 }
 
@@ -606,7 +606,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
       pausedJobs.flatMap { pausedJob =>
         pausedState.getOrElseUpdate(pausedJob.id, pausedJob.toPausedJobWithExecutions())
-        runningState.filterKeys(_.job.id == pausedJob.id).keys ++ throttledState.filterKeys(_.job.id == pausedJob.id).keys
+        runningState.filterKeys(_.job.id == pausedJob.id).keys ++ throttledState
+          .filterKeys(_.job.id == pausedJob.id)
+          .keys
       }
     }
     logger.debug(s"we will cancel ${executionsToCancel.size} executions")
@@ -819,7 +821,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
                   if (pausedState.contains(job.id)) {
                     val pausedJobWithExecutions = pausedState(job.id)
-                    pausedState += job.id -> pausedJobWithExecutions.copy(executions = pausedJobWithExecutions.executions + (execution -> promise))
+                    pausedState += job.id -> pausedJobWithExecutions.copy(
+                      executions = pausedJobWithExecutions.executions + (execution -> promise))
                     (job, execution, promise, Paused)
                   } else if (recentFailures.contains(job -> context)) {
                     val (_, failingJob) = recentFailures(job -> context)
@@ -850,10 +853,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   unsafeDoRun(execution, promise)
                 case Paused =>
                   execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
+                  // we attach this callback to freshly created "Paused" execution
                   execution.onCancel { () =>
                     val cancelNow = atomic { implicit tx =>
-                      pausedState.get(job.id).exists {
-                        case PausedJobWithExecutions(_, _, _, executions) if executions.contains(execution) => true
+                      val job2Execution = pausedState.get(job.id).collectFirst {
+                        case pwe @ PausedJobWithExecutions(_, _, _, executions) if executions.contains(execution) =>
+                          job.id -> pwe.copy(executions = executions.filterKeys(_ == execution))
+                      }
+
+                      job2Execution.fold(false) { x =>
+                        pausedState += x
+                        true
                       }
                     }
                     if (cancelNow) promise.tryFailure(ExecutionCancelled)
