@@ -359,7 +359,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
-  private val queries = Queries
+  private val queries = new Queries {
+    val appLogger: Logger = logger
+  }
 
   private val pausedState: TMap[String, PausedJobWithExecutions[S]] = {
     val pausedJobs = queries.getPausedJobs.transact(xa).unsafeRunSync
@@ -589,7 +591,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     }
 
   private[cuttle] def openStreams(executionId: String): fs2.Stream[IO, Byte] =
-    ExecutionStreams.getStreams(executionId, xa)
+    ExecutionStreams.getStreams(executionId, queries, xa)
 
   private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val pauseDate = Instant.now()
@@ -743,7 +745,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         .andThen {
           case result =>
             try {
-              ExecutionStreams.archive(execution.id, xa)
+              ExecutionStreams.archive(execution.id, queries, xa)
             } catch {
               case e: Throwable =>
                 e.printStackTrace()

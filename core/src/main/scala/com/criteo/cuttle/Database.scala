@@ -182,6 +182,8 @@ private[cuttle] object Database {
       .unsafeRunSync
   }
 
+  // we remove all created Hikari transactors here,
+  // it can be handy if you to recreate a connection with same DbConfig
   private[cuttle] def reset(): Unit =
     connections.clear()
 
@@ -194,7 +196,7 @@ private[cuttle] object Database {
   )
 }
 
-private[cuttle] object Queries {
+private[cuttle] trait Queries {
   import Database._
 
   def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]): ConnectionIO[Int] =
