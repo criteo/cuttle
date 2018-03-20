@@ -8,6 +8,8 @@ import org.scalatest.{BeforeAndAfter, FunSuite}
 class DatabaseSuite extends FunSuite with BeforeAndAfter {
   val dbName = "cuttle_it_test"
 
+  val queries: Queries = new Queries {}
+
   private val dbConfig = DatabaseConfig(
     Seq(DBLocation("localhost", 3388)),
     "sys",

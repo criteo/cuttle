@@ -28,7 +28,7 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
   test("should validate getPausedJobIdsQuery") {
     Database.reset()
     Database.connect(dbConfig)
-    check(Queries.getPausedJobIdsQuery)
+    check(queries.getPausedJobIdsQuery)
   }
 
   test("should validate paused jobs queries") {
@@ -41,8 +41,8 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
 
     val pausedJob = PausedJob(job.id, User("user1"), Instant.now().truncatedTo(ChronoUnit.SECONDS))
 
-    assert(Queries.pauseJob(pausedJob).transact(xa).unsafeRunSync() == 1)
-    assert(Queries.getPausedJobs.transact(xa).unsafeRunSync() == Seq(pausedJob))
+    assert(queries.pauseJob(pausedJob).transact(xa).unsafeRunSync() == 1)
+    assert(queries.getPausedJobs.transact(xa).unsafeRunSync() == Seq(pausedJob))
   }
 
   test("paused_jobs migration(1) should set default values for old pauses") {
