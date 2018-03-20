@@ -209,7 +209,7 @@ class JobsComp extends React.Component<any, Props, State> {
             {},
             job,
             pausedJobs.has(job.id)
-              ? { ...pausedJobs.get(job.id), status: "paused" }
+              ? Object.assign({}, pausedJobs.get(job.id), { status: "paused" })
               : activeJobsProps
           )
         );

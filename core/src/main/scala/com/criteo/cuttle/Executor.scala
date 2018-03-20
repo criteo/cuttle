@@ -11,7 +11,6 @@ import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
 import scala.reflect.{classTag, ClassTag}
 import scala.util.{Failure, Success, Try}
-
 import cats.Eq
 import cats.effect.IO
 import cats.implicits._
@@ -20,7 +19,6 @@ import doobie.util.fragment.Fragment
 import io.circe._
 import io.circe.syntax._
 import lol.http.PartialService
-
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionContexts.{SideEffectExecutionContext, _}
 import com.criteo.cuttle.Metrics._
@@ -139,6 +137,13 @@ private[cuttle] case class PausedJob(id: String, user: User, date: Instant) {
   def toPausedJobWithExecutions[S <: Scheduling](): PausedJobWithExecutions[S] =
     PausedJobWithExecutions(id, user, date, Map.empty[Execution[S], Promise[Completed]])
 }
+
+//private[cuttle] object PausedJob {
+//  import io.circe.generic.semiauto._
+//  import io.circe._
+//
+//  implicit val encoder: Encoder[PausedJob] = deriveEncoder
+//}
 
 /** [[Execution Executions]] are created by the [[Scheduler]].
   *
@@ -856,19 +861,21 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                 case Paused =>
                   execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
                   // we attach this callback to freshly created "Paused" execution
-                  execution.onCancel { () =>
-                    val cancelNow = atomic { implicit tx =>
-                      val job2Execution = pausedState.get(job.id).collectFirst {
-                        case pwe @ PausedJobWithExecutions(_, _, _, executions) if executions.contains(execution) =>
-                          job.id -> pwe.copy(executions = executions.filterKeys(_ == execution))
-                      }
+                  execution.onCancel {
+                    () =>
+                      val cancelNow = atomic { implicit tx =>
+                        // we take the first pair of jobId, executions and filter executions by execution
+                        val maybeJobId2Executions = pausedState.get(job.id).collectFirst {
+                          case pwe @ PausedJobWithExecutions(_, _, _, executions) if executions.contains(execution) =>
+                            job.id -> pwe.copy(executions = executions.filterKeys(_ == execution))
+                        }
 
-                      job2Execution.fold(false) { x =>
-                        pausedState += x
-                        true
+                        maybeJobId2Executions.fold(false) { x =>
+                          pausedState += x
+                          true
+                        }
                       }
-                    }
-                    if (cancelNow) promise.tryFailure(ExecutionCancelled)
+                      if (cancelNow) promise.tryFailure(ExecutionCancelled)
                   }
                 case Throttled(launchDate) =>
                   execution.streams.debug(s"Delayed until $launchDate because previous execution failed")

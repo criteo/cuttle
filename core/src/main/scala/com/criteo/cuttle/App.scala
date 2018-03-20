@@ -9,9 +9,10 @@ import cats.Eq
 import cats.effect.IO
 import cats.implicits._
 import fs2.Stream
+
 import io.circe._
 import io.circe.syntax._
-import io.circe.generic.auto._
+
 import lol.http._
 import lol.json._
 
@@ -144,6 +145,10 @@ private[cuttle] object App {
         )
       }
     }
+
+  import io.circe.generic.semiauto._
+  implicit val encodeUser: Encoder[User] = deriveEncoder
+  implicit val encodePausedJob: Encoder[PausedJob] = deriveEncoder
 }
 
 private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
