@@ -31,10 +31,16 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
         active.id.indexOf("executions/") === 0
           ? []
           : [
-              statistics.running && { label: statistics.running, kind: "info" },
+              statistics.running && {
+                label: statistics.running,
+                kind: "info"
+              },
               statistics.waiting && {
                 label: statistics.waiting,
                 kind: "warning"
+              },
+              statistics.paused && {
+                label: statistics.paused
               },
               statistics.failing && {
                 label: statistics.failing,
@@ -88,6 +94,17 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
       label="Time series"
       link="/timeseries/calendar"
       icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
+      badges={
+        active.id.indexOf("timeseries/") === 0
+          ? []
+          : [
+            statistics.scheduler &&
+            statistics.scheduler.backfills && {
+              label: statistics.scheduler.backfills,
+              kind: "alt"
+            }
+          ]
+      }
       subEntries={[
         <MenuSubEntry
           active={active.id.indexOf("timeseries/calendar") === 0}
