@@ -32,8 +32,13 @@ const routes = {
     openPage({ id: "executions/paused", page, sort, order }),
   "/executions/:id": ({ id }) =>
     openPage({ id: "executions/detail", execution: id }),
-  "/workflow/*": ({ _ }, { showDetail }) =>
-    openPage({ id: "workflow", jobId: _, showDetail: Boolean(showDetail) }),
+  "/workflow/*": ({ _ }, { showDetail, refPath }) =>
+    openPage({
+      id: "workflow",
+      jobId: _,
+      showDetail: showDetail === "true",
+      refPath
+    }),
   "/workflow": () => openPage({ id: "workflow", showDetail: false }),
   "/timeseries/calendar": () => openPage({ id: "timeseries/calendar" }),
   "/timeseries/calendar/:start_:end": ({ start, end }) =>

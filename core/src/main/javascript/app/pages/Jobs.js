@@ -6,8 +6,10 @@ import { connect } from "react-redux";
 import { compose } from "redux";
 import { navigate } from "redux-url";
 import { displayFormat } from "../utils/Date";
+import OpenIcon from "react-icons/lib/md/zoom-in";
 import Spinner from "../components/Spinner";
 import Table from "../components/Table";
+import Link from "../components/Link";
 import { Badge } from "../components/Badge";
 import type { JobStatus } from "../../ApplicationState";
 
@@ -32,7 +34,7 @@ type Sort = {
   order: Order
 };
 
-type Columns = "id" | "name" | "description" | "date";
+type Columns = "id" | "name" | "date";
 
 type Scheduling = {
   start: string
@@ -58,17 +60,17 @@ type PausedJob = {
 type JobsOrder = (Job, Job) => number;
 
 const columns: Array<{
-  id: Columns | "startDate" | "status" | "user",
-  label: string,
+  id: Columns | "startDate" | "status" | "user" | "detail",
+  label?: string,
   sortable: boolean
 }> = [
   { id: "id", label: "ID", sortable: true },
   { id: "name", label: "Name", sortable: true },
-  { id: "description", label: "Description", sortable: false },
   { id: "startDate", label: "Start Date", sortable: true },
   { id: "status", label: "Status", sortable: true },
   { id: "user", label: "Paused By", sortable: true },
-  { id: "date", label: "Paused At", sortable: true }
+  { id: "date", label: "Paused At", sortable: true },
+  { id: "detail", sortable: false, width: 40 }
 ];
 
 const column2Comp: {
@@ -80,9 +82,6 @@ const column2Comp: {
 } = {
   id: ({ id }: { id: string }) => <span>{id}</span>,
   name: ({ name }: { name: string }) => <span>{name}</span>,
-  description: ({ description }: { description: string }) => (
-    <span>{description}</span>
-  ),
   startDate: ({ scheduling }: { scheduling: Scheduling }) => (
     <span>{displayFormat(new Date(scheduling.start))}</span>
   ),
@@ -229,7 +228,21 @@ class JobsComp extends React.Component<any, Props, State> {
             envCritical={envCritical}
             onSortBy={this.handleSortBy.bind(this)}
             render={(column, row) => {
-              return column2Comp[column](row);
+              switch (column) {
+                case "detail":
+                  return (
+                    <Link
+                      className={classes.openIcon}
+                      href={`/workflow/${row.id}?showDetail=true&refPath=${
+                        location.pathname
+                      }`}
+                    >
+                      <OpenIcon />
+                    </Link>
+                  );
+                default:
+                  return column2Comp[column](row);
+              }
             }}
           />
         ) : (
