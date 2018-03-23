@@ -38,13 +38,13 @@ The input context given to the side effect function depends of the scheduling. F
 
 The cuttle [Executor](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Executor.html) handles the job executions triggered by the scheduler. When it has to execute a job for a given [SchedulingContext](https://criteo.github.io/cuttle/api/com/criteo/cuttle/SchedulingContext.html) it creates and execution, and then invoke the job's side effect function for it.
 
-As soon a the execution starts, it is in the __Started__ state. Started executions are displayed in the UI with a special status indicating if they are __Running__ or __Waiting__. This actually indicates if the Scala code being currently executed is waiting for some external resources (_the permit to fork an external process for example_). But as soon as the execution is __Started__ it means that the Scala lambda behind is running!
+As soon as the execution starts, it is in the __Started__ state. Started executions are displayed in the UI with a special status indicating if they are __Running__ or __Waiting__. This actually indicates if the Scala code being currently executed is waiting for some external resources (_the permit to fork an external process for example_). But as soon as the execution is __Started__ it means that the Scala lambda behind is running!
 
 An execution can also be in the __Stuck__ state. It happens when a given execution keeps failing: Let's say the scheduler wants to execute the job _a_ for the _X_ context. So it asks the executor which eventually executes the job side effect. If the function fails, the returned [Future](https://www.scala-lang.org/api/current/scala/concurrent/Future.html) fails and the scheduler is notified of that failure. Because the scheduler really wants that job to be executed for the _X_ context, it will submit it again. When the executor sees this new execution coming back after a failure it will apply a [RetryStrategy](https://criteo.github.io/cuttle/api/com/criteo/cuttle/RetryStrategy.html). The default strategy is to use an exponential backoff to delay the retry of these failing executions. While being in this state __Stuck__ executions are displayed in a special tab of the UI and it means that it is something you should take care of.
 
 An execution can also be in __Paused__ state. It happens when the job itself has been paused. Note that this is a temporary state; eventually the job has to be unpaused and so the executions will be triggered, otherwise more and more paused executions will stack forever.
 
-Finally executions can be __Finished__ either with a __Success__ of __Failed__ state. You can retrieve these old executions in the log for finished executions.
+Finally executions can be __Finished__ either with a __Success__ or __Failed__ state. You can retrieve these old executions in the log for finished executions.
 
 ## Execution Platforms
 
