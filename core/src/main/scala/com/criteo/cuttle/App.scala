@@ -1,6 +1,6 @@
 package com.criteo.cuttle
 
-import java.time.Instant
+import java.time.{Instant, LocalDate}
 
 import scala.concurrent.duration._
 import scala.util._
@@ -55,6 +55,11 @@ private[cuttle] object App {
 
   implicit val instantEncoder = new Encoder[Instant] {
     override def apply(date: Instant) =
+      date.toString.asJson
+  }
+
+  implicit val dateEncoder = new Encoder[LocalDate] {
+    override def apply(date: LocalDate) =
       date.toString.asJson
   }
 

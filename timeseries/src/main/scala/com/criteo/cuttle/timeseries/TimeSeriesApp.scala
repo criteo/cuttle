@@ -375,7 +375,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 if (completion == 0 && done != 0) 0.1
                 else completion
               Map(
-                "date" -> date.asJson,
+                "date" -> date.atZone(UTC).toLocalDate.asJson,
                 "completion" -> correctedCompletion.asJson
               ) ++ (if (stuck) Map("stuck" -> true.asJson) else Map.empty) ++
                 (if (backfillDomain.intersect(Interval(date, Daily(UTC).next(date))).toList.nonEmpty)
