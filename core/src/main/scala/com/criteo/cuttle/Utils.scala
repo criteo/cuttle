@@ -19,6 +19,12 @@ import lol.http.{PartialService, Service}
 /** A set of basic utilities useful to write workflows. */
 package object utils {
 
+  /** Get a doobie transactor
+    *
+    * @param config Database configuration
+    */
+  def transactor(config: DatabaseConfig): XA = Database.newHikariTransactor(config)
+
   /** Executes unapplied schema evolutions
     *
     * @param table Name of the table that keeps track of applied schema changes
