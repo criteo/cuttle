@@ -1,7 +1,7 @@
 import { nodeKind, edgeKind } from "../layout/symbolic/annotatedGraph";
 import * as d3 from "d3";
 import { textWrap } from "d3plus-text";
-import { forEach, identity } from "lodash";
+import { forEach, identity, reduce } from "lodash";
 import { interpolatePath } from "d3-interpolate-path";
 
 const transitionDuration = 500;
@@ -277,6 +277,13 @@ const tagBulletVerticalOffset = ({ height }) => {
     startOffset + tagIndex * (bulletSize + spaceBetweenBullets);
 };
 
+// join words by whitespace, unless it's delimited by -_
+const joinWords = (words: Array<string>): string =>
+  reduce(
+    words,
+    (acc, word) => (/[-_]$/.test(acc) ? acc + word : acc + " " + word)
+  );
+
 export const drawNode = (
   domContainer,
   { x, y, width, height, id, name, kind },
@@ -301,24 +308,22 @@ export const drawNode = (
 
   const wrapped = textWrap()
     .fontSize(fontSize)
-    .overflow(true)
     .width(newWidth * 0.8)(name);
-  const [first, ...rest] = wrapped.lines;
+  const [first, ...rest] = wrapped.words;
   const textPadding = (height - 2 * fontSize) / 4;
-  // display 2 lines at most, if there's enough space
   if (rest.length === 0 || textPadding < 3) {
+    // single line
     node
       .append("text")
       .style("text-anchor", "middle")
-      .text(
-        computeNewLabel(first + rest.join(""), newWidth / (fontSize / 1.5))
-      );
+      .text(computeNewLabel(first, newWidth / (fontSize / 1.5)));
   } else {
+    // if there's enough space, display 2 lines
     node
       .append("text")
       .selectAll("tspan")
       .data(
-        [first, rest.join("")].map(line =>
+        [first, joinWords(rest)].map(line =>
           computeNewLabel(line, newWidth / (fontSize / 1.5))
         )
       )
