@@ -402,6 +402,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
           }
       }
     }
+
+	case GET at url"/version" => Ok(project.version)
   }
 
   val api = publicApi orElse project.authenticator(privateApi)
