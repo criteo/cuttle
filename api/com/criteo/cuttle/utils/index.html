@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.3.0 - com.criteo.cuttle.utils</title>
-          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.utils" />
-          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.utils" />
+          <title>cuttle 0.3.7 - com.criteo.cuttle.utils</title>
+          <meta name="description" content="cuttle 0.3.7 - com.criteo.cuttle.utils" />
+          <meta name="keywords" content="cuttle 0.3.7 com.criteo.cuttle.utils" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.7</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -129,7 +129,7 @@
             </a>
       </span>
       
-      <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="../CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> are defined for a given <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="../Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="../Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="../ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
+      <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="../CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> is defined for a given <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="../Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="../Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="../ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
    access underlying resources.
 </li></ul></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../../index.html" class="extype" name="com.criteo">criteo</a></dd></dl></div>
     </li><li name="com.criteo.cuttle.platforms" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
@@ -286,7 +286,43 @@ after the given duration.">
         <div class="values members">
               <h3>Value Members</h3>
               <ol>
-                <li name="com.criteo.cuttle.utils.Timeout" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+                <li name="com.criteo.cuttle.utils#transactor" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="transactor(config:com.criteo.cuttle.DatabaseConfig):com.criteo.cuttle.XA"></a><a id="transactor(DatabaseConfig):XA"></a>
+      <span class="permalink">
+      <a href="../../../../com/criteo/cuttle/utils/index.html#transactor(config:com.criteo.cuttle.DatabaseConfig):com.criteo.cuttle.XA" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">transactor</span><span class="params">(<span name="config">config: <a href="../DatabaseConfig.html" class="extype" name="com.criteo.cuttle.DatabaseConfig">DatabaseConfig</a></span>)</span><span class="result">: <a href="../index.html#XA=doobie.imports.Transactor[cats.effect.IO]" class="extmbr" name="com.criteo.cuttle.XA">XA</a></span>
+      </span>
+      
+      <p class="shortcomment cmt">Get a doobie transactor
+</p><div class="fullcomment"><div class="comment cmt"><p>Get a doobie transactor
+</p></div><dl class="paramcmts block"><dt class="param">config</dt><dd class="cmt"><p>Database configuration</p></dd></dl></div>
+    </li><li name="com.criteo.cuttle.utils#updateSchema" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="updateSchema(table:String,schemaEvolutions:List[doobie.ConnectionIO[_]]):cats.free.Free[doobie.free.connection.ConnectionOp,Unit]"></a><a id="updateSchema(String,List[doobie.ConnectionIO[_]]):Free[ConnectionOp,Unit]"></a>
+      <span class="permalink">
+      <a href="../../../../com/criteo/cuttle/utils/index.html#updateSchema(table:String,schemaEvolutions:List[doobie.ConnectionIO[_]]):cats.free.Free[doobie.free.connection.ConnectionOp,Unit]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">updateSchema</span><span class="params">(<span name="table">table: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="schemaEvolutions">schemaEvolutions: <span class="extype" name="scala.List">List</span>[<span class="extype" name="doobie.free.Types.ConnectionIO">doobie.ConnectionIO</span>[_]]</span>)</span><span class="result">: <span class="extype" name="cats.free.Free">Free</span>[<span class="extype" name="doobie.free.connection.ConnectionOp">ConnectionOp</span>, <a href="https://www.scala-lang.org/api/current/scala/Unit.html#scala.Unit" class="extype" name="scala.Unit">Unit</a>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Executes unapplied schema evolutions
+</p><div class="fullcomment"><div class="comment cmt"><p>Executes unapplied schema evolutions
+</p></div><dl class="paramcmts block"><dt class="param">table</dt><dd class="cmt"><p>Name of the table that keeps track of applied schema changes</p></dd><dt class="param">schemaEvolutions</dt><dd class="cmt"><p>List of schema evolutions (should be append-only)</p></dd></dl></div>
+    </li><li name="com.criteo.cuttle.utils.Timeout" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="Timeout"></a><a id="Timeout:Timeout"></a>
       <span class="permalink">
       <a href="../../../../com/criteo/cuttle/utils/index.html#Timeout" title="Permalink">

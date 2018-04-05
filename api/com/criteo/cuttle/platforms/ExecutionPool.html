@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.3.0 - com.criteo.cuttle.platforms.ExecutionPool</title>
-          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.platforms.ExecutionPool" />
-          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.platforms.ExecutionPool" />
+          <title>cuttle 0.3.7 - com.criteo.cuttle.platforms.ExecutionPool</title>
+          <meta name="description" content="cuttle 0.3.7 - com.criteo.cuttle.platforms.ExecutionPool" />
+          <meta name="keywords" content="cuttle 0.3.7 com.criteo.cuttle.platforms.ExecutionPool" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.7</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -129,7 +129,7 @@
             </a>
       </span>
       
-      <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="../CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> are defined for a given <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="../Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="../Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="../ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
+      <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="../CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="../Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> is defined for a given <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="../Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="../Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="../Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="../Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="../index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="../ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
    access underlying resources.
 </li></ul></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../../index.html" class="extype" name="com.criteo">criteo</a></dd></dl></div>
     </li><li name="com.criteo.cuttle.platforms" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
@@ -230,10 +230,10 @@ all process spawned inside this fork will be successfully killed when we kill th
       <h4 id="signature" class="signature">
       <span class="modifier_kind">
         <span class="modifier"></span>
-        <span class="kind">class</span>
+        <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <span class="name">ExecutionPool</span><span class="result"> extends <a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a></span>
+        <span class="name">ExecutionPool</span><span class="params">(<span name="concurrencyLimit">concurrencyLimit: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>)</span><span class="result"> extends <a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       </h4>
 
@@ -241,11 +241,11 @@ all process spawned inside this fork will be successfully killed when we kill th
           <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>An execution pool backed by a priority queue. It limits the concurrent executions
 and the priority queue is ordered by the <a href="https://www.scala-lang.org/api/current/scala/math/Ordering.html" class="extype" name="scala.math.Ordering">Ordering</a> defined
 on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/platforms/ExecutionPool.scala" target="_blank">ExecutionPool.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="paramcmts block"><dt class="param">concurrencyLimit</dt><dd class="cmt"><p>The maximum number of concurrent executions.</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/platforms/ExecutionPool.scala" target="_blank">ExecutionPool.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
-          <div class="superTypes hiddenContent"><a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></div>
+          <div class="superTypes hiddenContent"><a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a>, <span class="extype" name="java.io.Serializable">Serializable</span>, <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a>, <a href="https://www.scala-lang.org/api/current/scala/Equals.html#scala.Equals" class="extype" name="scala.Equals">Equals</a>, <a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></div>
         </div></div>
         
 
@@ -271,7 +271,7 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
                   <span class="filtertype">Inherited<br />
                   </span>
                   <ol id="linearization">
-                    <li class="in" name="com.criteo.cuttle.platforms.ExecutionPool"><span>ExecutionPool</span></li><li class="in" name="com.criteo.cuttle.platforms.WaitingExecutionQueue"><span>WaitingExecutionQueue</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                    <li class="in" name="com.criteo.cuttle.platforms.ExecutionPool"><span>ExecutionPool</span></li><li class="in" name="scala.Serializable"><span>Serializable</span></li><li class="in" name="java.io.Serializable"><span>Serializable</span></li><li class="in" name="scala.Product"><span>Product</span></li><li class="in" name="scala.Equals"><span>Equals</span></li><li class="in" name="com.criteo.cuttle.platforms.WaitingExecutionQueue"><span>WaitingExecutionQueue</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
                   </ol>
                 </div><div class="ancestors">
               <span class="filtertype"></span>
@@ -326,7 +326,7 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
       <span class="symbol">
         <a title="" href="WaitingExecutionQueue$DelayedResult.html">
               <span class="name">DelayedResult</span>
-            </a><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="effect">effect: () ⇒ <a href="https://www.scala-lang.org/api/current/scala/concurrent/Future.html#scala.concurrent.Future" class="extype" name="scala.concurrent.Future">Future</a>[<span class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue.DelayedResult.A">A</span>]</span>, <span name="effectDebug">effectDebug: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="promise">promise: <span class="extype" name="scala.concurrent.Promise">Promise</span>[<span class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue.DelayedResult.A">A</span>]</span>, <span name="submitted">submitted: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="started">started: <span class="extype" name="scala.concurrent.stm.Ref">Ref</span>[<a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>]] = <span class="symbol">Ref(None)</span></span>)</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+            </a><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="effect">effect: () ⇒ <a href="https://www.scala-lang.org/api/current/scala/concurrent/Future.html#scala.concurrent.Future" class="extype" name="scala.concurrent.Future">Future</a>[<span class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue.DelayedResult.A">A</span>]</span>, <span name="effectDebug">effectDebug: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="promise">promise: <a href="https://www.scala-lang.org/api/current/scala/concurrent/Promise.html#scala.concurrent.Promise" class="extype" name="scala.concurrent.Promise">Promise</a>[<span class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue.DelayedResult.A">A</span>]</span>, <span name="submitted">submitted: <span class="extype" name="java.time.Instant">Instant</span></span>, <span name="started">started: <span class="extype" name="scala.concurrent.stm.Ref">Ref</span>[<a href="https://www.scala-lang.org/api/current/scala/Option.html#scala.Option" class="extype" name="scala.Option">Option</a>[<span class="extype" name="java.time.Instant">Instant</span>]] = <span class="symbol">Ref(None)</span></span>)</span><span class="result"> extends <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a></dd></dl></div>
@@ -403,9 +403,9 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a></dd></dl></div>
     </li><li name="com.criteo.cuttle.platforms.WaitingExecutionQueue#_waiting" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="_waiting:scala.concurrent.stm.Ref[scala.collection.immutable.SortedSet[(com.criteo.cuttle.Execution[_],WaitingExecutionQueue.this.DelayedResult[_])]]"></a><a id="_waiting:Ref[SortedSet[(Execution[_],DelayedResult[_])]]"></a>
+      <a id="_waiting:scala.concurrent.stm.Ref[scala.collection.immutable.SortedSet[(com.criteo.cuttle.Execution[_&lt;:com.criteo.cuttle.Scheduling],WaitingExecutionQueue.this.DelayedResult[_])]]"></a><a id="_waiting:Ref[SortedSet[(Execution[_&lt;:Scheduling],DelayedResult[_])]]"></a>
       <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#_waiting:scala.concurrent.stm.Ref[scala.collection.immutable.SortedSet[(com.criteo.cuttle.Execution[_],WaitingExecutionQueue.this.DelayedResult[_])]]" title="Permalink">
+      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#_waiting:scala.concurrent.stm.Ref[scala.collection.immutable.SortedSet[(com.criteo.cuttle.Execution[_&lt;:com.criteo.cuttle.Scheduling],WaitingExecutionQueue.this.DelayedResult[_])]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -414,7 +414,7 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
         <span class="kind">lazy val</span>
       </span>
       <span class="symbol">
-        <span class="name">_waiting</span><span class="result">: <span class="extype" name="scala.concurrent.stm.Ref">Ref</span>[<a href="https://www.scala-lang.org/api/current/scala/collection/immutable/SortedSet.html#scala.collection.immutable.SortedSet" class="extype" name="scala.collection.immutable.SortedSet">SortedSet</a>[(<a href="../Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>[_], <a href="#DelayedResult[A]extendsProductwithSerializable" class="extmbr" name="com.criteo.cuttle.platforms.WaitingExecutionQueue.DelayedResult">DelayedResult</a>[_])]]</span>
+        <span class="name">_waiting</span><span class="result">: <span class="extype" name="scala.concurrent.stm.Ref">Ref</span>[<a href="https://www.scala-lang.org/api/current/scala/collection/immutable/SortedSet.html#scala.collection.immutable.SortedSet" class="extype" name="scala.collection.immutable.SortedSet">SortedSet</a>[(<a href="../Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>[_ &lt;: <a href="../Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a>], <a href="#DelayedResult[A]extendsProductwithSerializable" class="extmbr" name="com.criteo.cuttle.platforms.WaitingExecutionQueue.DelayedResult">DelayedResult</a>[_])]]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a></dd></dl></div>
@@ -472,6 +472,22 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="com.criteo.cuttle.platforms.ExecutionPool#concurrencyLimit" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="concurrencyLimit:Int"></a>
+      <span class="permalink">
+      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#concurrencyLimit:Int" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">concurrencyLimit</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>
+      </span>
+      
+      
     </li><li name="com.criteo.cuttle.platforms.ExecutionPool#doRunNext" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="doRunNext()(implicittxn:scala.concurrent.stm.InTxn):Unit"></a><a id="doRunNext()(InTxn):Unit"></a>
       <span class="permalink">
@@ -504,22 +520,6 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li name="scala.AnyRef#equals" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="equals(x$1:Any):Boolean"></a><a id="equals(Any):Boolean"></a>
-      <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#equals(x$1:Any):Boolean" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">equals</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Boolean.html#scala.Boolean" class="extype" name="scala.Boolean">Boolean</a></span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="scala.AnyRef#finalize" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="finalize():Unit"></a>
       <span class="permalink">
@@ -555,22 +555,6 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
       </span>
       <span class="symbol">
         <span class="name">getClass</span><span class="params">()</span><span class="result">: <span class="extype" name="java.lang.Class">Class</span>[_]</span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li name="scala.AnyRef#hashCode" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="hashCode():Int"></a>
-      <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#hashCode():Int" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">hashCode</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
@@ -734,22 +718,6 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a></dd></dl></div>
-    </li><li name="scala.AnyRef#toString" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="toString():String"></a>
-      <span class="permalink">
-      <a href="../../../../com/criteo/cuttle/platforms/ExecutionPool.html#toString():String" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">toString</span><span class="params">()</span><span class="result">: <span class="extype" name="java.lang.String">String</span></span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>
       <span class="permalink">
@@ -842,7 +810,15 @@ on the <a href="../SchedulingContext.html" class="extype" name="com.criteo.cuttl
         </div>
 
         <div id="inheritedMembers">
-        <div class="parent" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">
+        <div class="parent" name="scala.Serializable">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></h3>
+            </div><div class="parent" name="java.io.Serializable">
+              <h3>Inherited from <span class="extype" name="java.io.Serializable">Serializable</span></h3>
+            </div><div class="parent" name="scala.Product">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a></h3>
+            </div><div class="parent" name="scala.Equals">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Equals.html#scala.Equals" class="extype" name="scala.Equals">Equals</a></h3>
+            </div><div class="parent" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">
               <h3>Inherited from <a href="WaitingExecutionQueue.html" class="extype" name="com.criteo.cuttle.platforms.WaitingExecutionQueue">WaitingExecutionQueue</a></h3>
             </div><div class="parent" name="scala.AnyRef">
               <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a></h3>
