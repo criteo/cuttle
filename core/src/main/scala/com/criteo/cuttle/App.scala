@@ -213,7 +213,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       }
 
       events match {
-        case "true" | "yes" =>
+        case "true" | "yes" | "ya" | "yep" | "sure" | "si" | "oui" | "bien sûr" | "oui, si cela vous sied" | "пожалуйста" | "はい" =>
           sse(IO.suspend(getStats), (x: (Json, Json)) => IO(asJson(x)))
         case _ => getStats.map(_.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError))
       }
