@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.3.0 - com.criteo.cuttle.Metrics</title>
-          <meta name="description" content="cuttle 0.3.0 - com.criteo.cuttle.Metrics" />
-          <meta name="keywords" content="cuttle 0.3.0 com.criteo.cuttle.Metrics" />
+          <title>cuttle 0.3.7 - com.criteo.cuttle.Metrics</title>
+          <meta name="description" content="cuttle 0.3.7 - com.criteo.cuttle.Metrics" />
+          <meta name="keywords" content="cuttle 0.3.7 com.criteo.cuttle.Metrics" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -28,7 +28,7 @@
         </head>
         <body>
       <div id="search">
-        <span id="doc-title">cuttle<span id="doc-version">0.3.0</span></span>
+        <span id="doc-title">cuttle<span id="doc-version">0.3.7</span></span>
         <span class="close-results"><span class="left">&lt;</span> Back</span>
         <div id="textfilter">
           <span class="input">
@@ -129,7 +129,7 @@
             </a>
       </span>
       
-      <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> are defined for a given <a href="Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
+      <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> is defined for a given <a href="Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
    access underlying resources.
 </li></ul></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="com.criteo">criteo</a></dd></dl></div>
     </li><li name="com.criteo.cuttle.platforms" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
@@ -411,7 +411,26 @@ for a given Scheduling.">
 
         <div id="types" class="types members">
               <h3>Type Members</h3>
-              <ol><li name="com.criteo.cuttle.Metrics.Gauge" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+              <ol><li name="com.criteo.cuttle.Metrics.Counter" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="Counter[T]extendsMetrics.MetricwithProductwithSerializable"></a><a id="Counter[T]:Counter[T]"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$.html#Counter[T]extendsMetrics.MetricwithProductwithSerializable" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a title="A Counter contains a value that can only be incremented." href="Metrics$$Counter.html">
+              <span class="name">Counter</span>
+            </a><span class="tparams">[<span name="T">T</span>]</span><span class="params">(<span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="help">help: <span class="extype" name="scala.Predef.String">String</span> = <span class="symbol">&quot;&quot;</span></span>, <span name="labels2Value">labels2Value: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.Set">Set</span>[(<span class="extype" name="scala.Predef.String">String</span>, <span class="extype" name="scala.Predef.String">String</span>)], <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyVal" class="extype" name="scala.collection.immutable.List">AnyVal</a>] = <span class="symbol">Map.empty</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="number">number: <a href="https://www.scala-lang.org/api/current/scala/math/Numeric.html#scala.math.Numeric" class="extype" name="scala.math.Numeric">Numeric</a>[<span class="extype" name="com.criteo.cuttle.Metrics.Counter.T">T</span>]</span>)</span><span class="result"> extends <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
+      </span>
+      
+      <p class="shortcomment cmt">A <u>Counter</u> contains a value that can only be incremented.</p><div class="fullcomment"><div class="comment cmt"><p>A <u>Counter</u> contains a value that can only be incremented. Increments are not threadsafe.
+</p></div><dl class="paramcmts block"><dt class="param">name</dt><dd class="cmt"><p>The metric name.</p></dd><dt class="param">help</dt><dd class="cmt"><p>Metric description if provided.</p></dd><dt class="param">labels2Value</dt><dd class="cmt"><p>map of (label name, label value) pairs to counter values</p></dd></dl></div>
+    </li><li name="com.criteo.cuttle.Metrics.Gauge" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="GaugeextendsMetrics.MetricwithProductwithSerializable"></a><a id="Gauge:Gauge"></a>
       <span class="permalink">
       <a href="../../../com/criteo/cuttle/Metrics$.html#GaugeextendsMetrics.MetricwithProductwithSerializable" title="Permalink">
@@ -423,13 +442,13 @@ for a given Scheduling.">
         <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <a title="A Gauge metric epresents a single numerical value that can arbitrarily go up and down." href="Metrics$$Gauge.html">
+        <a title="A Gauge metric represents a single numerical value that can arbitrarily go up and down." href="Metrics$$Gauge.html">
               <span class="name">Gauge</span>
             </a><span class="params">(<span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="help">help: <span class="extype" name="scala.Predef.String">String</span> = <span class="symbol">&quot;&quot;</span></span>, <span name="labels2Value">labels2Value: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.Set">Set</span>[(<span class="extype" name="scala.Predef.String">String</span>, <span class="extype" name="scala.Predef.String">String</span>)], <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyVal" class="extype" name="scala.collection.immutable.List">AnyVal</a>] = <span class="symbol">Map.empty</span></span>)</span><span class="result"> extends <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       
-      <p class="shortcomment cmt">A <u>Gauge</u> metric epresents a single numerical value that can arbitrarily go up and down.</p><div class="fullcomment"><div class="comment cmt"><p>A <u>Gauge</u> metric epresents a single numerical value that can arbitrarily go up and down.
-</p></div><dl class="paramcmts block"><dt class="param">name</dt><dd class="cmt"><p>The metric name.</p></dd><dt class="param">help</dt><dd class="cmt"><p>Metric description if provided.</p></dd><dt class="param">labels2Value</dt><dd class="cmt"><p>The current value.s</p></dd></dl></div>
+      <p class="shortcomment cmt">A <u>Gauge</u> metric represents a single numerical value that can arbitrarily go up and down.</p><div class="fullcomment"><div class="comment cmt"><p>A <u>Gauge</u> metric represents a single numerical value that can arbitrarily go up and down.
+</p></div><dl class="paramcmts block"><dt class="param">name</dt><dd class="cmt"><p>The metric name.</p></dd><dt class="param">help</dt><dd class="cmt"><p>Metric description if provided.</p></dd><dt class="param">labels2Value</dt><dd class="cmt"><p>map of (label name, label value) pairs to the current gauge values</p></dd></dl></div>
     </li><li name="com.criteo.cuttle.Metrics.Metric" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="MetricextendsAnyRef"></a><a id="Metric:Metric"></a>
       <span class="permalink">

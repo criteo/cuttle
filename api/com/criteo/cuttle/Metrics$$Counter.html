@@ -3,9 +3,9 @@
         <head>
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-          <title>cuttle 0.3.7 - com.criteo.cuttle.ExecutionContexts.ServerExecutionContext</title>
-          <meta name="description" content="cuttle 0.3.7 - com.criteo.cuttle.ExecutionContexts.ServerExecutionContext" />
-          <meta name="keywords" content="cuttle 0.3.7 com.criteo.cuttle.ExecutionContexts.ServerExecutionContext" />
+          <title>cuttle 0.3.7 - com.criteo.cuttle.Metrics.Counter</title>
+          <meta name="description" content="cuttle 0.3.7 - com.criteo.cuttle.Metrics.Counter" />
+          <meta name="keywords" content="cuttle 0.3.7 com.criteo.cuttle.Metrics.Counter" />
           <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
           
       <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
@@ -132,10 +132,10 @@
       <p class="shortcomment cmt">Core cuttle concepts are defined here.</p><div class="fullcomment"><div class="comment cmt"><p>Core cuttle concepts are defined here.</p><ul><li>A <a href="CuttleProject.html" class="extype" name="com.criteo.cuttle.CuttleProject">CuttleProject</a> is basically a <a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a> to execute.</li><li><a href="Workflow.html" class="extype" name="com.criteo.cuttle.Workflow">Workflow</a>s are directed acyclic graphs of <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a>s.</li><li><a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> is defined for a given <a href="Scheduling.html" class="extype" name="com.criteo.cuttle.Scheduling">Scheduling</a> mechanism.</li><li><a href="Execution.html" class="extype" name="com.criteo.cuttle.Execution">Execution</a>s are created by a <a href="Scheduler.html" class="extype" name="com.criteo.cuttle.Scheduler">Scheduler</a> for a given <a href="Job.html" class="extype" name="com.criteo.cuttle.Job">Job</a> and <a href="SchedulingContext.html" class="extype" name="com.criteo.cuttle.SchedulingContext">SchedulingContext</a>.</li><li><a href="Executor.html" class="extype" name="com.criteo.cuttle.Executor">Executor</a> handles the <a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s execution.</li><li><a href="index.html#SideEffect[S&lt;:com.criteo.cuttle.Scheduling]=com.criteo.cuttle.Execution[S]=&gt;scala.concurrent.Future[com.criteo.cuttle.Completed]" class="extmbr" name="com.criteo.cuttle.SideEffect">SideEffect</a>s are plain asynchronous Scala functions and can use <a href="ExecutionPlatform.html" class="extype" name="com.criteo.cuttle.ExecutionPlatform">ExecutionPlatform</a>s to
    access underlying resources.
 </li></ul></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="com.criteo">criteo</a></dd></dl></div>
-    </li><li name="com.criteo.cuttle.ExecutionContexts" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="ExecutionContexts"></a><a id="ExecutionContexts:ExecutionContexts"></a>
+    </li><li name="com.criteo.cuttle.Metrics" visbl="pub" class="indented4 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="Metrics"></a><a id="Metrics:Metrics"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/index.html#ExecutionContexts" title="Permalink">
+      <a href="../../../com/criteo/cuttle/index.html#Metrics" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -144,59 +144,53 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="ExecutionContexts$.html">
-              <span class="name">ExecutionContexts</span>
+        <a title="Expose cuttle metrics via the prometheus protocol." href="Metrics$.html">
+              <span class="name">Metrics</span>
             </a>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></dd></dl></div>
+      <p class="shortcomment cmt">Expose cuttle metrics via the <a href="https://prometheus.io" target="_blank">prometheus</a> protocol.</p><div class="fullcomment"><div class="comment cmt"><p>Expose cuttle metrics via the <a href="https://prometheus.io" target="_blank">prometheus</a> protocol.</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a></dd></dl></div>
     </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="object" href="ExecutionContexts$$Implicits$.html" title=""></a>
-                        <a href="ExecutionContexts$$Implicits$.html" title="">
-                          Implicits
+                        <a class="class" href="" title="A Counter contains a value that can only be incremented."></a>
+                        <a href="" title="A Counter contains a value that can only be incremented.">
+                          Counter
                         </a>
                       </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="trait" href="ExecutionContexts$$Metrics.html" title=""></a>
-                        <a href="ExecutionContexts$$Metrics.html" title="">
-                          Metrics
+                        <a class="class" href="Metrics$$Gauge.html" title="A Gauge metric represents a single numerical value that can arbitrarily go up and down."></a>
+                        <a href="Metrics$$Gauge.html" title="A Gauge metric represents a single numerical value that can arbitrarily go up and down.">
+                          Gauge
                         </a>
                       </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="trait" href="" title=""></a>
-                        <a href="" title="">
-                          ServerExecutionContext
+                        <a class="trait" href="Metrics$$Metric.html" title="A metric to be exposed."></a>
+                        <a href="Metrics$$Metric.html" title="A metric to be exposed.">
+                          Metric
                         </a>
                       </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="trait" href="ExecutionContexts$$SideEffectExecutionContext.html" title=""></a>
-                        <a href="ExecutionContexts$$SideEffectExecutionContext.html" title="">
-                          SideEffectExecutionContext
+                        <a class="trait" href="Metrics$$MetricProvider.html" title="Components able to provide metrics."></a>
+                        <a href="Metrics$$MetricProvider.html" title="Components able to provide metrics.">
+                          MetricProvider
                         </a>
                       </li><li class="current-entities indented4">
                         <span class="separator"></span>
-                        <a class="object" href="ExecutionContexts$$ThreadPoolSystemProperties$.html" title=""></a>
-                        <a href="ExecutionContexts$$ThreadPoolSystemProperties$.html" title="">
-                          ThreadPoolSystemProperties
-                        </a>
-                      </li><li class="current-entities indented4">
-                        <span class="separator"></span>
-                        <a class="trait" href="ExecutionContexts$$WrappedExecutionContext.html" title=""></a>
-                        <a href="ExecutionContexts$$WrappedExecutionContext.html" title="">
-                          WrappedExecutionContext
+                        <a class="object" href="Metrics$$MetricType$.html" title=""></a>
+                        <a href="Metrics$$MetricType$.html" title="">
+                          MetricType
                         </a>
                       </li>
               </ul>
             </div>
           </div>
           <div id="content">
-            <body class="trait type">
+            <body class="class type">
       <div id="definition">
-        <div class="big-circle trait">t</div>
-        <p id="owner"><a href="../../index.html" class="extype" name="com">com</a>.<a href="../index.html" class="extype" name="com.criteo">criteo</a>.<a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a>.<a href="ExecutionContexts$.html" class="extype" name="com.criteo.cuttle.ExecutionContexts">ExecutionContexts</a></p>
-        <h1>ServerExecutionContext<span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html" title="Permalink">
+        <div class="big-circle class">c</div>
+        <p id="owner"><a href="../../index.html" class="extype" name="com">com</a>.<a href="../index.html" class="extype" name="com.criteo">criteo</a>.<a href="index.html" class="extype" name="com.criteo.cuttle">cuttle</a>.<a href="Metrics$.html" class="extype" name="com.criteo.cuttle.Metrics">Metrics</a></p>
+        <h1>Counter<span class="permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span></h1>
@@ -205,20 +199,21 @@
 
       <h4 id="signature" class="signature">
       <span class="modifier_kind">
-        <span class="modifier">sealed </span>
-        <span class="kind">trait</span>
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
       </span>
       <span class="symbol">
-        <span class="name">ServerExecutionContext</span><span class="result"> extends <a href="ExecutionContexts$$WrappedExecutionContext.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.WrappedExecutionContext">WrappedExecutionContext</a> with <a href="ExecutionContexts$$Metrics.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.Metrics">Metrics</a></span>
+        <span class="name">Counter</span><span class="tparams">[<span name="T">T</span>]</span><span class="params">(<span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="help">help: <span class="extype" name="scala.Predef.String">String</span> = <span class="symbol">&quot;&quot;</span></span>, <span name="labels2Value">labels2Value: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.Set">Set</span>[(<span class="extype" name="scala.Predef.String">String</span>, <span class="extype" name="scala.Predef.String">String</span>)], <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyVal" class="extype" name="scala.collection.immutable.List">AnyVal</a>] = <span class="symbol">Map.empty</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="number">number: <a href="https://www.scala-lang.org/api/current/scala/math/Numeric.html#scala.math.Numeric" class="extype" name="scala.math.Numeric">Numeric</a>[<span class="extype" name="com.criteo.cuttle.Metrics.Counter.T">T</span>]</span>)</span><span class="result"> extends <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a> with <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a> with <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></span>
       </span>
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/ExecutionContexts.scala" target="_blank">ExecutionContexts.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>A <u>Counter</u> contains a value that can only be incremented. Increments are not threadsafe.
+</p></div><dl class="paramcmts block"><dt class="param">name</dt><dd class="cmt"><p>The metric name.</p></dd><dt class="param">help</dt><dd class="cmt"><p>Metric description if provided.</p></dd><dt class="param">labels2Value</dt><dd class="cmt"><p>map of (label name, label value) pairs to counter values</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/criteo/cuttle/blob/master/core/src/main/scala/com/criteo/cuttle/Metrics.scala" target="_blank">Metrics.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
-          <div class="superTypes hiddenContent"><a href="ExecutionContexts$$Metrics.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.Metrics">Metrics</a>, <a href="ExecutionContexts$$WrappedExecutionContext.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.WrappedExecutionContext">WrappedExecutionContext</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></div>
+          <div class="superTypes hiddenContent"><a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a>, <span class="extype" name="java.io.Serializable">Serializable</span>, <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a>, <a href="https://www.scala-lang.org/api/current/scala/Equals.html#scala.Equals" class="extype" name="scala.Equals">Equals</a>, <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a>, <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></div>
         </div></div>
         
 
@@ -244,7 +239,7 @@
                   <span class="filtertype">Inherited<br />
                   </span>
                   <ol id="linearization">
-                    <li class="in" name="com.criteo.cuttle.ExecutionContexts.ServerExecutionContext"><span>ServerExecutionContext</span></li><li class="in" name="com.criteo.cuttle.ExecutionContexts.Metrics"><span>Metrics</span></li><li class="in" name="com.criteo.cuttle.ExecutionContexts.WrappedExecutionContext"><span>WrappedExecutionContext</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                    <li class="in" name="com.criteo.cuttle.Metrics.Counter"><span>Counter</span></li><li class="in" name="scala.Serializable"><span>Serializable</span></li><li class="in" name="java.io.Serializable"><span>Serializable</span></li><li class="in" name="scala.Product"><span>Product</span></li><li class="in" name="scala.Equals"><span>Equals</span></li><li class="in" name="com.criteo.cuttle.Metrics.Metric"><span>Metric</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
                   </ol>
                 </div><div class="ancestors">
               <span class="filtertype"></span>
@@ -262,38 +257,38 @@
 
       <div id="template">
         <div id="allMembers">
-        
-
-        
-
-        <div class="values members">
-              <h3>Abstract Value Members</h3>
-              <ol><li name="com.criteo.cuttle.ExecutionContexts.WrappedExecutionContext#underlying" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
-      <a id="underlying:scala.concurrent.ExecutionContext"></a><a id="underlying:ExecutionContext"></a>
+        <div id="constructors" class="members">
+              <h3>Instance Constructors</h3>
+              <ol><li name="com.criteo.cuttle.Metrics.Counter#&lt;init&gt;" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="&lt;init&gt;(name:String,help:String,labels2Value:Map[Set[(String,String)],AnyVal])(implicitnumber:scala.math.Numeric[T]):com.criteo.cuttle.Metrics.Counter[T]"></a><a id="&lt;init&gt;:Counter[T]"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#underlying:scala.concurrent.ExecutionContext" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#&lt;init&gt;(name:String,help:String,labels2Value:Map[Set[(String,String)],AnyVal])(implicitnumber:scala.math.Numeric[T]):com.criteo.cuttle.Metrics.Counter[T]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
       <span class="modifier_kind">
-        <span class="modifier">abstract </span>
-        <span class="kind">val</span>
+        <span class="modifier"></span>
+        <span class="kind">new</span>
       </span>
       <span class="symbol">
-        <span class="name">underlying</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/concurrent/ExecutionContext.html#scala.concurrent.ExecutionContext" class="extype" name="scala.concurrent.ExecutionContext">ExecutionContext</a></span>
+        <span class="name">Counter</span><span class="params">(<span name="name">name: <span class="extype" name="scala.Predef.String">String</span></span>, <span name="help">help: <span class="extype" name="scala.Predef.String">String</span> = <span class="symbol">&quot;&quot;</span></span>, <span name="labels2Value">labels2Value: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.Set">Set</span>[(<span class="extype" name="scala.Predef.String">String</span>, <span class="extype" name="scala.Predef.String">String</span>)], <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyVal" class="extype" name="scala.collection.immutable.List">AnyVal</a>] = <span class="symbol">Map.empty</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="number">number: <a href="https://www.scala-lang.org/api/current/scala/math/Numeric.html#scala.math.Numeric" class="extype" name="scala.math.Numeric">Numeric</a>[<span class="extype" name="com.criteo.cuttle.Metrics.Counter.T">T</span>]</span>)</span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="ExecutionContexts$$WrappedExecutionContext.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.WrappedExecutionContext">WrappedExecutionContext</a></dd></dl></div>
+      <p class="shortcomment cmt"></p><div class="fullcomment"><div class="comment cmt"></div><dl class="paramcmts block"><dt class="param">name</dt><dd class="cmt"><p>The metric name.</p></dd><dt class="param">help</dt><dd class="cmt"><p>Metric description if provided.</p></dd><dt class="param">labels2Value</dt><dd class="cmt"><p>map of (label name, label value) pairs to counter values</p></dd></dl></div>
     </li></ol>
             </div>
 
+        
+
+        
+
         <div class="values members">
-              <h3>Concrete Value Members</h3>
+              <h3>Value Members</h3>
               <ol>
                 <li name="scala.AnyRef#!=" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="!=(x$1:Any):Boolean"></a><a id="!=(Any):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#!=(x$1:Any):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#!=(x$1:Any):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -309,7 +304,7 @@
     </li><li name="scala.AnyRef###" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="##():Int"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html###():Int" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html###():Int" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -325,7 +320,7 @@
     </li><li name="scala.AnyRef#==" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="==(x$1:Any):Boolean"></a><a id="==(Any):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#==(x$1:Any):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#==(x$1:Any):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -338,26 +333,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li name="com.criteo.cuttle.ExecutionContexts.Metrics#_threadPoolSize" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="_threadPoolSize:Long"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#_threadPoolSize:Long" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">val</span>
-      </span>
-      <span class="symbol">
-        <span class="name">_threadPoolSize</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Long.html#scala.Long" class="extype" name="scala.Long">Long</a></span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a href="ExecutionContexts$$Metrics.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.Metrics">Metrics</a></dd></dl></div>
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#asInstanceOf[T0]:T0" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#asInstanceOf[T0]:T0" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -373,7 +352,7 @@
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#clone():Object" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#clone():Object" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -395,7 +374,7 @@
     </li><li name="scala.AnyRef#eq" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="eq(x$1:AnyRef):Boolean"></a><a id="eq(AnyRef):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#eq(x$1:AnyRef):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#eq(x$1:AnyRef):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -408,26 +387,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li name="scala.AnyRef#equals" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="equals(x$1:Any):Boolean"></a><a id="equals(Any):Boolean"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#equals(x$1:Any):Boolean" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">equals</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.Any" class="extype" name="scala.collection.immutable.List">Any</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Boolean.html#scala.Boolean" class="extype" name="scala.Boolean">Boolean</a></span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="scala.AnyRef#finalize" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="finalize():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#finalize():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#finalize():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -449,7 +412,7 @@
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#getClass():Class[_]" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#getClass():Class[_]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -462,10 +425,26 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
-    </li><li name="scala.AnyRef#hashCode" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="hashCode():Int"></a>
+    </li><li name="com.criteo.cuttle.Metrics.Counter#help" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="help:String"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#hashCode():Int" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#help:String" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">help</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="" class="extype" name="com.criteo.cuttle.Metrics.Counter">Counter</a> → <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a></dd></dl></div>
+    </li><li name="com.criteo.cuttle.Metrics.Counter#inc" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="inc(label:Set[(String,String)]):com.criteo.cuttle.Metrics.Counter[T]"></a><a id="inc(Set[(String,String)]):Counter[T]"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#inc(label:Set[(String,String)]):com.criteo.cuttle.Metrics.Counter[T]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -474,14 +453,30 @@
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">hashCode</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Int.html#scala.Int" class="extype" name="scala.Int">Int</a></span>
+        <span class="name">inc</span><span class="params">(<span name="label">label: <span class="extype" name="scala.Predef.Set">Set</span>[(<span class="extype" name="scala.Predef.String">String</span>, <span class="extype" name="scala.Predef.String">String</span>)]</span>)</span><span class="result">: <a href="" class="extype" name="com.criteo.cuttle.Metrics.Counter">Counter</a>[<span class="extype" name="com.criteo.cuttle.Metrics.Counter.T">T</span>]</span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+      
+    </li><li name="com.criteo.cuttle.Metrics.Metric#isDefined" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="isDefined:Boolean"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#isDefined:Boolean" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">isDefined</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Boolean.html#scala.Boolean" class="extype" name="scala.Boolean">Boolean</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a></dd></dl></div>
     </li><li name="scala.Any#isInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#isInstanceOf[T0]:Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#isInstanceOf[T0]:Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -494,10 +489,58 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li name="com.criteo.cuttle.Metrics.Counter#labels2Value" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="labels2Value:Map[Set[(String,String)],AnyVal]"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#labels2Value:Map[Set[(String,String)],AnyVal]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">labels2Value</span><span class="result">: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.Set">Set</span>[(<span class="extype" name="scala.Predef.String">String</span>, <span class="extype" name="scala.Predef.String">String</span>)], <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyVal" class="extype" name="scala.collection.immutable.List">AnyVal</a>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="" class="extype" name="com.criteo.cuttle.Metrics.Counter">Counter</a> → <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a></dd></dl></div>
+    </li><li name="com.criteo.cuttle.Metrics.Counter#metricType" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="metricType:com.criteo.cuttle.Metrics.MetricType.MetricType"></a><a id="metricType:MetricType"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#metricType:com.criteo.cuttle.Metrics.MetricType.MetricType" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">metricType</span><span class="result">: <a href="Metrics$$MetricType$.html#MetricType=com.criteo.cuttle.Metrics.MetricType.Value" class="extmbr" name="com.criteo.cuttle.Metrics.MetricType.MetricType">MetricType</a></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="" class="extype" name="com.criteo.cuttle.Metrics.Counter">Counter</a> → <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a></dd></dl></div>
+    </li><li name="com.criteo.cuttle.Metrics.Counter#name" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="name:String"></a>
+      <span class="permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#name:String" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">name</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="" class="extype" name="com.criteo.cuttle.Metrics.Counter">Counter</a> → <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a></dd></dl></div>
     </li><li name="scala.AnyRef#ne" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ne(x$1:AnyRef):Boolean"></a><a id="ne(AnyRef):Boolean"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#ne(x$1:AnyRef):Boolean" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#ne(x$1:AnyRef):Boolean" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -513,7 +556,7 @@
     </li><li name="scala.AnyRef#notify" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="notify():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#notify():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#notify():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -529,7 +572,7 @@
     </li><li name="scala.AnyRef#notifyAll" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="notifyAll():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#notifyAll():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#notifyAll():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -545,7 +588,7 @@
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#synchronized[T0](x$1:=&gt;T0):T0" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#synchronized[T0](x$1:=&gt;T0):T0" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -558,42 +601,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li name="com.criteo.cuttle.ExecutionContexts.Metrics#threadPoolSize" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="threadPoolSize():Long"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#threadPoolSize():Long" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">threadPoolSize</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/current/scala/Long.html#scala.Long" class="extype" name="scala.Long">Long</a></span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="ExecutionContexts$$Metrics.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.Metrics">Metrics</a></dd></dl></div>
-    </li><li name="scala.AnyRef#toString" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="toString():String"></a>
-      <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#toString():String" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">toString</span><span class="params">()</span><span class="result">: <span class="extype" name="java.lang.String">String</span></span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#wait():Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#wait():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -615,7 +626,7 @@
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait(x$1:Long,x$2:Int):Unit"></a><a id="wait(Long,Int):Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#wait(x$1:Long,x$2:Int):Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#wait(x$1:Long,x$2:Int):Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -637,7 +648,7 @@
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait(x$1:Long):Unit"></a><a id="wait(Long):Unit"></a>
       <span class="permalink">
-      <a href="../../../com/criteo/cuttle/ExecutionContexts$$ServerExecutionContext.html#wait(x$1:Long):Unit" title="Permalink">
+      <a href="../../../com/criteo/cuttle/Metrics$$Counter.html#wait(x$1:Long):Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -666,10 +677,16 @@
         </div>
 
         <div id="inheritedMembers">
-        <div class="parent" name="com.criteo.cuttle.ExecutionContexts.Metrics">
-              <h3>Inherited from <a href="ExecutionContexts$$Metrics.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.Metrics">Metrics</a></h3>
-            </div><div class="parent" name="com.criteo.cuttle.ExecutionContexts.WrappedExecutionContext">
-              <h3>Inherited from <a href="ExecutionContexts$$WrappedExecutionContext.html" class="extype" name="com.criteo.cuttle.ExecutionContexts.WrappedExecutionContext">WrappedExecutionContext</a></h3>
+        <div class="parent" name="scala.Serializable">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Serializable.html#scala.Serializable" class="extype" name="scala.Serializable">Serializable</a></h3>
+            </div><div class="parent" name="java.io.Serializable">
+              <h3>Inherited from <span class="extype" name="java.io.Serializable">Serializable</span></h3>
+            </div><div class="parent" name="scala.Product">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Product.html#scala.Product" class="extype" name="scala.Product">Product</a></h3>
+            </div><div class="parent" name="scala.Equals">
+              <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/Equals.html#scala.Equals" class="extype" name="scala.Equals">Equals</a></h3>
+            </div><div class="parent" name="com.criteo.cuttle.Metrics.Metric">
+              <h3>Inherited from <a href="Metrics$$Metric.html" class="extype" name="com.criteo.cuttle.Metrics.Metric">Metric</a></h3>
             </div><div class="parent" name="scala.AnyRef">
               <h3>Inherited from <a href="https://www.scala-lang.org/api/current/scala/collection/immutable/List.html#scala.AnyRef" class="extype" name="scala.collection.immutable.List">AnyRef</a></h3>
             </div><div class="parent" name="scala.Any">
