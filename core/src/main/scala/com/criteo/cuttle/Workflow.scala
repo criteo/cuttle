@@ -33,7 +33,7 @@ trait Workflow[S <: Scheduling] {
     edges.map { case (child, parent, _) => parent -> child }
   ) match {
     case Some(sortedNodes) => sortedNodes
-    case None => throw new IllegalArgumentException("Workflow has at least one cycle")
+    case None              => throw new IllegalArgumentException("Workflow has at least one cycle")
   }
 
   /**
@@ -101,10 +101,12 @@ object Workflow {
   def validate[S <: Scheduling](workflow: Workflow[S]): List[String] = {
     val errors = collection.mutable.ListBuffer.empty[String]
 
-    if(graph.topologicalSort[Job[S]](
-      workflow.vertices,
-      workflow.edges.map { case (child, parent, _) => parent -> child }
-    ).isEmpty) {
+    if (graph
+          .topologicalSort[Job[S]](
+            workflow.vertices,
+            workflow.edges.map { case (child, parent, _) => parent -> child }
+          )
+          .isEmpty) {
       errors += "Workflow has at least one cycle"
     }
 
@@ -130,8 +132,9 @@ case class Tag(name: String, description: String = "")
   * single vertice.
   *
   * @tparam S The kind of [[Scheduling]] used by this job.
-  * @param id the internal job id. It will be sued to track the job state in the database, so it must not
+  * @param id The internal job id. It will be sued to track the job state in the database, so it must not
   *           change over time otherwise the job will be seen as a new one by the scheduler.
+  *           That id, being technical, should only use valid characters such as [a-zA-Z0-9_-.]
   * @param scheduling The scheduling configuration for the job. For example a [[timeseries.TimeSeries TimeSeries]] job can
   *                   be configured to be hourly or daily, etc.
   * @param name The job name as displayed in the UI.

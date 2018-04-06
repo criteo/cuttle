@@ -223,6 +223,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         .jobStatsForLastThirtyDays(jobName)
         .map(stats => Ok(stats.asJson))
 
+    case GET at url"/version" => Ok(project.version)
+
     case GET at "/metrics" =>
       val metrics =
         executor.getMetrics(allIds, workflow) ++
