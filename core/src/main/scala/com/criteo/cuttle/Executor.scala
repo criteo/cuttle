@@ -391,11 +391,19 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
       val runningIds = runningState.collect {
         case (e: Execution[S], _) if filteredJobs.contains(e.job.id) => (e.job.id, e.context) -> e
       }
+      val waitingExecutions = platforms.flatMap(_.waiting).toSet
 
       recentFailures
         .flatMap({
           case ((job, context), (_, failingJob)) =>
-            runningIds.get((job.id, context)).map((_, failingJob, ExecutionRunning))
+            runningIds
+              .get((job.id, context))
+              .map(execution => {
+                val status =
+                  if (execution.isWaiting.get || waitingExecutions.contains(execution)) ExecutionWaiting
+                  else ExecutionRunning
+                (execution, failingJob, status)
+              })
         })
         .toSeq
     }
@@ -542,6 +550,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             _.sortBy({ case (execution, failingJob, _) => (failingJob.failedExecutions.size, execution) })
           case "retry" =>
             _.sortBy({ case (execution, failingJob, _) => (failingJob.nextRetry.map(_.toString), execution) })
+          case "status" =>
+            _.sortBy({ case (_, _, status) => status.toString })
           case _ =>
             _.sortBy({ case (execution, _, _) => execution })
         }

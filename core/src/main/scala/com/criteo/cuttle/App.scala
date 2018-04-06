@@ -230,11 +230,11 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
           Gauge("cuttle_jvm_uptime_seconds").set(getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
-    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
+    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$order&jobs=$jobs" =>
       val jobIds = parseJobIds(jobs)
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
-      val asc = a.toLowerCase == "asc"
+      val asc = order.toLowerCase == "asc"
       val ids = if (jobIds.isEmpty) allIds else jobIds
 
       def getExecutions: IO[Option[(Int, List[ExecutionLog])]] = kind match {
