@@ -507,7 +507,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                              executor: Executor[TimeSeries],
                                              xa: XA): AuthenticatedService = {
 
-    case req @ POST at url"/api/timeseries/backfill" =>
+    case req @ POST at url"/api/timeseries/backfill" => {
       implicit user =>
         req
           .readAs[Json]
@@ -541,6 +541,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 }
               )
           )
+      }
 
     // consider the given period of the job as successful, regardless of it's actual status
     case req@GET at url"/api/timeseries/force-success?job=$jobId&start=$start&end=$end" => {
