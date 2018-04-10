@@ -3,8 +3,7 @@ package com.criteo.cuttle.timeseries
 import java.time.Instant
 import java.time.temporal.ChronoUnit._
 
-import scala.util.Try
-
+import scala.util.{Failure, Success, Try}
 import cats.effect.IO
 import cats.implicits._
 import doobie.implicits._
@@ -13,7 +12,6 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import lol.http._
 import lol.json._
-
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle._
@@ -509,7 +507,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                              executor: Executor[TimeSeries],
                                              xa: XA): AuthenticatedService = {
 
-    case req @ POST at url"/api/timeseries/backfill" =>
+    case req @ POST at url"/api/timeseries/backfill" => {
       implicit user =>
         req
           .readAs[Json]
@@ -543,5 +541,29 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 }
               )
           )
+      }
+
+    // consider the given period of the job as successful, regardless of it's actual status
+    case req@GET at url"/api/timeseries/force-success?job=$jobId&start=$start&end=$end" => {
+      implicit user =>
+        (for {
+          startDate <- Try(Instant.parse(start))
+          endDate <- Try(Instant.parse(end))
+          job <- Try(workflow.vertices.find(_.id == jobId).getOrElse(throw new Exception(s"Unknow job $jobId")))
+        } yield {
+          val requestedInterval = Interval(startDate, endDate)
+          self.forceSuccess(job, requestedInterval)
+
+          val runningExecutions = executor.runningExecutions.filter(e => e._1.job.id == jobId).map(_._1)
+          val failingExecutions = executor.allFailingExecutions.filter(_.job.id == jobId)
+          val executions = runningExecutions ++ failingExecutions
+          executions.foreach(_.cancel())
+
+          executions.length
+        }) match {
+          case Success(canceledExecutions) => IO.pure(Ok(Json.obj("canceled-executions" -> Json.fromInt(canceledExecutions))))
+          case Failure(e)                  => IO.pure(BadRequest(Json.obj("error" -> Json.fromString(e.getMessage))))
+        }
+    }
   }
 }
