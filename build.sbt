@@ -181,7 +181,7 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml"
       ).map(_ % "0.9.3"),
-      libraryDependencies ++= Seq("core", "generic", "parser")
+      libraryDependencies ++= Seq("core", "generic", "parser", "java8")
         .map(module => "io.circe" %% s"circe-${module}" % "0.9.1"),
       libraryDependencies ++= Seq(
         "de.sciss" %% "fingertree" % "1.5.2",
