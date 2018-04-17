@@ -7,14 +7,15 @@ package com.criteo.cuttle.examples
 // The main package contains everything needed to create
 // a cuttle project.
 import com.criteo.cuttle._
+import com.criteo.cuttle.platforms.local
 
 // The local platform allows to locally fork some processes
 // (_here we will just fork shell scripts_).
-import com.criteo.cuttle.platforms.local._
-
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+
+import com.criteo.cuttle.platforms.local._
 
 object HelloCustomScheduling {
 
@@ -64,7 +65,7 @@ object HelloCustomScheduling {
     }
 
     // Finally, the scheduler logic itself
-    implicit val loopScheduler = new Scheduler[LoopScheduling] {
+    val loopScheduler = new Scheduler[LoopScheduling] {
       def start(jobs: Workload[LoopScheduling], executor: Executor[LoopScheduling], xa: XA, logger: Logger) = {
         jobs match {
           case LoopJobs(job @ Job(id, LoopScheduling(repeat), _, _, _)) =>
@@ -107,7 +108,8 @@ object HelloCustomScheduling {
 
           // Now do some real work in BASH, failing randomly...
           exec"""
-            bash -c '
+            bash -c 'ps -aux
+            sds
               sleep $i;
               x=$$((RANDOM % 2));
               echo "Random result is $$x";
@@ -116,9 +118,18 @@ object HelloCustomScheduling {
           """()
       }
 
-    // Finally we bootstrap our cuttle project.
-    CuttleProject("Hello custom scheduling")(LoopJobs(hello)).
-      // Starts the scheduler and an HTTP server.
-      start()
+    // Create a connection to the database where the application states are persisted
+    val stateDbTransactor = Database.connect(DatabaseConfig.fromEnv)
+
+    // Finally we bootstrap our cuttle project
+    val executor = new Executor[LoopScheduling](
+      // The local platform is used to execute the bash commands defined in the hello job in a dedicated thread pool
+      Seq(local.LocalPlatform(maxForkedProcesses = 10)),
+      stateDbTransactor,
+      logger,
+      "Custom scheduling example"
+    )(RetryStrategy.ExponentialBackoffRetryStrategy)
+
+    loopScheduler.start(LoopJobs(hello), executor, stateDbTransactor, logger)
   }
 }

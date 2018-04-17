@@ -203,7 +203,13 @@ lazy val cuttle =
         "org.scalatest" %% "scalatest" % "3.0.1",
         "org.mockito" % "mockito-all" % "1.10.19",
         "org.tpolecat" %% "doobie-scalatest" % doobieVersion
-      ).map(_ % "it,test"),
+      ).map(_ % "it,test")
+    )
+
+lazy val timeseries =
+  (project in file("timeseries"))
+    .settings(commonSettings: _*)
+    .settings(
       // Webpack
       resourceGenerators in Compile += Def.task {
         import scala.sys.process._
@@ -233,18 +239,12 @@ lazy val cuttle =
           }
           logger.out("Running webpack...")
           assert(s"node node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail" ! logger == 0,
-                 "webpack failed")
+            "webpack failed")
           listFiles(webpackOutputDir)
         }
       }.taskValue,
       cleanFiles += (file(".") / "node_modules")
     )
-
-lazy val timeseries =
-  (project in file("timeseries"))
-    .settings(commonSettings: _*)
-    .settings(
-      )
     .dependsOn(cuttle % "compile->compile;test->test")
 
 lazy val examples =

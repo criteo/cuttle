@@ -28,11 +28,6 @@ trait Scheduler[S <: Scheduling] extends MetricProvider[S] {
     */
   def start(jobs: Workload[S], executor: Executor[S], xa: XA, logger: Logger): Unit
 
-  private[cuttle] def publicRoutes(jobs: Workload[S], executor: Executor[S], xa: XA): PartialService =
-    PartialFunction.empty
-  private[cuttle] def privateRoutes(jobs: Workload[S], executor: Executor[S], xa: XA): AuthenticatedService =
-    PartialFunction.empty
-
   /** Provide a doobie SQL `Fragment` used to retrieve all execution contexts from
     * the execution logs.
     *

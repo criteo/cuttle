@@ -311,7 +311,7 @@ private[timeseries] object JobState {
   * The scheduler also allow to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
   * or not and an audit log of backfills is kept.
   */
-case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] with TimeSeriesApp {
+case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
   import JobState.{Done, Running, Todo}
   import TimeSeriesUtils._
 

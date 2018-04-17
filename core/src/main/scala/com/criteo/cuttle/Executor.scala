@@ -9,17 +9,21 @@ import scala.concurrent.duration._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
-import scala.reflect.{classTag, ClassTag}
-import scala.util.{Failure, Success, Try}
+import scala.reflect.{ClassTag, classTag}
+import scala.util._
+
 import cats.Eq
 import cats.effect.IO
 import cats.implicits._
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import io.circe._
+import io.circe.java8.time._
 import io.circe.syntax._
 import lol.http.PartialService
+
 import com.criteo.cuttle.Auth._
+import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.ThreadPools.{SideEffectThreadPool, _}
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle.platforms.ExecutionPool
@@ -100,6 +104,33 @@ private[cuttle] class ExecutionStat(
 
 private[cuttle] object ExecutionLog {
   implicit val execLogEq: Eq[ExecutionLog] = Eq.fromUniversalEquals[ExecutionLog]
+
+  implicit lazy val executionLogEncoder: Encoder[ExecutionLog] = new Encoder[ExecutionLog] {
+    override def apply(execution: ExecutionLog) = Json.obj(
+      "id" -> execution.id.asJson,
+      "job" -> execution.job.asJson,
+      "startTime" -> execution.startTime.asJson,
+      "endTime" -> execution.endTime.asJson,
+      "context" -> execution.context,
+      "status" -> (execution.status match {
+        case ExecutionSuccessful => "successful"
+        case ExecutionFailed => "failed"
+        case ExecutionRunning => "running"
+        case ExecutionWaiting => "waiting"
+        case ExecutionPaused => "paused"
+        case ExecutionThrottled => "throttled"
+        case ExecutionTodo => "todo"
+      }).asJson,
+      "failing" -> execution.failing.map {
+        case FailingJob(failedExecutions, nextRetry) =>
+          Json.obj(
+            "failedExecutions" -> Json.fromValues(failedExecutions.map(_.asJson(executionLogEncoder))),
+            "nextRetry" -> nextRetry.asJson
+          )
+      }.asJson,
+      "waitingSeconds" -> execution.waitingSeconds.asJson
+    )
+  }
 }
 
 /**

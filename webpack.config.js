@@ -4,12 +4,12 @@ const FlowStatusWebpackPlugin = require("flow-status-webpack-plugin");
 
 const outputPath = path.resolve(
   __dirname,
-  "core/target/scala-2.11/classes/public"
+  "timeseries/target/scala-2.11/classes/public"
 );
 
 module.exports = {
   entry: {
-    app: [path.resolve(__dirname, "core/src/main/javascript/index.js")]
+    app: [path.resolve(__dirname, "timeseries/src/main/javascript/index.js")]
   },
 
   devServer: {
@@ -43,8 +43,8 @@ module.exports = {
             }
           }
         ],
-        include: path.join(__dirname, "core/src"),
-        exclude: [path.resolve(__dirname, "core/node_modules/")]
+        include: path.join(__dirname, "timeseries/src"),
+        exclude: [path.resolve(__dirname, "timeseries/node_modules/")]
       },
       {
         test: /\.(less|css)/,
@@ -59,7 +59,7 @@ module.exports = {
 
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, "core/src/main/html/index.html"),
+      template: path.resolve(__dirname, "timeseries/src/main/html/index.html"),
       inject: "body"
     }),
     new FlowStatusWebpackPlugin({

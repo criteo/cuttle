@@ -27,9 +27,9 @@ let yarn = run({
 let front = webpack({
   watch: [
     "webpack.config.js",
-    "core/src/main/javascript/**/*.*",
-    "core/src/main/html/**/*.*",
-    "core/src/main/style/**/*.*"
+    "timeseries/src/main/javascript/**/*.*",
+    "timeseries/src/main/html/**/*.*",
+    "timeseries/src/main/style/**/*.*"
   ]
 }).dependsOn(yarn, compile);
 
