@@ -12,6 +12,7 @@ import Table from "../components/Table";
 import Link from "../components/Link";
 import { Badge } from "../components/Badge";
 import type { JobStatus } from "../../ApplicationState";
+import PopoverMenu from "../components/PopoverMenu";
 
 type Props = {
   classes: any,
@@ -60,7 +61,7 @@ type PausedJob = {
 type JobsOrder = (Job, Job) => number;
 
 const columns: Array<{
-  id: Columns | "startDate" | "status" | "user" | "detail",
+  id: Columns | "startDate" | "status" | "user" | "detail" | "actions",
   label?: string,
   sortable: boolean
 }> = [
@@ -70,7 +71,8 @@ const columns: Array<{
   { id: "status", label: "Status", sortable: true },
   { id: "user", label: "Paused By", sortable: true },
   { id: "date", label: "Paused At", sortable: true },
-  { id: "detail", sortable: false, width: 40 }
+  { id: "detail", sortable: false, width: 40 },
+  { id: "actions", sortable: false, width: 40 }
 ];
 
 const column2Comp: {
@@ -80,7 +82,7 @@ const column2Comp: {
   user: ({ user: User }) => any,
   date: ({ date: string }) => any
 } = {
-  id: ({ id }: { id: string }) => <span>{id}</span>,
+  id: ({ id }: { id: string }) => <Link href={`/workflow/${id}`}>{id}</Link>,
   name: ({ name }: { name: string }) => <span>{name}</span>,
   startDate: ({ scheduling }: { scheduling: Scheduling }) => (
     <span>{displayFormat(new Date(scheduling.start))}</span>
@@ -176,6 +178,45 @@ const activeJobsProps = {
   status: "active"
 };
 
+const jobMenu = ({
+  job,
+  status,
+  classes
+}: {
+  job: string,
+  status: string,
+  classes: any
+}) => {
+  const menuItems =
+    status === "paused"
+      ? [
+          <span
+            onClick={() =>
+              fetch(`/api/jobs/resume?jobs=${job}`, {
+                method: "POST",
+                credentials: "include"
+              })
+            }
+          >
+            Resume
+          </span>
+        ]
+      : [
+          <span
+            onClick={() =>
+              fetch(`/api/jobs/pause?jobs=${job}`, {
+                method: "POST",
+                credentials: "include"
+              })
+            }
+          >
+            Pause
+          </span>
+        ];
+
+  return <PopoverMenu className={classes.menu} items={menuItems} />;
+};
+
 class JobsComp extends React.Component<any, Props, State> {
   state: State;
 
@@ -240,6 +281,8 @@ class JobsComp extends React.Component<any, Props, State> {
                       <OpenIcon />
                     </Link>
                   );
+                case "actions":
+                  return jobMenu({ job: row.id, status: row.status, classes });
                 default:
                   return column2Comp[column](row);
               }
