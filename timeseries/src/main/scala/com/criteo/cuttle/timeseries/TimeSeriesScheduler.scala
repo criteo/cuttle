@@ -541,12 +541,14 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   private[timeseries] def collectCompletedJobs(state: State,
                                                backfills: Set[Backfill],
                                                completed: Set[Run]): (State, Set[Backfill], Set[Backfill]) = {
+    def isDone(state: State, job: TimeSeriesJob, context: TimeSeriesContext): Boolean =
+      state.apply(job).intersect(context.toInterval).toList.forall { case (_, state) => state == Done }
 
     // update state with job statuses
     val newState = completed.foldLeft(state) {
       case (acc, (job, context, future)) =>
-        val jobState = if (future.value.get.isSuccess) Done else Todo(context.backfill)
-        acc + (job -> (acc(job).update(context.toInterval, jobState)))
+        val jobState = if (future.value.get.isSuccess || isDone(state, job, context)) Done else Todo(context.backfill)
+        acc + (job -> acc(job).update(context.toInterval, jobState))
     }
 
     val notCompletedBackfills = backfills.filter { bf =>
@@ -606,6 +608,11 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         (job, TimeSeriesContext(lo, hi, maybeBackfill))
       }
     }
+  }
+
+  private[timeseries] def forceSuccess(job: TimeSeriesJob, interval: Interval[Instant]): Unit = atomic { implicit txn =>
+    val jobState = _state().apply(job)
+    _state() = _state() + (job -> jobState.update(interval, Done))
   }
 
   private def getRunningBackfillsSize(jobs: Set[String]) = {

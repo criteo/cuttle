@@ -106,6 +106,9 @@ private[cuttle] object Database {
     """.update.run,
     sql"""
       ALTER TABLE paused_jobs ADD COLUMN user VARCHAR(256) NOT NULL DEFAULT 'not defined user', ADD COLUMN date DATETIME NOT NULL DEFAULT '1991-11-01:15:42:00'
+    """.update.run,
+    sql"""
+      ALTER TABLE executions_streams ADD PRIMARY KEY(id)
     """.update.run
   )
 

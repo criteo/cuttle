@@ -256,7 +256,7 @@ class Execution extends React.Component {
                       <dd key="startTime_">
                         {moment(data.startTime)
                           .utc()
-                          .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
+                          .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
                       </dd>
                     ]
                   : null}
@@ -266,7 +266,7 @@ class Execution extends React.Component {
                       <dd key="endTime_">
                         {moment(data.endTime)
                           .utc()
-                          .format("dddd, MMMM Do YYYY, hh:mm:ss z")}
+                          .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
                       </dd>
                     ]
                   : null}
