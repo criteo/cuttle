@@ -16,8 +16,8 @@ import lol.http._
 import lol.json._
 
 import com.criteo.cuttle.Auth._
-import com.criteo.cuttle.ExecutionContexts.Implicits.serverExecutionContext
-import com.criteo.cuttle.ExecutionContexts._
+import com.criteo.cuttle.ThreadPools.Implicits.serverThreadPool
+import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
 import com.criteo.cuttle.utils.getJVMUptime
@@ -45,6 +45,7 @@ private[cuttle] object App {
         "name" -> project.name.asJson,
         "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
         "description" -> Option(project.description).filterNot(_.isEmpty).asJson,
+        "scheduler" -> project.scheduler.name.asJson,
         "env" -> Json.obj(
           "name" -> Option(project.env._1).filterNot(_.isEmpty).asJson,
           "critical" -> project.env._2.asJson
@@ -114,31 +115,11 @@ private[cuttle] object App {
           "id" -> job.id.asJson,
           "name" -> Option(job.name).filterNot(_.isEmpty).getOrElse(job.id).asJson,
           "description" -> Option(job.description).filterNot(_.isEmpty).asJson,
-          "scheduling" -> job.scheduling.toJson,
+          "scheduling" -> job.scheduling.asJson,
           "tags" -> job.tags.map(_.name).asJson
         )
         .asJson
   }
-
-  implicit def workflowEncoder[S <: Scheduling] =
-    new Encoder[Workflow[S]] {
-      override def apply(workflow: Workflow[S]) = {
-        val jobs = workflow.jobsInOrder.asJson
-        val tags = workflow.vertices.flatMap(_.tags).asJson
-        val dependencies = workflow.edges.map {
-          case (to, from, _) =>
-            Json.obj(
-              "from" -> from.id.asJson,
-              "to" -> to.id.asJson
-            )
-        }.asJson
-        Json.obj(
-          "jobs" -> jobs,
-          "dependencies" -> dependencies,
-          "tags" -> tags
-        )
-      }
-    }
 
   import io.circe.generic.semiauto._
   implicit val encodeUser: Encoder[User] = deriveEncoder
@@ -146,22 +127,23 @@ private[cuttle] object App {
 }
 
 private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
-  import project.{scheduler, workflow}
+  import project.{scheduler, jobs}
 
   import App._
 
-  private val allIds = workflow.vertices.map(_.id)
+
+  private val allIds = jobs.all.map(_.id)
 
   private def parseJobIds(jobsQueryString: String): Set[String] =
     jobsQueryString.split(",").filter(_.trim().nonEmpty).toSet
 
   private def getJobsOrNotFound(jobsQueryString: String): Either[Response, Set[Job[S]]] = {
     val jobsNames = parseJobIds(jobsQueryString)
-    if (jobsNames.isEmpty) Right(workflow.vertices)
+    if (jobsNames.isEmpty) Right(jobs.all)
     else {
-      val jobs = workflow.vertices.filter(v => jobsNames.contains(v.id))
-      if (jobs.isEmpty) Left(NotFound)
-      else Right(jobs)
+      val filteredJobs = jobs.all.filter(v => jobsNames.contains(v.id))
+      if (filteredJobs.isEmpty) Left(NotFound)
+      else Right(filteredJobs)
     }
   }
 
@@ -216,8 +198,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
 
     case GET at "/metrics" =>
       val metrics =
-        executor.getMetrics(allIds, workflow) ++
-          scheduler.getMetrics(allIds, workflow) :+
+        executor.getMetrics(allIds, jobs) ++
+          scheduler.getMetrics(allIds, jobs) :+
           Gauge("cuttle_jvm_uptime_seconds").labeled(("version", project.version), getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
@@ -323,8 +305,8 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
     case GET at "/api/project_definition" =>
       Ok(project.asJson)
 
-    case GET at "/api/workflow_definition" =>
-      Ok(workflow.asJson)
+    case GET at "/api/jobs_definition" =>
+      Ok(jobs.asJson)
   }
 
   val privateApi: AuthenticatedService = {
@@ -352,11 +334,11 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       })
     }
     case POST at url"/api/jobs/all/unpause" => { implicit user =>
-      executor.resumeJobs(workflow.vertices)
+      executor.resumeJobs(jobs.all)
       Ok
     }
     case POST at url"/api/jobs/$id/unpause" => { implicit user =>
-      workflow.vertices.find(_.id == id).fold(NotFound) { job =>
+      jobs.all.find(_.id == id).fold(NotFound) { job =>
         executor.resumeJobs(Set(job))
         Ok
       }
@@ -411,9 +393,9 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         Ok(ClasspathResource(s"/public/index.html"))
   }
 
-  val routes: Service = api
-    .orElse(scheduler.publicRoutes(workflow, executor, xa))
-    .orElse(project.authenticator(scheduler.privateRoutes(workflow, executor, xa)))
+  val routes: PartialService = api
+    .orElse(scheduler.publicRoutes(jobs, executor, xa))
+    .orElse(project.authenticator(scheduler.privateRoutes(jobs, executor, xa)))
     .orElse {
       executor.platforms.foldLeft(PartialFunction.empty: PartialService) {
         case (s, p) => s.orElse(p.publicRoutes).orElse(project.authenticator(p.privateRoutes))

@@ -10,9 +10,9 @@ Embedded means that cuttle is not an hosted service where you submit jobs to sch
 a Scala library that you embed into your own project to schedule and execute a DAG of jobs. The DAG and the jobs
 definitions are all written using the cuttle Scala API. The scheduling mechanism can be customized.
 
-## Jobs and Workflows
+## Jobs
 
-A cuttle project is composed of a single [Workflow](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Workflow.html) to execute. This workflow is actually a Directed Acyclic Graph (_DAG_) of [Jobs](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Job.html).
+A cuttle project is composed of many [Job]s(https://criteo.github.io/cuttle/api/com/criteo/cuttle/Job.html) to execute.
 
 Each job is defined by a set of metadata (_such as the job identifier, name, etc._) and most importantly by a side effect function. This function handles the actual job execution, and its Scala signature is something like `Context => Future[Completed]` (_which can be read as “execute the job for this input parameter and signal me the completion or failure with the returned Future value”_).
 
@@ -26,11 +26,11 @@ Being idempotent is important because cuttle is an __at least once__ executor. I
 
 ## Scheduler
 
-The workflow is interpreted by a [Scheduler](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Scheduler.html). Actually a workflow or a job is always configured for a specific [Scheduling](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Scheduling.html) and this is the type `S` you usually see in the Scala API (_only one scheduling type can exist for a given workflow, meaning that jobs can only be composed together if they share the same scheduling_). This scheduling information allows to provide more information to the scheduler about how the jobs must be triggered.
+Executions of these jobs are planned by a [Scheduler](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Scheduler.html). Actually a job is always configured for a specific [Scheduling](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Scheduling.html) and this is the type `S` you usually see in the Scala API. This scheduling information allows to provide more information to the scheduler about how the jobs must be triggered.
 
-The scheduler gets the workflow as input and starts producing [Executions](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Execution.html) for it. Because the workflow allows to express some dependencies via the DAG, a classical scheduler will start by executing root jobs, and then follow the dependencies until the graph is fully executed.
+The scheduler gets the list of job (a scheduling specific [Workload](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Workload.html)) as input and starts producing [Executions](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Execution.html). A basic scheduler can for example run a single execution for each job.
 
-But more sophisticated schedulers can exist. Cuttle comes with a [TimeSeries](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeries.html) scheduler that executes the whole graph across time partitions. For example it can execute the graph hourly or daily. And it can even execute it across different time partitions such as a daily job depending on several executions of an hourly job.
+But of course more sophisticated schedulers can exist. Cuttle comes with a [TimeSeries](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeries.html) scheduler that executes a whole job workflow (a Directed Acyclic Graph of jobs) across time partitions. For example it can execute the graph hourly or daily. And it can even execute it across different time partitions such as a daily job depending on several executions of an hourly job.
 
 The input context given to the side effect function depends of the scheduling. For example the input for a time series job is [TimeSeriesContext](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeriesContext.html) and contains basically the start and end time for the partition for which the job is being executed.
 
@@ -54,7 +54,7 @@ This is necessary because potentially thousands of concurrent executions can hap
 
 ## Time series scheduling
 
-The built-in [TimeSeriesScheduler](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeriesScheduler.html) executes the workflow for the time partitions defined in a calendar. Each job defines how it maps to the calendar (_for example Hourly or Daily CEST_), and the scheduler ensures that at least one execution is created and successfully run for each defined (Job, Period) pair.
+The built-in [TimeSeriesScheduler](https://criteo.github.io/cuttle/api/com/criteo/cuttle/timeseries/TimeSeriesScheduler.html) executes a workflow of jobs for the time partitions defined in a calendar. Each job defines how it maps to the calendar (_for example Hourly or Daily CEST_), and the scheduler ensures that at least one execution is created and successfully run for each defined (Job, Period) pair.
 
 In case of failure the time series scheduler will submit the execution again and again until the partition is successfully completed (_depending of the retry strategy you have configured the delay between retries will vary_).
 
@@ -64,7 +64,9 @@ It is also possible to [Backfill](https://criteo.github.io/cuttle/api/com/criteo
 
 The [API documentation](https://criteo.github.io/cuttle/api/index.html) is the main reference for Scala programmers.
 
-For a project example, you can also follow [this hands-on introduction](https://criteo.github.io/cuttle/examples/HelloWorld.scala.html).
+For a project example, you can also follow these hands-on introductions:
+- [A basic project using the built-in timeseries scheduler](https://criteo.github.io/cuttle/examples/HelloTimeSeries.scala.html).
+- [A minimal custom scheduling](https://criteo.github.io/cuttle/examples/HelloCustomScheduling.scala.html)
 
 To run the example application, checkout the repository, launch the [sbt](http://www.scala-sbt.org/) console in the project (_you will need [yarn](https://yarnpkg.com/en/) as well to compile the UI part_), and run the `example HelloWorld` command.
 
@@ -72,10 +74,10 @@ To run the example application, checkout the repository, launch the [sbt](http:/
 
 The library is cross-built for __Scala 2.11__ and __Scala 2.12__.
 
-The core module to use is `"com.criteo.cuttle" %% "cuttle" % "0.3.9"`.
+The core module to use is `"com.criteo.cuttle" %% "cuttle" % "0.4.0"`.
 
 You also need to fetch one __Scheduler__ implementation:
-- __TimeSeries__: `"com.criteo.cuttle" %% "timeseries" % "0.3.9"`.
+- __TimeSeries__: `"com.criteo.cuttle" %% "timeseries" % "0.4.0"`.
 
 # License
 
@@ -83,4 +85,4 @@ This project is licensed under the Apache 2.0 license.
 
 # Copyright
 
-Copyright © Criteo, 2017.
+Copyright © Criteo, 2018.

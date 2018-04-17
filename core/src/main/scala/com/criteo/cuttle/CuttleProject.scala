@@ -2,8 +2,9 @@ package com.criteo.cuttle
 
 import lol.http._
 
-import com.criteo.cuttle.ExecutionContexts._, Implicits.serverExecutionContext
 import com.criteo.cuttle.Auth.User
+import com.criteo.cuttle.ThreadPools._, Implicits.serverThreadPool
+
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
@@ -16,7 +17,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val version: String,
   val description: String,
   val env: (String, Boolean),
-  val workflow: Workflow[S],
+  val jobs: Workload[S],
   val scheduler: Scheduler[S],
   val authenticator: Auth.Authenticator,
   val logger: Logger
@@ -43,11 +44,11 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
 
     if (paused) {
       logger.info("Pausing workflow")
-      executor.pauseJobs(workflow.vertices)(User("Startup"))
+      executor.pauseJobs(jobs.all)(User("Startup"))
     }
 
     logger.info("Start workflow")
-    scheduler.start(workflow, executor, xa, logger)
+    scheduler.start(jobs, executor, xa, logger)
 
     logger.info("Start server")
     Server.listen(port = httpPort, onError = { e =>
@@ -77,7 +78,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
 
     val startScheduler = () => {
       logger.info("Start workflow")
-      scheduler.start(workflow, executor, xa, logger)
+      scheduler.start(jobs, executor, xa, logger)
     }
 
     (App(this, executor, xa).routes, startScheduler)
@@ -98,7 +99,7 @@ object CuttleProject {
     * @param env The environment as displayed in the UI (The string is the name while the boolean indicates
     *            if the environment is a production one).
     * @param authenticator The way to authenticate HTTP request for the UI and the private API.
-    * @param workflow The workflow to run in this project.
+    * @param jobs The workflow to run in this project.
     * @param scheduler The scheduler instance to use to schedule the Workflow jobs.
     * @param logger The logger to use to log internal debug informations.
     */
@@ -107,8 +108,8 @@ object CuttleProject {
                              description: String = "",
                              env: (String, Boolean) = ("", false),
                              authenticator: Auth.Authenticator = Auth.GuestAuth)(
-    workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
-    new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
+    jobs: Workload[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
+    new CuttleProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import java.util.concurrent.TimeUnit.SECONDS

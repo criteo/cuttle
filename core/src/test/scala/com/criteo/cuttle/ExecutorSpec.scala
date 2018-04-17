@@ -11,8 +11,8 @@ import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.FunSuite
 
-import com.criteo.cuttle.ExecutionContexts.Implicits.sideEffectExecutionContext
-import com.criteo.cuttle.ExecutionContexts._
+import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
+import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.Metrics.Prometheus
 
 class ExecutorSpec extends FunSuite with TestScheduling {
