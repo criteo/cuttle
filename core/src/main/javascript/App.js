@@ -23,18 +23,13 @@ import Backfill from "./app/pages/Backfill";
 import Backfills from "./app/pages/Backfills";
 import BackfillCreate from "./app/pages/BackfillCreate";
 import Favicon from "./app/components/Favicon";
-import type { Statistics } from "./datamodel";
+import type { Workflow as WorklowDefinition, Project, Statistics } from "./datamodel";
 import { Jobs } from "./app/pages/Jobs";
 
 type Props = {
   page: Page,
-  projectName: string,
-  projectVersion: ?string,
-  env: {
-    name: ?string,
-    critical: boolean
-  },
-  workflow: Workflow,
+  project: Project,
+  workflow: WorklowDefinition,
   statistics: Statistics,
   isLoading: boolean,
   classes: any,
@@ -53,9 +48,7 @@ class App extends React.Component {
     const {
       classes,
       page,
-      env,
-      projectName,
-      projectVersion,
+      project,
       workflow,
       isLoading,
       statistics,
@@ -109,7 +102,7 @@ class App extends React.Component {
           case "timeseries/backfills/detail":
             return <Backfill backfillId={page.backfillId} />;
           case "jobs":
-            return <Jobs status={page.status} />;
+            return <Jobs />;
           default:
             return null;
         }
@@ -124,11 +117,15 @@ class App extends React.Component {
           <Favicon statistics={statistics} />
           <section className={classes.leftpane}>
             <MenuHeader
-              env={env}
-              projectName={projectName}
-              projectVersion={projectVersion}
+              env={project.env}
+              projectName={project.name}
+              projectVersion={project.version}
             />
-            <Menu active={page} statistics={statistics} />
+            <Menu
+              isTimeseries={project.scheduler == "timeseries"}
+              active={page}
+              statistics={statistics}
+            />
           </section>
           <section className={classes.rightpane}>
             <div className={classes.mainFilter}>
@@ -203,9 +200,7 @@ const mapStateToProps = ({
   app: { page, project, workflow, isLoading, statistics, selectedJobs }
 }) => ({
   page,
-  projectName: project && project.name,
-  projectVersion: project && project.version,
-  env: project && project.env,
+  project,
   workflow,
   isLoading,
   statistics,

@@ -21,7 +21,7 @@ import Clock from "../components/Clock";
 import Table from "../components/Table";
 import { ROW_HEIGHT } from "../components/Table";
 import Link from "../components/Link";
-import TimeRangeLink from "../components/TimeRangeLink";
+import Context from "../components/Context";
 import { listenEvents } from "../../Utils";
 import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
 import { urlFormat } from "../utils/Date";
@@ -216,16 +216,9 @@ class ExecutionLogs extends React.Component {
             ) => {
               switch (column) {
                 case "job":
-                  return <Link href={`/workflow/${job}`}>{jobName(job)}</Link>;
+                  return <Link href={`/workflow/${job}?showDetail=true`}>{jobName(job)}</Link>;
                 case "context": {
-                  const { start, end } = context;
-                  return (
-                    <TimeRangeLink
-                      href={`/timeseries/calendar/${urlFormat(start)}_${urlFormat(end)}`}
-                      start={start}
-                      end={end}
-                    />
-                  );
+                  return <Context context={context} />;
                 }
                 case "failed": {
                   let times = (failing && failing.failedExecutions.length) || 0;

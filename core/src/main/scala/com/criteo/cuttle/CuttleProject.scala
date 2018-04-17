@@ -2,7 +2,10 @@ package com.criteo.cuttle
 
 import lol.http._
 
-import com.criteo.cuttle.ExecutionContexts._, Implicits.serverExecutionContext
+import com.criteo.cuttle.ThreadPools._
+import Implicits.serverThreadPool
+
+import scala.concurrent.Future
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
@@ -15,65 +18,56 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
   val version: String,
   val description: String,
   val env: (String, Boolean),
-  val workflow: Workflow[S],
+  val jobs: Workload[S],
   val scheduler: Scheduler[S],
   val authenticator: Auth.Authenticator,
   val logger: Logger
 ) {
 
   /**
-    * Start scheduling and execution with the given environment. It also starts
-    * an HTTP server providing an Web UI and a JSON API.
+    * Start scheduling and execution with the given environment.
     *
     * @param platforms The configured [[ExecutionPlatform ExecutionPlatforms]] to use to execute jobs.
-    * @param httpPort The port to use for the HTTP daemon.
     * @param databaseConfig JDBC configuration for MySQL server 5.7.
     * @param retryStrategy The strategy to use for execution retry. Default to exponential backoff.
     */
   def start(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
-    httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
-    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
-  ): Unit = {
+    retryStrategy: RetryStrategy = RetryStrategy.defaultRetryStrategy
+  ): PartialService = {
     val xa = Database.connect(databaseConfig)
     val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
 
-    logger.info("Start workflow")
-    scheduler.start(workflow, executor, xa, logger)
+    Future {
+      logger.info("Start scheduler")
+      scheduler.start(jobs, executor, xa, logger)
+    }
 
-    logger.info("Start server")
-    Server.listen(port = httpPort, onError = { e =>
-      e.printStackTrace()
-      InternalServerError(e.getMessage)
-    })(App(this, executor, xa).routes)
-
-    logger.info(s"Listening on http://localhost:$httpPort")
+    App(this, executor, xa).routes
   }
 
   /**
-    * Connect to database and build routes. It allows you to start externally a server and decide when to start the scheduling.
+    * Start scheduling and execution with the given environment. It also starts
+    * an HTTP server providing an Web UI and a JSON API.
     *
+    * @param httpPort The http port used by the server.
     * @param platforms The configured [[ExecutionPlatform ExecutionPlatforms]] to use to execute jobs.
     * @param databaseConfig JDBC configuration for MySQL server 5.7.
     * @param retryStrategy The strategy to use for execution retry. Default to exponential backoff.
-    *
-    * @return a tuple with cuttleRoutes (needed to start a server) and a function to start the scheduler
     */
-  def build(
+  def startServer(
+    httpPort: Int = 8888,
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
-    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
-  ): (Service, () => Unit) = {
-    val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
+    retryStrategy: RetryStrategy = RetryStrategy.defaultRetryStrategy
+  ): Unit = {
+    Server.listen(port = httpPort, onError = { e =>
+      e.printStackTrace()
+      InternalServerError(e.getMessage)
+    })(start(platforms, databaseConfig, retryStrategy))
 
-    val startScheduler = () => {
-      logger.info("Start workflow")
-      scheduler.start(workflow, executor, xa, logger)
-    }
-
-    (App(this, executor, xa).routes, startScheduler)
+    logger.info(s"Listening on http://localhost:${httpPort}")
   }
 }
 
@@ -91,7 +85,7 @@ object CuttleProject {
     * @param env The environment as displayed in the UI (The string is the name while the boolean indicates
     *            if the environment is a production one).
     * @param authenticator The way to authenticate HTTP request for the UI and the private API.
-    * @param workflow The workflow to run in this project.
+    * @param jobs The jobs to run in this project.
     * @param scheduler The scheduler instance to use to schedule the Workflow jobs.
     * @param logger The logger to use to log internal debug informations.
     */
@@ -100,8 +94,8 @@ object CuttleProject {
                              description: String = "",
                              env: (String, Boolean) = ("", false),
                              authenticator: Auth.Authenticator = Auth.GuestAuth)(
-    workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
-    new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
+    jobs: Workload[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
+    new CuttleProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import java.util.concurrent.TimeUnit.SECONDS

@@ -1,45 +1,53 @@
 // @flow
 
+import injectSheet from "react-jss";
 import React from "react";
 import moment from "moment";
 
 import Link from "./Link";
-import CalendarIcon from "react-icons/lib/md/date-range";
-import BreakIcon from "react-icons/lib/md/keyboard-control";
+import ContextIcon from "react-icons/lib/md/input";
+import { urlFormat } from "../utils/Date";
+import TimeRangeLink from "./TimeRangeLink";
 
 type Props = {
+  classes: any,
   className?: string,
-  context: {
-    start: string,
-    end: string
+  context: any
+};
+
+const Context = ({ classes, context }: Props) => {
+  if(context.start && context.end && ("backfill" in context)) {
+    const { start, end } = context;
+    return (
+      <TimeRangeLink
+        href={`/timeseries/calendar/${urlFormat(start)}_${urlFormat(end)}`}
+        start={start}
+        end={end}
+      />
+    );
+  }
+  else {
+    let ctxString = JSON.stringify(context);
+    return (
+      <span className={classes.badge}>
+        <ContextIcon
+          style={{
+            fontSize: "1.2em",
+            marginRight: "5px",
+            verticalAlign: "top",
+            transform: "translateY(-1px)"
+          }}
+        />
+        {ctxString.length < 50 ? ctxString : ctxString.substring(0, 50) + '...'}
+      </span>
+    );
   }
 };
 
-const Context = ({ context }: Props) => {
-  // Need to be dynamically linked with the scehduler but for now let's
-  // assume that it is a TimeseriesContext
-  let format = date => moment(date).utc().format("MMM-DD HH:mm");
-  let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
-
-  return (
-    <Link
-      href={`/timeseries/calendar/${URLFormat(context.start)}_${URLFormat(context.end)}`}
-    >
-      <CalendarIcon
-        style={{
-          fontSize: "1.2em",
-          verticalAlign: "middle",
-          transform: "translateY(-2px)"
-        }}
-      />
-      {" "}
-      {format(context.start)}
-      {" "}
-      <BreakIcon />
-      {" "}
-      {format(context.end)} UTC
-    </Link>
-  );
+const styles = {
+  badge: {
+    whiteSpace: 'no-wrap'
+  }
 };
 
-export default Context;
+export default  injectSheet(styles)(Context);

@@ -20,7 +20,7 @@ import io.circe._
 import io.circe.syntax._
 import lol.http.PartialService
 import com.criteo.cuttle.Auth._
-import com.criteo.cuttle.ExecutionContexts.{SideEffectExecutionContext, _}
+import com.criteo.cuttle.ThreadPools.{SideEffectThreadPool, _}
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle.platforms.ExecutionPool
 
@@ -53,13 +53,15 @@ trait RetryStrategy {
 /** Built-in [[RetryStrategy]] */
 object RetryStrategy {
 
-  /** Exponential backoff strategy. First retry will be delayed for 5 minutes, second one by 10 minutes,
-    * next one by 20 minutes, ..., n one by 5 minutes *  2^(n-1). */
-  implicit def ExponentialBackoffRetryStrategy = new RetryStrategy {
+  implicit val defaultRetryStrategy = exponentialBackoff(5.minutes)
+
+  /** Exponential backoff strategy. First retry will be delayed for `duration',
+    * second one by `duration * 2', n one by `duration *  2^(n-1)' */
+  def exponentialBackoff(duration: scala.concurrent.duration.Duration): RetryStrategy = new RetryStrategy {
     def apply[S <: Scheduling](job: Job[S], ctx: S#Context, previouslyFailing: List[String]) =
       retryWindow.multipliedBy(math.pow(2, previouslyFailing.size - 1).toLong)
     def retryWindow =
-      Duration.ofMinutes(5)
+      Duration.ofMillis(duration.toMillis)
   }
 }
 
@@ -138,13 +140,6 @@ private[cuttle] case class PausedJob(id: String, user: User, date: Instant) {
     PausedJobWithExecutions(id, user, date, Map.empty[Execution[S], Promise[Completed]])
 }
 
-//private[cuttle] object PausedJob {
-//  import io.circe.generic.semiauto._
-//  import io.circe._
-//
-//  implicit val encoder: Encoder[PausedJob] = deriveEncoder
-//}
-
 /** [[Execution Executions]] are created by the [[Scheduler]].
   *
   * @param id The unique id for this execution. Guaranteed to be unique.
@@ -161,7 +156,7 @@ case class Execution[S <: Scheduling](
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
   projectName: String
-)(implicit val executionContext: SideEffectExecutionContext) {
+)(implicit val executionContext: SideEffectThreadPool) {
 
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
@@ -241,7 +236,7 @@ case class Execution[S <: Scheduling](
       job.id,
       startTime,
       None,
-      context.toJson,
+      context.asJson,
       status,
       waitingSeconds = waitingSeconds,
       failing = failing
@@ -360,7 +355,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     extends MetricProvider[S] {
 
   import ExecutionStatus._
-  import Implicits.sideEffectExecutionContext
+  import Implicits.sideEffectThreadPool
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
@@ -761,7 +756,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   execution
                     .toExecutionLog(if (result.isSuccess) ExecutionSuccessful else ExecutionFailed)
                     .copy(endTime = Some(Instant.now)),
-                  execution.context.log
+                  execution.context.logIntoDatabase
                 )
                 .transact(xa)
                 .unsafeRunSync
@@ -853,7 +848,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           case (job, execution, promise, whatToDo) =>
             Future {
               execution.streams.debug(s"Execution: ${execution.id}")
-              execution.streams.debug(s"Context: ${execution.context.toJson}")
+              execution.streams.debug(s"Context: ${execution.context.asJson}")
               execution.streams.debug()
               whatToDo match {
                 case ToRunNow =>
@@ -1010,9 +1005,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   /**
     * @param jobs the list of jobs ids
     */
-  override def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric] =
+  override def getMetrics(jobIds: Set[String], jobs: Workload[S]): Seq[Metric] =
     atomic { implicit txn =>
-      getMetrics(jobs)(
+      getMetrics(jobIds)(
         getStateAtomic,
         runningExecutions,
         pausedState.values.flatMap(_.executions.keys).toSeq,

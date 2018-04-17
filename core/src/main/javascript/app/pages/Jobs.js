@@ -11,7 +11,6 @@ import Spinner from "../components/Spinner";
 import Table from "../components/Table";
 import Link from "../components/Link";
 import { Badge } from "../components/Badge";
-import type { JobStatus } from "../../ApplicationState";
 import PopoverMenu from "../components/PopoverMenu";
 
 type Props = {
@@ -29,16 +28,12 @@ type State = {
 };
 
 type Order = "asc" | "desc";
+type Columns = "name" | "status" | "actions"
+type JobStatus = "active" | "paused"
 
 type Sort = {
   column: string,
   order: Order
-};
-
-type Columns = "id" | "name" | "date";
-
-type Scheduling = {
-  start: string
 };
 
 type User = {
@@ -46,10 +41,9 @@ type User = {
 };
 
 type Job = {
-  [Columns]: string,
-  scheduling: Scheduling,
-  status: JobStatus,
-  user: User
+  id: string,
+  name: string,
+  status: JobStatus
 };
 
 type PausedJob = {
@@ -61,67 +55,84 @@ type PausedJob = {
 type JobsOrder = (Job, Job) => number;
 
 const columns: Array<{
-  id: Columns | "startDate" | "status" | "user" | "detail" | "actions",
+  id: Columns,
   label?: string,
   sortable: boolean
 }> = [
-  { id: "id", label: "ID", sortable: true },
   { id: "name", label: "Name", sortable: true },
-  { id: "startDate", label: "Start Date", sortable: true },
-  { id: "status", label: "Status", sortable: true },
-  { id: "user", label: "Paused By", sortable: true },
-  { id: "date", label: "Paused At", sortable: true },
-  { id: "detail", sortable: false, width: 40 },
+  { id: "status", label: "Status", sortable: true, width: 100 },
   { id: "actions", sortable: false, width: 40 }
 ];
 
-const column2Comp: {
-  [Columns]: ({ [Columns]: string }) => any,
-  startDate: ({ scheduling: Scheduling }) => any,
-  status: ({ status: JobStatus }) => any,
-  user: ({ user: User }) => any,
-  date: ({ date: string }) => any
-} = {
-  id: ({ id }: { id: string }) => <Link href={`/workflow/${id}`}>{id}</Link>,
-  name: ({ name }: { name: string }) => <span>{name}</span>,
-  startDate: ({ scheduling }: { scheduling: Scheduling }) => (
-    <span>{displayFormat(new Date(scheduling.start))}</span>
+const column2Comp = {
+  name: ({ id, name }) => (
+    <Link href={`/workflow/${id}?showDetail=true`}>{name}</Link>
   ),
-  status: ({ status }: { status: JobStatus }) => (
+  status: ({ status }) => (
     <Badge
       label={status}
       width={75}
       light={true}
       kind={status === "paused" ? "default" : "info"}
     />
-  ),
-  user: ({ user }: { user: User }) => <span>{user.userId}</span>,
-  date: ({ date }: { date: string }) => (
-    <span>{date ? displayFormat(new Date(date)) : ""}</span>
   )
+};
+
+const jobMenu = ({
+  job,
+  status,
+  classes,
+  update
+}: {
+  job: string,
+  status: string,
+  classes: any,
+  update: () => any
+}) => {
+  const menuItems =
+    status === "paused"
+      ? [
+          <span
+            onClick={() =>
+              fetch(`/api/jobs/resume?jobs=${job}`, {
+                method: "POST",
+                credentials: "include"
+              }).then(update)
+            }
+          >
+            Resume
+          </span>
+        ]
+      : [
+          <span
+            onClick={() =>
+              fetch(`/api/jobs/pause?jobs=${job}`, {
+                method: "POST",
+                credentials: "include"
+              }).then(update)
+            }
+          >
+            Pause
+          </span>
+        ];
+
+  return <PopoverMenu className={classes.menu} items={menuItems} />;
 };
 
 const sortQueryString = (column: string, order: Order) =>
   `?sort=${column}&order=${order}`;
 
 const sortFunction: Sort => JobsOrder = (sort: Sort) => (a: Job, b: Job) => {
-  const idOrder = (a: Job, b: Job) => a.id.localeCompare(b.id);
   const nameOrder = (a: Job, b: Job) => a.name.localeCompare(b.name);
   const statusOrder = (a: Job, b: Job) => a.status.localeCompare(b.status);
-  const userOrder = (a: Job, b: Job) =>
-    a.user.userId.localeCompare(b.user.userId);
   const sortFn = (sort: Sort) => {
     switch (sort.column) {
-      case "id":
-        return idOrder;
       case "name":
         return nameOrder;
       case "status":
         return statusOrder;
-      case "user":
-        return userOrder;
       default:
-        return idOrder;
+        return nameOrder;
     }
   };
 
@@ -133,8 +144,8 @@ const processResponse = (response: Response) => {
   return response.json();
 };
 
-const fetchWorkflow = (persist: ({ data: Array<Job> }) => void) => {
-  return fetch("/api/workflow_definition")
+const fetchJobs = (persist: ({ data: Array<Job> }) => void) => {
+  return fetch("/api/jobs_definition")
     .then(processResponse)
     .then(json => ({ data: json.jobs }))
     .then(persist);
@@ -165,57 +176,9 @@ const NoJobs = ({
   selectedJobs: Array<string>
 }) => (
   <div className={className}>
-    {`No ${status.toLocaleLowerCase()} jobs for now`}
-    {selectedJobs.length ? " (some may have been filtered)" : ""}
+    No jobs defined in your project
   </div>
 );
-
-const activeJobsProps = {
-  user: {
-    userId: ""
-  },
-  date: "",
-  status: "active"
-};
-
-const jobMenu = ({
-  job,
-  status,
-  classes
-}: {
-  job: string,
-  status: string,
-  classes: any
-}) => {
-  const menuItems =
-    status === "paused"
-      ? [
-          <span
-            onClick={() =>
-              fetch(`/api/jobs/resume?jobs=${job}`, {
-                method: "POST",
-                credentials: "include"
-              })
-            }
-          >
-            Resume
-          </span>
-        ]
-      : [
-          <span
-            onClick={() =>
-              fetch(`/api/jobs/pause?jobs=${job}`, {
-                method: "POST",
-                credentials: "include"
-              })
-            }
-          >
-            Pause
-          </span>
-        ];
-
-  return <PopoverMenu className={classes.menu} items={menuItems} />;
-};
 
 class JobsComp extends React.Component<any, Props, State> {
   state: State;
@@ -230,7 +193,7 @@ class JobsComp extends React.Component<any, Props, State> {
 
   componentDidMount() {
     const persist = this.setState.bind(this);
-    fetchWorkflow(persist);
+    fetchJobs(persist);
     fetchPausedJobs(persist);
   }
 
@@ -242,22 +205,19 @@ class JobsComp extends React.Component<any, Props, State> {
     const { classes, status, sort, selectedJobs, envCritical } = this.props;
     const { data, pausedJobs } = this.state;
     const setOfSelectedJobs = new Set(selectedJobs);
+    const update = () => fetchPausedJobs(this.setState.bind(this));
     const Data = () => {
       if (data && data.length && pausedJobs) {
-        const jobs = data.map((job: Job) =>
-          Object.assign(
-            {},
-            job,
-            pausedJobs.has(job.id)
-              ? Object.assign({}, pausedJobs.get(job.id), { status: "paused" })
-              : activeJobsProps
-          )
-        );
+        const jobs = data.map((job: Job) => {
+          return {
+            ...job,
+            status: pausedJobs.has(job.id) ? "paused" : "active"
+          };
+        });
         const preparedData = jobs
           .filter(
             job =>
-              (setOfSelectedJobs.size === 0 || setOfSelectedJobs.has(job.id)) &&
-              (job.status === status || status === "all")
+              (setOfSelectedJobs.size === 0 || setOfSelectedJobs.has(job.id))
           )
           .sort(sortFunction(sort));
 
@@ -270,19 +230,8 @@ class JobsComp extends React.Component<any, Props, State> {
             onSortBy={this.handleSortBy.bind(this)}
             render={(column, row) => {
               switch (column) {
-                case "detail":
-                  return (
-                    <Link
-                      className={classes.openIcon}
-                      href={`/workflow/${row.id}?showDetail=true&refPath=${
-                        location.pathname
-                      }`}
-                    >
-                      <OpenIcon />
-                    </Link>
-                  );
                 case "actions":
-                  return jobMenu({ job: row.id, status: row.status, classes });
+                  return jobMenu({ update, job: row.id, status: row.status, classes });
                 default:
                   return column2Comp[column](row);
               }
@@ -310,7 +259,7 @@ class JobsComp extends React.Component<any, Props, State> {
 
     return (
       <div className={classes.container}>
-        <h1 className={classes.title}>Jobs</h1>
+        <h1 className={classes.title}>All jobs in the project</h1>
         <div className={classes.grid}>
           <div className={classes.data}>
             <Data />

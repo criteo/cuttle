@@ -11,8 +11,8 @@ import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.FunSuite
 
-import com.criteo.cuttle.ExecutionContexts.Implicits.sideEffectExecutionContext
-import com.criteo.cuttle.ExecutionContexts._
+import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
+import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.Metrics.Prometheus
 
 class ExecutorSpec extends FunSuite with TestScheduling {
@@ -31,7 +31,7 @@ class ExecutorSpec extends FunSuite with TestScheduling {
       xa = Transactor.fromConnection[IO](connection).copy(strategy0 = doobie.util.transactor.Strategy.void),
       logger,
       "test_project"
-    )(RetryStrategy.ExponentialBackoffRetryStrategy)
+    )(RetryStrategy.defaultRetryStrategy)
 
     testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooJob), "success")
     testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooJob), "success")

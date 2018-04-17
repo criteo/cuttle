@@ -29,7 +29,7 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
   }
 
   test("it should validate empty workflow") {
-    val workflow = Workflow.empty[TimeSeries]
+    val workflow = Workflow.empty
 
     assert(TimeSeriesUtils.validate(workflow).isRight, "workflow is not valid")
   }
