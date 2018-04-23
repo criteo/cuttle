@@ -1,6 +1,6 @@
 git checkout master
-sbt "++2.12.3" unidoc -DdevMode=true
-sbt "++2.12.3" examples/compile -DgenerateExamples -DdevMode=true
+sbt -DdevMode=true "++2.12.3" unidoc
+sbt -DgenerateExamples -DdevMode=true "++2.12.3" examples/compile
 git checkout gh-pages
 mkdir doc
 rm -rf api
