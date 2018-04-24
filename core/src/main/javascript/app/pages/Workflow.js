@@ -34,6 +34,7 @@ import Link from "../components/Link";
 
 import moment from "moment";
 import PopoverMenu from "../components/PopoverMenu";
+import { Badge } from "../components/Badge";
 import Status from "../components/Status";
 
 type Props = {
@@ -46,11 +47,19 @@ type Props = {
   refPath?: string
 };
 
+type User = {
+  userId: string
+};
+
+type PausedJob = {
+  id: string,
+  user: User,
+  date: string
+};
+
 type State = {
   data: ?(any[]),
-  // job to box color map
-  // job is a member of this object wiht a particular color only if it's paused
-  jobColors: ?{ [string]: string }
+  pausedJobs: ?{[string]: PausedJob}
 };
 
 const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
@@ -215,7 +224,7 @@ class WorkflowComponent extends React.Component {
 
     this.state = {
       data: undefined,
-      jobColors: undefined
+      pausedJobs: undefined
     };
   }
 
@@ -240,8 +249,8 @@ class WorkflowComponent extends React.Component {
   updatePausedJobs() {
     fetch(`/api/jobs/paused`).then(data => data.json()).then(json => {
       this.setState({
-        jobColors: json.reduce(
-          (acc, job) => Object.assign(acc, { [job.id]: "#FFAAFF" }),
+        pausedJobs: json.reduce(
+          (acc, job) => ({...acc, [job.id]: job }),
           {}
         )
       });
@@ -293,20 +302,30 @@ class WorkflowComponent extends React.Component {
 
     ReactTooltip.rebuild();
 
-    const renderTimeSeriesSechduling = () => [
-      startNode.scheduling.calendar && [
-        <dt key="period">Period:</dt>,
-        <dd key="period_">{startNode.scheduling.calendar.period}</dd>
-      ],
-      startNode.scheduling.start && [
-        <dt key="start">Start Date:</dt>,
-        <dd key="start_">{startNode.scheduling.start}</dd>
-      ],
-      startNode.scheduling.maxPeriods != 1 && [
-        <dt key="maxPeriods">Max Periods:</dt>,
-        <dd key="maxPeriods_">{startNode.scheduling.maxPeriods}</dd>
-      ]
-    ];
+    const renderScheduling = () =>
+      (startNode.scheduling.kind == 'timeseries') ?
+        [
+          startNode.scheduling.calendar && [
+            <dt key="period">Period:</dt>,
+            <dd key="period_">{startNode.scheduling.calendar.period}</dd>
+          ],
+          startNode.scheduling.start && [
+            <dt key="start">Start Date:</dt>,
+            <dd key="start_">{startNode.scheduling.start}</dd>
+          ],
+          startNode.scheduling.end && [
+            <dt key="end">End Date:</dt>,
+            <dd key="end_">{startNode.scheduling.end}</dd>
+          ],
+          startNode.scheduling.maxPeriods > 1 && [
+            <dt key="maxPeriods">Max Periods:</dt>,
+            <dd key="maxPeriods_">{startNode.scheduling.maxPeriods}</dd>
+          ]
+        ] :
+        [
+          <dt key="scheduling">Scheduling:</dt>,
+          <dd key="scheduling_">{JSON.stringify(startNode.scheduling)}</dd>
+        ];
 
     const charts = (data: any) => {
       if (data) {
@@ -340,7 +359,7 @@ class WorkflowComponent extends React.Component {
     };
 
     const JobMenu = ({ job }: { job: string }) => {
-      const menuItems = this.state.jobColors && this.state.jobColors[job]
+      const menuItems = this.state.pausedJobs && this.state.pausedJobs[job]
         ? [
             <span
               onClick={() =>
@@ -368,16 +387,14 @@ class WorkflowComponent extends React.Component {
     };
 
     const daggerTags =
-      this.state.jobColors &&
+      this.state.pausedJobs &&
       workflow.jobs.reduce((acc: {}, job: Job) => {
-        if (!acc[job.id]) {
-          return Object.assign({}, acc, {
-            [job.id]: "#E1EFFA"
-          });
+        if (this.state.pausedJobs && this.state.pausedJobs[job.id]) {
+          return {...acc, [job.id]: "#FFAAFF"};
         } else {
-          return acc;
+          return {...acc, [job.id]: "#E1EFFA"};
         }
-      }, this.state.jobColors);
+      }, {});
 
     return (
       <div className={classes.main}>
@@ -406,7 +423,7 @@ class WorkflowComponent extends React.Component {
           </Link>
         </div>
         {showDetail &&
-          <Window closeUrl={refPath || `/workflow/${job}`} title="Job details">
+          <Window closeUrl={refPath} title="Job details">
             <div className={classes.jobCard}>
               <JobMenu job={startNode.id} />
               <FancyTable>
@@ -414,7 +431,7 @@ class WorkflowComponent extends React.Component {
                 <dd key="id_">{startNode.id}</dd>
                 <dt key="name">Name:</dt>
                 <dd key="name_">{startNode.name}</dd>
-                {renderTimeSeriesSechduling()}
+                {renderScheduling()}
                 {startNode.tags.length > 0 && [
                   <dt key="tags">Tags:</dt>,
                   <dd key="tags_" className={classes.tags}>
@@ -445,13 +462,25 @@ class WorkflowComponent extends React.Component {
                     }}
                   />
                 ]}
-                {this.state.jobColors &&
-                this.state.jobColors[startNode.id] && [
+                {this.state.pausedJobs &&
+                  (this.state.pausedJobs[startNode.id] ? [
                   <dt key="status">Status:</dt>,
                   <dd key="status_">
-                    <Status status="paused" />
+                    <Status status="paused" /> &nbsp;by&nbsp;
+                    {this.state.pausedJobs[startNode.id].user.userId}&nbsp;
+                    {moment.utc(this.state.pausedJobs[startNode.id].date).fromNow()}
                   </dd>
-                ]}
+                ] : [
+                  <dt key="status">Status:</dt>,
+                  <dd key="status_">
+                    <Badge
+                      label="Active"
+                      width={75}
+                      light={true}
+                      kind="info"
+                    />
+                  </dd>
+                ])}
               </FancyTable>
             </div>
             {charts(this.state.data)}

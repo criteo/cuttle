@@ -67,7 +67,7 @@ object Metrics {
 
   /** Components able to provide metrics. */
   trait MetricProvider[S <: Scheduling] {
-    def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric]
+    def getMetrics(jobIds: Set[String], jobs: Workload[S]): Seq[Metric] = Nil
   }
 
   private[cuttle] object Prometheus {

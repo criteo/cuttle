@@ -311,3 +311,10 @@ private[cuttle] trait Queries {
       .query[Boolean]
       .unique
 }
+
+object Queries {
+  val getAllContexts: Fragment =
+    (sql"""
+      SELECT context_id as id, context_id as json FROM executions
+    """)
+}

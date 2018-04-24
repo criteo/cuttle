@@ -6,9 +6,9 @@ import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
 import scala.util.Try
 
-object ExecutionContexts {
+object ThreadPools {
 
-  sealed trait WrappedExecutionContext {
+  sealed trait WrappedThreadPool {
     val underlying: ExecutionContext
   }
 
@@ -17,22 +17,22 @@ object ExecutionContexts {
     def threadPoolSize(): Long = _threadPoolSize
   }
 
-  implicit def serverECToEC(ec: ServerExecutionContext): ExecutionContext = ec.underlying
-  implicit def sideEffectECToEC(ec: SideEffectExecutionContext): ExecutionContext = ec.underlying
-  implicit def implicitServerECToEC(implicit ec: ServerExecutionContext): ExecutionContext = ec.underlying
-  implicit def implicitSideEffectECToEC(implicit ec: SideEffectExecutionContext): ExecutionContext = ec.underlying
+  implicit def serverECToEC(ec: ServerThreadPool): ExecutionContext = ec.underlying
+  implicit def sideEffectECToEC(ec: SideEffectThreadPool): ExecutionContext = ec.underlying
+  implicit def implicitServerECToEC(implicit ec: ServerThreadPool): ExecutionContext = ec.underlying
+  implicit def implicitSideEffectECToEC(implicit ec: SideEffectThreadPool): ExecutionContext = ec.underlying
 
-  sealed trait ServerExecutionContext extends WrappedExecutionContext with Metrics
+  sealed trait ServerThreadPool extends WrappedThreadPool with Metrics
 
   // dedicated threadpool to start new executions and run user-defined side effects
-  sealed trait SideEffectExecutionContext extends WrappedExecutionContext with Metrics
+  sealed trait SideEffectThreadPool extends WrappedThreadPool with Metrics
 
   // The implicitly provided execution contexts use fixed thread pools.
   // These thread pool default sizes are overridable with Java system properties, passing -D<property_name> <value> flags when you start the JVM
   object ThreadPoolSystemProperties extends Enumeration {
     type ThreadPoolSystemProperties = Value
-    val ServerECThreadCount = Value("com.criteo.cuttle.ExecutionContexts.ServerExecutionContext.nThreads")
-    val SideEffectECThreadCount = Value("com.criteo.cuttle.ExecutionContexts.SideEffectExecutionContext.nThreads")
+    val ServerECThreadCount = Value("com.criteo.cuttle.ThreadPools.ServerThreadPool.nThreads")
+    val SideEffectECThreadCount = Value("com.criteo.cuttle.ThreadPools.SideEffectThreadPool.nThreads")
 
     def fromSystemProperties(value: ThreadPoolSystemProperties.Value, defaultValue: Int): Int =
       loadSystemPropertyAsInt(value.toString, defaultValue)
@@ -47,7 +47,7 @@ object ExecutionContexts {
 
   object Implicits {
     import ThreadPoolSystemProperties._
-    implicit val serverExecutionContext = new ServerExecutionContext {
+    implicit val serverThreadPool = new ServerThreadPool {
       override val underlying = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(
         fromSystemProperties(ServerECThreadCount, Runtime.getRuntime.availableProcessors),
         utils.createThreadFactory(
@@ -61,7 +61,7 @@ object ExecutionContexts {
       ))
     }
 
-    implicit val sideEffectExecutionContext = new SideEffectExecutionContext {
+    implicit val sideEffectThreadPool = new SideEffectThreadPool {
       override val underlying = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(
         fromSystemProperties(SideEffectECThreadCount, Runtime.getRuntime.availableProcessors),
         utils.createThreadFactory(

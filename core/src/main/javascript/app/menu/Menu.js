@@ -8,7 +8,7 @@ import type { JobsPage } from "../../ApplicationState";
 import MenuEntry from "./MenuEntry";
 import MenuSubEntry from "./MenuSubEntry";
 import LogIcon from "react-icons/lib/md/playlist-play";
-import WorkflowIcon from "react-icons/lib/go/git-merge";
+import JobsIcon from "react-icons/lib/go/git-commit";
 import CalendarIcon from "react-icons/lib/md/date-range";
 import ListIcon from "react-icons/lib/md/format-list-bulleted";
 import type { Statistics } from "../../datamodel";
@@ -16,11 +16,12 @@ import type { Statistics } from "../../datamodel";
 type Props = {
   active: JobsPage,
   statistics: Statistics,
+  isTimeseries: boolean,
   classes: any,
   className: any
 };
 
-const Menu = ({ classes, className, active, statistics }: Props) => (
+const Menu = ({ classes, className, isTimeseries,active, statistics }: Props) => (
   <nav className={classNames(classes.main, className)}>
     <MenuEntry
       active={active.id.indexOf("executions/") === 0}
@@ -80,74 +81,58 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
       ]}
     />
     <MenuEntry
-      active={active.id === "workflow"}
-      label="Workflow"
-      link="/workflow"
-      icon={
-        <WorkflowIcon
-          style={{ transform: "rotate(90deg) scale(.9) translateX(-1px)" }}
-        />
-      }
-    />
-    <MenuEntry
       active={active.id === "jobs"}
       label="Jobs"
-      link="/jobs/all"
-      icon={<ListIcon style={{ transform: "translateY(-3px)" }} />}
-      subEntries={[
-        <MenuSubEntry
-          active={active.id === "jobs" && active.status === "all"}
-          label="All"
-          link="/jobs/all"
-        />,
-        <MenuSubEntry
-          active={active.id === "jobs" && active.status === "active"}
-          label="Active"
-          link="/jobs/active"
-        />,
-        <MenuSubEntry
-          active={active.id === "jobs" && active.status === "paused"}
-          label="Paused"
-          link="/jobs/paused"
+      link="/jobs"
+      icon={
+        <JobsIcon
+          style={{ transform: "scale(.9) translateX(-1px)" }}
         />
-      ]}
-    />
-    <MenuEntry
-      active={active.id.indexOf("timeseries/") === 0}
-      label="Time series"
-      link="/timeseries/calendar"
-      icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
-      badges={
-        active.id.indexOf("timeseries/") === 0
-          ? []
-          : [
-            statistics.scheduler &&
-            statistics.scheduler.backfills && {
-              label: statistics.scheduler.backfills,
-              kind: "alt"
-            }
-          ]
       }
-      subEntries={[
-        <MenuSubEntry
-          active={active.id.indexOf("timeseries/calendar") === 0}
-          label="Calendar"
-          link="/timeseries/calendar"
-        />,
-        <MenuSubEntry
-          active={active.id === "timeseries/backfills"}
-          label="Backfills"
-          link="/timeseries/backfills"
-          badges={[
-            statistics.scheduler &&
-              statistics.scheduler.backfills && {
-                label: statistics.scheduler.backfills,
-                kind: "alt"
-              }
-          ]}
-        />
-      ]}
     />
+    { isTimeseries ?
+        <MenuEntry
+          active={active.id.indexOf("timeseries/") === 0 || active.id == "workflow"}
+          label="Time series"
+          link="/timeseries/calendar"
+          icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
+          badges={
+            active.id.indexOf("timeseries/") === 0
+              ? []
+              : [
+                statistics.scheduler &&
+                statistics.scheduler.backfills && {
+                  label: statistics.scheduler.backfills,
+                  kind: "alt"
+                }
+              ]
+          }
+          subEntries={[
+            <MenuSubEntry
+              active={active.id.indexOf("timeseries/calendar") === 0}
+              label="Calendar"
+              link="/timeseries/calendar"
+            />,
+            <MenuSubEntry
+              active={active.id === "workflow"}
+              label="Workflow"
+              link="/workflow"
+            />,
+            <MenuSubEntry
+              active={active.id === "timeseries/backfills"}
+              label="Backfills"
+              link="/timeseries/backfills"
+              badges={[
+                statistics.scheduler &&
+                  statistics.scheduler.backfills && {
+                    label: statistics.scheduler.backfills,
+                    kind: "alt"
+                  }
+              ]}
+            />
+          ]}
+        /> : null
+      }
   </nav>
 );
 

@@ -21,8 +21,8 @@ import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 
-import com.criteo.cuttle.ExecutionContexts.Implicits.sideEffectExecutionContext
-import com.criteo.cuttle.ExecutionContexts._
+import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
+import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.Internal._
@@ -216,7 +216,7 @@ private[timeseries] object Backfill {
 case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Backfill] = None)
     extends SchedulingContext {
 
-  def toJson: Json = this.asJson
+  override def asJson: Json = TimeSeriesContext.encoder(this)
   def toId: String = {
     val priority = backfill.fold(0)(_.priority)
     val bytesPriority = BigInt(priority).toByteArray
@@ -224,7 +224,7 @@ case class TimeSeriesContext(start: Instant, end: Instant, backfill: Option[Back
     s"${start}${paddedPriority.mkString}${UUID.randomUUID().toString}"
   }
 
-  def log: ConnectionIO[String] = Database.serializeContext(this)
+  override def logIntoDatabase: ConnectionIO[String] = Database.serializeContext(this)
 
   def toInterval: Interval[Instant] = Interval(start, end)
 
@@ -271,9 +271,9 @@ case class TimeSeriesDependency(offsetLow: Duration, offsetHigh: Duration)
 case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[Instant] = None, maxPeriods: Int = 1)
     extends Scheduling {
   type Context = TimeSeriesContext
-  type DependencyDescriptor = TimeSeriesDependency
-  def toJson: Json =
+  override def asJson: Json =
     Json.obj(
+      "kind" -> "timeseries".asJson,
       "start" -> start.asJson,
       "end" -> end.asJson,
       "maxPeriods" -> maxPeriods.asJson,
@@ -313,7 +313,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   import JobState.{Done, Running, Todo}
   import TimeSeriesUtils._
 
-  val allContexts = Database.sqlGetContextsBetween(None, None)
+  override val name = "timeseries"
+
+  override val allContexts = Database.sqlGetContextsBetween(None, None)
 
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalMap[Instant, JobState]])
 
@@ -410,7 +412,8 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       IO.pure(Left(validationByJob.collect { case Left(error) => error }.mkString("\n")))
   }
 
-  def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
+  def start(workflow0: Workload[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
+    val workflow = workflow0.asInstanceOf[Workflow]
     logger.info("Validate workflow before start")
     TimeSeriesUtils.validate(workflow) match {
       case Left(errors) =>
@@ -559,7 +562,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     (newState, notCompletedBackfills, backfills -- notCompletedBackfills)
   }
 
-  private[timeseries] def jobsToRun(workflow: Workflow[TimeSeries], state0: State, now: Instant): List[Executable] = {
+  private[timeseries] def jobsToRun(workflow: Workflow, state0: State, now: Instant): List[Executable] = {
 
     val timerInterval = Interval(Bottom, Finite(now))
     val state = state0.mapValues(_.intersect(timerInterval))
@@ -656,8 +659,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       .flatten
       .toSeq
 
-  override def getMetrics(jobs: Set[String], workflow: Workflow[TimeSeries]): Seq[Metric] = {
-    val lastSuccessTime = getTimeOfLastSuccess(jobs)
+  override def getMetrics(jobIds: Set[String], workflow0: Workload[TimeSeries]): Seq[Metric] = {
+    val workflow = workflow0.asInstanceOf[Workflow]
+    val lastSuccessTime = getTimeOfLastSuccess(jobIds)
     val secondsSinceLastSuccess = lastSuccessTime.foldLeft(
       Gauge(
         "cuttle_timeseries_scheduler_last_success_epoch_seconds",
@@ -702,7 +706,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
     Seq(
       Gauge("cuttle_timeseries_scheduler_stat_count", "The number of backfills")
-        .labeled("type" -> "backfills", getRunningBackfillsSize(jobs)),
+        .labeled("type" -> "backfills", getRunningBackfillsSize(jobIds)),
       secondsSinceLastSuccess
     ) ++ latencies
   }
@@ -737,7 +741,7 @@ object TimeSeriesUtils {
     * @param workflow workflow to be validated
     * @return either a validation errors list or a unit
     */
-  def validate(workflow: Workflow[TimeSeries]): Either[List[String], Unit] = {
+  def validate(workflow: Workflow): Either[List[String], Unit] = {
     val errors = collection.mutable.ListBuffer(Workflow.validate(workflow): _*)
 
     workflow.edges.map { case (childJob, parentJob, _) =>

@@ -6,6 +6,7 @@ export type Project = {
   name: string,
   version: ?string,
   description: ?string,
+  scheduler: string,
   env: {
     name: ?string,
     critical: boolean

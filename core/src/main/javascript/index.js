@@ -64,8 +64,8 @@ const routes = {
       ...parseExecutionsRoute(_)
     });
   },
-  "/jobs/:status": ({ status }, { sort, order }) =>
-    openPage({ id: "jobs", status, sort, order })
+  "/jobs": ({ sort, order }) =>
+    openPage({ id: "jobs", sort, order })
 };
 
 const parseExecutionsRoute = (() => {
