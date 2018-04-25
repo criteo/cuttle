@@ -488,8 +488,11 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private[cuttle] def pausedExecutionsSize(filteredJobs: Set[String]): Int =
     pausedState.single.values.foldLeft(0) {
-      case (acc, PausedJobWithExecutions(id, _, _, executions)) if filteredJobs.contains(id) =>
-        acc + executions.size
+      case (acc, PausedJobWithExecutions(id, _, _, executions)) =>
+        if (filteredJobs.contains(id))
+          acc + executions.size
+        else
+          acc
     }
 
   private[cuttle] def pausedExecutions(filteredJobs: Set[String],
