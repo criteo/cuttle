@@ -319,7 +319,7 @@ case class Execution[S <: Scheduling](
   /**
     * Run this execution on its job.
     */
-  private[cuttle] def run(): Future[Completed] =
+  def run(): Future[Completed] =
     job.run(this)
 }
 
