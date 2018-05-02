@@ -1,7 +1,5 @@
 package com.criteo.cuttle
 
-import java.time.{Instant, LocalDate}
-
 import scala.concurrent.duration._
 import scala.util._
 
@@ -12,6 +10,7 @@ import fs2.Stream
 
 import io.circe._
 import io.circe.syntax._
+import io.circe.java8.time._
 
 import lol.http._
 import lol.json._
@@ -51,16 +50,6 @@ private[cuttle] object App {
           "critical" -> project.env._2.asJson
         )
       )
-  }
-
-  implicit val instantEncoder = new Encoder[Instant] {
-    override def apply(date: Instant) =
-      date.toString.asJson
-  }
-
-  implicit val dateEncoder = new Encoder[LocalDate] {
-    override def apply(date: LocalDate) =
-      date.toString.asJson
   }
 
   implicit lazy val executionLogEncoder: Encoder[ExecutionLog] = new Encoder[ExecutionLog] {

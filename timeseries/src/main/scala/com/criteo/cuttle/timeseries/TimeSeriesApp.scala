@@ -11,6 +11,7 @@ import doobie.implicits._
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.circe.java8.time._
 import lol.http._
 import lol.json._
 import com.criteo.cuttle.Auth._

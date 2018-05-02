@@ -5,6 +5,7 @@ import doobie.implicits._
 import doobie.hikari._
 import doobie.hikari.implicits._
 import io.circe._
+import io.circe.syntax._
 import io.circe.parser._
 import cats.data.NonEmptyList
 import cats.implicits._
