@@ -131,7 +131,7 @@ const DateWithMask = ({
   </span>
 );
 
-class BackfillCreate extends React.Component<any, Props, void> {
+class BackfillCreate extends React.Component<Props> {
   constructor(props: Props) {
     super(props);
     (this: any).createBackfill = this.createBackfill.bind(this);

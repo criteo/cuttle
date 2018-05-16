@@ -28,7 +28,7 @@ const cleanDOMContainer = domNode => {
     domNode.removeChild(domNode.firstChild);
 };
 
-class DaggerComponent extends React.Component {
+class DaggerComponent extends React.Component<Props> {
   minimapContainer: any;
   minimapHover: any;
   navigatorContainer: any;
@@ -125,7 +125,7 @@ class DaggerComponent extends React.Component {
     this.buildGraph(nodes, edges, tags, startNodeId, onClickNode);
 
     this.dagger
-      .initRender(transitionAction)
+      .initRender()
       .then(({ timeMachine }) => (this.timeMachine = timeMachine));
 
     let doResize;
@@ -175,7 +175,7 @@ class DaggerComponent extends React.Component {
 
     this.timeMachine = null;
     this.dagger
-      .initRender(transitionAction)
+      .initRender()
       .then(({ timeMachine }) => (this.timeMachine = timeMachine));
   }
 }

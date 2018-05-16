@@ -4,6 +4,7 @@ import injectSheet from "react-jss";
 import { connect } from "react-redux";
 import classNames from "classnames";
 import React from "react";
+import type { Node } from 'react';
 
 import Icon from "react-icons/lib/md/more-vert";
 
@@ -18,10 +19,7 @@ type State = {
   open: boolean
 };
 
-class PopoverMenu extends React.Component {
-  props: Props;
-  state: State;
-
+class PopoverMenu extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { open: false };

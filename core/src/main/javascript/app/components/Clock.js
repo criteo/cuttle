@@ -9,8 +9,7 @@ type Props = {
   humanize?: boolean
 };
 
-class Clock extends React.Component {
-  props: Props;
+class Clock extends React.Component<Props> {
   timer: ?any;
 
   componentWillMount() {

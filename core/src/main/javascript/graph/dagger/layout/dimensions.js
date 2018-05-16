@@ -55,7 +55,7 @@ export class GraphDimensions {
     );
   }
 
-  static buildWidthDimensions(width = 1200) {
+  static buildWidthDimensions(width: number = 1200) {
     if (width > 1000)
       return {
         reference: 1200,
@@ -109,7 +109,7 @@ export class GraphDimensions {
       };
   }
 
-  static buildHeightDimensions(height = 1200) {
+  static buildHeightDimensions(height: number = 1200) {
     if (height > 1000)
       return {
         reference: 1200,
@@ -188,7 +188,7 @@ export class GraphDimensions {
       };
   }
 
-  static buildDefaultDimensions({ width = 1200, height = 850 }) {
+  static buildDefaultDimensions({ width = 1200, height = 850 }: { width: number, height: number }) {
     // Here we define default dimensions
     // These default dimensions are used in a relative way
     // when parameters are provided (responsive behaviour)

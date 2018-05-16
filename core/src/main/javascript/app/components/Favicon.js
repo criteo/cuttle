@@ -10,8 +10,7 @@ type Props = {
 
 const W = 64;
 
-class Favicon extends React.Component {
-  props: Props;
+class Favicon extends React.Component<Props> {
 
   updateIcon() {
     let { statistics } = this.props;
