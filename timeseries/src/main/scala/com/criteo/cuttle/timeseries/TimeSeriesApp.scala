@@ -3,8 +3,7 @@ package com.criteo.cuttle.timeseries
 import java.time.Instant
 import java.time.temporal.ChronoUnit._
 
-import scala.util.Try
-
+import scala.util.{Failure, Success, Try}
 import cats.effect.IO
 import cats.implicits._
 import doobie.implicits._
@@ -13,7 +12,6 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import lol.http._
 import lol.json._
-
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle._
@@ -55,7 +53,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   }
 
   private case class AggregatedJobExecution(period: Interval[Instant],
-                                            completion: String,
+                                            completion: Double,
                                             error: Boolean,
                                             backfill: Boolean)
       extends ExecutionPeriod {
@@ -279,7 +277,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                        acc._3 || jobStatus == "failed")
                     })
                     Some(
-                      AggregatedJobExecution(interval, f"${done.toDouble / duration.toDouble}%2.2f", error, inBackfill))
+                      AggregatedJobExecution(interval, done.toDouble / duration.toDouble, error, inBackfill))
                   }
                   case Nil => None
                 }
@@ -312,7 +310,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                     .reduce((a, b) => (a._1 + b._1, a._2 + b._2, a._3 || b._3))
                   Some(
                     AggregatedJobExecution(Interval(lo, hi),
-                                           f"${done.toDouble / duration.toDouble}%2.2f",
+                                           done.toDouble / duration.toDouble,
                                            failing,
                                            isInbackfill)
                   )
@@ -375,8 +373,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 if (completion == 0 && done != 0) 0.1
                 else completion
               Map(
-                "date" -> date.asJson,
-                "completion" -> f"$correctedCompletion%.1f".asJson
+                "date" -> date.atZone(UTC).toLocalDate.asJson,
+                "completion" -> correctedCompletion.asJson
               ) ++ (if (stuck) Map("stuck" -> true.asJson) else Map.empty) ++
                 (if (backfillDomain.intersect(Interval(date, Daily(UTC).next(date))).toList.nonEmpty)
                    Map("backfill" -> true.asJson)
@@ -509,7 +507,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                                              executor: Executor[TimeSeries],
                                              xa: XA): AuthenticatedService = {
 
-    case req @ POST at url"/api/timeseries/backfill" =>
+    case req @ POST at url"/api/timeseries/backfill" => {
       implicit user =>
         req
           .readAs[Json]
@@ -543,5 +541,29 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 }
               )
           )
+      }
+
+    // consider the given period of the job as successful, regardless of it's actual status
+    case req@GET at url"/api/timeseries/force-success?job=$jobId&start=$start&end=$end" => {
+      implicit user =>
+        (for {
+          startDate <- Try(Instant.parse(start))
+          endDate <- Try(Instant.parse(end))
+          job <- Try(workflow.vertices.find(_.id == jobId).getOrElse(throw new Exception(s"Unknow job $jobId")))
+        } yield {
+          val requestedInterval = Interval(startDate, endDate)
+          self.forceSuccess(job, requestedInterval)
+
+          val runningExecutions = executor.runningExecutions.filter(e => e._1.job.id == jobId).map(_._1)
+          val failingExecutions = executor.allFailingExecutions.filter(_.job.id == jobId)
+          val executions = runningExecutions ++ failingExecutions
+          executions.foreach(_.cancel())
+
+          executions.length
+        }) match {
+          case Success(canceledExecutions) => IO.pure(Ok(Json.obj("canceled-executions" -> Json.fromInt(canceledExecutions))))
+          case Failure(e)                  => IO.pure(BadRequest(Json.obj("error" -> Json.fromString(e.getMessage))))
+        }
+    }
   }
 }

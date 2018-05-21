@@ -21,9 +21,8 @@ package object graph {
       val orphanNode = nodesToVisit.head
       topologicalOrder.append(orphanNode)
       nodesToVisit.remove(orphanNode)
-
-      orphanNode.children.foreach { child =>
-        // edgeVisitor(root.node, child.node)
+      while (orphanNode.children.nonEmpty) {
+        val child = orphanNode.children.head
         orphanNode.removeChild(child)
         if (child.isOrphanNode) nodesToVisit.add(child)
       }

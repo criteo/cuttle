@@ -38,16 +38,15 @@ type Props = {
     sort: { column: string, order: "asc" | "desc" }
   ) => string,
   columns: Array<
-
-      | "job"
-      | "context"
-      | "startTime"
-      | "failed"
-      | "retry"
-      | "endTime"
-      | "status"
-      | "detail"
-      | "lastFailure"
+    | "job"
+    | "context"
+    | "startTime"
+    | "failed"
+    | "retry"
+    | "endTime"
+    | "status"
+    | "detail"
+    | "lastFailure"
   >,
   label: string,
   page: number,
@@ -221,7 +220,9 @@ class ExecutionLogs extends React.Component {
                   const { start, end } = context;
                   return (
                     <TimeRangeLink
-                      href={`/timeseries/calendar/${urlFormat(start)}_${urlFormat(end)}`}
+                      href={`/timeseries/calendar/${urlFormat(
+                        start
+                      )}_${urlFormat(end)}`}
                       start={start}
                       end={end}
                     />
@@ -245,12 +246,14 @@ class ExecutionLogs extends React.Component {
                     <Clock className={classes.time} time={endTime || ""} />
                   );
                 case "retry":
-                  return status === "running"
-                    ? "Now"
-                    : <Clock
-                        className={classes.time}
-                        time={(failing && failing.nextRetry) || ""}
-                      />;
+                  return status === "running" ? (
+                    "Now"
+                  ) : (
+                    <Clock
+                      className={classes.time}
+                      time={(failing && failing.nextRetry) || ""}
+                    />
+                  );
                 case "status":
                   return (
                     <Link
@@ -270,7 +273,11 @@ class ExecutionLogs extends React.Component {
                     </Link>
                   );
                 case "lastFailure":
-                  const lastFailedUrl = `/executions/${failing.failedExecutions[failing.failedExecutions.length - 1].id}`;
+                  const lastFailedUrl = `/executions/${
+                    failing.failedExecutions[
+                      failing.failedExecutions.length - 1
+                    ].id
+                  }`;
 
                   return (
                     <Link href={lastFailedUrl}>
@@ -284,11 +291,7 @@ class ExecutionLogs extends React.Component {
       } else if (data) {
         return (
           <div className={classes.noData}>
-            No
-            {" "}
-            {label}
-            {" "}
-            executions for now
+            No {label} executions for now
             {selectedJobs.length ? " (some may have been filtered)" : ""}
           </div>
         );
@@ -306,7 +309,11 @@ class ExecutionLogs extends React.Component {
         let pageCount = Math.ceil(total / rowsPerPage);
         return (
           <div className={classes.footer}>
-            {`${numeral(page * rowsPerPage + 1).format("0,0")} to ${numeral(Math.min(total, page * rowsPerPage + rowsPerPage)).format("0,0")} of ${numeral(total).format("0,0")} ${label} executions`}
+            {`${numeral(page * rowsPerPage + 1).format("0,0")} to ${numeral(
+              Math.min(total, page * rowsPerPage + rowsPerPage)
+            ).format("0,0")} of ${numeral(total).format(
+              "0,0"
+            )} ${label} executions`}
             <ReactPaginate
               pageCount={pageCount}
               pageRangeDisplayed={3}
@@ -423,7 +430,7 @@ const mapStateToProps = ({
   workflow,
   page: page.page || 1,
   sort: page.sort,
-  order: page.order || "asc",
+  order: page.order,
   selectedJobs: selectedJobs,
   envCritical: project.env.critical
 });
@@ -434,9 +441,7 @@ const mapDispatchToProps = dispatch => ({
 });
 
 export const Finished = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(
-    styles
-  )(
+  injectSheet(styles)(
     ({
       classes,
       workflow,
@@ -461,9 +466,13 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
             workflow={workflow}
             columns={["job", "context", "endTime", "status", "detail"]}
             request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/finished?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+              `/api/executions/status/finished?events=true&offset=${page *
+                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
+                sort.order
+              }${jobsFilter}`
+            }
             label="finished"
-            sort={{ column: sort || "endTime", order }}
+            sort={{ column: sort || "endTime", order: order || "desc" }}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -473,9 +482,7 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
 );
 
 export const Started = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(
-    styles
-  )(
+  injectSheet(styles)(
     ({
       classes,
       workflow,
@@ -501,9 +508,9 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
           });
 
         menuItems.push(
-          <span
-            onClick={pauseFiltered}
-          >{`Pause ${selectedJobs.length} filtered jobs`}</span>
+          <span onClick={pauseFiltered}>{`Pause ${
+            selectedJobs.length
+          } filtered jobs`}</span>
         );
       } else {
         const pauseAll = () =>
@@ -527,9 +534,13 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
             workflow={workflow}
             columns={["job", "context", "startTime", "status", "detail"]}
             request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/started?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+              `/api/executions/status/started?events=true&offset=${page *
+                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
+                sort.order
+              }${jobsFilter}`
+            }
             label="started"
-            sort={{ column: sort || "context", order }}
+            sort={{ column: sort || "context", order: order || "asc" }}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -539,9 +550,7 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
 );
 
 export const Paused = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(
-    styles
-  )(
+  injectSheet(styles)(
     ({
       classes,
       workflow,
@@ -567,9 +576,9 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
           });
 
         menuItems.push(
-          <span
-            onClick={resumeFiltered}
-          >{`Resume ${selectedJobs.length} filtered jobs`}</span>
+          <span onClick={resumeFiltered}>{`Resume ${
+            selectedJobs.length
+          } filtered jobs`}</span>
         );
       } else {
         const resumeAll = () =>
@@ -593,9 +602,13 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
             workflow={workflow}
             columns={["job", "context", "status", "detail"]}
             request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/paused?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+              `/api/executions/status/paused?events=true&offset=${page *
+                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
+                sort.order
+              }${jobsFilter}`
+            }
             label="paused"
-            sort={{ column: sort || "context", order }}
+            sort={{ column: sort || "context", order: order || "asc" }}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -605,9 +618,7 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
 );
 
 export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(
-    styles
-  )(
+  injectSheet(styles)(
     ({
       classes,
       workflow,
@@ -637,11 +648,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
           <h1 className={classes.title}>Stuck executions</h1>
           <PopoverMenu
             className={classes.menu}
-            items={[
-              <span onClick={relaunch}>
-                Relaunch everything now
-              </span>
-            ]}
+            items={[<span onClick={relaunch}>Relaunch everything now</span>]}
           />
           <ExecutionLogs
             envCritical={envCritical}
@@ -658,9 +665,13 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
               "detail"
             ]}
             request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/stuck?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}${isFilterApplied ? `&${jobsFilter}` : ""}`}
+              `/api/executions/status/stuck?events=true&offset=${page *
+                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
+                sort.order
+              }${isFilterApplied ? `&${jobsFilter}` : ""}`
+            }
             label="stuck"
-            sort={{ column: sort || "failed", order }}
+            sort={{ column: sort || "failed", order: order || "asc" }}
             selectedJobs={selectedJobs}
           />
         </div>
@@ -670,9 +681,7 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
 );
 
 export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(
-    styles
-  )(
+  injectSheet(styles)(
     ({
       classes,
       workflow,
@@ -698,9 +707,13 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
             workflow={workflow}
             columns={["job", "context", "status", "detail"]}
             request={(page, rowsPerPage, sort) =>
-              `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page * rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${sort.order}${jobsFilter}`}
+              `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page *
+                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
+                sort.order
+              }${jobsFilter}`
+            }
             label=""
-            sort={{ column: sort || "failed", order }}
+            sort={{ column: sort || "failed", order: order || "asc" }}
             selectedJobs={selectedJobs}
             completionNotifier={completionNotifier}
           />

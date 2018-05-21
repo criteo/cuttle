@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.3.3"
+val VERSION = "0.3.12"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -22,13 +22,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused-import",
     "-Ypartial-unification"
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) =>
-      Nil
-      Seq(
-        "-Ywarn-unused:-params"
-      )
-    case _ =>
-      Nil
+    case Some((2, 12)) => Seq("-Ywarn-unused:-params")
+    case _             => Nil
   }),
   devMode := Option(System.getProperty("devMode")).isDefined,
   writeClasspath := {
@@ -38,6 +33,8 @@ lazy val commonSettings = Seq(
     streams.value.log.info(f.getAbsolutePath)
     f
   },
+  // test config
+  testOptions in IntegrationTest := Seq(Tests.Filter(_ endsWith "ITest"), Tests.Argument("-oF")),
   // Maven config
   credentials += Credentials(
     "Sonatype Nexus Repository Manager",
@@ -171,9 +168,13 @@ lazy val localdb = {
     )
 }
 
+val doobieVersion = "0.5.0"
+
 lazy val cuttle =
   (project in file("core"))
+    .configs(IntegrationTest)
     .settings(commonSettings: _*)
+    .settings(Defaults.itSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
         "com.criteo.lolhttp" %% "lolhttp",
@@ -194,14 +195,15 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
         "org.tpolecat" %% "doobie-hikari"
-      ).map(_ % "0.5.0"),
+      ).map(_ % doobieVersion),
       libraryDependencies ++= Seq(
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1",
-        "org.mockito" % "mockito-all" % "1.10.19"
-      ).map(_ % "test"),
+        "org.mockito" % "mockito-all" % "1.10.19",
+        "org.tpolecat" %% "doobie-scalatest" % doobieVersion
+      ).map(_ % "it,test"),
       // Webpack
       resourceGenerators in Compile += Def.task {
         import scala.sys.process._

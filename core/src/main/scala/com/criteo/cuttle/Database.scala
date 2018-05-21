@@ -4,16 +4,13 @@ import doobie._
 import doobie.implicits._
 import doobie.hikari._
 import doobie.hikari.implicits._
-
 import io.circe._
 import io.circe.parser._
-
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.IO
 
 import scala.util._
-
 import java.time._
 import java.util.concurrent.{Executors, TimeUnit}
 
@@ -67,11 +64,6 @@ object DatabaseConfig {
 
 private[cuttle] object Database {
 
-  implicit val DateTimeMeta: Meta[Instant] = Meta[java.sql.Timestamp].xmap(
-    x => Instant.ofEpochMilli(x.getTime),
-    x => new java.sql.Timestamp(x.toEpochMilli)
-  )
-
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
     x => if (x) ExecutionSuccessful else ExecutionFailed, {
       case ExecutionSuccessful => true
@@ -111,7 +103,13 @@ private[cuttle] object Database {
         id          CHAR(36) NOT NULL,
         streams     MEDIUMTEXT
       ) ENGINE = INNODB;
-    """
+    """.update.run,
+    sql"""
+      ALTER TABLE paused_jobs ADD COLUMN user VARCHAR(256) NOT NULL DEFAULT 'not defined user', ADD COLUMN date DATETIME NOT NULL DEFAULT '1991-11-01:15:42:00'
+    """.update.run,
+    sql"""
+      ALTER TABLE executions_streams ADD PRIMARY KEY(id)
+    """.update.run
   )
 
   private def lockedTransactor(xa: HikariTransactor[IO]): HikariTransactor[IO] = {
@@ -119,6 +117,11 @@ private[cuttle] object Database {
 
     // Try to insert our lock at bootstrap
     (for {
+      _ <- sql"""CREATE TABLE IF NOT EXISTS locks (
+          locked_by       VARCHAR(36) NOT NULL,
+          locked_at       DATETIME NOT NULL
+        ) ENGINE = INNODB
+      """.update.run
       locks <- sql"""
           SELECT locked_by, locked_at FROM locks WHERE TIMESTAMPDIFF(MINUTE, locked_at, NOW()) < 5;
         """.query[(String, Instant)].to[List]
@@ -162,59 +165,38 @@ private[cuttle] object Database {
     xa
   }
 
-  private val doSchemaUpdates: ConnectionIO[Unit] =
-    (for {
-      _ <- sql"""
-        CREATE TABLE IF NOT EXISTS schema_evolutions (
-          schema_version  SMALLINT NOT NULL,
-          schema_update   DATETIME NOT NULL,
-          PRIMARY KEY     (schema_version)
-        ) ENGINE = INNODB;
-
-        CREATE TABLE IF NOT EXISTS locks (
-          locked_by       VARCHAR(36) NOT NULL,
-          locked_at       DATETIME NOT NULL
-        ) ENGINE = INNODB;
-      """.update.run
-
-      currentSchemaVersion <- sql"""
-        SELECT MAX(schema_version) FROM schema_evolutions
-      """.query[Option[Int]].unique.map(_.getOrElse(0))
-
-      _ <- schemaEvolutions.map(_.update).zipWithIndex.drop(currentSchemaVersion).foldLeft(NoUpdate) {
-        case (evolutions, (evolution, i)) =>
-          evolutions *> evolution.run *> sql"""
-            INSERT INTO schema_evolutions (schema_version, schema_update)
-            VALUES (${i + 1}, ${Instant.now()})
-          """.update.run
-      }
-    } yield ())
+  private val doSchemaUpdates = utils.updateSchema("schema_evolutions", schemaEvolutions)
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
-  def connect(dbConfig: DatabaseConfig): XA = {
+
+  private[cuttle] def newHikariTransactor(dbConfig: DatabaseConfig): HikariTransactor[IO] = {
     val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
 
     val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
       "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true"
 
-    connections.getOrElseUpdate(
-      dbConfig, {
-        val xa = (for {
-          hikari <- HikariTransactor.newHikariTransactor[IO](
-            "com.mysql.cj.jdbc.Driver",
-            jdbcString,
-            dbConfig.username,
-            dbConfig.password
-          )
-          _ <- hikari.configure { datasource =>
-            IO.pure( /* Configure datasource if needed */ ())
-          }
-        } yield hikari).unsafeRunSync
-        doSchemaUpdates.transact(xa).unsafeRunSync
-        lockedTransactor(xa)
-      }
-    )
+    HikariTransactor
+      .newHikariTransactor[IO](
+        "com.mysql.cj.jdbc.Driver",
+        jdbcString,
+        dbConfig.username,
+        dbConfig.password
+      )
+      .unsafeRunSync
   }
+
+  // we remove all created Hikari transactors here,
+  // it can be handy if you to recreate a connection with same DbConfig
+  private[cuttle] def reset(): Unit =
+    connections.clear()
+
+  def connect(dbConfig: DatabaseConfig): XA = connections.getOrElseUpdate(
+    dbConfig, {
+      val xa = lockedTransactor(newHikariTransactor(dbConfig))
+      doSchemaUpdates.transact(xa).unsafeRunSync
+      xa
+    }
+  )
 }
 
 private[cuttle] trait Queries {
@@ -279,20 +261,21 @@ private[cuttle] trait Queries {
           ExecutionLog(id, job, Some(startTime), Some(endTime), context, status, waitingSeconds = waitingSeconds)
       })
 
-  def unpauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
+  def resumeJob(id: String): ConnectionIO[Int] =
     sql"""
-      DELETE FROM paused_jobs WHERE id = ${job.id}
+      DELETE FROM paused_jobs WHERE id = $id
     """.update.run
 
-  def pauseJob[S <: Scheduling](job: Job[S]): ConnectionIO[Int] =
-    unpauseJob(job) *> sql"""
-      INSERT INTO paused_jobs VALUES (${job.id});
-    """.update.run
+  private[cuttle] def pauseJobQuery[S <: Scheduling](pausedJob: PausedJob) = sql"""
+      INSERT INTO paused_jobs VALUES (${pausedJob.id}, ${pausedJob.user}, ${pausedJob.date})
+    """.update
 
-  def getPausedJobIds: ConnectionIO[Set[String]] =
-    sql"SELECT id FROM paused_jobs"
-      .query[String]
-      .to[Set]
+  def pauseJob(pausedJob: PausedJob): ConnectionIO[Int] =
+    resumeJob(pausedJob.id) *> pauseJobQuery(pausedJob).run
+
+  private[cuttle] val getPausedJobIdsQuery = sql"SELECT id, user, date FROM paused_jobs".query[PausedJob]
+
+  def getPausedJobs: ConnectionIO[Seq[PausedJob]] = getPausedJobIdsQuery.to[Seq]
 
   def archiveStreams(id: String, streams: String): ConnectionIO[Int] =
     sql"""

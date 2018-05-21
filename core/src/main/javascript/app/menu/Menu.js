@@ -4,7 +4,7 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 
-import type { Page } from "../../ApplicationState";
+import type { JobsPage } from "../../ApplicationState";
 import MenuEntry from "./MenuEntry";
 import MenuSubEntry from "./MenuSubEntry";
 import LogIcon from "react-icons/lib/md/playlist-play";
@@ -14,7 +14,7 @@ import ListIcon from "react-icons/lib/md/format-list-bulleted";
 import type { Statistics } from "../../datamodel";
 
 type Props = {
-  active: Page,
+  active: JobsPage,
   statistics: Statistics,
   classes: any,
   className: any
@@ -31,10 +31,16 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
         active.id.indexOf("executions/") === 0
           ? []
           : [
-              statistics.running && { label: statistics.running, kind: "info" },
+              statistics.running && {
+                label: statistics.running,
+                kind: "info"
+              },
               statistics.waiting && {
                 label: statistics.waiting,
                 kind: "warning"
+              },
+              statistics.paused && {
+                label: statistics.paused
               },
               statistics.failing && {
                 label: statistics.failing,
@@ -84,10 +90,44 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
       }
     />
     <MenuEntry
+      active={active.id === "jobs"}
+      label="Jobs"
+      link="/jobs/all"
+      icon={<ListIcon style={{ transform: "translateY(-3px)" }} />}
+      subEntries={[
+        <MenuSubEntry
+          active={active.id === "jobs" && active.status === "all"}
+          label="All"
+          link="/jobs/all"
+        />,
+        <MenuSubEntry
+          active={active.id === "jobs" && active.status === "active"}
+          label="Active"
+          link="/jobs/active"
+        />,
+        <MenuSubEntry
+          active={active.id === "jobs" && active.status === "paused"}
+          label="Paused"
+          link="/jobs/paused"
+        />
+      ]}
+    />
+    <MenuEntry
       active={active.id.indexOf("timeseries/") === 0}
       label="Time series"
       link="/timeseries/calendar"
       icon={<CalendarIcon style={{ transform: "translateY(-3px)" }} />}
+      badges={
+        active.id.indexOf("timeseries/") === 0
+          ? []
+          : [
+            statistics.scheduler &&
+            statistics.scheduler.backfills && {
+              label: statistics.scheduler.backfills,
+              kind: "alt"
+            }
+          ]
+      }
       subEntries={[
         <MenuSubEntry
           active={active.id.indexOf("timeseries/calendar") === 0}
@@ -105,29 +145,6 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
                 kind: "alt"
               }
           ]}
-        />
-      ]}
-    />
-    <MenuEntry
-      active={active.id.indexOf("jobs") === 0}
-      label="Jobs"
-      link="/jobs/all"
-      icon={<ListIcon style={{ transform: "translateY(-3px)" }} />}
-      subEntries={[
-        <MenuSubEntry
-          active={active.id.indexOf("jobs/all") === 0}
-          label="All"
-          link="/jobs/all"
-        />,
-        <MenuSubEntry
-          active={active.id.indexOf("jobs/active") === 0}
-          label="Active"
-          link="/jobs/active"
-        />,
-        <MenuSubEntry
-          active={active.id.indexOf("jobs/paused") === 0}
-          label="Paused"
-          link="/jobs/paused"
         />
       ]}
     />

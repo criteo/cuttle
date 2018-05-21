@@ -41,27 +41,27 @@ sealed trait TimeSeriesCalendar {
     else next(t)
   }
   private[timeseries] def inInterval(interval: Interval[Instant], maxPeriods: Int) = {
-    def go(lo: Instant, hi: Instant): List[(Instant, Instant)] = {
+    def go(lo: Instant, hi: Instant, acc: List[(Instant, Instant)]): List[(Instant, Instant)] = {
       val nextLo = next(lo)
-      if (nextLo.isAfter(hi)) List.empty
-      else ((lo, nextLo) +: go(nextLo, hi))
+      if (nextLo.isAfter(hi)) acc
+      else go(nextLo, hi, (lo, nextLo) +: acc)
     }
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
-        go(ceil(lo), hi).grouped(maxPeriods).map(xs => (xs.head._1, xs.last._2))
+        go(ceil(lo), hi, List.empty).reverse.grouped(maxPeriods).map(xs => (xs.head._1, xs.last._2))
       case _ =>
         sys.error("panic")
     }
   }
   private[timeseries] def split(interval: Interval[Instant]) = {
-    def go(lo: Instant, hi: Instant): List[(Instant, Instant)] = {
+    def go(lo: Instant, hi: Instant, acc: List[(Instant, Instant)]): List[(Instant, Instant)] = {
       val nextLo = next(lo)
-      if (nextLo.isBefore(hi)) ((lo, nextLo) +: go(nextLo, hi))
-      else List((lo, hi))
+      if (nextLo.isBefore(hi)) go(nextLo, hi, (lo, nextLo) +: acc)
+      else (lo, hi) +: acc
     }
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
-        go(lo, hi)
+        go(lo, hi, List.empty).reverse
       case _ =>
         sys.error("panic")
     }
@@ -453,8 +453,10 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       _backfills() = _backfills() ++ incompleteBackfills
 
       workflow.vertices.foreach { job =>
-        val definedInterval =
-          Interval(Finite(job.scheduling.start), job.scheduling.end.map(Finite.apply _).getOrElse(Top))
+        val calendar = job.scheduling.calendar
+        val definedInterval = Interval(
+          Finite(calendar.ceil(job.scheduling.start)),
+          job.scheduling.end.map(calendar.truncate _).map(Finite.apply _).getOrElse(Top))
         val oldJobState = _state().getOrElse(job, IntervalMap.empty[Instant, JobState])
         val missingIntervals = IntervalMap(definedInterval -> (()))
           .whenIsUndef(oldJobState.intersect(definedInterval))
@@ -462,7 +464,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
           .map(_._1)
         val jobState = missingIntervals.foldLeft(oldJobState) { (st, interval) =>
           st.update(interval, Todo(None))
-        }
+        }.intersect(definedInterval)
         _state() = _state() + (job -> jobState)
       }
     }
@@ -539,12 +541,14 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   private[timeseries] def collectCompletedJobs(state: State,
                                                backfills: Set[Backfill],
                                                completed: Set[Run]): (State, Set[Backfill], Set[Backfill]) = {
+    def isDone(state: State, job: TimeSeriesJob, context: TimeSeriesContext): Boolean =
+      state.apply(job).intersect(context.toInterval).toList.forall { case (_, state) => state == Done }
 
     // update state with job statuses
     val newState = completed.foldLeft(state) {
       case (acc, (job, context, future)) =>
-        val jobState = if (future.value.get.isSuccess) Done else Todo(context.backfill)
-        acc + (job -> (acc(job).update(context.toInterval, jobState)))
+        val jobState = if (future.value.get.isSuccess || isDone(state, job, context)) Done else Todo(context.backfill)
+        acc + (job -> acc(job).update(context.toInterval, jobState))
     }
 
     val notCompletedBackfills = backfills.filter { bf =>
@@ -606,6 +610,11 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     }
   }
 
+  private[timeseries] def forceSuccess(job: TimeSeriesJob, interval: Interval[Instant]): Unit = atomic { implicit txn =>
+    val jobState = _state().apply(job)
+    _state() = _state() + (job -> jobState.update(interval, Done))
+  }
+
   private def getRunningBackfillsSize(jobs: Set[String]) = {
     val runningBackfills = state match {
       case (_, backfills) =>
@@ -656,8 +665,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       )
     ) {
       case (gauge, (job, lastSuccess)) =>
+        val tags = if (!job.tags.isEmpty) Set("tags" -> job.tags.map(_.name).mkString(",")) else Nil
         gauge.labeled(
-          Set("job_id" -> job.id, "job_name" -> job.name),
+          Set("job_id" -> job.id, "job_name" -> job.name) ++ tags,
           Instant.now.getEpochSecond - lastSuccess.getEpochSecond
         )
     }

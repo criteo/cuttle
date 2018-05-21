@@ -1,6 +1,6 @@
 package com.criteo.cuttle
 
-import java.time.Instant
+import java.time.{Instant, LocalDate}
 
 import scala.concurrent.duration._
 import scala.util._
@@ -9,8 +9,10 @@ import cats.Eq
 import cats.effect.IO
 import cats.implicits._
 import fs2.Stream
+
 import io.circe._
 import io.circe.syntax._
+
 import lol.http._
 import lol.json._
 
@@ -53,6 +55,11 @@ private[cuttle] object App {
 
   implicit val instantEncoder = new Encoder[Instant] {
     override def apply(date: Instant) =
+      date.toString.asJson
+  }
+
+  implicit val dateEncoder = new Encoder[LocalDate] {
+    override def apply(date: LocalDate) =
       date.toString.asJson
   }
 
@@ -143,6 +150,10 @@ private[cuttle] object App {
         )
       }
     }
+
+  import io.circe.generic.semiauto._
+  implicit val encodeUser: Encoder[User] = deriveEncoder
+  implicit val encodePausedJob: Encoder[PausedJob] = deriveEncoder
 }
 
 private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], executor: Executor[S], xa: XA) {
@@ -212,18 +223,20 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
         .jobStatsForLastThirtyDays(jobName)
         .map(stats => Ok(stats.asJson))
 
+    case GET at url"/version" => Ok(project.version)
+
     case GET at "/metrics" =>
       val metrics =
         executor.getMetrics(allIds, workflow) ++
           scheduler.getMetrics(allIds, workflow) :+
-          Gauge("cuttle_jvm_uptime_seconds").set(getJVMUptime)
+          Gauge("cuttle_jvm_uptime_seconds").labeled(("version", project.version), getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
-    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$a&jobs=$jobs" =>
+    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$order&jobs=$jobs" =>
       val jobIds = parseJobIds(jobs)
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
-      val asc = a.toLowerCase == "asc"
+      val asc = order.toLowerCase == "asc"
       val ids = if (jobIds.isEmpty) allIds else jobIds
 
       def getExecutions: IO[Option[(Int, List[ExecutionLog])]] = kind match {
@@ -369,7 +382,7 @@ private[cuttle] case class App[S <: Scheduling](project: CuttleProject[S], execu
       IO.pure(Ok)
     }
 
-    case req@GET at url"/api/shutdown" => { implicit user =>
+    case req @ GET at url"/api/shutdown" => { implicit user =>
       import scala.concurrent.duration._
 
       req.queryStringParameters.get("gracePeriodSeconds") match {

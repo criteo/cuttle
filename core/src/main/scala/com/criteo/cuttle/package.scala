@@ -31,7 +31,7 @@ package cuttle {
   *
   *  - A [[CuttleProject]] is basically a [[Workflow]] to execute.
   *  - [[Workflow]]s are directed acyclic graphs of [[Job]]s.
-  *  - [[Scheduler]] are defined for a given [[Scheduling]] mechanism.
+  *  - [[Scheduler]] is defined for a given [[Scheduling]] mechanism.
   *  - [[Execution]]s are created by a [[Scheduler]] for a given [[Job]] and [[SchedulingContext]].
   *  - [[Executor]] handles the [[SideEffect]]s execution.
   *  - [[SideEffect]]s are plain asynchronous Scala functions and can use [[ExecutionPlatform]]s to

@@ -7,7 +7,7 @@ import { prepareWorkflow } from "./datamodel";
 
 export type JobStatus = "all" | "active" | "paused";
 
-type JobsPage = {
+export type JobsPage = {
   id: "jobs",
   status: JobStatus,
   sort?: string,
@@ -19,7 +19,8 @@ export type Page =
   | {
       id: "workflow",
       jobId?: string,
-      showDetail: boolean
+      showDetail: boolean,
+      refPath?: string
     }
   | {
       id: "executions/started",

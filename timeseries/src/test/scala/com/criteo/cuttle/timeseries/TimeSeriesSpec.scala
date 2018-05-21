@@ -46,6 +46,13 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     assert(TimeSeriesUtils.validate(workflow).isRight, "workflow is not valid")
   }
 
+  test("it should validate workflow without cycles (one parent with many children)") {
+    val job1: Vector[Job[TimeSeries]] = Vector.tabulate(10)(i => Job(java.util.UUID.randomUUID.toString, scheduling)(completed))
+    val workflow = (0 to 8).map(i => job1(i) dependsOn job1(9)).reduce( _ and _)
+
+    assert(TimeSeriesUtils.validate(workflow).isRight, "workflow is not valid")
+  }
+
   test("it shouldn't validate cyclic workflow") {
     val workflow = job(0) dependsOn job(1) dependsOn job(2) dependsOn job(0)
 

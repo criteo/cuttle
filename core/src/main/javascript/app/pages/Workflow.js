@@ -42,7 +42,8 @@ type Props = {
   selectedJobs: string[],
   job: string,
   navTo: () => void,
-  showDetail: boolean
+  showDetail: boolean,
+  refPath?: string
 };
 
 type State = {
@@ -240,7 +241,7 @@ class WorkflowComponent extends React.Component {
     fetch(`/api/jobs/paused`).then(data => data.json()).then(json => {
       this.setState({
         jobColors: json.reduce(
-          (acc, job) => Object.assign(acc, { [job]: "#FFAAFF" }),
+          (acc, job) => Object.assign(acc, { [job.id]: "#FFAAFF" }),
           {}
         )
       });
@@ -254,7 +255,8 @@ class WorkflowComponent extends React.Component {
       job,
       selectedJobs = [],
       navTo,
-      showDetail
+      showDetail,
+      refPath
     } = this.props;
 
     const filteredJobs = filter(workflow.jobs, j =>
@@ -404,7 +406,7 @@ class WorkflowComponent extends React.Component {
           </Link>
         </div>
         {showDetail &&
-          <Window closeUrl={`/workflow/${job}`} title="Job details">
+          <Window closeUrl={refPath || `/workflow/${job}`} title="Job details">
             <div className={classes.jobCard}>
               <JobMenu job={startNode.id} />
               <FancyTable>
@@ -554,7 +556,7 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ app: { page: { showDetail } } }) => ({ showDetail });
+const mapStateToProps = ({ app: { page: { showDetail, refPath } } }) => ({ showDetail, refPath });
 
 export default connect(mapStateToProps, dispatch => ({
   navTo: link => dispatch(navigate(link))
