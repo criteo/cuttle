@@ -4,6 +4,8 @@ import java.util.Base64
 
 import cats.effect.IO
 import lol.http._
+import io.circe.{Encoder, Decoder}
+import io.circe.generic.semiauto.{deriveEncoder,deriveDecoder}
 
 import scala.util.Try
 
@@ -48,6 +50,11 @@ object Auth {
     * A connected [[User]].
     */
   case class User(userId: String)
+
+  object User {
+    implicit val encoder: Encoder[User] = deriveEncoder
+    implicit val decoder: Decoder[User] = deriveDecoder
+  }
 
   /**
     * Default implementation of Authenticator that authenticate any request

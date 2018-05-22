@@ -5,6 +5,7 @@ import doobie.implicits._
 import doobie.hikari._
 import doobie.hikari.implicits._
 import io.circe._
+import io.circe.syntax._
 import io.circe.parser._
 import cats.data.NonEmptyList
 import cats.implicits._
@@ -15,6 +16,7 @@ import java.time._
 import java.util.concurrent.{Executors, TimeUnit}
 
 import ExecutionStatus._
+import com.criteo.cuttle.events.{Event, JobSuccessForced}
 
 /** Configuration of JDBC endpoint.
   *
@@ -109,6 +111,24 @@ private[cuttle] object Database {
     """.update.run,
     sql"""
       ALTER TABLE executions_streams ADD PRIMARY KEY(id)
+    """.update.run,
+    sql"""
+      CREATE TABLE events (
+        created      DATETIME NOT NULL,
+        user         VARCHAR(256),
+        kind         VARCHAR(100),
+        job_id       VARCHAR(1000),
+        execution_id CHAR(36),
+        start_time   DATETIME,
+        end_time     DATETIME,
+        payload      TEXT NOT NULL
+      ) ENGINE = INNODB;
+
+      CREATE INDEX events_by_created ON events (created);
+      CREATE INDEX events_by_job_id ON events (job_id);
+      CREATE INDEX events_by_execution_id ON events (execution_id);
+      CREATE INDEX events_by_start_time ON events (start_time);
+      CREATE INDEX events_by_end_time ON events (end_time);
     """.update.run
   )
 
@@ -305,6 +325,16 @@ private[cuttle] trait Queries {
         case (startTime, endTime, durationSeconds, waitingSeconds, status) =>
           new ExecutionStat(startTime, endTime, durationSeconds, waitingSeconds, status)
       })
+
+  def logEvent(e: Event): ConnectionIO[Int] = {
+    val payload = e.asJson
+    val query: Update0 = e match {
+      case JobSuccessForced(date, user, job, start, end) =>
+        sql"""INSERT INTO events (created, user, kind, job_id, start_time, end_time, payload)
+              VALUES (${date}, ${user.userId}, ${e.getClass.getSimpleName}, ${job}, ${start}, ${end}, ${payload})""".update
+    }
+    query.run
+  }
 
   val healthCheck: ConnectionIO[Boolean] =
     sql"""select 1 from dual"""
