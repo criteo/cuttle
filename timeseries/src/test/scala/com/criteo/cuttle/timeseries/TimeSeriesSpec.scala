@@ -89,6 +89,7 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     assert(validationRes.isLeft, "workflow passed start date validation")
     assert(validationRes.left.get === List(
       "Workflow has at least one cycle",
+      "{1,badJob} form a cycle",
       "Job [0] starts at [2017-03-25T02:00:00Z] before his parent [badJob] at [2117-03-25T02:00:00Z]",
       "Job [1] starts at [2017-03-25T02:00:00Z] before his parent [badJob] at [2117-03-25T02:00:00Z]"
     ), "errors messages are bad")
