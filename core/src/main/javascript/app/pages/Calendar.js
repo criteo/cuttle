@@ -34,10 +34,7 @@ type State = {
   eventSource: ?any
 };
 
-class Calendar extends React.Component {
-  props: Props;
-  state: State;
-
+class Calendar extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {

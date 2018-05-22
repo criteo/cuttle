@@ -54,7 +54,7 @@ type Props = {
     column: string,
     order: "asc" | "desc"
   },
-  open: (link: string) => void,
+  open: (link: string, replace: boolean) => void,
   selectedJobs: Array<string>,
   completionNotifier?: (?number) => void
 };
@@ -68,10 +68,7 @@ type State = {
   eventSource: any
 };
 
-class ExecutionLogs extends React.Component {
-  props: Props;
-  state: State;
-
+class ExecutionLogs extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -246,7 +243,7 @@ class ExecutionLogs extends React.Component {
                     <Clock className={classes.time} time={endTime || ""} />
                   );
                 case "retry":
-                  return status === "running" ? (
+                  return status !== "throttled" ? (
                     "Now"
                   ) : (
                     <Clock

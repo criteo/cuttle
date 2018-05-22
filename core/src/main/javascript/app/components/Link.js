@@ -4,14 +4,15 @@ import React from "react";
 import classNames from "classnames";
 import injectSheet from "react-jss";
 import { connect } from "react-redux";
+import type { ChildrenArray, Node } from "react";
 import { navigate } from "redux-url";
 
 type Props = {
   classes: any,
   href: string,
   className: string,
-  children: any,
-  open: (href: string) => void,
+  children: ChildrenArray<Node>,
+  open: (href: string, replace: boolean) => void,
   replace: boolean,
   title: string
 };

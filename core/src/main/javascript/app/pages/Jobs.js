@@ -217,9 +217,7 @@ const jobMenu = ({
   return <PopoverMenu className={classes.menu} items={menuItems} />;
 };
 
-class JobsComp extends React.Component<any, Props, State> {
-  state: State;
-
+class JobsComp extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {

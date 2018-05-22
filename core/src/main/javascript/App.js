@@ -42,9 +42,7 @@ type Props = {
   selectJobs: (jobs: Array<string>) => void
 };
 
-class App extends React.Component {
-  props: Props;
-
+class App extends React.Component<Props> {
   constructor(props: Props) {
     super(props);
   }

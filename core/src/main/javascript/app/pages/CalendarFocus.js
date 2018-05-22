@@ -221,10 +221,7 @@ const drawJobPeriods = (
     .attr("y", ROW_HEIGHT - 3);
 };
 
-class CalendarFocus extends React.Component {
-  props: Props;
-  state: State;
-
+class CalendarFocus extends React.Component<Props, State> {
   vizContainer: any;
   summarySvgContainer: any;
   detailsSvgContainer: any;

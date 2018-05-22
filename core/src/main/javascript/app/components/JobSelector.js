@@ -44,9 +44,7 @@ const optionsFromJobIds = (jobIds: string[], workflow: Workflow): Option[] =>
     []
   );
 
-class JobSelector extends React.Component {
-  props: Props;
-  state: State;
+class JobSelector extends React.Component<Props, State> {
   options: Option[];
 
   constructor(props: Props) {

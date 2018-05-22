@@ -45,9 +45,7 @@ type State = {
 let formatDate = (date: string) =>
   moment(date).utc().format("YYYY-MM-DD HH:mm");
 
-class TimeSeriesExecutions extends React.Component {
-  props: Props;
-  state: State;
+class TimeSeriesExecutions extends React.Component<Props, State> {
   tableRef: any;
 
   constructor(props: Props) {

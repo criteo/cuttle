@@ -41,7 +41,7 @@ type Props = {
   workflow: Workflow,
   selectedJobs: string[],
   job: string,
-  navTo: () => void,
+  navTo: (string) => void,
   showDetail: boolean,
   refPath?: string
 };
@@ -203,10 +203,7 @@ const aggregateDataSet = (data: ExecutionStat[]) =>
     ]
   );
 
-class WorkflowComponent extends React.Component {
-  props: Props;
-  state: State;
-
+class WorkflowComponent extends React.Component<Props, State> {
   constructor(props) {
     super(props);
 
@@ -347,7 +344,7 @@ class WorkflowComponent extends React.Component {
                 fetch(`/api/jobs/resume?jobs=${job}`, {
                   method: "POST",
                   credentials: "include"
-                }).then(() => this.updatePausedJobs(job))}
+                }).then(() => this.updatePausedJobs())}
             >
               Resume
             </span>
@@ -358,7 +355,7 @@ class WorkflowComponent extends React.Component {
                 fetch(`/api/jobs/pause?jobs=${job}`, {
                   method: "POST",
                   credentials: "include"
-                }).then(() => this.updatePausedJobs(job))}
+                }).then(() => this.updatePausedJobs())}
             >
               Pause
             </span>

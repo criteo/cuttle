@@ -116,9 +116,7 @@ const Menu = ({
     : null;
 };
 
-class Execution extends React.Component {
-  props: Props;
-  state: State;
+class Execution extends React.Component<Props, State> {
   shouldOverwriteStreams: boolean = false;
 
   constructor(props: Props) {

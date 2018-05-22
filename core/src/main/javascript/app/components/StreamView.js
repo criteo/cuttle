@@ -16,7 +16,7 @@ type Props = {
     level: string,
     message: string,
   }>,
-  placeholder: ?React.Children,
+  placeholder: ?React.ChildrenArray<React.Node>,
 };
 
 type State = {
@@ -24,7 +24,7 @@ type State = {
   autoScroll: boolean,
 };
 
-class StreamView extends React.Component<typeof undefined, Props, State> {
+class StreamView extends React.Component<Props, State> {
   state = {
     fullScreen: false,
     autoScroll: true,

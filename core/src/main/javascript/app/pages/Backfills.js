@@ -41,10 +41,7 @@ type State = {
 
 type BackfillSortFunction = (Backfill, Backfill) => number;
 
-class Backfills extends React.Component {
-  props: Props;
-  state: State;
-
+class Backfills extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
