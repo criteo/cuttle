@@ -16,6 +16,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import io.circe._
 import io.circe.syntax._
+import io.circe.java8.time._
 
 import App._
 

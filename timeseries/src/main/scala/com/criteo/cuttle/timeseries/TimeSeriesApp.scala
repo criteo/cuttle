@@ -1,5 +1,6 @@
 package com.criteo.cuttle.timeseries
 
+import com.criteo.cuttle.Queries
 import java.time.Instant
 import java.time.temporal.ChronoUnit._
 
@@ -10,11 +11,13 @@ import doobie.implicits._
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.circe.java8.time._
 import lol.http._
 import lol.json._
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle._
+import com.criteo.cuttle.events.JobSuccessForced
 import com.criteo.cuttle.timeseries.TimeSeriesUtils._
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
 import com.criteo.cuttle.timeseries.intervals._
@@ -40,6 +43,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
         "end" -> interval.hi.asJson
       )
   }
+  private val queries = new Queries {}
 
   private trait ExecutionPeriod {
     val period: Interval[Instant]
@@ -559,10 +563,13 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           val executions = runningExecutions ++ failingExecutions
           executions.foreach(_.cancel())
 
-          executions.length
+          (executions.length, JobSuccessForced(Instant.now(), user, jobId, startDate, endDate))
         }) match {
-          case Success(canceledExecutions) => IO.pure(Ok(Json.obj("canceled-executions" -> Json.fromInt(canceledExecutions))))
-          case Failure(e)                  => IO.pure(BadRequest(Json.obj("error" -> Json.fromString(e.getMessage))))
+          case Success((canceledExecutions, event)) =>
+            queries.logEvent(event).transact(xa)
+              .map(_ => Ok(Json.obj("canceled-executions" -> Json.fromInt(canceledExecutions))))
+          case Failure(e)                  =>
+            IO.pure(BadRequest(Json.obj("error" -> Json.fromString(e.getMessage))))
         }
     }
   }
