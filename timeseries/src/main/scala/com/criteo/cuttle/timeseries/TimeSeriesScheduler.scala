@@ -665,8 +665,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       )
     ) {
       case (gauge, (job, lastSuccess)) =>
+        val tags = if (!job.tags.isEmpty) Set("tags" -> job.tags.map(_.name).mkString(",")) else Nil
         gauge.labeled(
-          Set("job_id" -> job.id, "job_name" -> job.name),
+          Set("job_id" -> job.id, "job_name" -> job.name) ++ tags,
           Instant.now.getEpochSecond - lastSuccess.getEpochSecond
         )
     }
