@@ -372,7 +372,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     val pausedJobs = queries.getPausedJobs.transact(xa).unsafeRunSync
     TMap(pausedJobs.map(pausedJob => pausedJob.id -> pausedJob.toPausedJobWithExecutions[S]()): _*)
   }
-  private val runningState = TMap.empty[Execution[S], Future[Completed]]
+  private[cuttle] val runningState = TMap.empty[Execution[S], Future[Completed]]
   private val throttledState = TMap.empty[Execution[S], (Promise[Completed], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
 
