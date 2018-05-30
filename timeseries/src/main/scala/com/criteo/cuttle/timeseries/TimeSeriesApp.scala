@@ -538,6 +538,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                               backfill.startDate,
                               backfill.endDate,
                               backfill.priority,
+                              executor.runningState,
                               xa).map {
                     case Right(_)     => Ok("ok".asJson)
                     case Left(errors) => BadRequest(errors)

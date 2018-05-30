@@ -112,4 +112,55 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     assert(validationSiblings.left.get === List(s"Id badJob is used by more than 1 job"),
            "it means that errors messages are bad")
   }
+
+  test("it should create backfills on valid subperiods") {
+    val job1 = Job("job1", hourly(date"2117-03-25T02:00:00Z"))(completed)
+    val job2 = Job("job2", hourly(date"2117-03-24T02:00:00Z"))(completed)
+
+    // hours 1 2 3 4 5 6 7
+    // job1  VVVVVV--VVVVV
+    // job2  --VVVV----VVV
+    // V means that the job was done on that period. Periods are indivisible.
+    // Backfill requested from hour 2 to 7
+    // Backfills on periods overlapping valid calendar periods are automatically resolved when the actual backfill is run.
+    val jobStates = Map[TimeSeriesUtils.TimeSeriesJob, IntervalMap[Instant, JobState]](
+      job1 -> IntervalMap[Instant, JobState](List(
+        (Interval(date"2117-03-25T01:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done),
+        (Interval(date"2117-03-25T04:00:00Z", date"2117-03-25T05:00:00Z"), JobState.Todo(None)),
+        (Interval(date"2117-03-25T05:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done)
+      ):_*),
+      job2 -> IntervalMap[Instant, JobState](List(
+        (Interval(date"2117-03-25T02:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done),
+        (Interval(date"2117-03-25T04:00:00Z", date"2117-03-25T06:00:00Z"), JobState.Todo(None)),
+        (Interval(date"2117-03-25T06:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done)
+      ):_*)
+    )
+
+    val backfills = scheduler.createBackfills(
+      "mock_backfill",
+      "Test backfill",
+      Set(job1, job2),
+      jobStates,
+      start = date"2117-03-25T02:00:00Z",
+      end = date"2117-03-25T07:00:00Z",
+      priority = 0)(Auth.User("test_user_id")).sortBy(_.start)
+
+    assert(backfills.size === 3)
+    val firstBackfill = (backfills(0).start, backfills(0).end, backfills(0).jobs)
+    val secondBackfill = (backfills(1).start, backfills(1).end, backfills(1).jobs)
+    val thirdBackfill = (backfills(2).start, backfills(2).end, backfills(2).jobs)
+    backfills.forall { backfill =>
+      val validationErrors = scheduler.validateBackfill(backfill, jobStates)
+      validationErrors.isEmpty
+    }
+    assert(firstBackfill.equals(
+      (date"2117-03-25T02:00:00Z", date"2117-03-25T04:00:00Z", Set(job1, job2))
+    ))
+    assert(secondBackfill.equals(
+      (date"2117-03-25T05:00:00Z", date"2117-03-25T06:00:00Z", Set(job1))
+    ))
+    assert(thirdBackfill.equals(
+      (date"2117-03-25T06:00:00Z", date"2117-03-25T07:00:00Z", Set(job1, job2))
+    ))
+  }
 }

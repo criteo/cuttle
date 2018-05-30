@@ -6,15 +6,17 @@ import java.time.temporal.ChronoUnit._
 import java.time.temporal.{ChronoUnit, TemporalAdjusters}
 import java.util.UUID
 
+import scala.collection.mutable
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.stm._
 import scala.math.Ordering.Implicits._
 
 import cats._
-import cats.implicits._
 import cats.effect.IO
+import cats.implicits._
 import cats.mtl.implicits._
+import de.sciss.fingertree.RangedSeq
 import doobie._
 import doobie.implicits._
 import io.circe._
@@ -323,7 +325,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     (_state(), _backfills())
   }
 
-  private case class BackfillError(job: TimeSeriesJob, msg: String) {
+  private[timeseries] case class BackfillError(job: TimeSeriesJob, msg: String) {
     override def toString: String =
       s"""
          |Error during backfill creation.
@@ -336,7 +338,13 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
   private def assert(condition: Boolean, msg: String)(implicit job: TimeSeriesJob) =
     (if (condition) Right(true) else Left(BackfillError(job, msg))).right
 
-  private def validateAndUpdateState(backfill: Backfill) = atomic { implicit txn =>
+  /**
+    * @return the list of errors for the input backfill configuration, if any
+    */
+  private[timeseries] def validateBackfill(
+    backfill: Backfill,
+    states: Map[TimeSeriesUtils.TimeSeriesJob, IntervalMap[Instant, JobState]]
+  ): Set[BackfillError] = {
     val start = backfill.start
     val end = backfill.end
     val validationByJob = backfill.jobs.map { implicit job =>
@@ -345,7 +353,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         validIn <- {
           val interval = Interval(start, end)
           // collect all periods that are intersecting with [start, end]
-          val interval2State = _state().apply(job).intersect(interval).toList
+          val interval2State = states.apply(job).intersect(interval).toList
           // in a Done state, and correct periodicity
           Right(
             interval2State
@@ -369,45 +377,176 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
       } yield valid
     }
 
-    val isValidForAllJobs = validationByJob.forall(_.isRight)
-
-    if (isValidForAllJobs) {
-      _backfills() = _backfills() + backfill
-      _state() = _state() ++ backfill.jobs.map(job => {
-        val newStart = job.scheduling.calendar.truncate(backfill.start)
-        val newEnd = job.scheduling.calendar.ceil(backfill.end)
-        job -> _state().apply(job).update(Interval(newStart, newEnd), Todo(Some(backfill)))
-      })
-    }
-    (isValidForAllJobs, validationByJob)
+    validationByJob.flatMap(_ match {
+      case Left(error) => Some(error)
+      case Right(_) => None
+    })
   }
 
+  private def updateBackfillState(backfill: Backfill): Unit = atomic { implicit txn =>
+    _backfills() = _backfills() + backfill
+    _state() = _state() ++ backfill.jobs.map(job => {
+      val newStart = job.scheduling.calendar.truncate(backfill.start)
+      val newEnd = job.scheduling.calendar.ceil(backfill.end)
+      job -> _state().apply(job).update(Interval(newStart, newEnd), Todo(Some(backfill)))
+    })
+  }
+
+  /**
+    * Launch backfills on a set of jobs on each subperiod that can be backfilled.
+    * A job has to succeed at least once on a period to be backfillable on that same period.
+    * The current executions of jobs with periods overlapping the backfills are cancelled.
+    * @example Assume a backfill is requested over the period t1, t5 for the jobs = {job1, job2}
+    *          For illustrative purposes, let the past execution state be as follows:
+    *          <table>
+    *            <tr>
+    *              <th>Time</th> <th>t1</th> <th>t2</th> <th>t3</th> <th>t4</th> <th>t5</th>
+    *            </tr>
+    *            <tr>
+    *              <td>job1</td> <td>OK</td> <td>OK</td> <td>KO</td> <td>OK</td> <td>OK</td>
+    *            </tr>
+    *            <tr>
+    *              <td>job2</td> <td>OK</td> <td>OK</td> <td>KO</td> <td>KO</td> <td>OK</td>
+    *            </tr>
+    *          </table>
+    *          Then the backfill will be lauched on {t1, t2} for jobs {job1, job2}, on {t4} for {job1} and on {t5} for {job1, job2}
+    */
   private[timeseries] def backfillJob(name: String,
                                       description: String,
                                       jobs: Set[TimeSeriesJob],
                                       start: Instant,
                                       end: Instant,
                                       priority: Int,
+                                      runningExecutions: TMap[Execution[TimeSeries], Future[Completed]],
                                       xa: XA)(implicit user: Auth.User): IO[Either[String, Unit]] = {
 
-    val newBackfill = Backfill(
-      UUID.randomUUID().toString,
-      start,
-      end,
-      jobs,
-      priority,
-      name,
-      description,
-      "RUNNING",
-      user.userId
-    )
 
-    val (isBackfillValid, validationByJob) = validateAndUpdateState(newBackfill)
+    val backfillErrors: List[String] = atomic { implicit txn =>
+      val errors = mutable.ArrayBuffer.empty[String]
+      val backfills = createBackfills(name, description, jobs, _state(), start, end, priority)
 
-    if (isBackfillValid)
-      Database.createBackfill(newBackfill).transact(xa).map(_ => Right(Unit))
+      val validBackfills: List[Backfill] = backfills.flatMap { newBackfill =>
+        validateBackfill(newBackfill, _state()).toList match {
+          case Nil =>  Some(newBackfill)
+          case (validationErrors) =>
+            errors += validationErrors.mkString("\n")
+            None
+        }
+      }
+
+      if (errors.isEmpty) {
+        val executionsToCancel = listExecutionsToCancelGivenBackfills(validBackfills, _state(), runningExecutions.keys)
+        executionsToCancel.foreach { e =>
+          logger.info(s"Cancelling running execution ${e.id} for job ${e.job.id}")
+          e.cancel()
+        }
+        Future.sequence(executionsToCancel.map(runningExecutions.apply))
+          .andThen { case _ => validBackfills.foreach { newBackfill =>
+            updateBackfillState(newBackfill)
+            Database.createBackfill(newBackfill).transact(xa)
+          } }
+      }
+      errors.toList
+    }
+
+
+
+    if (backfillErrors.nonEmpty)
+      IO.pure(Left(backfillErrors.mkString("\n")))
     else
-      IO.pure(Left(validationByJob.collect { case Left(error) => error }.mkString("\n")))
+      IO.pure(Right(Unit))
+  }
+
+  private[timeseries] def listExecutionsToCancelGivenBackfills(
+      backfills: List[Backfill],
+      states: Map[TimeSeriesUtils.TimeSeriesJob, IntervalMap[Instant, JobState]],
+      runningExecutions: Iterable[Execution[TimeSeries]]): List[Execution[TimeSeries]] = {
+
+    val intervalsToBackfill = backfills.map(backfill => Interval(backfill.start, backfill.end))
+    val jobsToBackfill = backfills.flatMap(_.jobs)
+
+    lazy val executionsById = runningExecutions.map(e => e.id -> e).toMap
+
+    // collect all the running executions that are intersecting with the backfill period
+    val executionsToCancel = intervalsToBackfill.flatMap { interval =>
+      jobsToBackfill.flatMap { job =>
+        val interval2State = states(job).intersect(interval).toList
+        interval2State.collect {
+          case (period, Running(executionId)) => executionsById(executionId)
+        }
+      }
+    }
+
+    executionsToCancel
+  }
+
+  private[timeseries] def createBackfills(name: String,
+                                          description: String,
+                                          jobs: Set[TimeSeriesJob],
+                                          states: Map[TimeSeriesUtils.TimeSeriesJob, IntervalMap[Instant, JobState]],
+                                          start: Instant,
+                                          end: Instant,
+                                          priority: Int)(implicit user: Auth.User): List[Backfill] = {
+    type TimeInterval = (Instant, Instant)
+
+    val queryInterval = Interval(start, end)
+
+    // Identify the jobs to backfill for each elementary period spanning the query interval
+
+    // Find jobs which can be backfilled on the requested period. Those are the jobs whose state is 'Done'.
+    val candidateBackfillsByPeriod: List[(TimeInterval, TimeSeriesJob)] = jobs.flatMap { job =>
+      // collect all periods that are intersecting with [start, end]
+      val interval2State: List[(Interval[Instant], JobState)] = states(job).intersect(queryInterval).toList
+      // in a Done state, and correct periodicity
+      interval2State.collect { case (Interval(Finite(lo), Finite(hi)), Done) =>
+        (lo, hi) -> job
+      }
+    }.toList
+
+    val candidateBackfillsGroupedByPeriod: Map[TimeInterval, Set[TimeSeriesJob]] = candidateBackfillsByPeriod
+      .groupBy { case (interval, job) => interval }
+      .map { case (interval, groups) => interval -> groups.map { case (interval, job) => job }.toSet }
+
+    val orderingByTimestamp = Ordering.by { e: Instant => e.toEpochMilli }
+
+    // Build an interval tree with the jobs to backfill for faster intersection queries
+    var jobsByElementaryPeriod = RangedSeq.empty[(TimeInterval, Set[TimeSeriesJob]), Instant](_._1, orderingByTimestamp)
+
+    candidateBackfillsGroupedByPeriod.foreach { case (interval, jobs) =>
+      jobsByElementaryPeriod = jobsByElementaryPeriod + (interval -> jobs)
+    }
+
+    val elementaryPeriods: List[(Instant, Instant)] = candidateBackfillsByPeriod
+      .flatMap {case (interval, _) => List(interval._1, interval._2) }
+      .distinct
+      .sorted
+      .iterator
+      .sliding(2).withPartial(false).toList
+      .map { case List(start, end) => (start, end)}
+
+    val jobsToBackFillByPeriod: List[(TimeInterval, Set[TimeSeriesJob])] = elementaryPeriods.map { case (start, end) =>
+      val jobsOnPeriod = jobsByElementaryPeriod.filterOverlaps(start -> end)
+        .map(_._2)
+        .foldLeft(Set.empty[TimeSeriesJob])(_ ++ _)
+      (start, end) -> jobsOnPeriod
+    }.filter { case (interval, jobs) => jobs.nonEmpty }
+
+
+    val backfills: List[Backfill] = jobsToBackFillByPeriod.map { case ((backfillStart, backfillEnd), jobsToBackfill) =>
+      Backfill(
+        UUID.randomUUID().toString,
+        backfillStart,
+        backfillEnd,
+        jobsToBackfill,
+        priority,
+        name,
+        description,
+        "RUNNING",
+        user.userId
+      )
+    }
+
+    backfills
   }
 
   def start(workflow: Workflow[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
