@@ -2,6 +2,7 @@ package com.criteo.cuttle.platforms.http
 
 import java.util.concurrent.TimeUnit
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent._
 
 import cats.effect.IO
@@ -91,7 +92,7 @@ object HttpPlatform {
     * @param request The [[lol.http.Request Request]] to run.
     * @param thunk The function handling the HTTP resposne once received.
     */
-  def request[A, S <: Scheduling](request: Request)(thunk: Response => Future[A])(
+  def request[A, S <: Scheduling](request: Request, timeout: FiniteDuration = FiniteDuration(30, "seconds"))(thunk: Response => Future[A])(
     implicit execution: Execution[S]): Future[A] = {
     val streams = execution.streams
     streams.debug(s"HTTP request: ${request}")
@@ -111,7 +112,7 @@ object HttpPlatform {
 
         rateLimiter.run(execution, debug = request.toString) { () =>
           Client
-            .run(request) { response =>
+            .run(request, timeout = timeout) { response =>
               streams.debug(s"Got response: $response")
               IO.fromFuture(IO.pure(thunk(response)))
             }
