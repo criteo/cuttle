@@ -4,13 +4,13 @@ import java.io.{PrintWriter, StringWriter}
 import java.time.{Duration, Instant, ZoneId}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Timer, TimerTask}
-
 import scala.concurrent.duration._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
 import scala.reflect.{classTag, ClassTag}
 import scala.util.{Failure, Success, Try}
+
 import cats.Eq
 import cats.effect.IO
 import cats.implicits._
@@ -19,6 +19,7 @@ import doobie.util.fragment.Fragment
 import io.circe._
 import io.circe.syntax._
 import lol.http.PartialService
+
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionContexts.{SideEffectExecutionContext, _}
 import com.criteo.cuttle.Metrics._
@@ -72,6 +73,12 @@ private[cuttle] object ExecutionStatus {
   case object ExecutionThrottled extends ExecutionStatus
   case object ExecutionWaiting extends ExecutionStatus
   case object ExecutionTodo extends ExecutionStatus
+}
+
+object FinishedExecutionStatus extends Enumeration {
+  type FinishedExecutionStatus = Value
+  val Success: FinishedExecutionStatus = new Val("success")
+  val Failure: FinishedExecutionStatus = new Val("failure")
 }
 
 private[cuttle] case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[Instant]) {
@@ -726,7 +733,10 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private def unsafeDoRun(execution: Execution[S], promise: Promise[Completed]): Unit =
     promise.completeWith(
-      (Try(execution.run()) match {
+      (Try {
+        initializeFinishedExecutionCounters(execution)
+        execution.run()
+      } match {
         case Success(f) => f
         case Failure(e) => if (execution.forcedSuccess.single()) Future.successful(Completed) else Future.failed(e)
       }).andThen {
@@ -735,7 +745,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             atomic { implicit txn =>
               runningState -= execution
               recentFailures -= (execution.job -> execution.context)
-              updateFinishedExecutionCounters(execution, "success")
+              updateFinishedExecutionCounters(execution, FinishedExecutionStatus.Success)
             }
           case Failure(e) =>
             val stacktrace = new StringWriter()
@@ -744,7 +754,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             execution.streams.error(stacktrace.toString)
             atomic {
               implicit tx =>
-                updateFinishedExecutionCounters(execution, "failure")
+                updateFinishedExecutionCounters(execution, FinishedExecutionStatus.Failure)
                 // retain jobs in recent failures if last failure happened in [now - retryStrategy.retryWindow, now]
                 recentFailures.retain {
                   case (_, (retryExecution, failingJob)) =>
@@ -781,17 +791,31 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
             }
         })
 
-  private[cuttle] def updateFinishedExecutionCounters(execution: Execution[S], status: String): Unit =
+  private[cuttle] def updateFinishedExecutionCounters(execution: Execution[S],
+                                                      status: FinishedExecutionStatus.Value): Unit =
     atomic { implicit txn =>
-      val tagsLabel =
-        if (execution.job.tags.nonEmpty)
-          Set("tags" -> execution.job.tags.map(_.name).mkString(","))
-        else
-          Set.empty
       executionsCounters() = executionsCounters().inc(
-        Set("type" -> status, "job_id" -> execution.job.id) ++ tagsLabel
+        Set("type" -> status.toString) ++ getFinishedExecutionLabel(execution)
       )
     }
+
+  private[cuttle] def initializeFinishedExecutionCounters(execution: Execution[S]): Unit =
+    atomic { implicit txn =>
+      val label = getFinishedExecutionLabel(execution)
+      executionsCounters() = FinishedExecutionStatus.values.foldLeft(executionsCounters()) { (counters, status) =>
+        counters.initialize(Set("type" -> status.toString) ++ label)
+      }
+    }
+
+  private def getFinishedExecutionLabel(execution: Execution[S]): Set[(String, String)] = {
+    val tagsLabel =
+      if (execution.job.tags.nonEmpty)
+        Set("tags" -> execution.job.tags.map(_.name).mkString(","))
+      else
+        Set.empty
+    Set("job_id" -> execution.job.id) ++ tagsLabel
+  }
+
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
