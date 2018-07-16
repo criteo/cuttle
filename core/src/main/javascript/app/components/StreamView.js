@@ -70,9 +70,9 @@ class StreamView extends React.Component<Props, State> {
           return (
             <li key={i}>
               <span>{timestamp}</span>
-              <p className={props.classes[level]}>
+              <div className={props.classes[level]}>
                 {highlightURLs(message)}
-              </p>
+              </div>
             </li>
           );
         })}
@@ -123,10 +123,11 @@ const styles = {
       color: "#747a88",
       display: "inline-block",
       marginRight: "15px",
-      boxSizing: "border-box"
+      boxSizing: "border-box",
+      userSelect: "none"
     },
 
-    "& p": {
+    "& div": {
       display: "inline-block",
       margin: "0",
       color: "#f1f1f1",
