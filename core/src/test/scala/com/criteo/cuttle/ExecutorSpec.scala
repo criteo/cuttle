@@ -33,12 +33,19 @@ class ExecutorSpec extends FunSuite with TestScheduling {
       "test_project"
     )(RetryStrategy.ExponentialBackoffRetryStrategy)
 
-    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooJob), "success")
-    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooJob), "success")
-    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(untaggedJob), "success")
-    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooBarJob), "success")
-    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(untaggedJob), "failure")
-    testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooBarJob), "failure")
+    def fakeRun(job: Job[TestScheduling], finalState: FinishedExecutionStatus.Value): Unit = {
+      val execution = buildExecutionForJob(job)
+      testExecutor.initializeFinishedExecutionCounters(execution)
+      testExecutor.updateFinishedExecutionCounters(execution, finalState)
+    }
+
+    fakeRun(fooJob, FinishedExecutionStatus.Success)
+    fakeRun(fooJob, FinishedExecutionStatus.Success)
+    fakeRun(untaggedJob, FinishedExecutionStatus.Success)
+    fakeRun(fooBarJob, FinishedExecutionStatus.Success)
+    fakeRun(untaggedJob, FinishedExecutionStatus.Failure)
+    fakeRun(fooBarJob, FinishedExecutionStatus.Failure)
+    testExecutor.initializeFinishedExecutionCounters(buildExecutionForJob(unfinishedJob))
 
     val metrics = Prometheus.serialize(
       testExecutor.getMetrics(Set("jobA"))(
@@ -98,9 +105,12 @@ class ExecutorSpec extends FunSuite with TestScheduling {
          |cuttle_scheduler_stat_count_by_job {job="untagged_job", type="paused"} 1
          |# HELP cuttle_executions_total The number of finished executions that we have in concrete states by job and by tag
          |# TYPE cuttle_executions_total counter
+         |cuttle_executions_total {type="failure", job_id="foo_job", tags="foo"} 0
          |cuttle_executions_total {type="success", job_id="foo_bar_job", tags="foo,bar"} 1
          |cuttle_executions_total {type="success", job_id="foo_job", tags="foo"} 2
          |cuttle_executions_total {type="failure", job_id="foo_bar_job", tags="foo,bar"} 1
+         |cuttle_executions_total {type="failure", job_id="unfinished_job"} 0
+         |cuttle_executions_total {type="success", job_id="unfinished_job"} 0
          |cuttle_executions_total {type="success", job_id="untagged_job"} 1
          |cuttle_executions_total {type="failure", job_id="untagged_job"} 1
          |""".stripMargin
@@ -133,4 +143,6 @@ class ExecutorSpec extends FunSuite with TestScheduling {
   private val fooBarJob: Job[TestScheduling] = buildJob("foo_bar_job", Set(fooTag, barTag))
 
   private val untaggedJob: Job[TestScheduling] = buildJob("untagged_job")
+
+  private val unfinishedJob: Job[TestScheduling] = buildJob("unfinished_job")
 }

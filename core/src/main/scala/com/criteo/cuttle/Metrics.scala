@@ -63,6 +63,12 @@ object Metrics {
       val currentCount = labels2Value.getOrElse(label, number.zero).asInstanceOf[T]
       copy(labels2Value = labels2Value + (label -> number.plus(currentCount, number.one).asInstanceOf[AnyVal]))
     }
+
+    def initialize(label: Set[(String, String)]): Counter[T] =
+      if (labels2Value.contains(label))
+        this
+      else
+        copy(labels2Value = labels2Value + (label -> number.zero.asInstanceOf[AnyVal]))
   }
 
   /** Components able to provide metrics. */
