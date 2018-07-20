@@ -63,6 +63,11 @@ object Metrics {
       val currentCount = labels2Value.getOrElse(label, number.zero).asInstanceOf[T]
       copy(labels2Value = labels2Value + (label -> number.plus(currentCount, number.one).asInstanceOf[AnyVal]))
     }
+
+    def withDefaultsFor(labels: Seq[Set[(String, String)]]): Counter[T] = {
+      val n = labels.map(label => label -> number.zero.asInstanceOf[AnyVal]).toList.toMap
+      copy(labels2Value = n ++ labels2Value)
+    }
   }
 
   /** Components able to provide metrics. */
@@ -76,7 +81,7 @@ object Metrics {
         val labeledMetrics = metric.labels2Value.map {
           case (labels, value) =>
             val labelsSerialized =
-              if (labels.nonEmpty) s" {${labels.map(label => s"""${label._1}="${label._2}"""").mkString(", ")}} "
+              if (labels.nonEmpty) s" {${labels.toSeq.sortBy(_._1).map(label => s"""${label._1}="${label._2}"""").mkString(", ")}} "
               else " "
             s"${metric.name}$labelsSerialized$value"
         }

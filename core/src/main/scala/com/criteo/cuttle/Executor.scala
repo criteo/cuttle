@@ -976,19 +976,21 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private case class ExecutionInfo(jobId: String, tags: Set[String], status: ExecutionStatus)
 
   /**
-    * @param jobs list of job IDs
+    * @param jobs list of jobs
     * @param getStateAtomic Atomically get executor stats. Given a list of jobs ids, returns how much
     *                       ((running, waiting), paused, failing) jobs are in concrete states
     * @param runningExecutions executions which are either either running or waiting for a free thread to start
     *                          @param pausedExecutions
     */
-  private[cuttle] def getMetrics(jobs: Set[String])(
+  private[cuttle] def getMetrics(jobs: Set[Job[S]])(
     getStateAtomic: Set[String] => ((Int, Int), Int, Int),
     runningExecutions: Seq[(Execution[S], ExecutionStatus)],
     pausedExecutions: Seq[Execution[S]],
     failingExecutions: Seq[Execution[S]]
   ): Seq[Metric] = {
-    val ((runningCount, waitingCount), pausedCount, failingCount) = getStateAtomic(jobs)
+    val jobIds = jobs.map(_.id)
+
+    val ((runningCount, waitingCount), pausedCount, failingCount) = getStateAtomic(jobIds)
     val statMetrics = Seq(
       Gauge("cuttle_scheduler_stat_count", "The number of jobs that we have in concrete states")
         .labeled("type" -> "running", runningCount)
@@ -1017,7 +1019,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     statMetrics ++
       Seq(getMetricsByTag(running, waiting, paused, failing)) ++
       Seq(getMetricsByJob(running, waiting, paused, failing)) ++
-      Seq(executionsCounters.single())
+      Seq(executionsCounters.single().withDefaultsFor({
+        for {
+          job <- jobs.toSeq
+          outcome <- Seq("success", "failure")
+        } yield Set(("job_id", job.id), ("type", outcome)) ++ (if (job.tags.nonEmpty) Set("tags" -> job.tags.map(_.name).mkString(",")) else Nil)
+      }))
   }
 
   /**
@@ -1025,7 +1032,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     */
   override def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric] =
     atomic { implicit txn =>
-      getMetrics(jobs)(
+      getMetrics(workflow.vertices)(
         getStateAtomic,
         runningExecutions,
         pausedState.values.flatMap(_.executions.keys).toSeq,
