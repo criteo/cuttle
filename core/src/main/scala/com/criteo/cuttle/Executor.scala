@@ -613,8 +613,13 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val pauseDate = Instant.now()
-    val pausedJobs = jobs.map(job => PausedJob(job.id, user, pauseDate))
-    val pauseQuery = pausedJobs.map(queries.pauseJob).reduceLeft(_ *> _)
+    val pausedJobIds = pausedJobs.map(_.id)
+    val pauseJobs = jobs
+      .filter(job => !pausedJobIds.contains(job.id))
+      .map(job => PausedJob(job.id, user, pauseDate))
+    if (pauseJobs.isEmpty) return
+
+    val pauseQuery = pauseJobs.map(queries.pauseJob).reduceLeft(_ *> _)
 
     val executionsToCancel = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
@@ -624,8 +629,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         }
       })
 
-      pausedJobs.flatMap { pausedJob =>
-        pausedState.getOrElseUpdate(pausedJob.id, pausedJob.toPausedJobWithExecutions())
+      pauseJobs.flatMap { pausedJob =>
+        pausedState.update(pausedJob.id, pausedJob.toPausedJobWithExecutions())
         runningState.filterKeys(_.job.id == pausedJob.id).keys ++ throttledState
           .filterKeys(_.job.id == pausedJob.id)
           .keys
