@@ -612,15 +612,15 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     ExecutionStreams.getStreams(executionId, queries, xa)
 
   private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
-    val pauseDate = Instant.now()
-    val pausedJobIds = pausedJobs.map(_.id)
-    val jobsToPause = jobs
-      .filter(job => !pausedJobIds.contains(job.id))
-      .map(job => PausedJob(job.id, user, pauseDate))
-    if (jobsToPause.isEmpty) return
-
-    val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
     val executionsToCancel = atomic { implicit tx =>
+      val pauseDate = Instant.now()
+      val pausedJobIds = pausedJobs.map(_.id)
+      val jobsToPause = jobs
+        .filter(job => !pausedJobIds.contains(job.id))
+        .map(job => PausedJob(job.id, user, pauseDate))
+      if (jobsToPause.isEmpty) return
+
+      val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit txn: InTxnEnd): Boolean = {
           pauseQuery.transact(xa).unsafeRunSync
