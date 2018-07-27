@@ -614,13 +614,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
     val pauseDate = Instant.now()
     val pausedJobIds = pausedJobs.map(_.id)
-    val pauseJobs = jobs
+    val jobsToPause = jobs
       .filter(job => !pausedJobIds.contains(job.id))
       .map(job => PausedJob(job.id, user, pauseDate))
-    if (pauseJobs.isEmpty) return
+    if (jobsToPause.isEmpty) return
 
-    val pauseQuery = pauseJobs.map(queries.pauseJob).reduceLeft(_ *> _)
-
+    val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
     val executionsToCancel = atomic { implicit tx =>
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit txn: InTxnEnd): Boolean = {
@@ -629,7 +628,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         }
       })
 
-      pauseJobs.flatMap { pausedJob =>
+      jobsToPause.flatMap { pausedJob =>
         pausedState.update(pausedJob.id, pausedJob.toPausedJobWithExecutions())
         runningState.filterKeys(_.job.id == pausedJob.id).keys ++ throttledState
           .filterKeys(_.job.id == pausedJob.id)
@@ -1024,12 +1023,18 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     statMetrics ++
       Seq(getMetricsByTag(running, waiting, paused, failing)) ++
       Seq(getMetricsByJob(running, waiting, paused, failing)) ++
-      Seq(executionsCounters.single().withDefaultsFor({
-        for {
-          job <- jobs.toSeq
-          outcome <- Seq("success", "failure")
-        } yield Set(("job_id", job.id), ("type", outcome)) ++ (if (job.tags.nonEmpty) Set("tags" -> job.tags.map(_.name).mkString(",")) else Nil)
-      }))
+      Seq(
+        executionsCounters
+          .single()
+          .withDefaultsFor({
+            for {
+              job <- jobs.toSeq
+              outcome <- Seq("success", "failure")
+            } yield
+              Set(("job_id", job.id), ("type", outcome)) ++ (if (job.tags.nonEmpty)
+                                                               Set("tags" -> job.tags.map(_.name).mkString(","))
+                                                             else Nil)
+          }))
   }
 
   /**
