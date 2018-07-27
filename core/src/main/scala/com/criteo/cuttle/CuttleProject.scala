@@ -3,6 +3,7 @@ package com.criteo.cuttle
 import lol.http._
 
 import com.criteo.cuttle.ExecutionContexts._, Implicits.serverExecutionContext
+import com.criteo.cuttle.Auth.User
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
@@ -34,10 +35,16 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
-    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
+    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
+    paused: Boolean = false
   ): Unit = {
     val xa = Database.connect(databaseConfig)
     val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
+
+    if (paused) {
+      logger.info("Pausing workflow")
+      executor.pauseJobs(workflow.vertices)(User("Startup"))
+    }
 
     logger.info("Start workflow")
     scheduler.start(workflow, executor, xa, logger)

@@ -612,11 +612,15 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     ExecutionStreams.getStreams(executionId, queries, xa)
 
   private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
-    val pauseDate = Instant.now()
-    val pausedJobs = jobs.map(job => PausedJob(job.id, user, pauseDate))
-    val pauseQuery = pausedJobs.map(queries.pauseJob).reduceLeft(_ *> _)
-
     val executionsToCancel = atomic { implicit tx =>
+      val pauseDate = Instant.now()
+      val pausedJobIds = pausedJobs.map(_.id)
+      val jobsToPause = jobs
+        .filter(job => !pausedJobIds.contains(job.id))
+        .map(job => PausedJob(job.id, user, pauseDate))
+      if (jobsToPause.isEmpty) return
+
+      val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
       Txn.setExternalDecider(new ExternalDecider {
         def shouldCommit(implicit txn: InTxnEnd): Boolean = {
           pauseQuery.transact(xa).unsafeRunSync
@@ -624,8 +628,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         }
       })
 
-      pausedJobs.flatMap { pausedJob =>
-        pausedState.getOrElseUpdate(pausedJob.id, pausedJob.toPausedJobWithExecutions())
+      jobsToPause.flatMap { pausedJob =>
+        pausedState.update(pausedJob.id, pausedJob.toPausedJobWithExecutions())
         runningState.filterKeys(_.job.id == pausedJob.id).keys ++ throttledState
           .filterKeys(_.job.id == pausedJob.id)
           .keys
@@ -1019,12 +1023,18 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     statMetrics ++
       Seq(getMetricsByTag(running, waiting, paused, failing)) ++
       Seq(getMetricsByJob(running, waiting, paused, failing)) ++
-      Seq(executionsCounters.single().withDefaultsFor({
-        for {
-          job <- jobs.toSeq
-          outcome <- Seq("success", "failure")
-        } yield Set(("job_id", job.id), ("type", outcome)) ++ (if (job.tags.nonEmpty) Set("tags" -> job.tags.map(_.name).mkString(",")) else Nil)
-      }))
+      Seq(
+        executionsCounters
+          .single()
+          .withDefaultsFor({
+            for {
+              job <- jobs.toSeq
+              outcome <- Seq("success", "failure")
+            } yield
+              Set(("job_id", job.id), ("type", outcome)) ++ (if (job.tags.nonEmpty)
+                                                               Set("tags" -> job.tags.map(_.name).mkString(","))
+                                                             else Nil)
+          }))
   }
 
   /**
