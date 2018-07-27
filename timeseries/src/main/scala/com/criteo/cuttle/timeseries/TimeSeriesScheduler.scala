@@ -439,18 +439,13 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
         }
       }
 
-      if (backfillErrors.isEmpty) {
-        val concurrentExecutions = listExecutionsToCancelGivenBackfills(validBackfills, _state(), runningExecutions.keys)
-        Right((validBackfills, concurrentExecutions))
-      }
+      if (backfillErrors.isEmpty) Right(validBackfills)
       else Left(backfillErrors.toList)
     }
 
     result match {
       case Left(errors) => IO.pure(Left(errors.mkString("\n")))
-      case Right((backfills, concurrentExecutions)) =>
-        // Request concurrent execution cancellation and ignore the returned result
-        concurrentExecutions.map(_.cancel())
+      case Right(backfills) =>
         val dbUpdate: IO[Either[String, Unit]] = backfills.map { newBackfill =>
           updateBackfillState(newBackfill)
           Database.createBackfill(newBackfill).transact(xa)
@@ -458,29 +453,6 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
 
         dbUpdate
     }
-  }
-
-  private[timeseries] def listExecutionsToCancelGivenBackfills(
-      backfills: List[Backfill],
-      states: Map[TimeSeriesUtils.TimeSeriesJob, IntervalMap[Instant, JobState]],
-      runningExecutions: Iterable[Execution[TimeSeries]]): List[Execution[TimeSeries]] = {
-
-    val intervalsToBackfill = backfills.map(backfill => Interval(backfill.start, backfill.end))
-    val jobsToBackfill = backfills.flatMap(_.jobs)
-
-    lazy val executionsById = runningExecutions.map(e => e.id -> e).toMap
-
-    // collect all the running executions that are intersecting with the backfill period
-    val executionsToCancel = intervalsToBackfill.flatMap { interval =>
-      jobsToBackfill.flatMap { job =>
-        val interval2State = states(job).intersect(interval).toList
-        interval2State.collect {
-          case (period, Running(executionId)) => executionsById(executionId)
-        }
-      }
-    }
-
-    executionsToCancel
   }
 
   private[timeseries] def createBackfills(name: String,
