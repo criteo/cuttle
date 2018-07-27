@@ -41,7 +41,7 @@ class ExecutorSpec extends FunSuite with TestScheduling {
     testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooBarJob), "failure")
 
     val metrics = Prometheus.serialize(
-      testExecutor.getMetrics(Set("jobA"))(
+      testExecutor.getMetrics(Set(fooJob))(
         getStateAtomic = _ => {
           ((5, 1), 3, 2)
         },
@@ -98,11 +98,12 @@ class ExecutorSpec extends FunSuite with TestScheduling {
          |cuttle_scheduler_stat_count_by_job {job="untagged_job", type="paused"} 1
          |# HELP cuttle_executions_total The number of finished executions that we have in concrete states by job and by tag
          |# TYPE cuttle_executions_total counter
-         |cuttle_executions_total {type="success", job_id="foo_bar_job", tags="foo,bar"} 1
-         |cuttle_executions_total {type="success", job_id="foo_job", tags="foo"} 2
-         |cuttle_executions_total {type="failure", job_id="foo_bar_job", tags="foo,bar"} 1
-         |cuttle_executions_total {type="success", job_id="untagged_job"} 1
-         |cuttle_executions_total {type="failure", job_id="untagged_job"} 1
+         |cuttle_executions_total {job_id="foo_job", tags="foo", type="failure"} 0
+         |cuttle_executions_total {job_id="foo_bar_job", tags="foo,bar", type="success"} 1
+         |cuttle_executions_total {job_id="foo_job", tags="foo", type="success"} 2
+         |cuttle_executions_total {job_id="foo_bar_job", tags="foo,bar", type="failure"} 1
+         |cuttle_executions_total {job_id="untagged_job", type="success"} 1
+         |cuttle_executions_total {job_id="untagged_job", type="failure"} 1
          |""".stripMargin
 
     assert(metrics == expectedMetrics)
