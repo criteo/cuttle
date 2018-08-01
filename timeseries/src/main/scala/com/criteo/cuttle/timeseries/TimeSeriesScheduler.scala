@@ -396,6 +396,9 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
     * Launch backfills on a set of jobs on each subperiod that can be backfilled.
     * A job has to succeed at least once on a period to be backfillable on that same period.
     * The current executions of jobs with periods overlapping the backfills are cancelled.
+    *
+    * @returns a side-effect performing the requested backfill on success, an error otherwise
+    *
     * @example Assume a backfill is requested over the period t1, t5 for the jobs = {job1, job2}
     *          For illustrative purposes, let the past execution state be as follows:
     *          <table>
@@ -420,41 +423,41 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] wit
                                       runningExecutions: TMap[Execution[TimeSeries], Future[Completed]],
                                       xa: XA)(implicit user: Auth.User): IO[Either[String, Unit]] = {
 
+    logger.debug(s"Requesting a backfill of ${jobs.map(_.id)} between $start and $end")
 
-    val backfillErrors: List[String] = atomic { implicit txn =>
-      val errors = mutable.ArrayBuffer.empty[String]
-      val backfills = createBackfills(name, description, jobs, _state(), start, end, priority)
+    val result = atomic { implicit txn =>
+      val currentJobStates = _state()
+      val backfillErrors = mutable.ArrayBuffer.empty[String]
+      val backfills = createBackfills(name, description, jobs, currentJobStates, start, end, priority)
 
       val validBackfills: List[Backfill] = backfills.flatMap { newBackfill =>
-        validateBackfill(newBackfill, _state()).toList match {
+        validateBackfill(newBackfill, currentJobStates).toList match {
           case Nil =>  Some(newBackfill)
           case (validationErrors) =>
-            errors += validationErrors.mkString("\n")
+            backfillErrors += validationErrors.mkString("\n")
             None
         }
       }
 
-      if (errors.isEmpty) {
-        val executionsToCancel = listExecutionsToCancelGivenBackfills(validBackfills, _state(), runningExecutions.keys)
-        executionsToCancel.foreach { e =>
-          logger.info(s"Cancelling running execution ${e.id} for job ${e.job.id}")
-          e.cancel()
-        }
-        Future.sequence(executionsToCancel.map(runningExecutions.apply))
-          .andThen { case _ => validBackfills.foreach { newBackfill =>
-            updateBackfillState(newBackfill)
-            Database.createBackfill(newBackfill).transact(xa)
-          } }
+      if (backfillErrors.isEmpty) {
+        val concurrentExecutions = listExecutionsToCancelGivenBackfills(validBackfills, _state(), runningExecutions.keys)
+        Right((validBackfills, concurrentExecutions))
       }
-      errors.toList
+      else Left(backfillErrors.toList)
     }
 
+    result match {
+      case Left(errors) => IO.pure(Left(errors.mkString("\n")))
+      case Right((backfills, concurrentExecutions)) =>
+        // Request concurrent execution cancellation and ignore the returned result
+        concurrentExecutions.map(_.cancel())
+        val dbUpdate: IO[Either[String, Unit]] = backfills.map { newBackfill =>
+          updateBackfillState(newBackfill)
+          Database.createBackfill(newBackfill).transact(xa)
+        }.sequence.map(_ => Right(Unit))
 
-
-    if (backfillErrors.nonEmpty)
-      IO.pure(Left(backfillErrors.mkString("\n")))
-    else
-      IO.pure(Right(Unit))
+        dbUpdate
+    }
   }
 
   private[timeseries] def listExecutionsToCancelGivenBackfills(
