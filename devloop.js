@@ -35,7 +35,7 @@ let front = webpack({
 
 let server = runServer({
   httpPort: 8888,
-  sh: "java -cp `cat /tmp/classpath_com.criteo.cuttle.examples` com.criteo.cuttle.examples.HelloWorld",
+  sh: "java -cp `cat /tmp/classpath_com.criteo.cuttle.examples` com.criteo.cuttle.examples.HelloTimeSeries",
   env: {
     MYSQL_LOCATIONS: "localhost:3388",
     MYSQL_DATABASE: "cuttle_dev",

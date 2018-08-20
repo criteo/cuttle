@@ -3,6 +3,8 @@ package com.criteo.cuttle
 import java.time.{Instant, ZoneId}
 
 import scala.language.experimental.macros
+import scala.language.implicitConversions
+
 import codes.reactive.scalatime._
 
 import scala.reflect.macros.blackbox
@@ -19,6 +21,13 @@ import scala.reflect.macros.blackbox
 package object timeseries {
 
   import TimeSeriesCalendar._
+
+  /** Convert a single job to Workflow of a single job. */
+  implicit def jobAsWorkflow(job: Job[TimeSeries]): Workflow =
+    new Workflow {
+      def vertices = Set(job)
+      def edges = Set.empty
+    }
 
   /** Utility that allow to define compile time safe date literals. Meaning that compilation
     * will fail if the date literal cannot be parsed into a UTC instant.

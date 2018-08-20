@@ -20,7 +20,7 @@ import io.circe._
 import io.circe.syntax._
 import lol.http.PartialService
 import com.criteo.cuttle.Auth._
-import com.criteo.cuttle.ExecutionContexts.{SideEffectExecutionContext, _}
+import com.criteo.cuttle.ThreadPools.{SideEffectThreadPool, _}
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle.platforms.ExecutionPool
 
@@ -138,13 +138,6 @@ private[cuttle] case class PausedJob(id: String, user: User, date: Instant) {
     PausedJobWithExecutions(id, user, date, Map.empty[Execution[S], Promise[Completed]])
 }
 
-//private[cuttle] object PausedJob {
-//  import io.circe.generic.semiauto._
-//  import io.circe._
-//
-//  implicit val encoder: Encoder[PausedJob] = deriveEncoder
-//}
-
 /** [[Execution Executions]] are created by the [[Scheduler]].
   *
   * @param id The unique id for this execution. Guaranteed to be unique.
@@ -161,7 +154,7 @@ case class Execution[S <: Scheduling](
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
   projectName: String
-)(implicit val executionContext: SideEffectExecutionContext) {
+)(implicit val executionContext: SideEffectThreadPool) {
 
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
@@ -241,7 +234,7 @@ case class Execution[S <: Scheduling](
       job.id,
       startTime,
       None,
-      context.toJson,
+      context.asJson,
       status,
       waitingSeconds = waitingSeconds,
       failing = failing
@@ -360,7 +353,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     extends MetricProvider[S] {
 
   import ExecutionStatus._
-  import Implicits.sideEffectExecutionContext
+  import Implicits.sideEffectThreadPool
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
@@ -778,7 +771,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   execution
                     .toExecutionLog(if (result.isSuccess) ExecutionSuccessful else ExecutionFailed)
                     .copy(endTime = Some(Instant.now)),
-                  execution.context.log
+                  execution.context.logIntoDatabase
                 )
                 .transact(xa)
                 .unsafeRunSync
@@ -870,7 +863,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           case (job, execution, promise, whatToDo) =>
             Future {
               execution.streams.debug(s"Execution: ${execution.id}")
-              execution.streams.debug(s"Context: ${execution.context.toJson}")
+              execution.streams.debug(s"Context: ${execution.context.asJson}")
               execution.streams.debug()
               whatToDo match {
                 case ToRunNow =>
@@ -980,7 +973,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private case class ExecutionInfo(jobId: String, tags: Set[String], status: ExecutionStatus)
 
   /**
-    * @param jobs list of jobs
+    * @param jobs list of jobs whose metrics will be retrieved
     * @param getStateAtomic Atomically get executor stats. Given a list of jobs ids, returns how much
     *                       ((running, waiting), paused, failing) jobs are in concrete states
     * @param runningExecutions executions which are either either running or waiting for a free thread to start
@@ -1040,9 +1033,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   /**
     * @param jobs the list of jobs ids
     */
-  override def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric] =
+  override def getMetrics(jobIds: Set[String], jobs: Workload[S]): Seq[Metric] =
     atomic { implicit txn =>
-      getMetrics(workflow.vertices)(
+      getMetrics(jobs.all.filter(j => jobIds.contains(j.id)))(
         getStateAtomic,
         runningExecutions,
         pausedState.values.flatMap(_.executions.keys).toSeq,

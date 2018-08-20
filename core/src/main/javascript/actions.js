@@ -43,7 +43,7 @@ export const loadAppData = () => (dispatch: Dispatch) => {
   );
   Promise.all([
     fetch("/api/project_definition"),
-    fetch("/api/workflow_definition")
+    fetch("/api/jobs_definition")
   ]).then(responses => {
     Promise.all(responses.map(r => r.json())).then(
       ([project, workflow]) =>

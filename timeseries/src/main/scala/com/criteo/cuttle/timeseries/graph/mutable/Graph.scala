@@ -1,4 +1,4 @@
-package com.criteo.cuttle.graph.mutable
+package com.criteo.cuttle.timeseries.graph.mutable
 
 import scala.collection.mutable
 
