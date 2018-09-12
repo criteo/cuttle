@@ -53,6 +53,7 @@ type JobPeriodSlot =
       period: Period,
       status: "done" | "running" | "todo",
       backfill: boolean,
+      version: string,
       aggregated: false
     }
   | {
@@ -71,7 +72,8 @@ type Stats = {
 type State = {
   data: ?Stats,
   query: ?string,
-  eventSource: ?any
+  eventSource: ?any,
+  showVersion: boolean
 };
 
 // Static/format helpers
@@ -82,6 +84,19 @@ let RIGHT_MARGIN = 50;
 let ROW_HEIGHT = 20;
 let PADDING = 5;
 let MARGIN = 1;
+let VERSION_RECT_SIZE = 0.4 * ROW_HEIGHT;
+let LEGEND_WIDTH = 80;
+
+let versionPointer = 0;
+const versionColorMap = new Map();
+const versionsColor = [ 
+  "#ff9900",
+  "#00e6e6",
+  "#7a00cc",
+  "#996600",
+  "#e6e600",
+  "#0000cc",
+  "#b300b3"];
 
 let formatDate = (date: string) =>
   moment(date).utc().format("YYYY-MM-DD HH:mm");
@@ -139,6 +154,20 @@ const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
     error ? "#e91e63" : colorScale(completion)
 });
 
+// convert a version string to a specific color
+const stringToColor = function(str) {
+  // if this version was already associated with a color, return it
+  if (versionColorMap.has(str)) {
+    return versionColorMap.get(str);
+  } else {
+    // chose the next color available in the list
+    let newColor = versionsColor[versionPointer % (versionsColor.length - 1)];
+    versionColorMap.set(str, newColor);
+    versionPointer++;
+    return newColor;
+  }
+}
+
 // method drawing all the cases of color for job periods (for specific jobs in the calendar focus)
 // A summary period is an aggregated period with a special tooltip (not dedicated to a job)
 const drawJobPeriods = (
@@ -147,6 +176,7 @@ const drawJobPeriods = (
   x1,
   x2,
   showExecutions,
+  showVersion,
   drillDown,
   summary = false
 ) => {
@@ -219,20 +249,43 @@ const drawJobPeriods = (
     .attr("fill", "#bb65ca")
     .attr("x", MARGIN)
     .attr("y", ROW_HEIGHT - 3);
+
+    // If the version box is checked, draw a color rectangle for each done job
+    newPeriodSlot
+    .selectAll("rect.version")
+    .data(d => showVersion && d.version ? [d] : [], k => k.period.start)
+    .enter()
+    .append("rect")
+    .attr("class", "version")
+    .attr("width", VERSION_RECT_SIZE)
+    .attr("height", VERSION_RECT_SIZE)
+    .attr("fill", d => stringToColor(d.version))
+    .style("opacity", 1.0)
+    .attr("x", MARGIN)
+    .attr("y", 0);
 };
 
 class CalendarFocus extends React.Component<Props, State> {
   vizContainer: any;
   summarySvgContainer: any;
   detailsSvgContainer: any;
+  legendContainer: any;
 
   constructor(props: Props) {
     super(props);
     this.state = {
       data: null,
       query: null,
-      eventSource: null
+      eventSource: null,
+      showVersion: false
     };
+  }
+
+
+  toggleShowVersion() {
+    this.setState({
+      showVersion : !this.state.showVersion
+    })
   }
 
   listenForUpdates(props: Props) {
@@ -255,10 +308,11 @@ class CalendarFocus extends React.Component<Props, State> {
   drawViz(props: Props, state: State) {
     let { data } = state;
     let { classes, start, end, workflow } = props;
+    let width = this.vizContainer.clientWidth;
+
     if (data && data.summary.length) {
       let { summary, jobs } = data;
-
-      let width = this.vizContainer.clientWidth;
+      
       let summarySvg = d3
         .select(this.summarySvgContainer)
         .attr("width", width)
@@ -313,6 +367,7 @@ class CalendarFocus extends React.Component<Props, State> {
           x1,
           x2,
           this.props.showExecutions,
+          state.showVersion,
           this.props.drillDown,
           true
         );
@@ -345,7 +400,7 @@ class CalendarFocus extends React.Component<Props, State> {
         newJobTimeline
           .selectAll("g.periodSlot")
           .data(
-            job =>
+            job => 
               _.map(jobs[job.id], p => ({
                 ...p,
                 jobName: job.name,
@@ -360,7 +415,9 @@ class CalendarFocus extends React.Component<Props, State> {
             x1,
             x2,
             this.props.showExecutions,
-            this.props.drillDown
+            state.showVersion,
+            this.props.drillDown,
+            false
           );
       };
 
@@ -373,6 +430,59 @@ class CalendarFocus extends React.Component<Props, State> {
         .data(jobInfos, job => job.id)
         .enter()
         .call(drawJobs);
+
+
+      // display legend for every distinct project version
+      const versions = Object.keys(jobs).map(k => 
+        jobs[k].map(periodSlot => 
+          !periodSlot.aggregated ? periodSlot.version : undefined
+          )
+        );
+      const distinctVersions = [...new Set([].concat(...versions))].filter(version => version !== "" && version !== undefined);
+
+distinctVersions.push("456");
+distinctVersions.push("789");
+
+      const versionNodes = d3
+      .select(this.legendContainer)
+      .attr("width", axisWidth)
+      .selectAll("g.jobVersionLegend")
+      .data(state.showVersion ? distinctVersions: [])
+
+
+      const versionGroup = versionNodes
+      .enter()
+      .append("g")
+      .attr("width", LEGEND_WIDTH)
+      .attr("height", 20)
+      .attr("class", "jobVersionLegend")
+      .attr("text-anchor", "end")
+      .attr(
+        "transform",
+        (d, i) =>
+        `translate(${axisWidth - LEGEND_WIDTH - labelWidth}, ${i * (ROW_HEIGHT + 2 * MARGIN)})`
+      )
+      
+      versionGroup
+      .append("rect")
+      .attr("class", "legend")
+      .attr("width", VERSION_RECT_SIZE)
+      .attr("height", VERSION_RECT_SIZE)
+      .attr("x", 0)
+      .attr("y", 10)
+      .attr("fill", d => stringToColor(d));
+      
+      versionGroup
+      .append("text")
+      .attr("class","legendText")
+      .attr("x", LEGEND_WIDTH)
+      .attr("y", 20)
+      .text(d => d);
+
+      versionNodes
+      .exit()
+      .remove();
+      
     }
     ReactTooltip.rebuild();
 
@@ -467,6 +577,16 @@ class CalendarFocus extends React.Component<Props, State> {
             {" "}
             UTC
           </span>
+        </h1>
+        <div>
+          <div className={classes.showVersion}>
+            <input
+              name="versionCheckBox"
+              type="checkbox"
+              checked={this.state.showVersion}
+              onChange={() => this.toggleShowVersion()} 
+            />
+          </div>
           <div className={classes.timeControl}>
             <ArrowPrevious
               onClick={() => this.timeShift("back")}
@@ -487,7 +607,7 @@ class CalendarFocus extends React.Component<Props, State> {
               className="button"
             />
           </div>
-        </h1>
+        </div>
         {data && data.summary.length
           ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
               <div className={classes.summarySvg}>
@@ -498,6 +618,9 @@ class CalendarFocus extends React.Component<Props, State> {
               </div>
               <div className={classes.detailsSvg}>
                 <svg ref={r => (this.detailsSvgContainer = r)} />
+                <div className={classes.legendContainer}>
+                  <svg ref={r => (this.legendContainer = r)}/>
+                </div>
               </div>
               <ReactTooltip
                 className={classes.tooltip}
@@ -538,6 +661,18 @@ const styles = {
     fontSize: "0.8em",
     float: "right",
     textAlign: "right",
+    height: "30px",
+    width: "160px",
+    color: "#607e96",
+    "& .button": {
+      cursor: "pointer",
+      margin: "0 0.5em"
+    }
+  },
+  showVersion: {
+    fontSize: "0.8em",
+    float: "left",
+    textAlign: "left",
     height: "30px",
     width: "160px",
     color: "#607e96",
@@ -608,6 +743,9 @@ const styles = {
     paddingTop: "30px",
     flex: "1",
     overflowX: "hidden"
+  },
+  legendContainer: {
+    float: "right"
   },
   tooltip: {
     backgroundColor: "#2b3346 !important",

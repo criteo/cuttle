@@ -20,11 +20,11 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     val state = Map(
       job(1) -> IntervalMap[Instant, JobState](Interval(Finite(ts(2)), Top) -> JobState.Todo(None))
     )
-    val result = scheduler.jobsToRun(job(1), state, ts(5))
+    val result = scheduler.jobsToRun(job(1), state, ts(5), "test_version")
     assert(
       result ==
         (2 to 4).map { i =>
-          (job(1), TimeSeriesContext(ts(i), ts(i + 1)))
+          (job(1), TimeSeriesContext(ts(i), ts(i + 1), projectVersion = "test_version"))
         })
   }
 
@@ -125,14 +125,14 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     // Backfills on periods overlapping valid calendar periods are automatically resolved when the actual backfill is run.
     val jobStates = Map[TimeSeriesUtils.TimeSeriesJob, IntervalMap[Instant, JobState]](
       job1 -> IntervalMap[Instant, JobState](List(
-        (Interval(date"2117-03-25T01:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done),
+        (Interval(date"2117-03-25T01:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done("test_version")),
         (Interval(date"2117-03-25T04:00:00Z", date"2117-03-25T05:00:00Z"), JobState.Todo(None)),
-        (Interval(date"2117-03-25T05:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done)
+        (Interval(date"2117-03-25T05:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done("test_version"))
       ):_*),
       job2 -> IntervalMap[Instant, JobState](List(
-        (Interval(date"2117-03-25T02:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done),
+        (Interval(date"2117-03-25T02:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done("test_version")),
         (Interval(date"2117-03-25T04:00:00Z", date"2117-03-25T06:00:00Z"), JobState.Todo(None)),
-        (Interval(date"2117-03-25T06:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done)
+        (Interval(date"2117-03-25T06:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done("test_version"))
       ):_*)
     )
 

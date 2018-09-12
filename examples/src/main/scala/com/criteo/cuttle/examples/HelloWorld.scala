@@ -109,7 +109,7 @@ object HelloWorld {
     }
 
     // Finally we bootstrap our cuttle project.
-    CuttleProject("Hello World", env = ("dev", false)) {
+    CuttleProject("Hello World", version = "123", env = ("dev", false)) {
       // Any cuttle project contains a Workflow to execute. This Workflow is composed from jobs
       // or from others smaller Workflows.
       world dependsOn (hello1 and hello2 and hello3)

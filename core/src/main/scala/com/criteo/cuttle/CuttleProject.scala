@@ -39,7 +39,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     paused: Boolean = false
   ): Unit = {
     val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
+    val executor = new Executor[S](platforms, xa, logger, this)(retryStrategy)
 
     if (paused) {
       logger.info("Pausing workflow")
@@ -73,7 +73,7 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ): (Service, () => Unit) = {
     val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
+    val executor = new Executor[S](platforms, xa, logger, this)(retryStrategy)
 
     val startScheduler = () => {
       logger.info("Start workflow")

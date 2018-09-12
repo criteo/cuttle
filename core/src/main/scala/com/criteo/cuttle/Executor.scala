@@ -160,7 +160,7 @@ case class Execution[S <: Scheduling](
   context: S#Context,
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
-  projectName: String
+  cuttleProject: CuttleProject[S]
 )(implicit val executionContext: SideEffectExecutionContext) {
 
   private var waitingSeconds = 0
@@ -356,7 +356,7 @@ private[cuttle] object ExecutionPlatform {
 class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform],
                                                  xa: XA,
                                                  logger: Logger,
-                                                 projectName: String)(implicit retryStrategy: RetryStrategy)
+                                                 val cuttleProject: CuttleProject[S])(implicit retryStrategy: RetryStrategy)
     extends MetricProvider[S] {
 
   import ExecutionStatus._
@@ -839,7 +839,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                       def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
                     },
                     platforms,
-                    projectName
+                    cuttleProject
                   )
                   val promise = Promise[Completed]
 

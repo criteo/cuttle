@@ -49,9 +49,10 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
     val period: Interval[Instant]
     val backfill: Boolean
     val aggregated: Boolean
+    val version: String
   }
 
-  private case class JobExecution(period: Interval[Instant], status: String, backfill: Boolean)
+  private case class JobExecution(period: Interval[Instant], status: String, backfill: Boolean, version: String)
       extends ExecutionPeriod {
     override val aggregated: Boolean = false
   }
@@ -59,7 +60,8 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
   private case class AggregatedJobExecution(period: Interval[Instant],
                                             completion: Double,
                                             error: Boolean,
-                                            backfill: Boolean)
+                                            backfill: Boolean,
+                                            version: String = "")
       extends ExecutionPeriod {
     override val aggregated: Boolean = true
   }
@@ -71,11 +73,12 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
       val coreFields = List(
         "period" -> executionPeriod.period.asJson,
         "backfill" -> executionPeriod.backfill.asJson,
-        "aggregated" -> executionPeriod.aggregated.asJson
+        "aggregated" -> executionPeriod.aggregated.asJson,
+        "version" -> executionPeriod.version.asJson
       )
       val finalFields = executionPeriod match {
-        case JobExecution(_, status, _) => ("status" -> status.asJson) :: coreFields
-        case AggregatedJobExecution(_, completion, error, _) =>
+        case JobExecution(_, status, _, _) => ("status" -> status.asJson) :: coreFields
+        case AggregatedJobExecution(_, completion, error, _, _) =>
           ("completion" -> completion.asJson) :: ("error" -> error.asJson) :: coreFields
       }
       Json.obj(finalFields: _*)
@@ -126,7 +129,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               .collect { case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill) }
             (lo, hi) <- calendar.split(interval)
           } yield {
-            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill)
+            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill, executor.cuttleProject.version)
             ExecutionLog("", job.id, None, None, context.asJson, ExecutionTodo, None, 0)
           }
         val throttledExecutions = executor.allFailingExecutions
@@ -163,7 +166,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               .collect { case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill) }
             (lo, hi) <- calendar.split(interval)
           } yield {
-            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill)
+            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill, executor.cuttleProject.version)
             ExecutionLog("", parentJob.id, None, None, context.asJson, ExecutionTodo, None, 0)
           }
 
@@ -245,15 +248,21 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
                 "paused"
               else "running"
             case Todo(_) => "todo"
-            case Done    => "successful"
+            case Done(_)    => "successful"
+          }
+
+        def getVersionFromState(jobState: JobState): String =
+          jobState match {
+            case Done(version) => version
+            case _ => ""
           }
 
         val jobTimelines =
-          (for { job <- workflow.vertices if filteredJobs.contains(job.id) } yield {
-            val calendarView = findAggregationLevel(
-              48,
-              TimeSeriesCalendarView(job.scheduling.calendar),
-              period
+                (for { job <- workflow.vertices if filteredJobs.contains(job.id) } yield {
+                  val calendarView = findAggregationLevel(
+                    48,
+                    TimeSeriesCalendarView(job.scheduling.calendar),
+                    period
             )
             val jobExecutions = for {
               (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, calendarView)
@@ -268,7 +277,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
               if (calendarView.aggregationFactor == 1)
                 jobStatesOnIntervals match {
                   case (_, state) :: Nil =>
-                    Some(JobExecution(interval, getStatusLabelFromState(state, job), inBackfill))
+                    Some(JobExecution(interval, getStatusLabelFromState(state, job), inBackfill, getVersionFromState(state)))
                   case _ => None
                 } else
                 jobStatesOnIntervals match {
@@ -557,7 +566,7 @@ private[timeseries] trait TimeSeriesApp { self: TimeSeriesScheduler =>
           job <- Try(workflow.vertices.find(_.id == jobId).getOrElse(throw new Exception(s"Unknow job $jobId")))
         } yield {
           val requestedInterval = Interval(startDate, endDate)
-          self.forceSuccess(job, requestedInterval)
+          self.forceSuccess(job, requestedInterval, executor.cuttleProject.version)
 
           val runningExecutions = executor.runningExecutions.filter(e => e._1.job.id == jobId).map(_._1)
           val failingExecutions = executor.allFailingExecutions.filter(_.job.id == jobId)
