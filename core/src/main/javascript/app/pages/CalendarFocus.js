@@ -440,9 +440,6 @@ class CalendarFocus extends React.Component<Props, State> {
         );
       const distinctVersions = [...new Set([].concat(...versions))].filter(version => version !== "" && version !== undefined);
 
-distinctVersions.push("456");
-distinctVersions.push("789");
-
       const versionNodes = d3
       .select(this.legendContainer)
       .attr("width", axisWidth)
