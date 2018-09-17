@@ -24,7 +24,7 @@ trait ExecutionStreams {
   /** Output debug messages (usually used by the [[ExecutionPlatform]]) */
   def debug(str: CharSequence = ""): Unit = this.writeln("DEBUG", str)
 
-  private def writeln(tag: String, str: CharSequence): Unit = {
+  private[cuttle] def writeln(tag: String, str: CharSequence): Unit = {
     val time = Instant.now.toString
     str.toString.split("\n").foreach(l => this.writeln(s"$time $tag - $l"))
   }

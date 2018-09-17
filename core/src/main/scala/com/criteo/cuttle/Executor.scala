@@ -2,6 +2,7 @@ package com.criteo.cuttle
 
 import java.io.{PrintWriter, StringWriter}
 import java.time.{Duration, Instant, ZoneId}
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Timer, TimerTask}
 
@@ -349,6 +350,15 @@ private[cuttle] object ExecutionPlatform {
   implicit def fromExecution(implicit e: Execution[_]): Seq[ExecutionPlatform] = e.platforms
   def lookup[E: ClassTag](implicit platforms: Seq[ExecutionPlatform]): Option[E] =
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
+}
+
+private[cuttle] object Executor {
+
+  // we save a mapping of ThreadName -> ExecutionStreams to be able to redirect logs comming
+  // form different SideEffect (Futures) to the corresponding ExecutionStreams
+  private val threadNamesToStreams = new ConcurrentHashMap[String, ExecutionStreams]
+
+  def getStreams(threadName: String): Option[ExecutionStreams] = Option(threadNamesToStreams.get(threadName))
 }
 
 /** An [[Executor]] is responsible to actually execute the [[SideEffect]] functions for the
@@ -831,16 +841,33 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                 .toLeft {
                   val nextExecutionId = utils.randomUUID
 
+                  val streams = new ExecutionStreams {
+                    def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
+                  }
+
+                  // wrap the execution context so that we can register the name of the thread of each
+                  // runnable (and thus future) that will be run by the side effect.
+                  val sideEffectExecutionContext = SideEffectExecutionContext.wrap(runnable => new Runnable {
+                      override def run(): Unit = {
+                        val tName = Thread.currentThread().getName
+                        Executor.threadNamesToStreams.put(tName, streams)
+                        try {
+                          runnable.run()
+                        }
+                        finally {
+                          Executor.threadNamesToStreams.remove(tName)
+                        }
+                      }
+                    })(Implicits.sideEffectExecutionContext)
+
                   val execution = Execution(
                     id = nextExecutionId,
                     job,
                     context,
-                    streams = new ExecutionStreams {
-                      def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
-                    },
+                    streams = streams,
                     platforms,
                     projectName
-                  )
+                  )(sideEffectExecutionContext)
                   val promise = Promise[Completed]
 
                   if (pausedState.contains(job.id)) {
