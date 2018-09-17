@@ -3,20 +3,20 @@ package com.criteo.cuttle
 import java.sql.{Connection, ResultSet}
 
 import scala.concurrent.Future
-
 import cats.effect.IO
 import com.mysql.cj.jdbc.PreparedStatement
 import doobie.util.transactor.Transactor
 import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.FunSuite
-
 import com.criteo.cuttle.ExecutionContexts.Implicits.sideEffectExecutionContext
 import com.criteo.cuttle.ExecutionContexts._
 import com.criteo.cuttle.Metrics.Prometheus
-/*
+
 class ExecutorSpec extends FunSuite with TestScheduling {
-  val cuttleProject: CuttleProject[TestScheduling] = CuttleProject[TestScheduling]("test_name", "test_version", "test_description")(workflow = Workflow[TestScheduling])
+
+  val cuttleProject: CuttleProject[TestScheduling] = mock[CuttleProject[TestScheduling]](classOf[CuttleProject[TestScheduling]])
+
   test("Executor should return metrics aggregated by job and tag") {
     val connection: Connection = {
       val mockConnection = mock(classOf[Connection])
@@ -27,7 +27,6 @@ class ExecutorSpec extends FunSuite with TestScheduling {
       mockConnection
     }
 
-    //val cuttleProject: CuttleProject[TestScheduling] = CuttleProject[TestScheduling]("test_name", "test_version", "test_description")(workflow = Workflow[TestScheduling])
     val testExecutor = new Executor[TestScheduling](
       Seq.empty,
       xa = Transactor.fromConnection[IO](connection).copy(strategy0 = doobie.util.transactor.Strategy.void),
@@ -137,4 +136,3 @@ class ExecutorSpec extends FunSuite with TestScheduling {
 
   private val untaggedJob: Job[TestScheduling] = buildJob("untagged_job")
 }
-*/
