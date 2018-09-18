@@ -200,9 +200,6 @@ lazy val cuttle =
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
       libraryDependencies ++= Seq(
-        "log4j" % "log4j" % "1.2.17" % "provided"
-      ),
-      libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1",
         "org.mockito" % "mockito-all" % "1.10.19",
         "org.tpolecat" %% "doobie-scalatest" % doobieVersion

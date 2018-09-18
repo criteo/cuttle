@@ -27,9 +27,9 @@ object ThreadPools {
   // dedicated threadpool to start new executions and run user-defined side effects
   sealed trait SideEffectThreadPool extends WrappedThreadPool with Metrics
 
-  object SideEffectExecutionContext {
-    def wrap(wrapRunnable: Runnable => Runnable)(implicit executionContext: SideEffectExecutionContext): SideEffectExecutionContext = {
-      new SideEffectExecutionContext {
+  object SideEffectThreadPool {
+    def wrap(wrapRunnable: Runnable => Runnable)(implicit executionContext: SideEffectThreadPool): SideEffectThreadPool = {
+      new SideEffectThreadPool {
         private val delegate = executionContext.underlying
 
         override val underlying: ExecutionContext = new ExecutionContext {

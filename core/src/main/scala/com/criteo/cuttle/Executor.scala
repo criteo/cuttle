@@ -876,7 +876,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
                   // wrap the execution context so that we can register the name of the thread of each
                   // runnable (and thus future) that will be run by the side effect.
-                  val sideEffectExecutionContext = SideEffectExecutionContext.wrap(runnable => new Runnable {
+                  val sideEffectExecutionContext = SideEffectThreadPool.wrap(runnable => new Runnable {
                       override def run(): Unit = {
                         val tName = Thread.currentThread().getName
                         Executor.threadNamesToStreams.put(tName, streams)
@@ -887,7 +887,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                           Executor.threadNamesToStreams.remove(tName)
                         }
                       }
-                    })(Implicits.sideEffectExecutionContext)
+                    })(Implicits.sideEffectThreadPool)
 
                   val execution = Execution(
                     id = nextExecutionId,
