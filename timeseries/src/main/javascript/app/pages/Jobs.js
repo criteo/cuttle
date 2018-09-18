@@ -134,7 +134,7 @@ const processResponse = (response: Response) => {
 };
 
 const fetchWorkflow = (persist: ({ data: Array<Job> }) => void) => {
-  return fetch("/api/workflow_definition")
+  return fetch("/api/jobs_definition")
     .then(processResponse)
     .then(json => ({ data: json.jobs }))
     .then(persist);
