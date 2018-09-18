@@ -1,26 +1,24 @@
-package com.criteo.cuttle
+package com.criteo.cuttle.timeseries
 
 import lol.http._
 
-import com.criteo.cuttle.ExecutionContexts._, Implicits.serverExecutionContext
-import com.criteo.cuttle.Auth.User
+import com.criteo.cuttle._
+import com.criteo.cuttle.{Database => CuttleDatabase}
+import com.criteo.cuttle.ThreadPools._, Implicits.serverThreadPool
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
   * See the [[CuttleProject]] companion object to create projects.
-  *
-  * @tparam S The type of [[Scheduling]] used by the project (for example [[timeseries.TimeSeries TimeSeries]]).
   */
-class CuttleProject[S <: Scheduling] private[cuttle] (
-  val name: String,
-  val version: String,
-  val description: String,
-  val env: (String, Boolean),
-  val workflow: Workflow[S],
-  val scheduler: Scheduler[S],
-  val authenticator: Auth.Authenticator,
-  val logger: Logger
-) {
+class CuttleProject private[cuttle] (
+    val name: String,
+    val version: String,
+    val description: String,
+    val env: (String, Boolean),
+    val jobs: Workflow,
+    val scheduler: TimeSeriesScheduler,
+    val authenticator: Auth.Authenticator,
+    val logger: Logger) {
 
   /**
     * Start scheduling and execution with the given environment. It also starts
@@ -38,22 +36,22 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
     paused: Boolean = false
   ): Unit = {
-    val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
+    val xa = CuttleDatabase.connect(databaseConfig)
+    val executor = new Executor[TimeSeries](platforms, xa, logger, name)(retryStrategy)
 
     if (paused) {
       logger.info("Pausing workflow")
-      executor.pauseJobs(workflow.vertices)(User("Startup"))
+      executor.pauseJobs(jobs.all)(Auth.User("Startup"))
     }
 
     logger.info("Start workflow")
-    scheduler.start(workflow, executor, xa, logger)
+    scheduler.start(jobs, executor, xa, logger)
 
     logger.info("Start server")
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(App(this, executor, xa).routes)
+    })(TimeSeriesApp(this, executor, xa).routes)
 
     logger.info(s"Listening on http://localhost:$httpPort")
   }
@@ -72,21 +70,20 @@ class CuttleProject[S <: Scheduling] private[cuttle] (
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ): (Service, () => Unit) = {
-    val xa = Database.connect(databaseConfig)
-    val executor = new Executor[S](platforms, xa, logger, name)(retryStrategy)
+    val xa = CuttleDatabase.connect(databaseConfig)
+    val executor = new Executor[TimeSeries](platforms, xa, logger, name)(retryStrategy)
 
     val startScheduler = () => {
       logger.info("Start workflow")
-      scheduler.start(workflow, executor, xa, logger)
+      scheduler.start(jobs, executor, xa, logger)
     }
 
-    (App(this, executor, xa).routes, startScheduler)
+    (TimeSeriesApp(this, executor, xa).routes, startScheduler)
   }
 }
 
 /**
-  * Create new projects.
-  * @tparam S The type of scheduling for the project.
+  * Create new projects using a timeseries scheduler.
   */
 object CuttleProject {
 
@@ -98,17 +95,17 @@ object CuttleProject {
     * @param env The environment as displayed in the UI (The string is the name while the boolean indicates
     *            if the environment is a production one).
     * @param authenticator The way to authenticate HTTP request for the UI and the private API.
-    * @param workflow The workflow to run in this project.
+    * @param jobs The workflow to run in this project.
     * @param scheduler The scheduler instance to use to schedule the Workflow jobs.
     * @param logger The logger to use to log internal debug informations.
     */
-  def apply[S <: Scheduling](name: String,
-                             version: String = "",
-                             description: String = "",
-                             env: (String, Boolean) = ("", false),
-                             authenticator: Auth.Authenticator = Auth.GuestAuth)(
-    workflow: Workflow[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] =
-    new CuttleProject(name, version, description, env, workflow, scheduler, authenticator, logger)
+  def apply(name: String,
+            version: String = "",
+            description: String = "",
+            env: (String, Boolean) = ("", false),
+            authenticator: Auth.Authenticator = Auth.GuestAuth)(
+            jobs: Workflow)(implicit scheduler: TimeSeriesScheduler, logger: Logger): CuttleProject =
+    new CuttleProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import java.util.concurrent.TimeUnit.SECONDS

@@ -27,15 +27,15 @@ let yarn = run({
 let front = webpack({
   watch: [
     "webpack.config.js",
-    "core/src/main/javascript/**/*.*",
-    "core/src/main/html/**/*.*",
-    "core/src/main/style/**/*.*"
+    "timeseries/src/main/javascript/**/*.*",
+    "timeseries/src/main/html/**/*.*",
+    "timeseries/src/main/style/**/*.*"
   ]
 }).dependsOn(yarn, compile);
 
 let server = runServer({
   httpPort: 8888,
-  sh: "java -cp `cat /tmp/classpath_com.criteo.cuttle.examples` com.criteo.cuttle.examples.HelloWorld",
+  sh: "java -cp `cat /tmp/classpath_com.criteo.cuttle.examples` com.criteo.cuttle.examples.HelloTimeSeries",
   env: {
     MYSQL_LOCATIONS: "localhost:3388",
     MYSQL_DATABASE: "cuttle_dev",

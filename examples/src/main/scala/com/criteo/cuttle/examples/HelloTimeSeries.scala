@@ -1,4 +1,4 @@
-// Example: Hello cuttle!
+// Example: Hello cuttle timeseries!
 
 // This a very simple cuttle project using the time series scheduler
 // to execute a bunch of shell scripts
@@ -22,7 +22,7 @@ import java.time._
 
 import scala.concurrent.duration._
 
-object HelloWorld {
+object HelloTimeSeries {
 
   // A cuttle project is just embeded into any Scala application.
   def main(args: Array[String]): Unit = {
@@ -109,13 +109,12 @@ object HelloWorld {
     }
 
     // Finally we bootstrap our cuttle project.
-    CuttleProject("Hello World", env = ("dev", false)) {
+    CuttleProject("Hello TimeSeries", env = ("dev", false)) {
       // Any cuttle project contains a Workflow to execute. This Workflow is composed from jobs
       // or from others smaller Workflows.
       world dependsOn (hello1 and hello2 and hello3)
     }.
-    // The call to start actually start the scheduler and open an HTTP port serving both an UI to
-    // track the project status as well as JSON API.
+    // Starts the scheduler and an HTTP server.
     start()
   }
 }

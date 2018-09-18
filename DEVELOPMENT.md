@@ -7,7 +7,7 @@ option allows to skip webpack execution to speed up execution). You can
 use `~compile` or `~test` on the root project or focus on a specific
 project using `~timeseries/test`.
 
-To run an example application, use `example HelloWorld` where HelloWorld
+To run an example application, use `example HelloTimeSeries` where HelloTimeSeries
 is the example class name.
 
 To work on the web application:
@@ -31,10 +31,9 @@ We use [prettier-eslint](https://github.com/prettier/prettier-eslint) to enforce
 
 Several ways to use it:
 
-1. We provide a `git-init-precommit-hook.sh` that **replaces you git precommit hook** 
+1. We provide a `git-init-precommit-hook.sh` that **replaces you git precommit hook**
    by a Scalafmt and prettier-eslint run on changed files.
-   
-2. Use `yarn format` to format the Javascript files. 
+2. Use `yarn format` to format the Javascript files.
 3. Use `ỳarm format-diff` to format only changed files.
 
 

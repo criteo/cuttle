@@ -1,8 +1,9 @@
-package com.criteo.cuttle
+package com.criteo.cuttle.timeseries
 
 import scala.collection.mutable.{ListBuffer, Stack, Map => MutableMap, Set => MutableSet}
 
-import com.criteo.cuttle.graph.mutable.{Graph => MutableGraph, Node => MutableNode}
+import com.criteo.cuttle.timeseries.graph.mutable.{Node => MutableNode}
+import com.criteo.cuttle.timeseries.graph.mutable.{Graph => MutableGraph}
 
 package object graph {
   /**
