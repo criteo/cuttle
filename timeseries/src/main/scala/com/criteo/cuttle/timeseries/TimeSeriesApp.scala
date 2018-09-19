@@ -382,9 +382,10 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
     val period: Interval[Instant]
     val backfill: Boolean
     val aggregated: Boolean
+    val version: String
   }
 
-  private case class JobExecution(period: Interval[Instant], status: String, backfill: Boolean)
+  private case class JobExecution(period: Interval[Instant], status: String, backfill: Boolean, version: String)
       extends ExecutionPeriod {
     override val aggregated: Boolean = false
   }
@@ -392,7 +393,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
   private case class AggregatedJobExecution(period: Interval[Instant],
                                             completion: Double,
                                             error: Boolean,
-                                            backfill: Boolean)
+                                            backfill: Boolean,
+                                            version: String = "")
       extends ExecutionPeriod {
     override val aggregated: Boolean = true
   }
@@ -404,11 +406,12 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
       val coreFields = List(
         "period" -> executionPeriod.period.asJson,
         "backfill" -> executionPeriod.backfill.asJson,
-        "aggregated" -> executionPeriod.aggregated.asJson
+        "aggregated" -> executionPeriod.aggregated.asJson,
+        "version" -> executionPeriod.version.asJson
       )
       val finalFields = executionPeriod match {
-        case JobExecution(_, status, _) => ("status" -> status.asJson) :: coreFields
-        case AggregatedJobExecution(_, completion, error, _) =>
+        case JobExecution(_, status, _, _) => ("status" -> status.asJson) :: coreFields
+        case AggregatedJobExecution(_, completion, error, _, _) =>
           ("completion" -> completion.asJson) :: ("error" -> error.asJson) :: coreFields
       }
       Json.obj(finalFields: _*)
@@ -457,7 +460,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
               .collect { case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill) }
             (lo, hi) <- calendar.split(interval)
           } yield {
-            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill)
+            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill, executor.projectVersion)
             ExecutionLog("", job.id, None, None, context.asJson, ExecutionTodo, None, 0)
           }
         val throttledExecutions = executor.allFailingExecutions
@@ -494,7 +497,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
               .collect { case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill) }
             (lo, hi) <- calendar.split(interval)
           } yield {
-            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill)
+            val context = TimeSeriesContext(calendar.truncate(lo), calendar.ceil(hi), maybeBackfill, executor.projectVersion)
             ExecutionLog("", parentJob.id, None, None, context.asJson, ExecutionTodo, None, 0)
           }
 
@@ -571,6 +574,11 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
               }
             }
 
+        def getVersionFromState(jobState: JobState): String = jobState match {
+          case Done(version) => version
+          case _ => ""
+        }
+
         def getStatusLabelFromState(jobState: JobState, job: Job[TimeSeries]): String =
           jobState match {
             case Running(e) =>
@@ -582,7 +590,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
                 "paused"
               else "running"
             case Todo(_) => "todo"
-            case Done    => "successful"
+            case Done(_) => "successful"
           }
 
         val jobTimelines =
@@ -605,7 +613,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
               if (calendarView.aggregationFactor == 1)
                 jobStatesOnIntervals match {
                   case (_, state) :: Nil =>
-                    Some(JobExecution(interval, getStatusLabelFromState(state, job), inBackfill))
+                    Some(JobExecution(interval, getStatusLabelFromState(state, job), inBackfill, getVersionFromState(state)))
                   case _ => None
                 } else
                 jobStatesOnIntervals match {
@@ -897,7 +905,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
           job <- Try(project.jobs.all.find(_.id == jobId).getOrElse(throw new Exception(s"Unknow job $jobId")))
         } yield {
           val requestedInterval = Interval(startDate, endDate)
-          scheduler.forceSuccess(job, requestedInterval)
+          //self.forceSuccess(job, requestedInterval, executor.cuttleProject.version)
+          scheduler.forceSuccess(job, requestedInterval, executor.projectVersion)
           val runningExecutions = executor.runningExecutions.filter(e => e._1.job.id == jobId).map(_._1)
           val failingExecutions = executor.allFailingExecutions.filter(_.job.id == jobId)
           val executions = runningExecutions ++ failingExecutions

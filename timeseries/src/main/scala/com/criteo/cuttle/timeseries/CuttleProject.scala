@@ -37,7 +37,7 @@ class CuttleProject private[cuttle] (
     paused: Boolean = false
   ): Unit = {
     val xa = CuttleDatabase.connect(databaseConfig)
-    val executor = new Executor[TimeSeries](platforms, xa, logger, name)(retryStrategy)
+    val executor = new Executor[TimeSeries](platforms, xa, logger, version)(retryStrategy)
 
     if (paused) {
       logger.info("Pausing workflow")
@@ -71,7 +71,7 @@ class CuttleProject private[cuttle] (
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ): (Service, () => Unit) = {
     val xa = CuttleDatabase.connect(databaseConfig)
-    val executor = new Executor[TimeSeries](platforms, xa, logger, name)(retryStrategy)
+    val executor = new Executor[TimeSeries](platforms, xa, logger, version)(retryStrategy)
 
     val startScheduler = () => {
       logger.info("Start workflow")

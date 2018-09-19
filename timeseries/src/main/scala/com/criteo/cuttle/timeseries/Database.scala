@@ -139,7 +139,7 @@ private[timeseries] object Database {
         (job.id, im.toList.filter {
           case (_, jobState) =>
             jobState match {
-              case Done    => true
+              case Done(_) => true
               case Todo(_) => true
               case _       => false
             }
