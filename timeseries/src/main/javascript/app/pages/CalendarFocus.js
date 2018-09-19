@@ -251,7 +251,7 @@ const drawJobPeriods = (
     .attr("y", ROW_HEIGHT - 3);
 
     // If the version box is checked, draw a color rectangle for each done job
-    newPeriodSlot
+  newPeriodSlot
     .selectAll("rect.version")
     .data(d => showVersion && d.version ? [d] : [], k => k.period.start)
     .enter()

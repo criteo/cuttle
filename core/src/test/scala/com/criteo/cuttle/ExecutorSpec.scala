@@ -123,7 +123,7 @@ class ExecutorSpec extends FunSuite with TestScheduling {
         override private[cuttle] def writeln(str: CharSequence): Unit = ???
       },
       platforms = Seq.empty,
-      cuttleProject
+      "test_version"
     )
 
   private val fooTag = Tag("foo")
