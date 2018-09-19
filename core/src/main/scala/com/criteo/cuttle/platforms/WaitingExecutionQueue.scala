@@ -9,7 +9,7 @@ import lol.json._
 
 import scala.concurrent._
 import scala.concurrent.stm._
-import scala.collection.{SortedSet}
+import scala.collection.SortedSet
 
 import scala.util._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -17,8 +17,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import io.circe._
 import io.circe.syntax._
 import io.circe.java8.time._
-
-import App._
 
 /** A priority queue ordered by [[com.criteo.cuttle.SchedulingContext SchedulingContext]] priority. */
 trait WaitingExecutionQueue {

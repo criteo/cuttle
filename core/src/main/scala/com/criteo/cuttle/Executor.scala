@@ -9,18 +9,22 @@ import scala.concurrent.duration._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
-import scala.reflect.{classTag, ClassTag}
-import scala.util.{Failure, Success, Try}
+import scala.reflect.{ClassTag, classTag}
+import scala.util._
+
 import cats.Eq
 import cats.effect.IO
 import cats.implicits._
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import io.circe._
+import io.circe.java8.time._
 import io.circe.syntax._
 import lol.http.PartialService
+
 import com.criteo.cuttle.Auth._
-import com.criteo.cuttle.ExecutionContexts.{SideEffectExecutionContext, _}
+import com.criteo.cuttle.ExecutionStatus._
+import com.criteo.cuttle.ThreadPools.{SideEffectThreadPool, _}
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle.platforms.ExecutionPool
 
@@ -100,6 +104,33 @@ private[cuttle] class ExecutionStat(
 
 private[cuttle] object ExecutionLog {
   implicit val execLogEq: Eq[ExecutionLog] = Eq.fromUniversalEquals[ExecutionLog]
+
+  implicit lazy val executionLogEncoder: Encoder[ExecutionLog] = new Encoder[ExecutionLog] {
+    override def apply(execution: ExecutionLog) = Json.obj(
+      "id" -> execution.id.asJson,
+      "job" -> execution.job.asJson,
+      "startTime" -> execution.startTime.asJson,
+      "endTime" -> execution.endTime.asJson,
+      "context" -> execution.context,
+      "status" -> (execution.status match {
+        case ExecutionSuccessful => "successful"
+        case ExecutionFailed => "failed"
+        case ExecutionRunning => "running"
+        case ExecutionWaiting => "waiting"
+        case ExecutionPaused => "paused"
+        case ExecutionThrottled => "throttled"
+        case ExecutionTodo => "todo"
+      }).asJson,
+      "failing" -> execution.failing.map {
+        case FailingJob(failedExecutions, nextRetry) =>
+          Json.obj(
+            "failedExecutions" -> Json.fromValues(failedExecutions.map(_.asJson(executionLogEncoder))),
+            "nextRetry" -> nextRetry.asJson
+          )
+      }.asJson,
+      "waitingSeconds" -> execution.waitingSeconds.asJson
+    )
+  }
 }
 
 /**
@@ -138,13 +169,6 @@ private[cuttle] case class PausedJob(id: String, user: User, date: Instant) {
     PausedJobWithExecutions(id, user, date, Map.empty[Execution[S], Promise[Completed]])
 }
 
-//private[cuttle] object PausedJob {
-//  import io.circe.generic.semiauto._
-//  import io.circe._
-//
-//  implicit val encoder: Encoder[PausedJob] = deriveEncoder
-//}
-
 /** [[Execution Executions]] are created by the [[Scheduler]].
   *
   * @param id The unique id for this execution. Guaranteed to be unique.
@@ -160,8 +184,9 @@ case class Execution[S <: Scheduling](
   context: S#Context,
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
-  cuttleProject: CuttleProject[S]
-)(implicit val executionContext: SideEffectExecutionContext) {
+  projectVersion: String
+)(implicit val executionContext: SideEffectThreadPool) {
+
 
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
@@ -241,7 +266,7 @@ case class Execution[S <: Scheduling](
       job.id,
       startTime,
       None,
-      context.toJson,
+      context.asJson,
       status,
       waitingSeconds = waitingSeconds,
       failing = failing
@@ -356,11 +381,11 @@ private[cuttle] object ExecutionPlatform {
 class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform],
                                                  xa: XA,
                                                  logger: Logger,
-                                                 val cuttleProject: CuttleProject[S])(implicit retryStrategy: RetryStrategy)
+                                                 val projectVersion: String)(implicit retryStrategy: RetryStrategy)
     extends MetricProvider[S] {
 
   import ExecutionStatus._
-  import Implicits.sideEffectExecutionContext
+  import Implicits.sideEffectThreadPool
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
@@ -778,7 +803,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   execution
                     .toExecutionLog(if (result.isSuccess) ExecutionSuccessful else ExecutionFailed)
                     .copy(endTime = Some(Instant.now)),
-                  execution.context.log
+                  execution.context.logIntoDatabase
                 )
                 .transact(xa)
                 .unsafeRunSync
@@ -839,7 +864,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                       def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
                     },
                     platforms,
-                    cuttleProject
+                    projectVersion
                   )
                   val promise = Promise[Completed]
 
@@ -870,7 +895,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           case (job, execution, promise, whatToDo) =>
             Future {
               execution.streams.debug(s"Execution: ${execution.id}")
-              execution.streams.debug(s"Context: ${execution.context.toJson}")
+              execution.streams.debug(s"Context: ${execution.context.asJson}")
               execution.streams.debug()
               whatToDo match {
                 case ToRunNow =>
@@ -980,7 +1005,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private case class ExecutionInfo(jobId: String, tags: Set[String], status: ExecutionStatus)
 
   /**
-    * @param jobs list of jobs
+    * @param jobs list of jobs whose metrics will be retrieved
     * @param getStateAtomic Atomically get executor stats. Given a list of jobs ids, returns how much
     *                       ((running, waiting), paused, failing) jobs are in concrete states
     * @param runningExecutions executions which are either either running or waiting for a free thread to start
@@ -1040,9 +1065,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   /**
     * @param jobs the list of jobs ids
     */
-  override def getMetrics(jobs: Set[String], workflow: Workflow[S]): Seq[Metric] =
+  override def getMetrics(jobIds: Set[String], jobs: Workload[S]): Seq[Metric] =
     atomic { implicit txn =>
-      getMetrics(workflow.vertices)(
+      getMetrics(jobs.all.filter(j => jobIds.contains(j.id)))(
         getStateAtomic,
         runningExecutions,
         pausedState.values.flatMap(_.executions.keys).toSeq,

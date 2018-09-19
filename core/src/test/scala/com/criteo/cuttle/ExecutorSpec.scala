@@ -9,13 +9,12 @@ import doobie.util.transactor.Transactor
 import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.FunSuite
-import com.criteo.cuttle.ExecutionContexts.Implicits.sideEffectExecutionContext
-import com.criteo.cuttle.ExecutionContexts._
+import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
+import com.criteo.cuttle.ThreadPools._
+
 import com.criteo.cuttle.Metrics.Prometheus
 
 class ExecutorSpec extends FunSuite with TestScheduling {
-
-  val cuttleProject: CuttleProject[TestScheduling] = mock[CuttleProject[TestScheduling]](classOf[CuttleProject[TestScheduling]])
 
   test("Executor should return metrics aggregated by job and tag") {
     val connection: Connection = {
@@ -31,7 +30,7 @@ class ExecutorSpec extends FunSuite with TestScheduling {
       Seq.empty,
       xa = Transactor.fromConnection[IO](connection).copy(strategy0 = doobie.util.transactor.Strategy.void),
       logger,
-      cuttleProject
+      "test_version"
     )(RetryStrategy.ExponentialBackoffRetryStrategy)
 
     testExecutor.updateFinishedExecutionCounters(buildExecutionForJob(fooJob), "success")

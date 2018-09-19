@@ -308,10 +308,10 @@ class CalendarFocus extends React.Component<Props, State> {
   drawViz(props: Props, state: State) {
     let { data } = state;
     let { classes, start, end, workflow } = props;
-    let width = this.vizContainer.clientWidth;
 
     if (data && data.summary.length) {
       let { summary, jobs } = data;
+      let width = this.vizContainer.clientWidth;
       
       let summarySvg = d3
         .select(this.summarySvgContainer)
