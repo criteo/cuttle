@@ -837,7 +837,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         if (isShuttingDown()) {
           Seq.empty
         } else
-          all.zipWithIndex.map {
+          all.distinct.zipWithIndex.map {
             case ((job, context), i) =>
               if(i > 1000 && i % 1000 == 0) logger.info(s"Submitted ${i}/${all.size} jobs")
               val maybeAlreadyRunning: Option[(Execution[S], Future[Completed])] = index.get((job, context))
