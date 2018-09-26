@@ -802,16 +802,20 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     case object Paused extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
+    val index: Map[(Job[S], S#Context),(Execution[S], Future[Completed])] = runningState.single.map {
+      case (execution, future) =>
+        ((execution.job, execution.context), (execution, future))
+    }.toMap
     val existingOrNew
       : Seq[Either[(Execution[S], Future[Completed]), (Job[S], Execution[S], Promise[Completed], NewExecution)]] =
       atomic { implicit txn =>
         if (isShuttingDown()) {
           Seq.empty
         } else
-          all.map {
-            case (job, context) =>
-              val maybeAlreadyRunning: Option[(Execution[S], Future[Completed])] =
-                runningState.find { case (e, _) => e.job == job && e.context == context }
+          all.distinct.zipWithIndex.map {
+            case ((job, context), i) =>
+              if(i > 1000 && i % 1000 == 0) logger.info(s"Submitted ${i}/${all.size} jobs")
+              val maybeAlreadyRunning: Option[(Execution[S], Future[Completed])] = index.get((job, context))
 
               lazy val maybePaused: Option[(Execution[S], Future[Completed])] = pausedState
                 .get(job.id)

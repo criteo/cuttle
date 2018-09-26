@@ -253,7 +253,8 @@ lazy val examples =
     .settings(
       publishArtifact := false,
       fork in Test := true,
-      connectInput in Test := true
+      connectInput in Test := true,
+      javaOptions ++= Seq("-Xmx256m", "-XX:+HeapDumpOnOutOfMemoryError"),
     )
     .settings(
       Option(System.getProperty("generateExamples"))
