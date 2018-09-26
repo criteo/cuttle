@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.4.0"
+val VERSION = "0.4.1"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -239,7 +239,7 @@ lazy val timeseries =
           }
           logger.out("Running webpack...")
           assert(s"node node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail" ! logger == 0,
-            "webpack failed")
+                 "webpack failed")
           listFiles(webpackOutputDir)
         }
       }.taskValue,
