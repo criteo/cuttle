@@ -2,8 +2,6 @@
 
 An embedded job scheduler/executor for your Scala projects.
 
-<img src="https://criteo.github.io/cuttle/screencast.gif?2" width="1024">
-
 # Concepts
 
 Embedded means that cuttle is not an hosted service where you submit jobs to schedule/execute. Instead it is
