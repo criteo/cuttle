@@ -27,6 +27,20 @@ object ThreadPools {
   // dedicated threadpool to start new executions and run user-defined side effects
   sealed trait SideEffectThreadPool extends WrappedThreadPool with Metrics
 
+  object SideEffectThreadPool {
+    def wrap(wrapRunnable: Runnable => Runnable)(implicit executionContext: SideEffectThreadPool): SideEffectThreadPool = {
+      new SideEffectThreadPool {
+        private val delegate = executionContext.underlying
+
+        override val underlying: ExecutionContext = new ExecutionContext {
+          override def execute(runnable: Runnable): Unit = delegate.execute(wrapRunnable(runnable))
+          override def reportFailure(cause: Throwable): Unit = delegate.reportFailure(cause)
+        }
+
+      }
+    }
+  }
+
   // The implicitly provided execution contexts use fixed thread pools.
   // These thread pool default sizes are overridable with Java system properties, passing -D<property_name> <value> flags when you start the JVM
   object ThreadPoolSystemProperties extends Enumeration {
