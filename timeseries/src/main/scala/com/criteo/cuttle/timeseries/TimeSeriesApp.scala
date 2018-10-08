@@ -299,11 +299,6 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
       Ok
     }
 
-    case POST at url"/api/executions/$id/force/success" => { implicit user =>
-      executor.forceSuccess(id)
-      IO.pure(Ok)
-    }
-
     case POST at url"/api/jobs/pause?jobs=$jobs" => { implicit user =>
       getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
         executor.pauseJobs(jobs)
