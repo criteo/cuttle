@@ -704,6 +704,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
           }
         val upToMidnightToday = Interval(Bottom, Finite(Daily(UTC).ceil(Instant.now)))
 
+        lazy val failingExecutionIds =  executor.allFailingExecutions.map(_.id).toSet
         val jobStatesOnPeriod: Set[JobStateOnPeriod] = for {
           job <- project.jobs.all
           if filteredJobs.contains(job.id)
@@ -717,7 +718,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
             case _ => false
           },
           jobState match {
-            case Running(exec) => executor.allFailingExecutions.exists(_.id == exec)
+            case Running(exec) => failingExecutionIds.contains(exec)
             case _             => false
           })
 
