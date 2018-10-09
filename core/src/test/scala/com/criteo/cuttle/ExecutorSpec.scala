@@ -43,7 +43,7 @@ class ExecutorSpec extends FunSuite with TestScheduling {
     val metrics = Prometheus.serialize(
       testExecutor.getMetrics(Set(fooJob))(
         getStateAtomic = _ => {
-          ((5, 1), 3, 2)
+          ((5, 1), 2)
         },
         runningExecutions = Seq(
           buildExecutionForJob(fooJob) -> ExecutionStatus.ExecutionRunning,
@@ -52,11 +52,6 @@ class ExecutorSpec extends FunSuite with TestScheduling {
           buildExecutionForJob(fooBarJob) -> ExecutionStatus.ExecutionRunning,
           buildExecutionForJob(untaggedJob) -> ExecutionStatus.ExecutionRunning,
           buildExecutionForJob(untaggedJob) -> ExecutionStatus.ExecutionWaiting
-        ),
-        pausedExecutions = Seq(
-          buildExecutionForJob(fooJob),
-          buildExecutionForJob(fooBarJob),
-          buildExecutionForJob(untaggedJob)
         ),
         failingExecutions = Seq(
           buildExecutionForJob(fooBarJob),
@@ -73,14 +68,11 @@ class ExecutorSpec extends FunSuite with TestScheduling {
          |# TYPE cuttle_scheduler_stat_count gauge
          |cuttle_scheduler_stat_count {type="running"} 5
          |cuttle_scheduler_stat_count {type="waiting"} 1
-         |cuttle_scheduler_stat_count {type="paused"} 3
          |cuttle_scheduler_stat_count {type="failing"} 2
          |# HELP cuttle_scheduler_stat_count_by_tag The number of executions that we have in concrete states by tag
          |# TYPE cuttle_scheduler_stat_count_by_tag gauge
-         |cuttle_scheduler_stat_count_by_tag {tag="bar", type="paused"} 1
          |cuttle_scheduler_stat_count_by_tag {tag="foo", type="waiting"} 1
          |cuttle_scheduler_stat_count_by_tag {tag="foo", type="running"} 3
-         |cuttle_scheduler_stat_count_by_tag {tag="foo", type="paused"} 2
          |cuttle_scheduler_stat_count_by_tag {tag="bar", type="failing"} 2
          |cuttle_scheduler_stat_count_by_tag {tag="foo", type="failing"} 2
          |cuttle_scheduler_stat_count_by_tag {tag="bar", type="running"} 1
@@ -90,12 +82,9 @@ class ExecutorSpec extends FunSuite with TestScheduling {
          |cuttle_scheduler_stat_count_by_job {job="foo_bar_job", type="running"} 1
          |cuttle_scheduler_stat_count_by_job {job="untagged_job", type="running"} 1
          |cuttle_scheduler_stat_count_by_job {job="foo_job", type="waiting"} 1
-         |cuttle_scheduler_stat_count_by_job {job="foo_job", type="paused"} 1
          |cuttle_scheduler_stat_count_by_job {job="untagged_job", type="failing"} 1
          |cuttle_scheduler_stat_count_by_job {job="foo_job", type="running"} 2
-         |cuttle_scheduler_stat_count_by_job {job="foo_bar_job", type="paused"} 1
          |cuttle_scheduler_stat_count_by_job {job="foo_bar_job", type="failing"} 2
-         |cuttle_scheduler_stat_count_by_job {job="untagged_job", type="paused"} 1
          |# HELP cuttle_executions_total The number of finished executions that we have in concrete states by job and by tag
          |# TYPE cuttle_executions_total counter
          |cuttle_executions_total {job_id="foo_job", tags="foo", type="failure"} 0

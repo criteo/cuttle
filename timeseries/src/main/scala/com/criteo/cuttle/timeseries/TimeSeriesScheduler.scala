@@ -4,11 +4,12 @@ import java.time.ZoneOffset.UTC
 import java.time._
 import java.time.temporal.ChronoUnit._
 import java.time.temporal.{ChronoUnit, TemporalAdjusters}
-import java.util.UUID
+import java.util.{Comparator, UUID}
 
 import scala.collection.mutable
 import scala.concurrent._
 import scala.concurrent.duration.{Duration => ScalaDuration}
+import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.math.Ordering.Implicits._
 
@@ -247,6 +248,12 @@ private[timeseries] object TimeSeriesContext {
   implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
   implicit def decoder(implicit jobs: Set[Job[TimeSeries]]): Decoder[TimeSeriesContext] =
     deriveDecoder
+
+  /** Provide an implicit `Ordering` for [[TimeSeriesContext]] based on the `compareTo` function. */
+  implicit val ordering: Ordering[TimeSeriesContext] =
+    Ordering.comparatorToOrdering(new Comparator[TimeSeriesContext] {
+      def compare(o1: TimeSeriesContext, o2: TimeSeriesContext) = o1.compareTo(o2)
+    })
 }
 
 /** A [[TimeSeriesDependency]] qualify the dependency between 2 [[com.criteo.cuttle.Job Jobs]] in a
@@ -322,6 +329,14 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
   private val _state = Ref(Map.empty[TimeSeriesJob, IntervalMap[Instant, JobState]])
 
   private val _backfills = Ref(Set.empty[Backfill])
+
+  private val _pausedJobs = Ref(Set.empty[PausedJob])
+
+  def pausedJobs(): Set[PausedJob] = atomic { implicit txn => _pausedJobs() }
+
+  private val queries = new Queries {
+    val appLogger: Logger = logger
+  }
 
   private[timeseries] def state: (State, Set[Backfill]) = atomic { implicit txn =>
     (_state(), _backfills())
@@ -526,7 +541,109 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
     backfills
   }
 
-  def start(workflow0: Workload[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
+  private[timeseries] def pauseJobs(jobs: Set[Job[TimeSeries]], executor: Executor[TimeSeries], xa: XA)(implicit user: Auth.User): Unit = {
+    val executionsToCancel = atomic { implicit tx =>
+      val pauseDate = Instant.now()
+      val pausedJobIds = _pausedJobs().map(_.id)
+      val jobsToPause: Set[PausedJob] = jobs
+        .filter(job => !pausedJobIds.contains(job.id))
+        .map(job => PausedJob(job.id, user, pauseDate))
+
+      if (jobsToPause.isEmpty) return
+
+      _pausedJobs() = _pausedJobs() ++ jobsToPause
+
+      val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
+      Txn.setExternalDecider(new ExternalDecider {
+        def shouldCommit(implicit txn: InTxnEnd): Boolean = {
+          pauseQuery.transact(xa).unsafeRunSync
+          true
+        }
+      })
+
+      jobsToPause.flatMap { pausedJob =>
+        executor.runningState.filterKeys(_.job.id == pausedJob.id).keys ++ executor.throttledState
+          .filterKeys(_.job.id == pausedJob.id)
+          .keys
+      }
+    }
+    logger.debug(s"we will cancel ${executionsToCancel.size} executions")
+    executionsToCancel.toList.sortBy(_.context).reverse.foreach { execution =>
+      execution.streams.debug(s"Job has been paused by user ${user.userId}")
+      execution.cancel()
+    }
+  }
+
+  private[timeseries] def resumeJobs(jobs: Set[Job[TimeSeries]], xa: XA)(implicit user: Auth.User): Unit = {
+    val jobIdsToResume = jobs.map(_.id)
+    val resumeQuery = jobIdsToResume.map(queries.resumeJob).reduceLeft(_ *> _)
+
+    atomic { implicit tx =>
+      Txn.setExternalDecider(new ExternalDecider {
+        def shouldCommit(implicit tx: InTxnEnd): Boolean = {
+          resumeQuery.transact(xa).unsafeRunSync
+          true
+        }
+      })
+
+      _pausedJobs() = _pausedJobs() -- _pausedJobs().filter(pausedJob => jobIdsToResume.contains(pausedJob.id))
+    }
+  }
+
+  /**
+    * Given a list of current executions, update their state and submit new executions depending on the current time and
+    * changes in execution states.
+    * @param running set of still running executions
+    * @return new set of running executions
+    **/
+  private[timeseries] def updateCurrentExecutionsAndSubmitNewExecutions(running: Set[Run], workflow: Workflow, executor: Executor[TimeSeries], xa: XA): Set[Run] = {
+    val (completed, stillRunning) = running.partition {
+      case (_, _, effect) => effect.isCompleted
+    }
+
+    val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
+      val (stateSnapshot, newBackfills, completedBackfills) =
+        collectCompletedJobs(_state(), _backfills(), completed)
+
+      val toRun = jobsToRun(workflow, stateSnapshot, Instant.now, executor.projectVersion)
+
+      _state() = stateSnapshot
+      _backfills() = newBackfills
+
+      (stateSnapshot, completedBackfills, toRun)
+    }
+
+    val newExecutions = executor.runAll(toRun)
+
+    atomic { implicit txn =>
+      _state() = newExecutions.foldLeft(_state()) {
+        case (st, (execution, _)) =>
+          st + (execution.job ->
+            st(execution.job).update(execution.context.toInterval, Running(execution.id)))
+      }
+    }
+
+    if (completed.nonEmpty || toRun.nonEmpty)
+      runOrLogAndDie(Database.serializeState(stateSnapshot).transact(xa).unsafeRunSync,
+        "TimeseriesScheduler, cannot serialize state, shutting down")
+
+    if (completedBackfills.nonEmpty)
+      runOrLogAndDie(
+        Database
+          .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
+          .transact(xa)
+          .unsafeRunSync,
+        "TimeseriesScheduler, cannot serialize state, shutting down"
+      )
+
+    val newRunning = stillRunning ++ newExecutions.map {
+      case (execution, result) =>
+        (execution.job, execution.context, result)
+    }
+    newRunning
+  }
+
+  private[timeseries] def initialize(workflow0: Workload[TimeSeries], xa: XA, logger: Logger) = {
     val workflow = workflow0.asInstanceOf[Workflow]
     logger.info("Validate workflow before start")
     TimeSeriesUtils.validate(workflow) match {
@@ -585,55 +702,15 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
         _state() = _state() + (job -> jobState)
       }
     }
+    workflow
+  }
+
+  def start(workflow0: Workload[TimeSeries], executor: Executor[TimeSeries], xa: XA, logger: Logger): Unit = {
+    val workflow = initialize(workflow0, xa, logger)
 
     def mainLoop(running: Set[Run]): Unit = {
-      val (completed, stillRunning) = running.partition {
-        case (_, _, effect) => effect.isCompleted
-      }
-
-      val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
-        val (stateSnapshot, newBackfills, completedBackfills) =
-          collectCompletedJobs(_state(), _backfills(), completed)
-
-        val toRun = jobsToRun(workflow, stateSnapshot, Instant.now, executor.projectVersion)
-
-        _state() = stateSnapshot
-        _backfills() = newBackfills
-
-        (stateSnapshot, completedBackfills, toRun)
-      }
-
-      val newExecutions = executor.runAll(toRun)
-
-      atomic { implicit txn =>
-        _state() = newExecutions.foldLeft(_state()) {
-          case (st, (execution, _)) =>
-            st + (execution.job ->
-              st(execution.job).update(execution.context.toInterval, Running(execution.id)))
-        }
-      }
-
-      if (completed.nonEmpty || toRun.nonEmpty)
-        runOrLogAndDie(Database.serializeState(stateSnapshot).transact(xa).unsafeRunSync,
-                       "TimeseriesScheduler, cannot serialize state, shutting down")
-
-      if (completedBackfills.nonEmpty)
-        runOrLogAndDie(
-          Database
-            .setBackfillStatus(completedBackfills.map(_.id), "COMPLETE")
-            .transact(xa)
-            .unsafeRunSync,
-          "TimeseriesScheduler, cannot serialize state, shutting down"
-        )
-
-      val newRunning = stillRunning ++ newExecutions.map {
-        case (execution, result) =>
-          (execution.job, execution.context, result)
-      }
-
-      utils.Timeout(ScalaDuration.create(1, "s")).andThen {
-        case _ => mainLoop(newRunning)
-      }
+      val newRunning = updateCurrentExecutionsAndSubmitNewExecutions(running, workflow, executor, xa)
+      utils.Timeout(ScalaDuration.create(1, "s")).andThen { case _ => mainLoop(newRunning) }
     }
 
     mainLoop(Set.empty)
@@ -683,6 +760,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
 
     val parentsMap = workflow.edges.groupBy { case (child, _, _)   => child }
     val childrenMap = workflow.edges.groupBy { case (_, parent, _) => parent }
+    val pausedJobIds = pausedJobs().map(_.id)
 
     def reverseDescr(dep: TimeSeriesDependency) =
       TimeSeriesDependency(dep.offsetLow.negated, dep.offsetHigh.negated)
@@ -693,7 +771,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
         if (low >= high) None else Some(Interval(low, high))
       }
 
-    workflow.vertices.toList.flatMap { job =>
+    workflow.vertices.filter(job => !pausedJobIds.contains(job.id)).toList.flatMap { job =>
       val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> (()))
       val dependenciesSatisfied = parentsMap
         .getOrElse(job, Set.empty)

@@ -70,12 +70,6 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
           active={active.id === "executions/finished"}
           label="Finished"
           link="/executions/finished"
-        />,
-        <MenuSubEntry
-          active={active.id === "executions/paused"}
-          label="Paused"
-          link="/executions/paused"
-          badges={[statistics.paused && { label: statistics.paused }]}
         />
       ]}
     />
