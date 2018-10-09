@@ -10,7 +10,7 @@ definitions are all written using the cuttle Scala API. The scheduling mechanism
 
 ## Jobs
 
-A cuttle project is composed of many [Job]s(https://criteo.github.io/cuttle/api/com/criteo/cuttle/Job.html) to execute.
+A cuttle project is composed of many [Jobs](https://criteo.github.io/cuttle/api/com/criteo/cuttle/Job.html) to execute.
 
 Each job is defined by a set of metadata (_such as the job identifier, name, etc._) and most importantly by a side effect function. This function handles the actual job execution, and its Scala signature is something like `Context => Future[Completed]` (_which can be read as “execute the job for this input parameter and signal me the completion or failure with the returned Future value”_).
 
@@ -63,8 +63,8 @@ It is also possible to [Backfill](https://criteo.github.io/cuttle/api/com/criteo
 The [API documentation](https://criteo.github.io/cuttle/api/index.html) is the main reference for Scala programmers.
 
 For a project example, you can also follow these hands-on introductions:
-- [A basic project using the built-in timeseries scheduler](https://criteo.github.io/cuttle/examples/HelloTimeSeries.scala.html).
-- [A minimal custom scheduling](https://criteo.github.io/cuttle/examples/HelloCustomScheduling.scala.html)
+- [A basic project using the built-in timeseries scheduler](https://criteo.github.io/cuttle/examples/examples0/HelloTimeSeries.scala.html).
+- [A minimal custom scheduling](https://criteo.github.io/cuttle/examples/examples0/HelloCustomScheduling.scala.html)
 
 To run the example application, checkout the repository, launch the [sbt](http://www.scala-sbt.org/) console in the project (_you will need [yarn](https://yarnpkg.com/en/) as well to compile the UI part_), and run the `example HelloWorld` command.
 
