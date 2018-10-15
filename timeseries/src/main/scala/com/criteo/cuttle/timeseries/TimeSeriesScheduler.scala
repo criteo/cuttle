@@ -736,7 +736,10 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
                                                backfills: Set[Backfill],
                                                completed: Set[Run]): (State, Set[Backfill], Set[Backfill]) = {
     def isDone(state: State, job: TimeSeriesJob, context: TimeSeriesContext): Boolean =
-      state.apply(job).intersect(context.toInterval).toList.forall { case (_, state) => state == Done }
+      state.apply(job).intersect(context.toInterval).toList.forall {
+        case (_, Done(_)) => true
+        case _ => false
+      }
 
     // update state with job statuses
     val newState = completed.foldLeft(state) {
@@ -747,9 +750,11 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
 
     val notCompletedBackfills = backfills.filter { bf =>
       val itvl = Interval(bf.start, bf.end)
-      bf.jobs.exists(job => newState(job).intersect(itvl).toList.exists(_._2 != Done))
+      bf.jobs.exists(job => newState(job).intersect(itvl).toList.exists(_._2 match {
+        case Done(_) => true
+        case _ => false
+      }))
     }
-
     (newState, notCompletedBackfills, backfills -- notCompletedBackfills)
   }
 
