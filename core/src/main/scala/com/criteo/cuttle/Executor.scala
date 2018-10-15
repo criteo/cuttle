@@ -403,12 +403,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     val appLogger: Logger = logger
   }
 
-  private val pausedState: TMap[String, PausedJobWithExecutions[S]] = {
-    val pausedJobs = queries.getPausedJobs.transact(xa).unsafeRunSync
-    TMap(pausedJobs.map(pausedJob => pausedJob.id -> pausedJob.toPausedJobWithExecutions[S]()): _*)
-  }
+  // TODO: move to the scheduler
   private[cuttle] val runningState = TMap.empty[Execution[S], Future[Completed]]
-  private val throttledState = TMap.empty[Execution[S], (Promise[Completed], FailingJob)]
+  private[cuttle] val throttledState = TMap.empty[Execution[S], (Promise[Completed], FailingJob)]
   private val recentFailures = TMap.empty[(Job[S], S#Context), (Option[Execution[S]], FailingJob)]
 
   // signals whether the instance is shutting down
@@ -521,42 +518,6 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
           execution.toExecutionLog(status)
       })
 
-  private[cuttle] def pausedExecutionsSize(filteredJobs: Set[String]): Int =
-    pausedState.single.values.foldLeft(0) {
-      case (acc, PausedJobWithExecutions(id, _, _, executions)) =>
-        if (filteredJobs.contains(id))
-          acc + executions.size
-        else
-          acc
-    }
-
-  private[cuttle] def pausedExecutions(filteredJobs: Set[String],
-                                       sort: String,
-                                       asc: Boolean,
-                                       offset: Int,
-                                       limit: Int): Seq[ExecutionLog] = {
-    val filteredExecutions = pausedState.single.values
-      .collect {
-        case PausedJobWithExecutions(id, _, _, executions) if filteredJobs.contains(id) => executions.keys
-      }
-      .flatten
-      .toSeq
-
-    val ordering = sort match {
-      case "job"       => Ordering.by((e: Execution[S]) => (e.job.id, e))
-      case "startTime" => Ordering.by((e: Execution[S]) => (e.startTime.toString, e))
-      case _           => Ordering[Execution[S]]
-    }
-
-    val finalOrdering = if (asc) ordering else ordering.reverse
-
-    val sortedExecutions = filteredExecutions.sorted(finalOrdering)
-
-    sortedExecutions
-      .slice(offset, offset + limit)
-      .map(_.toExecutionLog(ExecutionPaused))
-  }
-
   private[cuttle] def allFailingExecutions: Seq[Execution[S]] =
     throttledState.single.keys.toSeq
 
@@ -615,11 +576,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                                          xa: XA): IO[Seq[ExecutionLog]] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa)
 
-  private[cuttle] def pausedJobs: Seq[PausedJob] = pausedState.single.values.map(_.toPausedJob()).toSeq
-
   private[cuttle] def cancelExecution(executionId: String)(implicit user: User): Unit = {
     val toCancel = atomic { implicit tx =>
-      (runningState.keys ++ pausedState.values.flatMap(_.executions.keys) ++ throttledState.keys)
+      (runningState.keys ++ throttledState.keys)
         .find(_.id == executionId)
     }
     toCancel.foreach(_.cancel())
@@ -628,13 +587,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def getExecution(queryContexts: Fragment, executionId: String): IO[Option[ExecutionLog]] =
     atomic { implicit tx =>
       val predicate = (e: Execution[S]) => e.id == executionId
-      pausedState.values
-        .flatMap(_.executions.keys)
+      throttledState.keys
         .find(predicate)
-        .map(_.toExecutionLog(ExecutionPaused))
-        .orElse(throttledState.keys
-          .find(predicate)
-          .map(e => e.toExecutionLog(ExecutionThrottled).copy(failing = throttledState.get(e).map(_._2))))
+        .map(e => e.toExecutionLog(ExecutionThrottled).copy(failing = throttledState.get(e).map(_._2)))
         .orElse(runningState.keys.find(predicate).map { execution =>
           execution.toExecutionLog(flagWaitingExecutions(execution :: Nil).head._2)
         })
@@ -646,69 +601,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def openStreams(executionId: String): fs2.Stream[IO, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
-  private[cuttle] def pauseJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
-    val executionsToCancel = atomic { implicit tx =>
-      val pauseDate = Instant.now()
-      val pausedJobIds = pausedJobs.map(_.id)
-      val jobsToPause = jobs
-        .filter(job => !pausedJobIds.contains(job.id))
-        .map(job => PausedJob(job.id, user, pauseDate))
-      if (jobsToPause.isEmpty) return
-
-      val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
-      Txn.setExternalDecider(new ExternalDecider {
-        def shouldCommit(implicit txn: InTxnEnd): Boolean = {
-          pauseQuery.transact(xa).unsafeRunSync
-          true
-        }
-      })
-
-      jobsToPause.flatMap { pausedJob =>
-        pausedState.update(pausedJob.id, pausedJob.toPausedJobWithExecutions())
-        runningState.filterKeys(_.job.id == pausedJob.id).keys ++ throttledState
-          .filterKeys(_.job.id == pausedJob.id)
-          .keys
-      }
-    }
-    logger.debug(s"we will cancel ${executionsToCancel.size} executions")
-    executionsToCancel.toList.sortBy(_.context).reverse.foreach { execution =>
-      execution.streams.debug(s"Job has been paused by user ${user.userId}")
-      execution.cancel()
-    }
-  }
-
-  private[cuttle] def resumeJobs(jobs: Set[Job[S]])(implicit user: User): Unit = {
-    val resumeQuery = jobs.map(job => queries.resumeJob(job.id)).reduceLeft(_ *> _)
-    val jobIdsToResume = jobs.map(_.id)
-
-    val executionsToResume = atomic { implicit tx =>
-      Txn.setExternalDecider(new ExternalDecider {
-        def shouldCommit(implicit tx: InTxnEnd): Boolean = {
-          resumeQuery.transact(xa).unsafeRunSync
-          true
-        }
-      })
-      val executionsToResume = pausedState.collect {
-        case (id, PausedJobWithExecutions(_, _, _, executions)) if jobIdsToResume.contains(id) => executions
-      }.flatten
-
-      jobs.foreach(job => pausedState -= job.id)
-
-      executionsToResume.map {
-        case (execution, promise) =>
-          addExecution2RunningState(execution, promise)
-          execution -> promise
-      }
-    }
-
-    executionsToResume.toList.sortBy(_._1.context).foreach {
-      case (execution, promise) =>
-        execution.streams.debug(s"Job has been resumed by user ${user.userId}.")
-        unsafeDoRun(execution, promise)
-    }
-  }
-
-  private[cuttle] def relaunch(jobs: Set[String])(implicit user: User): Unit = {
+    private[cuttle] def relaunch(jobs: Set[String])(implicit user: User): Unit = {
     val execution2Promise = atomic { implicit txn =>
       throttledState.collect {
         case (execution, (promise, _)) if jobs.contains(execution.job.id) =>
@@ -727,7 +620,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private[cuttle] def forceSuccess(executionId: String)(implicit user: User): Unit = {
     val toForce = atomic { implicit tx =>
-      (runningState.keys ++ pausedState.values.flatMap(_.executions.keys) ++ throttledState.keys)
+      (runningState.keys ++ throttledState.keys)
         .find(execution => execution.id == executionId)
     }
     toForce.foreach(_.forceSuccess())
@@ -740,7 +633,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     // cancel all executions
     val toCancel = atomic { implicit txn =>
       isShuttingDown() = true
-      runningState.keys ++ pausedState.values.flatMap(_.executions.keys) ++ throttledState.keys
+      runningState.keys ++ throttledState.keys
     }
     toCancel.foreach(_.cancel())
 
@@ -834,7 +727,6 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
-    case object Paused extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
     val index: Map[(Job[S], S#Context),(Execution[S], Future[Completed])] = runningState.single.map {
@@ -852,20 +744,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
               if(i > 1000 && i % 1000 == 0) logger.info(s"Submitted ${i}/${all.size} jobs")
               val maybeAlreadyRunning: Option[(Execution[S], Future[Completed])] = index.get((job, context))
 
-              lazy val maybePaused: Option[(Execution[S], Future[Completed])] = pausedState
-                .get(job.id)
-                .flatMap(_.executions.collectFirst {
-                  case (execution, promise) if execution.context == context =>
-                    execution -> promise.future
-                })
-
               lazy val maybeThrottled: Option[(Execution[S], Future[Completed])] =
                 throttledState.find { case (e, _) => e.job == job && e.context == context }.map {
                   case (e, (p, _)) => (e, p.future)
                 }
 
               maybeAlreadyRunning
-                .orElse(maybePaused)
                 .orElse(maybeThrottled)
                 .toLeft {
                   val nextExecutionId = utils.randomUUID
@@ -899,12 +783,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   )(sideEffectExecutionContext)
                   val promise = Promise[Completed]
 
-                  if (pausedState.contains(job.id)) {
-                    val pausedJobWithExecutions = pausedState(job.id)
-                    pausedState += job.id -> pausedJobWithExecutions.copy(
-                      executions = pausedJobWithExecutions.executions + (execution -> promise))
-                    (job, execution, promise, Paused)
-                  } else if (recentFailures.contains(job -> context)) {
+                  if (recentFailures.contains(job -> context)) {
                     val (_, failingJob) = recentFailures(job -> context)
                     recentFailures += ((job -> context) -> (Some(execution) -> failingJob))
                     val throttleFor =
@@ -931,25 +810,6 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
               whatToDo match {
                 case ToRunNow =>
                   unsafeDoRun(execution, promise)
-                case Paused =>
-                  execution.streams.debug(s"Delayed because job ${execution.job.id} is paused")
-                  // we attach this callback to freshly created "Paused" execution
-                  execution.onCancel {
-                    () =>
-                      val cancelNow = atomic { implicit tx =>
-                        // we take the first pair of jobId, executions and filter executions by execution
-                        val maybeJobId2Executions = pausedState.get(job.id).collectFirst {
-                          case pwe @ PausedJobWithExecutions(_, _, _, executions) if executions.contains(execution) =>
-                            job.id -> pwe.copy(executions = executions.filterKeys(_ == execution))
-                        }
-
-                        maybeJobId2Executions.fold(false) { x =>
-                          pausedState += x
-                          true
-                        }
-                      }
-                      if (cancelNow) promise.tryFailure(ExecutionCancelled)
-                  }
                 case Throttled(launchDate) =>
                   execution.streams.debug(s"Delayed until $launchDate because previous execution failed")
                   val timerTask = new TimerTask {
@@ -1013,18 +873,19 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     * @return how much ((running, waiting), paused, failing) jobs are in concrete states
     * */
   private def getStateAtomic(jobs: Set[String]) = atomic { implicit txn =>
-    (runningExecutionsSizes(jobs), pausedExecutionsSize(jobs), failingExecutionsSize(jobs))
+    (runningExecutionsSizes(jobs), failingExecutionsSize(jobs))
   }
 
   private[cuttle] def getStats(jobs: Set[String]): IO[Json] = {
-    val ((running, waiting), paused, failing) = getStateAtomic(jobs)
+    val ((running, waiting), failing) = getStateAtomic(jobs)
     // DB state call
     archivedExecutionsSize(jobs).map(
       finished =>
         Map(
           "running" -> running,
           "waiting" -> waiting,
-          "paused" -> paused,
+          // TODO: to check in UI
+          "paused" -> 0,
           "failing" -> failing,
           "finished" -> finished
         ).asJson)
@@ -1043,19 +904,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     *                          @param pausedExecutions
     */
   private[cuttle] def getMetrics(jobs: Set[Job[S]])(
-    getStateAtomic: Set[String] => ((Int, Int), Int, Int),
+    getStateAtomic: Set[String] => ((Int, Int), Int),
     runningExecutions: Seq[(Execution[S], ExecutionStatus)],
-    pausedExecutions: Seq[Execution[S]],
     failingExecutions: Seq[Execution[S]]
   ): Seq[Metric] = {
     val jobIds = jobs.map(_.id)
 
-    val ((runningCount, waitingCount), pausedCount, failingCount) = getStateAtomic(jobIds)
+    val ((runningCount, waitingCount), failingCount) = getStateAtomic(jobIds)
     val statMetrics = Seq(
       Gauge("cuttle_scheduler_stat_count", "The number of jobs that we have in concrete states")
         .labeled("type" -> "running", runningCount)
         .labeled("type" -> "waiting", waitingCount)
-        .labeled("type" -> "paused", pausedCount)
         .labeled("type" -> "failing", failingCount)
     )
 
@@ -1068,17 +927,13 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         execution.status == ExecutionStatus.ExecutionRunning
       }
 
-    val paused: Seq[ExecutionInfo] = pausedExecutions.map { exec =>
-      ExecutionInfo(exec.job.id, exec.job.tags.map(_.name), ExecutionStatus.ExecutionPaused)
-    }
-
     val failing: Seq[ExecutionInfo] = failingExecutions.map { exec =>
       ExecutionInfo(exec.job.id, exec.job.tags.map(_.name), ExecutionStatus.ExecutionThrottled)
     }
 
     statMetrics ++
-      Seq(getMetricsByTag(running, waiting, paused, failing)) ++
-      Seq(getMetricsByJob(running, waiting, paused, failing)) ++
+      Seq(getMetricsByTag(running, waiting, failing)) ++
+      Seq(getMetricsByJob(running, waiting, failing)) ++
       Seq(
         executionsCounters
           .single()
@@ -1101,14 +956,12 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
       getMetrics(jobs.all.filter(j => jobIds.contains(j.id)))(
         getStateAtomic,
         runningExecutions,
-        pausedState.values.flatMap(_.executions.keys).toSeq,
         allFailingExecutions
       )
     }
 
   private def getMetricsByTag(running: Seq[ExecutionInfo],
                               waiting: Seq[ExecutionInfo],
-                              paused: Seq[ExecutionInfo],
                               failing: Seq[ExecutionInfo]): Metrics.Metric =
     (// Explode by tag
     running
@@ -1124,13 +977,6 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         }
         .groupBy(identity)
         .mapValues("waiting" -> _.size)
-        .toList ++
-      paused
-        .flatMap { info =>
-          info.tags
-        }
-        .groupBy(identity)
-        .mapValues("paused" -> _.size)
         .toList ++
       failing
         .flatMap { info =>
@@ -1149,12 +995,10 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private def getMetricsByJob(running: Seq[ExecutionInfo],
                               waiting: Seq[ExecutionInfo],
-                              paused: Seq[ExecutionInfo],
                               failing: Seq[ExecutionInfo]): Metrics.Metric =
     (
       running.groupBy(_.jobId).mapValues("running" -> _.size).toList ++
         waiting.groupBy(_.jobId).mapValues("waiting" -> _.size).toList ++
-        paused.groupBy(_.jobId).mapValues("paused" -> _.size).toList ++
         failing.groupBy(_.jobId).mapValues("failing" -> _.size).toList
     ).foldLeft(
       Gauge("cuttle_scheduler_stat_count_by_job", "The number of executions that we have in concrete states by job")

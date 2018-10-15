@@ -41,7 +41,7 @@ class CuttleProject private[cuttle] (
 
     if (paused) {
       logger.info("Pausing workflow")
-      executor.pauseJobs(jobs.all)(Auth.User("Startup"))
+      scheduler.pauseJobs(jobs.all, executor, xa)(Auth.User("Startup"))
     }
 
     logger.info("Start workflow")
