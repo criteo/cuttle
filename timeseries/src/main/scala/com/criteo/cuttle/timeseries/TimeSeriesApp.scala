@@ -207,12 +207,6 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
               executor.failingExecutionsSize(ids) -> executor
                 .failingExecutions(ids, sort, asc, offset, limit)
                 .toList))
-        case "paused" =>
-          IO(
-            Some(
-              executor.pausedExecutionsSize(ids) -> executor
-                .pausedExecutions(ids, sort, asc, offset, limit)
-                .toList))
         case "finished" =>
           executor
             .archivedExecutionsSize(ids)
@@ -284,7 +278,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
       }
 
     case GET at "/api/jobs/paused" =>
-      Ok(executor.pausedJobs.asJson)
+      Ok(scheduler.pausedJobs().asJson)
 
     case GET at "/api/project_definition" =>
       Ok(project.asJson)
@@ -301,24 +295,24 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
 
     case POST at url"/api/jobs/pause?jobs=$jobs" => { implicit user =>
       getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
-        executor.pauseJobs(jobs)
+        scheduler.pauseJobs(jobs, executor, xa)
         Ok
       })
     }
 
     case POST at url"/api/jobs/resume?jobs=$jobs" => { implicit user =>
       getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
-        executor.resumeJobs(jobs)
+        scheduler.resumeJobs(jobs, xa)
         Ok
       })
     }
     case POST at url"/api/jobs/all/unpause" => { implicit user =>
-      executor.resumeJobs(jobs.all)
+      scheduler.resumeJobs(jobs.all, xa)
       Ok
     }
     case POST at url"/api/jobs/$id/unpause" => { implicit user =>
       jobs.all.find(_.id == id).fold(NotFound) { job =>
-        executor.resumeJobs(Set(job))
+        scheduler.resumeJobs(Set(job), xa)
         Ok
       }
     }
@@ -533,7 +527,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
               acc
           }
 
-        val pausedJobs = executor.pausedJobs
+        val pausedJobs = scheduler.pausedJobs().map(_.id)
         val allFailing = executor.allFailingExecutions
         val allWaitingIds = executor.allRunning
           .filter(_.status == ExecutionWaiting)
