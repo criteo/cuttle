@@ -319,8 +319,12 @@ class CalendarFocus extends React.Component<Props, State> {
         .attr("height", 80);
 
       // compute label sizes
+      const jobsIds = _.keys(jobs);
+      const getJobIndex = id => _.findIndex(workflow.jobs, j => j.id == id);
+      const getJobName = id => workflow.jobs[getJobIndex(id)].name;
+      const jobNames = _.flatMap(jobsIds, getJobName);
       let labelWidth = getMaxLabelWidth(
-        [..._.keys(jobs), globalLabel],
+        [...jobNames, globalLabel],
         summarySvg,
         classes.jobName
       );

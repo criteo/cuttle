@@ -47,6 +47,7 @@ type User = {
 
 type Job = {
   [Columns]: string,
+  name: string,
   scheduling: Scheduling,
   status: JobStatus,
   user: User
