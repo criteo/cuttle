@@ -638,10 +638,15 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
                   (interval, jobState) <- jobStates(job).intersect(Interval(lo, hi)).toList
                 } yield {
                   val (lo, hi) = interval.toPair
-                  (lo.until(hi, ChronoUnit.SECONDS), if (jobState == Done) lo.until(hi, ChronoUnit.SECONDS) else 0, jobState match {
-                    case Running(e) => allFailing.exists(_.id == e)
-                    case _          => false
-                  })
+                  (lo.until(hi, ChronoUnit.SECONDS),
+                    jobState match {
+                      case Done(_) => lo.until(hi, ChronoUnit.SECONDS)
+                      case _ => 0
+                    },
+                    jobState match {
+                      case Running(e) => allFailing.exists(_.id == e)
+                      case _          => false
+                    })
                 }
                 if (jobSummaries.nonEmpty) {
                   val (duration, done, failing) = jobSummaries
