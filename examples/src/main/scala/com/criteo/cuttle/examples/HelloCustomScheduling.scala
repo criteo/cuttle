@@ -127,7 +127,8 @@ object HelloCustomScheduling {
       Seq(local.LocalPlatform(maxForkedProcesses = 10)),
       stateDbTransactor,
       logger,
-      "Custom scheduling example"
+      projectName = "Custom scheduling example",
+      projectVersion = "version"
     )(RetryStrategy.ExponentialBackoffRetryStrategy)
 
     loopScheduler.start(LoopJobs(hello), executor, stateDbTransactor, logger)
