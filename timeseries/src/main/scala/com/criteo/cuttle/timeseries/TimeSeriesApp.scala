@@ -440,7 +440,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
           }
           .map { case (e, status) => e.toExecutionLog(status) }
 
-        val ((jobStates, backfills), _) = watchedState
+        val ((jobStates, _), _) = watchedState
         val remainingExecutions =
           for {
             (interval, maybeBackfill) <- jobStates(job)
@@ -751,7 +751,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
         }
 
     case GET at url"/api/timeseries/lastruns?job=$jobId" =>
-      val (jobStates, backfills) = scheduler.state
+      val (jobStates, _) = scheduler.state
       val successfulIntervalMaps = jobStates
         .filter(s => s._1.id == jobId)
         .values

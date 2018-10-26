@@ -42,7 +42,7 @@ object TimeSeriesSchedulerSpec {
     }
 
     val xa = CuttleDatabase.connect(DatabaseConfig(Seq(DBLocation("127.0.0.1", 3388)), "cuttle_dev", "root", ""))
-    val executor = new Executor[TimeSeries](Seq(LocalPlatform(maxForkedProcesses = 10)), xa, logger, project.version)(retryImmediatelyStrategy)
+    val executor = new Executor[TimeSeries](Seq(LocalPlatform(maxForkedProcesses = 10)), xa, logger, project.name, project.version)(retryImmediatelyStrategy)
     val scheduler = project.scheduler
 
     scheduler.initialize(project.jobs, xa, logger)
