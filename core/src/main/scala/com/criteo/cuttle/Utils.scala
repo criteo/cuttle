@@ -1,20 +1,20 @@
 package com.criteo.cuttle
 
-import doobie._
-import doobie.implicits._
-
 import java.util.UUID
-import java.util.concurrent.{Executors, ThreadFactory, TimeUnit}
+import java.util.concurrent.TimeUnit
 import java.lang.management.ManagementFactory
 import java.time.Instant
 
-import cats.implicits._
-import cats.effect.IO
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
+import cats.implicits._
+import cats.effect.IO
+import doobie._
+import doobie.implicits._
 import lol.http.{PartialService, Service}
+
 
 /** A set of basic utilities useful to write workflows. */
 package object utils {
@@ -60,7 +60,7 @@ package object utils {
     * after the given duration.
     */
   object Timeout {
-    private val scheduler = Executors.newScheduledThreadPool(1, createDaemonThreadFactory())
+    private val scheduler = ThreadPools.newScheduledThreadPool(1, poolName = Some("Timeout"))
 
     /** Creates a  [[scala.concurrent.Future]] that resolve automatically
       * after the given duration.
@@ -102,20 +102,4 @@ package object utils {
   }
 
   private[cuttle] def getJVMUptime = ManagementFactory.getRuntimeMXBean.getUptime / 1000
-
-  private[cuttle] def createDaemonThreadFactory(): ThreadFactory {
-    def newThread(r: Runnable): Thread
-  } = new ThreadFactory() {
-    def newThread(r: Runnable): Thread = {
-      val t = Executors.defaultThreadFactory.newThread(r)
-      t.setDaemon(true)
-      t
-    }
-  }
-
-  private[cuttle] def createThreadFactory(newThreadImpl: Runnable => Thread): ThreadFactory {
-    def newThread(r: Runnable): Thread
-  } = new ThreadFactory() {
-    def newThread(r: Runnable): Thread = newThreadImpl(r)
-  }
 }
