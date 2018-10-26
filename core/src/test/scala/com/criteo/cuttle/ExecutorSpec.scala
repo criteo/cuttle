@@ -30,6 +30,7 @@ class ExecutorSpec extends FunSuite with TestScheduling {
       Seq.empty,
       xa = Transactor.fromConnection[IO](connection).copy(strategy0 = doobie.util.transactor.Strategy.void),
       logger,
+      "project_name",
       "test_version"
     )(RetryStrategy.ExponentialBackoffRetryStrategy)
 
@@ -112,6 +113,7 @@ class ExecutorSpec extends FunSuite with TestScheduling {
         override private[cuttle] def writeln(str: CharSequence): Unit = ???
       },
       platforms = Seq.empty,
+      "project_name",
       "test_version"
     )
 
