@@ -302,10 +302,16 @@ private[timeseries] object JobState {
   case class Todo(maybeBackfill: Option[Backfill]) extends JobState
   case class Running(executionId: String) extends JobState
 
+  implicit val doneDecoder: Decoder[Done] = new Decoder[Done] {
+    final def apply(c: HCursor): Decoder.Result[Done] =
+      for {
+        version <- c.downField("projectVersion").as[String].orElse(Right("no-version"))
+      } yield Done(version)
+  }
+
   import TimeSeriesUtils._
   implicit val encoder: Encoder[JobState] = deriveEncoder
-  implicit def decoder(implicit jobs: Set[TimeSeriesJob]): Decoder[JobState] =
-    deriveDecoder
+  implicit def decoder(implicit jobs: Set[TimeSeriesJob]): Decoder[JobState] = deriveDecoder
   implicit val eqInstance: Eq[JobState] = Eq.fromUniversalEquals[JobState]
 }
 
