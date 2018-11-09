@@ -163,4 +163,44 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
       (date"2117-03-25T06:00:00Z", date"2117-03-25T07:00:00Z", Set(job1, job2))
     ))
   }
+
+  test("should parse JobState.Done without projectVersion") {
+    import io.circe.parser._
+
+    val state = """{
+      "Done": {}
+    }"""
+
+    val parseDone = parse(state).right.flatMap(json => json.as[JobState.Done])
+    assert(parseDone.isRight)
+    assert(parseDone.right.get == JobState.Done(projectVersion="no-version"))
+  }
+
+  test("should parse JobState without projectVersion") {
+    import io.circe.parser._
+
+    implicit val jobs: Set[Job[TimeSeries]] = Set.empty
+
+    val state = """{
+      "Done": {}
+    }"""
+
+    val parseState = parse(state).right.flatMap(json => json.as[JobState])
+    assert(parseState.isRight)
+    assert(parseState.right.get == JobState.Done(projectVersion="no-version"))
+  }
+
+  test("should parse JobState with projectVersion") {
+    import io.circe.parser._
+
+    implicit val jobs: Set[Job[TimeSeries]] = Set.empty
+
+    val state = """{
+      "Done": { "projectVersion" : "version" }
+    }"""
+
+    val parseState = parse(state).right.flatMap(_.as[JobState])
+    assert(parseState.isRight)
+    assert(parseState.right.get == JobState.Done(projectVersion="version"))
+  }
 }
