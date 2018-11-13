@@ -691,6 +691,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
         .unsafeRunSync
 
       _backfills() = _backfills() ++ incompleteBackfills
+      _pausedJobs() = _pausedJobs() ++ queries.getPausedJobs.transact(xa).unsafeRunSync()
 
       workflow.vertices.foreach { job =>
         val calendar = job.scheduling.calendar
