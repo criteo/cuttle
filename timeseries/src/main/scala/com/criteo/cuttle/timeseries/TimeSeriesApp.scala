@@ -756,7 +756,10 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
         .filter(s => s._1.id == jobId)
         .values
         .flatMap(m => m.toList)
-        .filter(i => i._2 == JobState.Done)
+        .filter { case (interval, jobState) => jobState match {
+          case Done(_) => true
+          case _ => false
+        }}
 
       if (successfulIntervalMaps.isEmpty) NotFound
       else {
