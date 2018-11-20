@@ -760,6 +760,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
           case Done(_) => true
           case _ => false
         }}
+        .foldLeft(IntervalMap.empty[Instant, Unit])((acc, elt) => acc.update(elt._1, ()))
+        .toList
 
       if (successfulIntervalMaps.isEmpty) NotFound
       else {
