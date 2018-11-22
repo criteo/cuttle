@@ -4,3 +4,6 @@ node_modules
 .idea
 dev.config.json
 .DS_Store
+
+# prices.log gererated by HelloCronScheduling
+prices.log

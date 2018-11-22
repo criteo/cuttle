@@ -251,6 +251,14 @@ lazy val timeseries =
     )
     .dependsOn(cuttle % "compile->compile;test->test")
 
+lazy val cron =
+  (project in file("cron"))
+    .settings(commonSettings: _*)
+    .settings(
+      libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5"
+    )
+    .dependsOn(cuttle % "compile->compile;test->test")
+
 lazy val examples =
   (project in file("examples"))
     .settings(commonSettings: _*)
@@ -273,7 +281,7 @@ lazy val examples =
         ))
         .getOrElse(Nil): _*
     )
-    .dependsOn(cuttle, timeseries, localdb)
+    .dependsOn(cuttle, timeseries, cron, localdb)
 
 lazy val root =
   (project in file("."))
@@ -297,7 +305,8 @@ lazy val root =
       unidocAllAPIMappings in (ScalaUnidoc, unidoc) ++= {
         val allJars = {
           (fullClasspath in cuttle in Compile).value ++
-            (fullClasspath in timeseries in Compile).value
+            (fullClasspath in timeseries in Compile).value ++
+            (fullClasspath in cron in Compile).value
         }
         Seq(
           allJars
@@ -315,6 +324,6 @@ lazy val root =
             .toMap
         )
       },
-      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(cuttle, timeseries)
+      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(cuttle, timeseries, cron)
     )
-    .aggregate(cuttle, timeseries, examples, localdb)
+    .aggregate(cuttle, timeseries, cron, examples, localdb)
