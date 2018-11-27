@@ -5,5 +5,8 @@ node_modules
 dev.config.json
 .DS_Store
 
-# prices.log gererated by HelloCronScheduling
-prices.log
+# price.log gererated by HelloCronScheduling
+price.log
+
+# vi temp files
+*.un~

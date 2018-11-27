@@ -16,7 +16,6 @@ import scala.io.Source
 // (_here we will just fork shell scripts_).
 import com.criteo.cuttle.platforms.local._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
