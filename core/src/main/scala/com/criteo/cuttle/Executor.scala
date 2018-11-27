@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 import scala.util._
 
 import cats.Eq
@@ -115,12 +115,12 @@ private[cuttle] object ExecutionLog {
       "context" -> execution.context,
       "status" -> (execution.status match {
         case ExecutionSuccessful => "successful"
-        case ExecutionFailed => "failed"
-        case ExecutionRunning => "running"
-        case ExecutionWaiting => "waiting"
-        case ExecutionPaused => "paused"
-        case ExecutionThrottled => "throttled"
-        case ExecutionTodo => "todo"
+        case ExecutionFailed     => "failed"
+        case ExecutionRunning    => "running"
+        case ExecutionWaiting    => "waiting"
+        case ExecutionPaused     => "paused"
+        case ExecutionThrottled  => "throttled"
+        case ExecutionTodo       => "todo"
       }).asJson,
       "failing" -> execution.failing.map {
         case FailingJob(failedExecutions, nextRetry) =>
@@ -188,7 +188,6 @@ case class Execution[S <: Scheduling](
   projectName: String,
   projectVersion: String
 )(implicit val executionContext: SideEffectThreadPool) {
-
 
   private var waitingSeconds = 0
   private[cuttle] var startTime: Option[Instant] = None
@@ -603,7 +602,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
   private[cuttle] def openStreams(executionId: String): fs2.Stream[IO, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
-    private[cuttle] def relaunch(jobs: Set[String])(implicit user: User): Unit = {
+  private[cuttle] def relaunch(jobs: Set[String])(implicit user: User): Unit = {
     val execution2Promise = atomic { implicit txn =>
       throttledState.collect {
         case (execution, (promise, _)) if jobs.contains(execution.job.id) =>
@@ -731,7 +730,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     case object ToRunNow extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
-    val index: Map[(Job[S], S#Context),(Execution[S], Future[Completed])] = runningState.single.map {
+    val index: Map[(Job[S], S#Context), (Execution[S], Future[Completed])] = runningState.single.map {
       case (execution, future) =>
         ((execution.job, execution.context), (execution, future))
     }.toMap
@@ -743,7 +742,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         } else
           all.distinct.zipWithIndex.map {
             case ((job, context), i) =>
-              if(i > 1000 && i % 1000 == 0) logger.info(s"Submitted ${i}/${all.size} jobs")
+              if (i > 1000 && i % 1000 == 0) logger.info(s"Submitted ${i}/${all.size} jobs")
               val maybeAlreadyRunning: Option[(Execution[S], Future[Completed])] = index.get((job, context))
 
               lazy val maybeThrottled: Option[(Execution[S], Future[Completed])] =
@@ -762,18 +761,18 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
                   // wrap the execution context so that we can register the name of the thread of each
                   // runnable (and thus future) that will be run by the side effect.
-                  val sideEffectExecutionContext = SideEffectThreadPool.wrap(runnable => new Runnable {
+                  val sideEffectExecutionContext = SideEffectThreadPool.wrap(runnable =>
+                    new Runnable {
                       override def run(): Unit = {
                         val tName = Thread.currentThread().getName
                         Executor.threadNamesToStreams.put(tName, streams)
                         try {
                           runnable.run()
-                        }
-                        finally {
+                        } finally {
                           Executor.threadNamesToStreams.remove(tName)
                         }
                       }
-                    })(Implicits.sideEffectThreadPool)
+                  })(Implicits.sideEffectThreadPool)
 
                   val execution = Execution(
                     id = nextExecutionId,

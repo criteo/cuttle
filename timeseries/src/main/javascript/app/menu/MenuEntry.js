@@ -60,14 +60,13 @@ const MenuEntry = ({
             />
           ))}
       </div>
-
     </Link>
-    {active
-      ? <div className={classes.content}>
-          {subEntries &&
-            subEntries.map((e, key) => React.cloneElement(e, { key }))}
-        </div>
-      : null}
+    {active ? (
+      <div className={classes.content}>
+        {subEntries &&
+          subEntries.map((e, key) => React.cloneElement(e, { key }))}
+      </div>
+    ) : null}
   </div>
 );
 

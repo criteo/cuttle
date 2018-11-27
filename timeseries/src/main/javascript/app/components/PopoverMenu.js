@@ -4,7 +4,7 @@ import injectSheet from "react-jss";
 import { connect } from "react-redux";
 import classNames from "classnames";
 import React from "react";
-import type { Node } from 'react';
+import type { Node } from "react";
 
 import Icon from "react-icons/lib/md/more-vert";
 
@@ -41,14 +41,18 @@ class PopoverMenu extends React.Component<Props, State> {
         className={classNames(className, { [classes.critical]: envCritical })}
       >
         <Icon className={classes.icon} onClick={open} />
-        {this.state.open
-          ? <div className={classes.overlay} onClick={close} />
-          : null}
-        {this.state.open
-          ? <ul className={classes.menu}>
-              {items.map((item, i) => <li key={i} onClick={close}>{item}</li>)}
-            </ul>
-          : null}
+        {this.state.open ? (
+          <div className={classes.overlay} onClick={close} />
+        ) : null}
+        {this.state.open ? (
+          <ul className={classes.menu}>
+            {items.map((item, i) => (
+              <li key={i} onClick={close}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     );
   }

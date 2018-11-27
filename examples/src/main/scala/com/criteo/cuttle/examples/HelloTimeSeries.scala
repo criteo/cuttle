@@ -71,7 +71,10 @@ object HelloTimeSeries {
     // Here is our third job. Look how we can also define some metadata such as a human friendly
     // name and a set of tags. This information is used in the UI to help retrieving your jobs.
     val hello3 =
-      Job("hello3", hourly(start), "prepare-export-job.cuttle_example.hello3_stats_daily", tags = Set(Tag("hello"), Tag("unsafe"))) { implicit e =>
+      Job("hello3",
+          hourly(start),
+          "prepare-export-job.cuttle_example.hello3_stats_daily",
+          tags = Set(Tag("hello"), Tag("unsafe"))) { implicit e =>
         // Here we mix a Scala code execution and a sh script execution.
         e.streams.info("Hello 3 from an unsafe job")
         val completed = exec"sleep 3" ()
@@ -99,13 +102,14 @@ object HelloTimeSeries {
     // Our last job is a daily job. For the daily job we still need to annouce a start date, plus
     // we need to define the time zone for which _days_ must be considered. The partitions for
     // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
-    val world = Job("world", daily(UTC, start), "export-job.cuttle.world_stats", tags = Set(Tag("world"))) { implicit e =>
-      e.streams.info("World!")
-      // Here we compose our executions in a for-comprehension.
-      for {
-        _ <- e.park(3.seconds)
-        completed <- exec"sleep 3" ()
-      } yield completed
+    val world = Job("world", daily(UTC, start), "export-job.cuttle.world_stats", tags = Set(Tag("world"))) {
+      implicit e =>
+        e.streams.info("World!")
+        // Here we compose our executions in a for-comprehension.
+        for {
+          _ <- e.park(3.seconds)
+          completed <- exec"sleep 3" ()
+        } yield completed
     }
 
     // Finally we bootstrap our cuttle project.

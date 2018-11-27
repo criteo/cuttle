@@ -14,7 +14,6 @@ import lol.json._
 import com.criteo.cuttle._
 import com.criteo.cuttle.platforms.{ExecutionPool, RateLimiter}
 
-
 /** Allow to make HTTP calls in a managed way with rate limiting. Globally the platform limits the number
   * of concurrent requests on the platform. Additionnaly a rate limiter must be defined for each host allowed
   * to be called by this platform.
@@ -92,8 +91,8 @@ object HttpPlatform {
     * @param request The [[lol.http.Request Request]] to run.
     * @param thunk The function handling the HTTP resposne once received.
     */
-  def request[A, S <: Scheduling](request: Request, timeout: FiniteDuration = FiniteDuration(30, "seconds"))(thunk: Response => Future[A])(
-    implicit execution: Execution[S]): Future[A] = {
+  def request[A, S <: Scheduling](request: Request, timeout: FiniteDuration = FiniteDuration(30, "seconds"))(
+    thunk: Response => Future[A])(implicit execution: Execution[S]): Future[A] = {
     val streams = execution.streams
     streams.debug(s"HTTP request: ${request}")
 

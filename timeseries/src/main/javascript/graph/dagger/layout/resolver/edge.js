@@ -85,11 +85,13 @@ export const resolveBorderEdges = (
       ...acc,
       [current.id]: {
         x1: sourceNodeStart.x + sourceNodeStart.width / 2,
-        y1: sourceNodeStart.y -
+        y1:
+          sourceNodeStart.y -
           sourceNodeStart.height / 2 +
           sourceScale(targetNodeStart.y),
         x2: targetNodeStart.x + targetNodeStart.width / 2,
-        y2: targetNodeStart.y -
+        y2:
+          targetNodeStart.y -
           targetNodeStart.height / 2 +
           targetScale(sourceNodeStart.y),
         ...current,

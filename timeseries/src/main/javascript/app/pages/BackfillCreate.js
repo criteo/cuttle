@@ -58,7 +58,9 @@ const formatDate = value => {
 };
 
 const Label = ({ name, style = null }: any) => (
-  <dt key={`_${name}`} style={style}>{name}</dt>
+  <dt key={`_${name}`} style={style}>
+    {name}
+  </dt>
 );
 
 const InputField = ({
@@ -180,7 +182,6 @@ class BackfillCreate extends React.Component<Props> {
     } = this.props;
     return (
       <Window title="Create Backfill">
-
         <form
           onSubmit={handleSubmit(this.createBackfill)}
           className={classes.createBackfillForm}
@@ -246,7 +247,8 @@ class BackfillCreate extends React.Component<Props> {
                 name="description"
                 component={TextAreaField}
                 props={{
-                  placeholder: "Explain why you need to backfill. Markdown is supported."
+                  placeholder:
+                    "Explain why you need to backfill. Markdown is supported."
                 }}
               />
             </dd>

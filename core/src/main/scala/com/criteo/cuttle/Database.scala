@@ -19,7 +19,6 @@ import cats.effect.IO
 import ExecutionStatus._
 import com.criteo.cuttle.events.{Event, JobSuccessForced}
 
-
 /** Configuration of JDBC endpoint.
   *
   * @param host JDBC driver host
@@ -166,7 +165,8 @@ private[cuttle] object Database {
     })
 
     // Refresh our lock every minute (and check that we still are the lock owner)
-    ThreadPools.newScheduledThreadPool(1, poolName = Some("DatabaseLock"))
+    ThreadPools
+      .newScheduledThreadPool(1, poolName = Some("DatabaseLock"))
       .scheduleAtFixedRate(
         new Runnable {
           def run =

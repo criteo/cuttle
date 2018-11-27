@@ -41,7 +41,7 @@ type Props = {
   workflow: Workflow,
   selectedJobs: string[],
   job: string,
-  navTo: (string) => void,
+  navTo: string => void,
   showDetail: boolean,
   refPath?: string
 };
@@ -227,22 +227,26 @@ class WorkflowComponent extends React.Component<Props, State> {
   }
 
   updateCharts(jobId: string) {
-    fetch(`/api/statistics/${jobId}`).then(data => data.json()).then(json => {
-      this.setState({
-        data: json
+    fetch(`/api/statistics/${jobId}`)
+      .then(data => data.json())
+      .then(json => {
+        this.setState({
+          data: json
+        });
       });
-    });
   }
 
   updatePausedJobs() {
-    fetch(`/api/jobs/paused`).then(data => data.json()).then(json => {
-      this.setState({
-        jobColors: json.reduce(
-          (acc, job) => Object.assign(acc, { [job.id]: "#FFAAFF" }),
-          {}
-        )
+    fetch(`/api/jobs/paused`)
+      .then(data => data.json())
+      .then(json => {
+        this.setState({
+          jobColors: json.reduce(
+            (acc, job) => Object.assign(acc, { [job.id]: "#FFAAFF" }),
+            {}
+          )
+        });
       });
-    });
   }
 
   render() {
@@ -337,29 +341,32 @@ class WorkflowComponent extends React.Component<Props, State> {
     };
 
     const JobMenu = ({ job }: { job: string }) => {
-      const menuItems = this.state.jobColors && this.state.jobColors[job]
-        ? [
-            <span
-              onClick={() =>
-                fetch(`/api/jobs/resume?jobs=${job}`, {
-                  method: "POST",
-                  credentials: "include"
-                }).then(() => this.updatePausedJobs())}
-            >
-              Resume
-            </span>
-          ]
-        : [
-            <span
-              onClick={() =>
-                fetch(`/api/jobs/pause?jobs=${job}`, {
-                  method: "POST",
-                  credentials: "include"
-                }).then(() => this.updatePausedJobs())}
-            >
-              Pause
-            </span>
-          ];
+      const menuItems =
+        this.state.jobColors && this.state.jobColors[job]
+          ? [
+              <span
+                onClick={() =>
+                  fetch(`/api/jobs/resume?jobs=${job}`, {
+                    method: "POST",
+                    credentials: "include"
+                  }).then(() => this.updatePausedJobs())
+                }
+              >
+                Resume
+              </span>
+            ]
+          : [
+              <span
+                onClick={() =>
+                  fetch(`/api/jobs/pause?jobs=${job}`, {
+                    method: "POST",
+                    credentials: "include"
+                  }).then(() => this.updatePausedJobs())
+                }
+              >
+                Pause
+              </span>
+            ];
 
       return <PopoverMenu className={classes.menu} items={menuItems} />;
     };
@@ -402,7 +409,7 @@ class WorkflowComponent extends React.Component<Props, State> {
             <MdList />
           </Link>
         </div>
-        {showDetail &&
+        {showDetail && (
           <Window closeUrl={refPath || `/workflow/${job}`} title="Job details">
             <div className={classes.jobCard}>
               <JobMenu job={startNode.id} />
@@ -443,16 +450,17 @@ class WorkflowComponent extends React.Component<Props, State> {
                   />
                 ]}
                 {this.state.jobColors &&
-                this.state.jobColors[startNode.id] && [
-                  <dt key="status">Status:</dt>,
-                  <dd key="status_">
-                    <Status status="paused" />
-                  </dd>
-                ]}
+                  this.state.jobColors[startNode.id] && [
+                    <dt key="status">Status:</dt>,
+                    <dd key="status_">
+                      <Status status="paused" />
+                    </dd>
+                  ]}
               </FancyTable>
             </div>
             {charts(this.state.data)}
-          </Window>}
+          </Window>
+        )}
       </div>
     );
   }
@@ -553,7 +561,11 @@ const styles = {
   }
 };
 
-const mapStateToProps = ({ app: { page: { showDetail, refPath } } }) => ({ showDetail, refPath });
+const mapStateToProps = ({
+  app: {
+    page: { showDetail, refPath }
+  }
+}) => ({ showDetail, refPath });
 
 export default connect(mapStateToProps, dispatch => ({
   navTo: link => dispatch(navigate(link))

@@ -29,6 +29,7 @@ private[cuttle] case class Node[T](data: T, children: mutable.Set[Node[T]] = mut
 private[cuttle] case class Graph[T](nodes: Seq[Node[T]])
 
 private[cuttle] object Graph {
+
   /** @param edges set of edges defined as a pair (parent, child) */
   def fromVertexAndEdgeList[T](vertices: Set[T], edges: Set[(T, T)]): Graph[T] = {
     val verticesWithMetadata = vertices.map(data => data -> Node(data)).toMap

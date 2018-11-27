@@ -179,7 +179,9 @@ class Backfills extends React.Component<Props, State> {
                 case "period":
                   return (
                     <TimeRangeLink
-                      href={`/timeseries/calendar/${urlFormat(start)}_${urlFormat(end)}`}
+                      href={`/timeseries/calendar/${urlFormat(
+                        start
+                      )}_${urlFormat(end)}`}
                       start={start}
                       end={end}
                     />
@@ -234,7 +236,9 @@ class Backfills extends React.Component<Props, State> {
           ]}
         />
         <div className={classes.grid}>
-          <div className={classes.data}><Data /></div>
+          <div className={classes.data}>
+            <Data />
+          </div>
         </div>
       </div>
     );
@@ -291,7 +295,12 @@ const styles = {
 };
 
 const mapStateToProps = ({
-  app: { project, page: { sort, order }, statistics, selectedJobs }
+  app: {
+    project,
+    page: { sort, order },
+    statistics,
+    selectedJobs
+  }
 }) => ({
   sort: {
     column: sort || "created",

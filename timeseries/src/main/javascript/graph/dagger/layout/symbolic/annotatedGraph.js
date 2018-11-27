@@ -30,11 +30,11 @@ export type EdgeKind =
   | "edgeKind_border";
 
 export interface AnnotatedNode extends Node {
-  kind: NodeKind
+  kind: NodeKind;
 }
 
 export interface AnnotatedEdge extends Edge {
-  kind: EdgeKind
+  kind: EdgeKind;
 }
 
 // Subgraph around the selected node Id, with symbolic layout
@@ -63,12 +63,14 @@ export class AnnotatedGraph {
     from,
     to
   }: $Shape<{ from: string[], to: string[] }>): AnnotatedEdge[] {
-    const filterSource = typeof from === "undefined"
-      ? edge => true
-      : edge => from.includes(edge.source);
-    const filterTarget = typeof to === "undefined"
-      ? edge => true
-      : edge => to.includes(edge.target);
+    const filterSource =
+      typeof from === "undefined"
+        ? edge => true
+        : edge => from.includes(edge.source);
+    const filterTarget =
+      typeof to === "undefined"
+        ? edge => true
+        : edge => to.includes(edge.target);
     return this.edges.filter(e => filterSource(e) && filterTarget(e));
   }
 

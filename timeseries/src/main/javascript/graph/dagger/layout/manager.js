@@ -23,8 +23,8 @@ type AnnotatedGraphMap = { [mainNodeId: string]: AnnotatedGraph };
 type FixLayoutMap = { [mainNodeId: string]: ResolvedGraphLayout };
 
 export interface LayoutManager {
-  annotatedGraph: $Shape<AnnotatedGraphMap>,
-  layout: $Shape<FixLayoutMap>
+  annotatedGraph: $Shape<AnnotatedGraphMap>;
+  layout: $Shape<FixLayoutMap>;
 }
 
 const shiftLayout = (
@@ -121,7 +121,7 @@ export const buildCachedLayoutManager = (
       };
 
       const yMaxPosition =
-        1.30 *
+        1.3 *
         max(
           map(values(startNodePositions), n =>
             Math.abs(n.y - dimensions.canva.height / 2)

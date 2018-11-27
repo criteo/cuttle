@@ -125,25 +125,30 @@ class JobSelector extends React.Component<Props, State> {
 
     let renderOption = ({ label, kind, others }: Option) => (
       <span>
-        {kind == "parents"
-          ? <GraphIcon
-              className={classes.optionIcon}
-              style={{ transform: "rotate(-90deg) translateX(2px)" }}
-            />
-          : kind == "children"
-              ? <GraphIcon
-                  className={classes.optionIcon}
-                  style={{ transform: "rotate(90deg) translateX(-2px)" }}
-                />
-              : kind == "tag"
-                  ? <TagIcon className={classes.optionIcon} />
-                  : <JobIcon className={classes.optionIcon} />}
+        {kind == "parents" ? (
+          <GraphIcon
+            className={classes.optionIcon}
+            style={{ transform: "rotate(-90deg) translateX(2px)" }}
+          />
+        ) : kind == "children" ? (
+          <GraphIcon
+            className={classes.optionIcon}
+            style={{ transform: "rotate(90deg) translateX(-2px)" }}
+          />
+        ) : kind == "tag" ? (
+          <TagIcon className={classes.optionIcon} />
+        ) : (
+          <JobIcon className={classes.optionIcon} />
+        )}
         {label}
         {others &&
-          others.length > 0 &&
-          <em className={classes.more}>
-            {`${kind != "tag" ? "+" : ""}${others.length} job${others.length > 1 ? "s" : ""}`}
-          </em>}
+          others.length > 0 && (
+            <em className={classes.more}>
+              {`${kind != "tag" ? "+" : ""}${others.length} job${
+                others.length > 1 ? "s" : ""
+              }`}
+            </em>
+          )}
       </span>
     );
 
@@ -183,10 +188,11 @@ class JobSelector extends React.Component<Props, State> {
         multi
         joinValues
         placeholder={
-          placeholder ||
+          placeholder || (
             <span>
               <SearchIcon className={classes.searchIcon} /> Select jobs...
             </span>
+          )
         }
         className={classNames(className, classes.select)}
         value={selectedOptions}

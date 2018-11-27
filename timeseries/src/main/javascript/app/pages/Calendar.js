@@ -91,39 +91,39 @@ class Calendar extends React.Component<Props, State> {
           [classes.critical]: envCritical
         })}
       >
-        {data
-          ? <MiniCalendar
-              weekNumbers={false}
-              startDate={moment(data[0].date).startOf("month")}
-              endDate={moment(data[data.length - 1].date).endOf("month")}
-              mods={data
-                .map(({ date, completion, stuck, backfill }) => {
-                  return {
-                    date: moment(date),
-                    classNames: [
-                      stuck
-                        ? "stuck"
-                        : completion == 1
-                            ? "done"
-                            : completion == 0
-                                ? "todo"
-                                : `progress-${completion
-                                    .toString()
-                                    .substring(2,3)}`
-                    ].concat(backfill ? ["backfill"] : []),
-                    component: ["day"]
-                  };
-                })
-                .concat([
-                  {
-                    events: {
-                      onClick: drillDown
-                    },
-                    component: ["day"]
-                  }
-                ])}
-            />
-          : <Spinner />}
+        {data ? (
+          <MiniCalendar
+            weekNumbers={false}
+            startDate={moment(data[0].date).startOf("month")}
+            endDate={moment(data[data.length - 1].date).endOf("month")}
+            mods={data
+              .map(({ date, completion, stuck, backfill }) => {
+                return {
+                  date: moment(date),
+                  classNames: [
+                    stuck
+                      ? "stuck"
+                      : completion == 1
+                        ? "done"
+                        : completion == 0
+                          ? "todo"
+                          : `progress-${completion.toString().substring(2, 3)}`
+                  ].concat(backfill ? ["backfill"] : []),
+                  component: ["day"]
+                };
+              })
+              .concat([
+                {
+                  events: {
+                    onClick: drillDown
+                  },
+                  component: ["day"]
+                }
+              ])}
+          />
+        ) : (
+          <Spinner />
+        )}
       </div>
     );
   }

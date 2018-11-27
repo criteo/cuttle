@@ -10,15 +10,14 @@ import com.criteo.cuttle.ThreadPools._, Implicits.serverThreadPool
   * A cuttle project is a workflow to execute with the appropriate scheduler.
   * See the [[CuttleProject]] companion object to create projects.
   */
-class CuttleProject private[cuttle] (
-    val name: String,
-    val version: String,
-    val description: String,
-    val env: (String, Boolean),
-    val jobs: Workflow,
-    val scheduler: TimeSeriesScheduler,
-    val authenticator: Auth.Authenticator,
-    val logger: Logger) {
+class CuttleProject private[cuttle] (val name: String,
+                                     val version: String,
+                                     val description: String,
+                                     val env: (String, Boolean),
+                                     val jobs: Workflow,
+                                     val scheduler: TimeSeriesScheduler,
+                                     val authenticator: Auth.Authenticator,
+                                     val logger: Logger) {
 
   /**
     * Start scheduling and execution with the given environment. It also starts
@@ -103,8 +102,8 @@ object CuttleProject {
             version: String = "",
             description: String = "",
             env: (String, Boolean) = ("", false),
-            authenticator: Auth.Authenticator = Auth.GuestAuth)(
-            jobs: Workflow)(implicit scheduler: TimeSeriesScheduler, logger: Logger): CuttleProject =
+            authenticator: Auth.Authenticator = Auth.GuestAuth)(jobs: Workflow)(implicit scheduler: TimeSeriesScheduler,
+                                                                                logger: Logger): CuttleProject =
     new CuttleProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {

@@ -6,6 +6,7 @@ import com.criteo.cuttle.timeseries.graph.mutable.{Node => MutableNode}
 import com.criteo.cuttle.timeseries.graph.mutable.{Graph => MutableGraph}
 
 package object graph {
+
   /**
     * @param edges set of edges defined as a pair (parent, child)
     * @return the nodes in `graph` sorted in topological order, None if the graph contains a cycle
@@ -30,7 +31,7 @@ package object graph {
     }
 
     val hasCycle = !graph.nodes.forall(node => node.isOrphanNode)
-    if(hasCycle) None else Some(topologicalOrder.map(_.data).toList)
+    if (hasCycle) None else Some(topologicalOrder.map(_.data).toList)
   }
 
   /**
@@ -46,7 +47,7 @@ package object graph {
     val discoveryTimes = MutableMap.empty[MutableNode[T], Long]
     // Discovery time of the earliest discovered ancestor
     val earliestAncestors = MutableMap.empty[MutableNode[T], Long]
-    graph.nodes.foreach {n =>
+    graph.nodes.foreach { n =>
       discoveryTimes += (n -> Long.MaxValue)
       earliestAncestors += (n -> Long.MaxValue)
     }
@@ -57,7 +58,8 @@ package object graph {
 
     var time = 0L
 
-    def isNodeVisited(node: MutableNode[T]): Boolean = discoveryTimes.contains(node) && discoveryTimes(node) < Long.MaxValue
+    def isNodeVisited(node: MutableNode[T]): Boolean =
+      discoveryTimes.contains(node) && discoveryTimes(node) < Long.MaxValue
 
     def dfs(node: MutableNode[T]): Unit = {
       stack.push(node)
@@ -70,12 +72,11 @@ package object graph {
           // (node -> child) is a tree edge
           dfs(child)
           earliestAncestors(node) = Math.min(earliestAncestors(node), earliestAncestors(child))
-        }
-        else if (nodesInStack.contains(child)) {
+        } else if (nodesInStack.contains(child)) {
           // (node -> child) is a back edge
           earliestAncestors(node) = Math.min(earliestAncestors(node), discoveryTimes(child))
         }
-        // Otherwise 'child' was already added to a SCC
+      // Otherwise 'child' was already added to a SCC
       }
 
       // Depth-first search tree of 'node' full explored
@@ -94,7 +95,7 @@ package object graph {
       }
     }
 
-    graph.nodes.foreach(node => if(!isNodeVisited(node)) dfs(node))
+    graph.nodes.foreach(node => if (!isNodeVisited(node)) dfs(node))
 
     stronglyConnectedComponents.toList
   }

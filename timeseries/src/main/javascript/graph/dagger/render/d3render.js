@@ -31,25 +31,30 @@ const computeStartEndDisconnectedLayout = (
     .renderedPosition();
   const switchOrder = {
     vertical: currentNodePosition.y >= previousNodePosition.y ? 1 : -1,
-    horizontal: Math.abs(currentNodePosition.x - previousNodePosition.x) >
+    horizontal:
+      Math.abs(currentNodePosition.x - previousNodePosition.x) >
       0.15 * minimap.width()
-      ? currentNodePosition.x >= previousNodePosition.x ? -1 : 1
-      : 0
+        ? currentNodePosition.x >= previousNodePosition.x
+          ? -1
+          : 1
+        : 0
   };
 
   return {
-    enterLayout: switchOrder.horizontal == 0
-      ? allLayouts[node].shift(switchOrder.vertical == 1 ? "bottom" : "top")
-      : allLayouts[node]
-          .shift(switchOrder.vertical == 1 ? "bottom" : "top")
-          .shift(switchOrder.horizontal == 1 ? "left" : "right"),
-    exitLayout: switchOrder.horizontal == 0
-      ? allLayouts[previousNode].shift(
-          switchOrder.vertical == -1 ? "bottom" : "top"
-        )
-      : allLayouts[previousNode]
-          .shift(switchOrder.vertical == -1 ? "bottom" : "top")
-          .shift(switchOrder.horizontal == -1 ? "left" : "right")
+    enterLayout:
+      switchOrder.horizontal == 0
+        ? allLayouts[node].shift(switchOrder.vertical == 1 ? "bottom" : "top")
+        : allLayouts[node]
+            .shift(switchOrder.vertical == 1 ? "bottom" : "top")
+            .shift(switchOrder.horizontal == 1 ? "left" : "right"),
+    exitLayout:
+      switchOrder.horizontal == 0
+        ? allLayouts[previousNode].shift(
+            switchOrder.vertical == -1 ? "bottom" : "top"
+          )
+        : allLayouts[previousNode]
+            .shift(switchOrder.vertical == -1 ? "bottom" : "top")
+            .shift(switchOrder.horizontal == -1 ? "left" : "right")
   };
 };
 
@@ -122,12 +127,12 @@ export const transitionAction: TransitionAction = ({
   );
 
   // if node contains only one entry, it's because we try to reach a disconnected node (two disjoint graphs)
-  const enterLayout = node.length >= 2
-    ? mergeLayouts(drop(layout))
-    : disconnectedEnterLayout;
-  const exitLayout = node.length >= 2
-    ? mergeLayouts(dropRight(layout).reverse())
-    : disconnectedExitLayout;
+  const enterLayout =
+    node.length >= 2 ? mergeLayouts(drop(layout)) : disconnectedEnterLayout;
+  const exitLayout =
+    node.length >= 2
+      ? mergeLayouts(dropRight(layout).reverse())
+      : disconnectedExitLayout;
 
   const updatePromise = update(
     currentNodesDom,

@@ -28,7 +28,8 @@ object ThreadPools {
   sealed trait SideEffectThreadPool extends WrappedThreadPool with Metrics
 
   object SideEffectThreadPool {
-    def wrap(wrapRunnable: Runnable => Runnable)(implicit executionContext: SideEffectThreadPool): SideEffectThreadPool = {
+    def wrap(wrapRunnable: Runnable => Runnable)(
+      implicit executionContext: SideEffectThreadPool): SideEffectThreadPool =
       new SideEffectThreadPool {
         private val delegate = executionContext.underlying
 
@@ -39,7 +40,6 @@ object ThreadPools {
 
         override def threadPoolSize(): Int = executionContext.threadPoolSize()
       }
-    }
   }
 
   // The implicitly provided execution contexts use fixed thread pools.
@@ -52,17 +52,16 @@ object ThreadPools {
     def fromSystemProperties(value: ThreadPoolSystemProperties.Value, defaultValue: Int): Int =
       loadSystemPropertyAsInt(value.toString, defaultValue)
 
-    private def loadSystemPropertyAsInt(propertyName: String, defaultValue: Int) = {
+    private def loadSystemPropertyAsInt(propertyName: String, defaultValue: Int) =
       Option(System.getProperties().getProperty(propertyName)) match {
         case Some(size) => Try[Int] { size.toInt }.getOrElse(Runtime.getRuntime.availableProcessors)
-        case None => Runtime.getRuntime.availableProcessors
+        case None       => Runtime.getRuntime.availableProcessors
       }
-    }
   }
 
   def newThreadFactory(daemonThreads: Boolean = true,
                        poolName: Option[String] = None,
-                       threadCounter: AtomicInteger = new AtomicInteger(0)): ThreadFactory =  new ThreadFactory() {
+                       threadCounter: AtomicInteger = new AtomicInteger(0)): ThreadFactory = new ThreadFactory() {
     override def newThread(r: Runnable): Thread = {
       val t = Executors.defaultThreadFactory.newThread(r)
       t.setDaemon(daemonThreads)
@@ -81,7 +80,10 @@ object ThreadPools {
     * @param poolName optional parameter to identify the threads created by this thread pool
     * @param threadCounter reference to a counter keeping track of the total number of threads created by this thread pool
     */
-  def newFixedThreadPool(numThreads: Int, daemonThreads: Boolean = true, poolName: Option[String] = None, threadCounter: AtomicInteger = new AtomicInteger(0)): ExecutorService =
+  def newFixedThreadPool(numThreads: Int,
+                         daemonThreads: Boolean = true,
+                         poolName: Option[String] = None,
+                         threadCounter: AtomicInteger = new AtomicInteger(0)): ExecutorService =
     Executors.newFixedThreadPool(numThreads, newThreadFactory(daemonThreads, poolName, threadCounter))
 
   /**
@@ -89,7 +91,10 @@ object ThreadPools {
     * @param poolName optional parameter to identify the threads created by this thread pool
     * @param threadCounter reference to a counter keeping track of the total number of threads created by this thread pool
     */
-  def newScheduledThreadPool(numThreads: Int, daemonThreads: Boolean = true, poolName: Option[String] = None, threadCounter: AtomicInteger = new AtomicInteger(0)): ScheduledExecutorService =
+  def newScheduledThreadPool(numThreads: Int,
+                             daemonThreads: Boolean = true,
+                             poolName: Option[String] = None,
+                             threadCounter: AtomicInteger = new AtomicInteger(0)): ScheduledExecutorService =
     Executors.newScheduledThreadPool(numThreads, newThreadFactory(daemonThreads, poolName, threadCounter))
 
   object Implicits {
@@ -98,7 +103,9 @@ object ThreadPools {
       private val _threadPoolSize: AtomicInteger = new AtomicInteger(0)
 
       override val underlying = ExecutionContext.fromExecutorService(
-        newFixedThreadPool(fromSystemProperties(ServerECThreadCount, Runtime.getRuntime.availableProcessors), poolName = Some("Server"), threadCounter = _threadPoolSize)
+        newFixedThreadPool(fromSystemProperties(ServerECThreadCount, Runtime.getRuntime.availableProcessors),
+                           poolName = Some("Server"),
+                           threadCounter = _threadPoolSize)
       )
 
       override def threadPoolSize(): Int = _threadPoolSize.get()
@@ -108,7 +115,9 @@ object ThreadPools {
       private val _threadPoolSize: AtomicInteger = new AtomicInteger(0)
 
       override val underlying = ExecutionContext.fromExecutorService(
-        newFixedThreadPool(fromSystemProperties(SideEffectECThreadCount, Runtime.getRuntime.availableProcessors), poolName = Some("SideEffect"), threadCounter = _threadPoolSize)
+        newFixedThreadPool(fromSystemProperties(SideEffectECThreadCount, Runtime.getRuntime.availableProcessors),
+                           poolName = Some("SideEffect"),
+                           threadCounter = _threadPoolSize)
       )
 
       override def threadPoolSize(): Int = _threadPoolSize.get()

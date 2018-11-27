@@ -188,7 +188,13 @@ export class GraphDimensions {
       };
   }
 
-  static buildDefaultDimensions({ width = 1200, height = 850 }: { width: number, height: number }) {
+  static buildDefaultDimensions({
+    width = 1200,
+    height = 850
+  }: {
+    width: number,
+    height: number
+  }) {
     // Here we define default dimensions
     // These default dimensions are used in a relative way
     // when parameters are provided (responsive behaviour)

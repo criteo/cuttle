@@ -11,7 +11,6 @@ type Props = {
 const W = 64;
 
 class Favicon extends React.Component<Props> {
-
   updateIcon() {
     let { statistics } = this.props;
     let icon = document.createElement("canvas");

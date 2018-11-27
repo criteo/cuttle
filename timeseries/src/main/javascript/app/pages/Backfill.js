@@ -101,39 +101,39 @@ class BackfillDetail extends React.Component {
     return (
       <div className={classes.main}>
         <Window closeUrl={`/timeseries/backfills`} title="Backfill">
-          {backfill
-            ? <FancyTable key="properties">
-                <dt key="name">Name:</dt>
-                <dd key="name_">{backfill.name}</dd>
-                <dt key="jobs">Jobs:</dt>
-                <dd key="jobs_">{jobLinks}</dd>
-                <dt key="created">Created:</dt>
-                <dd key="created_">{created(backfill)}</dd>
-                <dt key="description">Description:</dt>
-                <dd
-                  key="description_"
-                  style={{ lineHeight: "inherit" }}
-                  dangerouslySetInnerHTML={{
-                    __html: markdown.toHTML(backfill.description)
-                  }}
+          {backfill ? (
+            <FancyTable key="properties">
+              <dt key="name">Name:</dt>
+              <dd key="name_">{backfill.name}</dd>
+              <dt key="jobs">Jobs:</dt>
+              <dd key="jobs_">{jobLinks}</dd>
+              <dt key="created">Created:</dt>
+              <dd key="created_">{created(backfill)}</dd>
+              <dt key="description">Description:</dt>
+              <dd
+                key="description_"
+                style={{ lineHeight: "inherit" }}
+                dangerouslySetInnerHTML={{
+                  __html: markdown.toHTML(backfill.description)
+                }}
+              />
+              <dt key="context">Context:</dt>
+              <dd key="context_">
+                <Context
+                  context={{ start: backfill.start, end: backfill.end }}
                 />
-                <dt key="context">Context:</dt>
-                <dd key="context_">
-                  <Context
-                    context={{ start: backfill.start, end: backfill.end }}
-                  />
-                </dd>
-                <dt key="status">Status:</dt>
-                <dd key="status_">
-                  <Status status={backfill.status} />
-                  <span className="backfill-completion">
-                    {this.state.completion
-                      ? `${(this.state.completion * 100).toFixed(2)} % completed`
-                      : null}
-                  </span>
-                </dd>
-              </FancyTable>
-            : null}
+              </dd>
+              <dt key="status">Status:</dt>
+              <dd key="status_">
+                <Status status={backfill.status} />
+                <span className="backfill-completion">
+                  {this.state.completion
+                    ? `${(this.state.completion * 100).toFixed(2)} % completed`
+                    : null}
+                </span>
+              </dd>
+            </FancyTable>
+          ) : null}
           <BackfillsExecutions
             backfillId={this.props.backfillId}
             completionNotifier={c => this.setState({ completion: c })}
