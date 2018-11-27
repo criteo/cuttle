@@ -53,9 +53,10 @@ const ProgressBarComponent = ({
 }: ProgressBarProps) => {
   const totalWidth = 200;
   const height = 8;
-  const barWidth = totalTimeSeconds !== 0
-    ? waitingTimeSeconds / totalTimeSeconds * totalWidth
-    : 0;
+  const barWidth =
+    totalTimeSeconds !== 0
+      ? waitingTimeSeconds / totalTimeSeconds * totalWidth
+      : 0;
 
   const tooltip =
     `Waiting : ${moment.utc(waitingTimeSeconds * 1000).format("HH:mm:ss")} / ` +
@@ -96,24 +97,24 @@ const Menu = ({
   const isCancellable =
     executionLog.status === "running" || executionLog.status === "waiting";
 
-  return isCancellable
-    ? <PopoverMenu
-        keys="menu"
-        className={classes.menu}
-        items={[
-          <span
-            onClick={() => {
-              fetch(`/api/executions/${executionLog.id}/cancel`, {
-                method: "POST",
-                credentials: "include"
-              });
-            }}
-          >
-            Cancel
-          </span>
-        ]}
-      />
-    : null;
+  return isCancellable ? (
+    <PopoverMenu
+      keys="menu"
+      className={classes.menu}
+      items={[
+        <span
+          onClick={() => {
+            fetch(`/api/executions/${executionLog.id}/cancel`, {
+              method: "POST",
+              credentials: "include"
+            });
+          }}
+        >
+          Cancel
+        </span>
+      ]}
+    />
+  ) : null;
 };
 
 class Execution extends React.Component<Props, State> {
@@ -224,110 +225,120 @@ class Execution extends React.Component<Props, State> {
 
     return (
       <Window title="Execution">
-        {data
-          ? [
-              <Menu key="menu" executionLog={data} classes={classes} />,
-              <FancyTable key="properties">
-                <dt key="id">Id:</dt>
-                <dd key="id_">{data.id}</dd>
-                <dt key="job">Job:</dt>
-                <dd key="job_">
-                  <Link href={`/workflow/${data.job}`}>{data.job}</Link>
-                </dd>
-                <dt key="context">Context:</dt>
-                <dd key="context_"><Context context={data.context} /></dd>
-                <dt key="status">Status:</dt>
-                <dd key="status_">
-                  <Status status={data.status} />{data.context.backfill
-                    ? <span style={{ marginLeft: "10px" }}>
-                        <Link
-                          href={`/timeseries/backfills/${data.context.backfill.id}`}
-                        >
-                          <Badge label="BACKFILL" kind="alt" />
-                        </Link>
-                      </span>
-                    : null}
-                </dd>
-                {data.startTime
-                  ? [
-                      <dt key="startTime">Start time:</dt>,
-                      <dd key="startTime_">
-                        {moment(data.startTime)
-                          .utc()
-                          .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
-                      </dd>
-                    ]
-                  : null}
-                {data.endTime
-                  ? [
-                      <dt key="endTime">End time:</dt>,
-                      <dd key="endTime_">
-                        {moment(data.endTime)
-                          .utc()
-                          .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
-                      </dd>
-                    ]
-                  : null}
-                {data.startTime
-                  ? [
-                      <dt key="duration">Duration:</dt>,
-                      <dd key="duration_">
-                        {data.endTime
-                          ? [
-                              moment
-                                .utc(
-                                  moment(data.endTime).diff(
-                                    moment(data.startTime)
-                                  )
-                                )
-                                .format("HH:mm:ss"),
-                              <ProgressBar
-                                key="progressBar"
-                                totalTimeSeconds={
-                                  moment(data.endTime).diff(
-                                    moment(data.startTime)
-                                  ) / 1000
-                                }
-                                waitingTimeSeconds={data.waitingSeconds}
-                              />
-                            ]
-                          : <Clock time={data.startTime} humanize={false} />}
-                      </dd>
-                    ]
-                  : null}
-                {data.failing
-                  ? [
-                      <dt key="failing">Failing:</dt>,
-                      <dd key="failing_">
-                        {`Failed ${data.failing.failedExecutions.length} times and will be retried`}
-                        {" "}
-                        <Clock time={data.failing.nextRetry || ""} />
-                        .&nbsp;
-                        <Link
-                          className={classes.failedLink}
-                          href={`/executions/${(data.failing: any).failedExecutions[(data.failing: any).failedExecutions.length - 1].id}`}
-                        >
-                          Check latest failed execution.
-                        </Link>
-                      </dd>
-                    ]
-                  : null}
-              </FancyTable>,
-              <StreamView
-                key="streams"
-                streams={streams}
-                placeholder={
-                  isExecutionWaiting
-                    ? <li key="waiting">
-                        <TextWithDashedLine text={"Execution is waiting"} />
-                      </li>
-                    : null
-                }
-              />
-            ]
-          : error
-              ? <Error message={`execution ${execution} not found`} />
-              : <Spinner />}
+        {data ? (
+          [
+            <Menu key="menu" executionLog={data} classes={classes} />,
+            <FancyTable key="properties">
+              <dt key="id">Id:</dt>
+              <dd key="id_">{data.id}</dd>
+              <dt key="job">Job:</dt>
+              <dd key="job_">
+                <Link href={`/workflow/${data.job}`}>{data.job}</Link>
+              </dd>
+              <dt key="context">Context:</dt>
+              <dd key="context_">
+                <Context context={data.context} />
+              </dd>
+              <dt key="status">Status:</dt>
+              <dd key="status_">
+                <Status status={data.status} />
+                {data.context.backfill ? (
+                  <span style={{ marginLeft: "10px" }}>
+                    <Link
+                      href={`/timeseries/backfills/${data.context.backfill.id}`}
+                    >
+                      <Badge label="BACKFILL" kind="alt" />
+                    </Link>
+                  </span>
+                ) : null}
+              </dd>
+              {data.startTime
+                ? [
+                    <dt key="startTime">Start time:</dt>,
+                    <dd key="startTime_">
+                      {moment(data.startTime)
+                        .utc()
+                        .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
+                    </dd>
+                  ]
+                : null}
+              {data.endTime
+                ? [
+                    <dt key="endTime">End time:</dt>,
+                    <dd key="endTime_">
+                      {moment(data.endTime)
+                        .utc()
+                        .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
+                    </dd>
+                  ]
+                : null}
+              {data.startTime
+                ? [
+                    <dt key="duration">Duration:</dt>,
+                    <dd key="duration_">
+                      {data.endTime ? (
+                        [
+                          moment
+                            .utc(
+                              moment(data.endTime).diff(moment(data.startTime))
+                            )
+                            .format("HH:mm:ss"),
+                          <ProgressBar
+                            key="progressBar"
+                            totalTimeSeconds={
+                              moment(data.endTime).diff(
+                                moment(data.startTime)
+                              ) / 1000
+                            }
+                            waitingTimeSeconds={data.waitingSeconds}
+                          />
+                        ]
+                      ) : (
+                        <Clock time={data.startTime} humanize={false} />
+                      )}
+                    </dd>
+                  ]
+                : null}
+              {data.failing
+                ? [
+                    <dt key="failing">Failing:</dt>,
+                    <dd key="failing_">
+                      {`Failed ${
+                        data.failing.failedExecutions.length
+                      } times and will be retried`}{" "}
+                      <Clock time={data.failing.nextRetry || ""} />
+                      .&nbsp;
+                      <Link
+                        className={classes.failedLink}
+                        href={`/executions/${
+                          (data.failing: any).failedExecutions[
+                            (data.failing: any).failedExecutions.length - 1
+                          ].id
+                        }`}
+                      >
+                        Check latest failed execution.
+                      </Link>
+                    </dd>
+                  ]
+                : null}
+            </FancyTable>,
+            <StreamView
+              key="streams"
+              streams={streams}
+              placeholder={
+                isExecutionWaiting ? (
+                  <li key="waiting">
+                    <TextWithDashedLine text={"Execution is waiting"} />
+                  </li>
+                ) : null
+              }
+            />
+          ]
+        ) : error ? (
+          <Error message={`execution ${execution} not found`} />
+        ) : (
+          <Spinner />
+        )}
       </Window>
     );
   }

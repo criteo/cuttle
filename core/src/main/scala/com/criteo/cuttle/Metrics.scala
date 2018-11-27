@@ -81,7 +81,8 @@ object Metrics {
         val labeledMetrics = metric.labels2Value.map {
           case (labels, value) =>
             val labelsSerialized =
-              if (labels.nonEmpty) s" {${labels.toSeq.sortBy(_._1).map(label => s"""${label._1}="${label._2}"""").mkString(", ")}} "
+              if (labels.nonEmpty)
+                s" {${labels.toSeq.sortBy(_._1).map(label => s"""${label._1}="${label._2}"""").mkString(", ")}} "
               else " "
             s"${metric.name}$labelsSerialized$value"
         }

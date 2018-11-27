@@ -89,17 +89,20 @@ let LEGEND_WIDTH = 80;
 
 let versionPointer = 0;
 const versionColorMap = new Map();
-const versionsColor = [ 
+const versionsColor = [
   "#ff9900",
   "#00e6e6",
   "#7a00cc",
   "#996600",
   "#e6e600",
   "#0000cc",
-  "#b300b3"];
+  "#b300b3"
+];
 
 let formatDate = (date: string) =>
-  moment(date).utc().format("YYYY-MM-DD HH:mm");
+  moment(date)
+    .utc()
+    .format("YYYY-MM-DD HH:mm");
 
 let colorScale = d3.interpolateRgb("#ecf1f5", "#62cc64");
 
@@ -107,13 +110,16 @@ let tickFormat = date =>
   (d3.utcHour(date) < date
     ? d3.utcFormat("")
     : d3.utcDay(date) < date
-        ? d3.utcFormat("%H:00")
-        : d3.utcFormat("%Y-%m-%d"))(date);
+      ? d3.utcFormat("%H:00")
+      : d3.utcFormat("%Y-%m-%d"))(date);
 
 let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
   let g = svg.append("g").attr("id", "widthHack");
   _.forEach(jobNames, job => {
-    g.append("text").attr("class", jobNameClass).text(job);
+    g
+      .append("text")
+      .attr("class", jobNameClass)
+      .text(job);
   });
   let labelWidth = g.node().getBBox().width + LEFT_MARGIN;
   svg.select("g#widthHack").remove();
@@ -123,7 +129,9 @@ let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
 // Drawing methods // Summary periods
 const summaryPeriodHelper = (x1, x2) => ({
   tip: ({ period, completion }) =>
-    `<div>${Math.ceil(completion * 100)}% complete – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+    `<div>${Math.ceil(completion * 100)}% complete – ${formatDate(
+      period.start
+    )} to ${formatDate(period.end)} UTC</div>`,
   fill: ({ error, completion }) =>
     error ? "#e91e63" : completion == 1 ? "#62cc64" : "#ecf1f5"
 });
@@ -131,17 +139,27 @@ const summaryPeriodHelper = (x1, x2) => ({
 // drawing methods // job details
 const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
   tip: ({ period, status, jobName }) =>
-    `<div>${jobName} is ${status == "failed" ? "stuck" : status == "successful" ? "done" : status == "running" ? "started" : "todo"} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+    `<div>${jobName} is ${
+      status == "failed"
+        ? "stuck"
+        : status == "successful"
+          ? "done"
+          : status == "running"
+            ? "started"
+            : "todo"
+    } – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
   translate: ({ period }) => `translate(${x1(period) + MARGIN}, 0)`,
   width: ({ period }) => x2(period) - x1(period),
   fill: ({ status }) =>
     status == "failed"
       ? "#e91e63"
       : status == "successful"
-          ? "#62cc64"
-          : status == "waiting"
-              ? "#ffbc5a"
-              : status == "running" ? "#49d3e4" : "#ecf1f5",
+        ? "#62cc64"
+        : status == "waiting"
+          ? "#ffbc5a"
+          : status == "running"
+            ? "#49d3e4"
+            : "#ecf1f5",
   // For aggregated periods, we want to zoom on click
   click: ({ period, jobId, aggregated }) =>
     aggregated
@@ -166,7 +184,7 @@ const stringToColor = function(str) {
     versionPointer++;
     return newColor;
   }
-}
+};
 
 // method drawing all the cases of color for job periods (for specific jobs in the calendar focus)
 // A summary period is an aggregated period with a special tooltip (not dedicated to a job)
@@ -250,10 +268,10 @@ const drawJobPeriods = (
     .attr("x", MARGIN)
     .attr("y", ROW_HEIGHT - 3);
 
-    // If the version box is checked, draw a color rectangle for each done job
+  // If the version box is checked, draw a color rectangle for each done job
   newPeriodSlot
     .selectAll("rect.version")
-    .data(d => showVersion && d.version ? [d] : [], k => k.period.start)
+    .data(d => (showVersion && d.version ? [d] : []), k => k.period.start)
     .enter()
     .append("rect")
     .attr("class", "version")
@@ -281,19 +299,21 @@ class CalendarFocus extends React.Component<Props, State> {
     };
   }
 
-
   toggleShowVersion() {
     this.setState({
-      showVersion : !this.state.showVersion
-    })
+      showVersion: !this.state.showVersion
+    });
   }
 
   listenForUpdates(props: Props) {
     let { start, end } = props;
-    let jobsFilter = props.selectedJobs.length > 0
-      ? `&jobs=${props.selectedJobs.join(",")}`
-      : "";
-    let query = `/api/timeseries/calendar/focus?start=${moment(start).toISOString()}&end=${moment(end).toISOString()}${jobsFilter}`;
+    let jobsFilter =
+      props.selectedJobs.length > 0
+        ? `&jobs=${props.selectedJobs.join(",")}`
+        : "";
+    let query = `/api/timeseries/calendar/focus?start=${moment(
+      start
+    ).toISOString()}&end=${moment(end).toISOString()}${jobsFilter}`;
     let { query: currentQuery, eventSource: currentEventSource } = this.state;
     if (currentQuery != query) {
       currentEventSource && currentEventSource.close();
@@ -312,7 +332,7 @@ class CalendarFocus extends React.Component<Props, State> {
     if (data && data.summary.length) {
       let { summary, jobs } = data;
       let width = this.vizContainer.clientWidth;
-      
+
       let summarySvg = d3
         .select(this.summarySvgContainer)
         .attr("width", width)
@@ -336,7 +356,10 @@ class CalendarFocus extends React.Component<Props, State> {
         .domain([moment(start).toDate(), moment(end).toDate()])
         .range([0, axisWidth]);
 
-      let timeAxis = d3.axisTop(timeScale).tickFormat(tickFormat).ticks(5);
+      let timeAxis = d3
+        .axisTop(timeScale)
+        .tickFormat(tickFormat)
+        .ticks(5);
       summarySvg
         .select("g#axisContainer")
         .html(null)
@@ -404,7 +427,7 @@ class CalendarFocus extends React.Component<Props, State> {
         newJobTimeline
           .selectAll("g.periodSlot")
           .data(
-            job => 
+            job =>
               _.map(jobs[job.id], p => ({
                 ...p,
                 jobName: job.name,
@@ -435,55 +458,54 @@ class CalendarFocus extends React.Component<Props, State> {
         .enter()
         .call(drawJobs);
 
-
       // display legend for every distinct project version
-      const versions = Object.keys(jobs).map(k => 
-        jobs[k].map(periodSlot => 
-          !periodSlot.aggregated ? periodSlot.version : undefined
-          )
-        );
-      const distinctVersions = [...new Set([].concat(...versions))].filter(version => version !== "" && version !== undefined);
+      const versions = Object.keys(jobs).map(k =>
+        jobs[k].map(
+          periodSlot =>
+            !periodSlot.aggregated ? periodSlot.version : undefined
+        )
+      );
+      const distinctVersions = [...new Set([].concat(...versions))].filter(
+        version => version !== "" && version !== undefined
+      );
 
       const versionNodes = d3
-      .select(this.legendContainer)
-      .attr("width", axisWidth)
-      .selectAll("g.jobVersionLegend")
-      .data(state.showVersion ? distinctVersions: [])
-
+        .select(this.legendContainer)
+        .attr("width", axisWidth)
+        .selectAll("g.jobVersionLegend")
+        .data(state.showVersion ? distinctVersions : []);
 
       const versionGroup = versionNodes
-      .enter()
-      .append("g")
-      .attr("width", LEGEND_WIDTH)
-      .attr("height", 20)
-      .attr("class", "jobVersionLegend")
-      .attr("text-anchor", "end")
-      .attr(
-        "transform",
-        (d, i) =>
-        `translate(${axisWidth - LEGEND_WIDTH - labelWidth}, ${i * (ROW_HEIGHT + 2 * MARGIN)})`
-      )
-      
-      versionGroup
-      .append("rect")
-      .attr("class", "legend")
-      .attr("width", VERSION_RECT_SIZE)
-      .attr("height", VERSION_RECT_SIZE)
-      .attr("x", 0)
-      .attr("y", 10)
-      .attr("fill", d => stringToColor(d));
-      
-      versionGroup
-      .append("text")
-      .attr("class","legendText")
-      .attr("x", LEGEND_WIDTH)
-      .attr("y", 20)
-      .text(d => d);
+        .enter()
+        .append("g")
+        .attr("width", LEGEND_WIDTH)
+        .attr("height", 20)
+        .attr("class", "jobVersionLegend")
+        .attr("text-anchor", "end")
+        .attr(
+          "transform",
+          (d, i) =>
+            `translate(${axisWidth - LEGEND_WIDTH - labelWidth}, ${i *
+              (ROW_HEIGHT + 2 * MARGIN)})`
+        );
 
-      versionNodes
-      .exit()
-      .remove();
-      
+      versionGroup
+        .append("rect")
+        .attr("class", "legend")
+        .attr("width", VERSION_RECT_SIZE)
+        .attr("height", VERSION_RECT_SIZE)
+        .attr("x", 0)
+        .attr("y", 10)
+        .attr("fill", d => stringToColor(d));
+
+      versionGroup
+        .append("text")
+        .attr("class", "legendText")
+        .attr("x", LEGEND_WIDTH)
+        .attr("y", 20)
+        .text(d => d);
+
+      versionNodes.exit().remove();
     }
     ReactTooltip.rebuild();
 
@@ -566,17 +588,11 @@ class CalendarFocus extends React.Component<Props, State> {
     return (
       <div className={classes.container}>
         <h1 className={classes.title}>
-          <Link href="/timeseries/calendar">Calendar</Link>
-          {" "}
+          <Link href="/timeseries/calendar">Calendar</Link>{" "}
           <ChevronIcon className={classes.chevron} />
           <span className={classes.range}>
-            {formatDate(start)}
-            {" "}
-            <ToIcon className={classes.to} />
-            {" "}
-            {formatDate(end)}
-            {" "}
-            UTC
+            {formatDate(start)} <ToIcon className={classes.to} />{" "}
+            {formatDate(end)} UTC
           </span>
         </h1>
         <div>
@@ -585,7 +601,7 @@ class CalendarFocus extends React.Component<Props, State> {
               name="versionCheckBox"
               type="checkbox"
               checked={this.state.showVersion}
-              onChange={() => this.toggleShowVersion()} 
+              onChange={() => this.toggleShowVersion()}
             />
           </div>
           <div className={classes.timeControl}>
@@ -609,36 +625,36 @@ class CalendarFocus extends React.Component<Props, State> {
             />
           </div>
         </div>
-        {data && data.summary.length
-          ? <div className={classes.graph} ref={r => (this.vizContainer = r)}>
-              <div className={classes.summarySvg}>
-                <svg ref={r => (this.summarySvgContainer = r)}>
-                  <g id="axisContainer" />
-                  <g id="summary" />
-                </svg>
-              </div>
-              <div className={classes.detailsSvg}>
-                <svg ref={r => (this.detailsSvgContainer = r)} />
-                <div className={classes.legendContainer}>
-                  <svg ref={r => (this.legendContainer = r)}/>
-                </div>
-              </div>
-              <ReactTooltip
-                className={classes.tooltip}
-                effect="float"
-                html={true}
-              />
+        {data && data.summary.length ? (
+          <div className={classes.graph} ref={r => (this.vizContainer = r)}>
+            <div className={classes.summarySvg}>
+              <svg ref={r => (this.summarySvgContainer = r)}>
+                <g id="axisContainer" />
+                <g id="summary" />
+              </svg>
             </div>
-          : data
-              ? <div className={classes.noData}>
-                  <div>
-                    Nothing to be done for this period
-                    {selectedJobs.length
-                      ? " (some may have been filtered)"
-                      : ""}
-                  </div>
-                </div>
-              : <Spinner />}
+            <div className={classes.detailsSvg}>
+              <svg ref={r => (this.detailsSvgContainer = r)} />
+              <div className={classes.legendContainer}>
+                <svg ref={r => (this.legendContainer = r)} />
+              </div>
+            </div>
+            <ReactTooltip
+              className={classes.tooltip}
+              effect="float"
+              html={true}
+            />
+          </div>
+        ) : data ? (
+          <div className={classes.noData}>
+            <div>
+              Nothing to be done for this period
+              {selectedJobs.length ? " (some may have been filtered)" : ""}
+            </div>
+          </div>
+        ) : (
+          <Spinner />
+        )}
       </div>
     );
   }

@@ -55,18 +55,18 @@ const Table = ({
               >
                 <div>
                   {label}
-                  {isSorted == "asc"
-                    ? <AscIcon className={classes.sortIcon} />
-                    : null}
-                  {isSorted == "desc"
-                    ? <DescIcon className={classes.sortIcon} />
-                    : null}
-                  {!isSorted
-                    ? <AscIcon
-                        className={classes.sortIcon}
-                        style={{ color: "transparent" }}
-                      />
-                    : null}
+                  {isSorted == "asc" ? (
+                    <AscIcon className={classes.sortIcon} />
+                  ) : null}
+                  {isSorted == "desc" ? (
+                    <DescIcon className={classes.sortIcon} />
+                  ) : null}
+                  {!isSorted ? (
+                    <AscIcon
+                      className={classes.sortIcon}
+                      style={{ color: "transparent" }}
+                    />
+                  ) : null}
                 </div>
               </th>
             );

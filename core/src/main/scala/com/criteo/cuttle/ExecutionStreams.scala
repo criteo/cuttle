@@ -58,7 +58,8 @@ private[cuttle] object ExecutionStreams {
       h.map(_._1)
     }
     maybeWriter.getOrElse {
-      val writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(logFile(id), true), "utf8")))
+      val writer =
+        new PrintWriter(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(logFile(id), true), "utf8")))
       val toClose: Seq[PrintWriter] = atomic { implicit tx =>
         val toClose = if (openHandles.size > maxHandles) {
           val toClear = openHandles.toSeq.sortBy(_._2._2).take(openHandles.size - maxHandles + 1).map(_._1)

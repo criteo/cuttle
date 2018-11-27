@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 import java.lang.management.ManagementFactory
 import java.time.Instant
 
-
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
@@ -14,7 +13,6 @@ import cats.effect.IO
 import doobie._
 import doobie.implicits._
 import lol.http.{PartialService, Service}
-
 
 /** A set of basic utilities useful to write workflows. */
 package object utils {
@@ -48,7 +46,7 @@ package object utils {
         case (evolutions, (evolution, i)) =>
           val insertEvolutionQuery =
             fr"INSERT INTO" ++ Fragment.const(table) ++ fr"(schema_version, schema_update)" ++
-            fr"VALUES(${i + 1}, ${Instant.now()})"
+              fr"VALUES(${i + 1}, ${Instant.now()})"
           evolutions *> evolution *> insertEvolutionQuery.update.run
       }
     } yield ())

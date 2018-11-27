@@ -16,7 +16,11 @@ private[timeseries] object Internal {
   implicit def jobEncoder[A <: Scheduling]: Encoder[Job[A]] =
     Encoder.encodeString.contramap(_.id)
   implicit def jobsDecoder[A <: Scheduling](implicit jobs: Set[Job[A]]): Decoder[Set[Job[A]]] =
-    Decoder.decodeSet[Json].map(_.collect(Function.unlift { id => jobs.find(_.id == id) }))
+    Decoder
+      .decodeSet[Json]
+      .map(_.collect(Function.unlift { id =>
+        jobs.find(_.id == id)
+      }))
 
   implicit val dateTimeEncoder: Encoder[Instant] =
     Encoder.encodeString.contramap(_.toString)

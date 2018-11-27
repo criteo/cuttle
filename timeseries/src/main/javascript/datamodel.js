@@ -102,7 +102,9 @@ export const prepareWorkflow = (w: Workflow): Workflow => ({
   jobs: _.map(w.jobs, j => ({
     ...j,
     kind: _.some(w.dependencies, { to: j.id })
-      ? _.some(w.dependencies, { from: j.id }) ? "common" : "leaf"
+      ? _.some(w.dependencies, { from: j.id })
+        ? "common"
+        : "leaf"
       : "root"
   })),
   getJob(id: string) {

@@ -18,12 +18,20 @@ type Props = {
 const Context = ({ context }: Props) => {
   // Need to be dynamically linked with the scehduler but for now let's
   // assume that it is a TimeseriesContext
-  let format = date => moment(date).utc().format("MMM-DD HH:mm");
-  let URLFormat = date => moment(date).utc().format("YYYY-MM-DDTHH") + "Z";
+  let format = date =>
+    moment(date)
+      .utc()
+      .format("MMM-DD HH:mm");
+  let URLFormat = date =>
+    moment(date)
+      .utc()
+      .format("YYYY-MM-DDTHH") + "Z";
 
   return (
     <Link
-      href={`/timeseries/calendar/${URLFormat(context.start)}_${URLFormat(context.end)}`}
+      href={`/timeseries/calendar/${URLFormat(context.start)}_${URLFormat(
+        context.end
+      )}`}
     >
       <CalendarIcon
         style={{
@@ -31,13 +39,8 @@ const Context = ({ context }: Props) => {
           verticalAlign: "middle",
           transform: "translateY(-2px)"
         }}
-      />
-      {" "}
-      {format(context.start)}
-      {" "}
-      <BreakIcon />
-      {" "}
-      {format(context.end)} UTC
+      />{" "}
+      {format(context.start)} <BreakIcon /> {format(context.end)} UTC
     </Link>
   );
 };

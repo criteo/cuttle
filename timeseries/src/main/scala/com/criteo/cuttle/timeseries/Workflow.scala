@@ -8,7 +8,7 @@ import com.criteo.cuttle._
 /**
   * A timeseries workflow
   **/
-trait Workflow extends Workload[TimeSeries]  {
+trait Workflow extends Workload[TimeSeries] {
 
   implicit def workflowEncoder =
     new Encoder[Workflow] {
@@ -122,18 +122,20 @@ object Workflow {
     val errors = collection.mutable.ListBuffer.empty[String]
 
     if (graph
-      .topologicalSort[Job[TimeSeries]](
-      workflow.vertices,
-      workflow.edges.map { case (child, parent, _) => parent -> child }
-    )
-      .isEmpty) {
+          .topologicalSort[Job[TimeSeries]](
+            workflow.vertices,
+            workflow.edges.map { case (child, parent, _) => parent -> child }
+          )
+          .isEmpty) {
       errors += "Workflow has at least one cycle"
     }
 
-    graph.findStronglyConnectedComponents[Job[TimeSeries]](
-      workflow.vertices,
-      workflow.edges.map { case (child, parent, _) => parent -> child }
-    ).filter(scc => scc.size >= 2) // Strongly connected components with more than 2 jobs are cycles
+    graph
+      .findStronglyConnectedComponents[Job[TimeSeries]](
+        workflow.vertices,
+        workflow.edges.map { case (child, parent, _) => parent -> child }
+      )
+      .filter(scc => scc.size >= 2) // Strongly connected components with more than 2 jobs are cycles
       .foreach(scc => errors += s"{${scc.map(job => job.id).mkString(",")}} form a cycle")
 
     workflow.vertices.groupBy(_.id).collect {

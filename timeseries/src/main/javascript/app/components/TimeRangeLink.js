@@ -23,13 +23,8 @@ const TimeRangeLink = ({ href, start, end }: Props) => {
           verticalAlign: "top",
           transform: "translateY(-1px)"
         }}
-      />
-      {" "}
-      {displayFormat(start)}
-      {" "}
-      <BreakIcon />
-      {" "}
-      {displayFormat(end)} UTC
+      />{" "}
+      {displayFormat(start)} <BreakIcon /> {displayFormat(end)} UTC
     </Link>
   );
 };

@@ -17,14 +17,18 @@ import com.criteo.cuttle.platforms.local._
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.{Run, TimeSeriesJob}
 import com.criteo.cuttle.{Auth, Database => CuttleDatabase, _}
 
-
 object TimeSeriesSchedulerSpec {
   // TODO: turn this into a unit test. This is not done for now as the thread pool responsible for checking the lock on
   // the state database creates non-daemon threads, which would result in the unit test not ending unless it is interrupted
   // from the outside.
   def main(args: Array[String]): Unit = {
     val config = {
-      MysqldConfig.aMysqldConfig(v5_7_latest).withCharset(UTF8).withTimeout(3600, TimeUnit.SECONDS).withPort(3388).build()
+      MysqldConfig
+        .aMysqldConfig(v5_7_latest)
+        .withCharset(UTF8)
+        .withTimeout(3600, TimeUnit.SECONDS)
+        .withPort(3388)
+        .build()
     }
     val mysqld = EmbeddedMysql.anEmbeddedMysql(config).addSchema("cuttle_dev").start()
 
@@ -37,12 +41,14 @@ object TimeSeriesSchedulerSpec {
     }
 
     val retryImmediatelyStrategy = new RetryStrategy {
-      def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]) =  Duration.ZERO
+      def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]) = Duration.ZERO
       def retryWindow = Duration.ZERO
     }
 
     val xa = CuttleDatabase.connect(DatabaseConfig(Seq(DBLocation("127.0.0.1", 3388)), "cuttle_dev", "root", ""))
-    val executor = new Executor[TimeSeries](Seq(LocalPlatform(maxForkedProcesses = 10)), xa, logger, project.name, project.version)(retryImmediatelyStrategy)
+    val executor =
+      new Executor[TimeSeries](Seq(LocalPlatform(maxForkedProcesses = 10)), xa, logger, project.name, project.version)(
+        retryImmediatelyStrategy)
     val scheduler = project.scheduler
 
     scheduler.initialize(project.jobs, xa, logger)
@@ -60,8 +66,11 @@ object TimeSeriesSchedulerSpec {
     logger.info("'child-job' is paused")
     val guestUser = Auth.User("Guest")
     scheduler.pauseJobs(Set(Jobs.childJob), executor, xa)(guestUser)
-    assert((scheduler.pausedJobs().map { case PausedJob(jobId, user, date) => (jobId, user) }).equals(
-      Set(("child-job", guestUser))))
+    assert(
+      (scheduler
+        .pausedJobs()
+        .map { case PausedJob(jobId, user, date) => (jobId, user) })
+        .equals(Set(("child-job", guestUser))))
     runningExecutions = doSynchronousExecutionStep(scheduler, runningExecutions, project.jobs, executor, xa)
     assert(runningExecutions.isEmpty)
 
@@ -83,12 +92,14 @@ object TimeSeriesSchedulerSpec {
                                          workflow: Workflow,
                                          executor: Executor[TimeSeries],
                                          xa: XA): Set[(TimeSeriesJob, TimeSeriesContext, Future[Completed])] = {
-    val newRunningExecutions = scheduler.updateCurrentExecutionsAndSubmitNewExecutions(runningExecutions, workflow, executor, xa)
+    val newRunningExecutions =
+      scheduler.updateCurrentExecutionsAndSubmitNewExecutions(runningExecutions, workflow, executor, xa)
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    val executionsResult = Future.sequence(newRunningExecutions.map { case (job, executionContext, futureResult) =>
-      logger.info(s"Executed ${job.id}")
-      futureResult
+    val executionsResult = Future.sequence(newRunningExecutions.map {
+      case (job, executionContext, futureResult) =>
+        logger.info(s"Executed ${job.id}")
+        futureResult
     })
     Await.ready(executionsResult, Inf)
     newRunningExecutions
@@ -98,9 +109,11 @@ object TimeSeriesSchedulerSpec {
     def executionResultToBoolean(result: Future[Completed]) = result.value match {
       case Some(Success(_)) => true
       case Some(Failure(t)) => false
-      case None => throw new Exception("The execution should have completed.")
+      case None             => throw new Exception("The execution should have completed.")
     }
-    runningExecutions.map { case (job, executionContext, futureResult) => (job.id, executionResultToBoolean(futureResult)) }
+    runningExecutions.map {
+      case (job, executionContext, futureResult) => (job.id, executionResultToBoolean(futureResult))
+    }
   }
 
   object Jobs {
@@ -116,8 +129,7 @@ object TimeSeriesSchedulerSpec {
       if (!failedOnce) {
         failedOnce = true
         throw new Exception("Always fails at the first execution")
-      }
-      else {
+      } else {
         Future(Completed)
       }
     }

@@ -115,12 +115,12 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
         active.id.indexOf("timeseries/") === 0
           ? []
           : [
-            statistics.scheduler &&
-            statistics.scheduler.backfills && {
-              label: statistics.scheduler.backfills,
-              kind: "alt"
-            }
-          ]
+              statistics.scheduler &&
+                statistics.scheduler.backfills && {
+                  label: statistics.scheduler.backfills,
+                  kind: "alt"
+                }
+            ]
       }
       subEntries={[
         <MenuSubEntry

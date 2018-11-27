@@ -21,7 +21,11 @@ const styles = {
 
 const buildLinkTag = (m: Match): any => {
   if (m.getType() === "url")
-    return <a style={styles} href={m.getUrl()}>{m.getUrl()}</a>;
+    return (
+      <a style={styles} href={m.getUrl()}>
+        {m.getUrl()}
+      </a>
+    );
   return m.getMatchedText();
 };
 
@@ -42,14 +46,15 @@ const autolinker = new AutoLinker({
 
 /**
  * Inlines <a> elements in a string whenever a url is matched
- * 
+ *
  * @param {string} text the text to highlight
  */
 export const highlightURLs = (text: string): any[] => {
   if (!text) {
     return [];
   }
-  const matches: Match[] = autolinker.parse(text), newHtml = [];
+  const matches: Match[] = autolinker.parse(text),
+    newHtml = [];
 
   let lastIndex = 0;
 

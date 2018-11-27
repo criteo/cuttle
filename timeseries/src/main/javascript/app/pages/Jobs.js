@@ -375,7 +375,13 @@ const styles = {
 };
 
 const mapStateToProps = (
-  { app: { project, page: { sort, order }, selectedJobs } },
+  {
+    app: {
+      project,
+      page: { sort, order },
+      selectedJobs
+    }
+  },
   ownProps
 ) => {
   return {

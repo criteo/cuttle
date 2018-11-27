@@ -13,7 +13,10 @@ import { scaleLinear } from "d3";
 import reduce from "lodash/reduce";
 
 const scaleBuilder = (start, end, nodeHeight) =>
-  scaleLinear().domain([start, end]).range([0, nodeHeight]).clamp(true);
+  scaleLinear()
+    .domain([start, end])
+    .range([0, nodeHeight])
+    .clamp(true);
 
 export const resolveFixedNodes = (
   parents: AnnotatedNode[],
@@ -30,9 +33,10 @@ export const resolveFixedNodes = (
     height: childNodeHeight
   } = dimensions.nodeSize(children.length);
   const mainNode = graph.findNodesByTag(nodeKind.main);
-  const main = mainNode.length > 0
-    ? mainNode[0]
-    : { id: "unknown", order: -1, yPosition: -1, kind: nodeKind.main };
+  const main =
+    mainNode.length > 0
+      ? mainNode[0]
+      : { id: "unknown", order: -1, yPosition: -1, kind: nodeKind.main };
 
   let edges: { [key: string]: ResolvedEdge } = {};
   const { width: mainWidth, height: mainHeight } = dimensions.nodeSize(0);

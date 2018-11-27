@@ -24,8 +24,7 @@ type Props = {
 };
 
 const cleanDOMContainer = domNode => {
-  while (domNode.firstChild)
-    domNode.removeChild(domNode.firstChild);
+  while (domNode.firstChild) domNode.removeChild(domNode.firstChild);
 };
 
 class DaggerComponent extends React.Component<Props> {

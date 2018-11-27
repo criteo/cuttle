@@ -209,9 +209,10 @@ lazy val cuttle =
 lazy val timeseries =
   (project in file("timeseries"))
     .settings(commonSettings: _*)
-    .settings(libraryDependencies ++= Seq(
-      "com.wix" % "wix-embedded-mysql" % "2.1.4" % "test"
-    ))
+    .settings(
+      libraryDependencies ++= Seq(
+        "com.wix" % "wix-embedded-mysql" % "2.1.4" % "test"
+      ))
     .settings(
       // Webpack
       resourceGenerators in Compile += Def.task {

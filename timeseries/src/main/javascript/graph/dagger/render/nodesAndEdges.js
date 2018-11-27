@@ -27,9 +27,10 @@ const computeNewWidth = (
 const computeNewLabel = (label: string, widthMax: number) => {
   const labelLength = label.length;
   const overflowCharacters = Math.max(labelLength - widthMax, 0);
-  const labelToDisplay = overflowCharacters > 0
-    ? label.substring(0, labelLength - overflowCharacters - 4) + "..."
-    : label;
+  const labelToDisplay =
+    overflowCharacters > 0
+      ? label.substring(0, labelLength - overflowCharacters - 4) + "..."
+      : label;
   return labelToDisplay;
 };
 
@@ -80,7 +81,8 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
     case edgeKind.missingParentToParent:
       start = source;
       end = {
-        x: target.x -
+        x:
+          target.x -
           getRealWidth(target.id, target.name, target.width) +
           target.width / 2,
         y: y2
@@ -96,7 +98,8 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
       break;
     case edgeKind.childToMissingChild:
       start = {
-        x: source.x -
+        x:
+          source.x -
           source.width / 2 +
           getRealWidth(source.id, source.name, source.width),
         y: y1
@@ -105,35 +108,33 @@ const dpath = (source, target, kind, x1, y1, x2, y2) => {
       break;
     default:
       return {
-        path: ((path = d3.path()), path.moveTo(
-          truncate(x1),
-          truncate(y1)
-        ), path.lineTo(truncate(x2), truncate(y2)), path.toString()),
+        path: ((path = d3.path()),
+        path.moveTo(truncate(x1), truncate(y1)),
+        path.lineTo(truncate(x2), truncate(y2)),
+        path.toString()),
         start: { x: x1, y: y1 },
         end: { x: x2, y: y2 }
       };
   }
   return {
-    path: ((path = d3.path()), path.moveTo(
-      truncate(start.x),
-      truncate(start.y)
-    ), path.lineTo(truncate(start.x + 30), truncate(start.y)), path.lineTo(
-      truncate(end.x - 30),
-      truncate(end.y)
-    ), path.lineTo(truncate(end.x), truncate(end.y)), path.toString()),
+    path: ((path = d3.path()),
+    path.moveTo(truncate(start.x), truncate(start.y)),
+    path.lineTo(truncate(start.x + 30), truncate(start.y)),
+    path.lineTo(truncate(end.x - 30), truncate(end.y)),
+    path.lineTo(truncate(end.x), truncate(end.y)),
+    path.toString()),
     start,
     end
   };
 };
 
-const arrowHead = (cos, sin, x, y, width, height, p = null) =>
-  ((p = d3.path()), p.moveTo(
-    truncate(x - width),
-    truncate(y - height / 2)
-  ), p.lineTo(truncate(x), truncate(y)), p.lineTo(
-    truncate(x - width),
-    truncate(y + height / 2)
-  ), p.toString());
+const arrowHead = (cos, sin, x, y, width, height, p = null) => (
+  (p = d3.path()),
+  p.moveTo(truncate(x - width), truncate(y - height / 2)),
+  p.lineTo(truncate(x), truncate(y)),
+  p.lineTo(truncate(x - width), truncate(y + height / 2)),
+  p.toString()
+);
 
 const adjustNodePosition = (kind, width, realWidth, height, x, y) => {
   if (kind === nodeKind.parent)
@@ -153,8 +154,8 @@ const adjustNodePosition = (kind, width, realWidth, height, x, y) => {
       truncate(y - height / 2) +
       ")"
     );
+  // children are aligned on the left border
   else
-    // children are aligned on the left border
     return (
       "translate(" +
       truncate(x - width / 2) +
@@ -232,7 +233,10 @@ export const drawEdge = (
   { x1, y1, x2, y2, kind, id, source, target },
   nodePositions
 ) => {
-  const edge = domContainer.append("g").attr("id", id).attr("class", "oneEdge");
+  const edge = domContainer
+    .append("g")
+    .attr("id", id)
+    .attr("class", "oneEdge");
 
   const parentOrChild =
     kind === edgeKind.parentToCenter || kind === edgeKind.centerToChild;
@@ -290,7 +294,10 @@ export const drawNode = (
   tags
 ) => {
   const fontSize = 12;
-  const node = domContainer.append("g").attr("id", id).attr("class", "oneNode");
+  const node = domContainer
+    .append("g")
+    .attr("id", id)
+    .attr("class", "oneNode");
   const newWidth = getRealWidth(id, name, width);
   const color = (tags && tags[id]) || "#E1EFFA";
 

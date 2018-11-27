@@ -15,7 +15,8 @@ case class JobSuccessForced(created: Instant,
                             createdBy: User,
                             jobId: String,
                             intervalStart: Instant,
-                            intervalEnd: Instant) extends Event
+                            intervalEnd: Instant)
+    extends Event
 
 object JobSuccessForced {
   implicit val encoder: Encoder[JobSuccessForced] = deriveEncoder

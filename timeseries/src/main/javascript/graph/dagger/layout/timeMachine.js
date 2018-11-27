@@ -24,15 +24,15 @@ export type TransitionAction = (
 ) => Promise<*>;
 
 export interface TimeMachine {
-  node: string,
-  next: (a: string, b: TransitionAction) => Promise<NextReturn>,
-  back: (a: number, b: TransitionAction) => Promise<NextReturn>,
-  history: (relPos: number) => string[]
+  node: string;
+  next: (a: string, b: TransitionAction) => Promise<NextReturn>;
+  back: (a: number, b: TransitionAction) => Promise<NextReturn>;
+  history: (relPos: number) => string[];
 }
 
 export interface NextReturn {
-  value: any,
-  timeMachine: TimeMachine
+  value: any;
+  timeMachine: TimeMachine;
 }
 
 const computeDijkstraPath = (minimap, start) => {

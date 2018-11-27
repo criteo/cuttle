@@ -7,19 +7,19 @@ import find from "lodash/find";
 import overEvery from "lodash/overEvery";
 
 export interface Node {
-  id: string,
-  order: number,
-  name?: string | typeof undefined,
-  description?: string | typeof undefined,
-  tags?: string[] | typeof undefined,
-  yPosition: number
+  id: string;
+  order: number;
+  name?: string | typeof undefined;
+  description?: string | typeof undefined;
+  tags?: string[] | typeof undefined;
+  yPosition: number;
 }
 
 export interface Edge {
-  id: string,
-  source: string,
-  target: string,
-  value: number
+  id: string;
+  source: string;
+  target: string;
+  value: number;
 }
 
 export class Graph {

@@ -43,7 +43,9 @@ type State = {
 };
 
 let formatDate = (date: string) =>
-  moment(date).utc().format("YYYY-MM-DD HH:mm");
+  moment(date)
+    .utc()
+    .format("YYYY-MM-DD HH:mm");
 
 class TimeSeriesExecutions extends React.Component<Props, State> {
   tableRef: any;
@@ -64,7 +66,9 @@ class TimeSeriesExecutions extends React.Component<Props, State> {
   listen() {
     let { query, eventSource } = this.state;
     let { job, start, end } = this.props;
-    let newQuery = `/api/timeseries/executions?job=${job.id}&start=${moment(start).toISOString()}&end=${moment(end).toISOString()}`;
+    let newQuery = `/api/timeseries/executions?job=${job.id}&start=${moment(
+      start
+    ).toISOString()}&end=${moment(end).toISOString()}`;
     if (newQuery != query) {
       eventSource && eventSource.close();
       eventSource = listenEvents(newQuery, this.updateData.bind(this));
@@ -127,10 +131,10 @@ class TimeSeriesExecutions extends React.Component<Props, State> {
     this.setState({
       sort: {
         column,
-        order: this.state.sort.column == column &&
-          this.state.sort.order == "asc"
-          ? "desc"
-          : "asc"
+        order:
+          this.state.sort.column == column && this.state.sort.order == "asc"
+            ? "desc"
+            : "asc"
       }
     });
   }
@@ -165,10 +169,10 @@ class TimeSeriesExecutions extends React.Component<Props, State> {
               className={classes.openIcon}
               onClick={() => {
                 this.setState({
-                  blockedBySelectedStatus: this.state.blockedBySelectedStatus ==
-                    status
-                    ? undefined
-                    : status
+                  blockedBySelectedStatus:
+                    this.state.blockedBySelectedStatus == status
+                      ? undefined
+                      : status
                 });
               }}
               style={{ cursor: "pointer" }}
@@ -191,9 +195,12 @@ class TimeSeriesExecutions extends React.Component<Props, State> {
           .sortBy("id")
           .sortBy("job")
           .map(e => {
-            const href = e.status === "todo"
-              ? `/timeseries/executions/${e.job}/${e.context.start}_${e.context.end}`
-              : `/executions/${e.id}`;
+            const href =
+              e.status === "todo"
+                ? `/timeseries/executions/${e.job}/${e.context.start}_${
+                    e.context.end
+                  }`
+                : `/executions/${e.id}`;
 
             return (
               <Link href={href}>
@@ -212,14 +219,14 @@ class TimeSeriesExecutions extends React.Component<Props, State> {
           <dt key="incomplete_parents">Blocked by:</dt>,
           <dd key="incomplete_parents_">
             {groupedParentExecutions(executions)}
-            {this.state.blockedBySelectedStatus
-              ? <div>
-                  {blockedByExpandedRow(
-                    executions,
-                    this.state.blockedBySelectedStatus
-                  )}
-                </div>
-              : null}
+            {this.state.blockedBySelectedStatus ? (
+              <div>
+                {blockedByExpandedRow(
+                  executions,
+                  this.state.blockedBySelectedStatus
+                )}
+              </div>
+            ) : null}
           </dd>
         ];
       } else return null;
@@ -227,103 +234,112 @@ class TimeSeriesExecutions extends React.Component<Props, State> {
 
     return (
       <Window title="Executions for the period">
-        {data
-          ? [
-              <FancyTable key="properties">
-                <dt key="job">Job:</dt>
-                <dd key="job_">
-                  <Link href={`/workflow/${job.id}`}>{job.name}</Link>
-                </dd>
-                <dt key="start">Period start:</dt>
-                <dd key="start_">{formatDate(start)} UTC</dd>
-                <dt key="end">Period end:</dt>
-                <dd key="end_">{formatDate(end)} UTC</dd>
-                <dt key="backfilled">Backfilled:</dt>
-                <dd key="backfilled_">
-                  {data.jobExecutions.filter(e => e.context.backfill).length
-                    ? "Yes"
-                    : "No"}
-                </dd>
-                {blockedByRow(data.parentExecutions)}
-              </FancyTable>,
-              <div
-                key="data"
-                className={classes.logs}
-                ref={r => (this.tableRef = r)}
-              >
-                <Table
-                  envCritical={envCritical}
-                  columns={[
-                    { id: "backfill", label: "Backfill", sortable: true },
-                    { id: "startTime", label: "Started", sortable: true },
-                    { id: "endTime", label: "Finished", sortable: true },
-                    {
-                      id: "status",
-                      label: "Status",
-                      width: 120,
-                      sortable: true
-                    },
-                    { id: "detail", width: 40 }
-                  ]}
-                  onSortBy={this.sortBy.bind(this)}
-                  sort={sort}
-                  data={sortedJobExecutions(data.jobExecutions)}
-                  render={(
-                    column,
-                    { id, startTime, endTime, status, context }
-                  ) => {
-                    switch (column) {
-                      case "backfill":
-                        return context.backfill
-                          ? <Link
-                              href={`/timeseries/backfills/${context.backfill.id}`}
-                            >
-                              <Badge label="BACKFILL" kind="alt" width={75} />
-                            </Link>
-                          : <span className={classes.missing}>no</span>;
-                      case "startTime":
-                        return startTime
-                          ? <Clock
-                              className={classes.time}
-                              time={startTime || ""}
-                            />
-                          : <span className={classes.missing}>not yet</span>;
-                      case "endTime":
-                        return endTime
-                          ? <Clock
-                              className={classes.time}
-                              time={endTime || ""}
-                            />
-                          : <span className={classes.missing}>not yet</span>;
-                      case "status":
-                        return id
-                          ? <Link
-                              className={classes.openIcon}
-                              href={`/executions/${id}`}
-                            >
-                              <Status status={status} />
-                            </Link>
-                          : <Status status={status} />;
-                      case "detail":
-                        return id
-                          ? <Link
-                              className={classes.openIcon}
-                              href={`/executions/${id}`}
-                            >
-                              <OpenIcon />
-                            </Link>
-                          : <OpenIcon
-                              className={classNames([
-                                classes.openIcon,
-                                classes.disabled
-                              ])}
-                            />;
-                    }
-                  }}
-                />
-              </div>
-            ]
-          : <Spinner />}
+        {data ? (
+          [
+            <FancyTable key="properties">
+              <dt key="job">Job:</dt>
+              <dd key="job_">
+                <Link href={`/workflow/${job.id}`}>{job.name}</Link>
+              </dd>
+              <dt key="start">Period start:</dt>
+              <dd key="start_">{formatDate(start)} UTC</dd>
+              <dt key="end">Period end:</dt>
+              <dd key="end_">{formatDate(end)} UTC</dd>
+              <dt key="backfilled">Backfilled:</dt>
+              <dd key="backfilled_">
+                {data.jobExecutions.filter(e => e.context.backfill).length
+                  ? "Yes"
+                  : "No"}
+              </dd>
+              {blockedByRow(data.parentExecutions)}
+            </FancyTable>,
+            <div
+              key="data"
+              className={classes.logs}
+              ref={r => (this.tableRef = r)}
+            >
+              <Table
+                envCritical={envCritical}
+                columns={[
+                  { id: "backfill", label: "Backfill", sortable: true },
+                  { id: "startTime", label: "Started", sortable: true },
+                  { id: "endTime", label: "Finished", sortable: true },
+                  {
+                    id: "status",
+                    label: "Status",
+                    width: 120,
+                    sortable: true
+                  },
+                  { id: "detail", width: 40 }
+                ]}
+                onSortBy={this.sortBy.bind(this)}
+                sort={sort}
+                data={sortedJobExecutions(data.jobExecutions)}
+                render={(
+                  column,
+                  { id, startTime, endTime, status, context }
+                ) => {
+                  switch (column) {
+                    case "backfill":
+                      return context.backfill ? (
+                        <Link
+                          href={`/timeseries/backfills/${context.backfill.id}`}
+                        >
+                          <Badge label="BACKFILL" kind="alt" width={75} />
+                        </Link>
+                      ) : (
+                        <span className={classes.missing}>no</span>
+                      );
+                    case "startTime":
+                      return startTime ? (
+                        <Clock
+                          className={classes.time}
+                          time={startTime || ""}
+                        />
+                      ) : (
+                        <span className={classes.missing}>not yet</span>
+                      );
+                    case "endTime":
+                      return endTime ? (
+                        <Clock className={classes.time} time={endTime || ""} />
+                      ) : (
+                        <span className={classes.missing}>not yet</span>
+                      );
+                    case "status":
+                      return id ? (
+                        <Link
+                          className={classes.openIcon}
+                          href={`/executions/${id}`}
+                        >
+                          <Status status={status} />
+                        </Link>
+                      ) : (
+                        <Status status={status} />
+                      );
+                    case "detail":
+                      return id ? (
+                        <Link
+                          className={classes.openIcon}
+                          href={`/executions/${id}`}
+                        >
+                          <OpenIcon />
+                        </Link>
+                      ) : (
+                        <OpenIcon
+                          className={classNames([
+                            classes.openIcon,
+                            classes.disabled
+                          ])}
+                        />
+                      );
+                  }
+                }}
+              />
+            </div>
+          ]
+        ) : (
+          <Spinner />
+        )}
       </Window>
     );
   }

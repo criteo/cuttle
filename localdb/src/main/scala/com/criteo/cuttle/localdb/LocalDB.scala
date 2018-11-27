@@ -10,7 +10,12 @@ import com.wix.mysql.config.Charset._
 object LocalDB {
   def main(args: Array[String]): Unit = {
     val config = {
-      MysqldConfig.aMysqldConfig(v5_7_latest).withCharset(UTF8).withTimeout(3600, TimeUnit.SECONDS).withPort(3388).build()
+      MysqldConfig
+        .aMysqldConfig(v5_7_latest)
+        .withCharset(UTF8)
+        .withTimeout(3600, TimeUnit.SECONDS)
+        .withPort(3388)
+        .build()
     }
     val mysqld = EmbeddedMysql.anEmbeddedMysql(config).addSchema("cuttle_dev").start()
     println("started!")

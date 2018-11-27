@@ -33,13 +33,13 @@ const RootNode = ({ radius, strokeWidth, color }: NodeProps) => (
     <path
       d={
         "M" +
-          (radius + strokeWidth) +
-          "," +
-          (radius * 2 + strokeWidth) +
-          "L" +
-          (radius + strokeWidth) +
-          "," +
-          (radius * 3 + 2 * strokeWidth)
+        (radius + strokeWidth) +
+        "," +
+        (radius * 2 + strokeWidth) +
+        "L" +
+        (radius + strokeWidth) +
+        "," +
+        (radius * 3 + 2 * strokeWidth)
       }
       stroke={color}
       strokeWidth={strokeWidth}
@@ -64,13 +64,13 @@ const LeafNode = ({ radius, strokeWidth, color }: NodeProps) => (
     <path
       d={
         "M" +
-          (radius + strokeWidth) +
-          "," +
-          0 +
-          "L" +
-          (radius + strokeWidth) +
-          "," +
-          (radius + strokeWidth)
+        (radius + strokeWidth) +
+        "," +
+        0 +
+        "L" +
+        (radius + strokeWidth) +
+        "," +
+        (radius + strokeWidth)
       }
       stroke={color}
       strokeWidth={strokeWidth}
@@ -95,13 +95,13 @@ const CommonNode = ({ radius, strokeWidth, color }: NodeProps) => (
     <path
       d={
         "M" +
-          (radius + strokeWidth) +
-          "," +
-          0 +
-          "L" +
-          (radius + strokeWidth) +
-          "," +
-          (0.5 * radius + strokeWidth)
+        (radius + strokeWidth) +
+        "," +
+        0 +
+        "L" +
+        (radius + strokeWidth) +
+        "," +
+        (0.5 * radius + strokeWidth)
       }
       stroke={color}
       strokeWidth={strokeWidth}
@@ -110,13 +110,13 @@ const CommonNode = ({ radius, strokeWidth, color }: NodeProps) => (
     <path
       d={
         "M" +
-          (radius + strokeWidth) +
-          "," +
-          (radius * 2.5 + strokeWidth) +
-          "L" +
-          (radius + strokeWidth) +
-          "," +
-          (radius * 3 + 2 * strokeWidth)
+        (radius + strokeWidth) +
+        "," +
+        (radius * 2.5 + strokeWidth) +
+        "L" +
+        (radius + strokeWidth) +
+        "," +
+        (radius * 3 + 2 * strokeWidth)
       }
       stroke={color}
       strokeWidth={strokeWidth}
@@ -126,25 +126,27 @@ const CommonNode = ({ radius, strokeWidth, color }: NodeProps) => (
 );
 
 const NodeIcon = ({ kind = "common" }: Props) =>
-  kind == "root"
-    ? <RootNode
-        size={size}
-        radius={radius}
-        strokeWidth={strokeWidth}
-        color="#2F3647"
-      />
-    : kind == "leaf"
-        ? <LeafNode
-            size={size}
-            radius={radius}
-            strokeWidth={strokeWidth}
-            color="#7D8B99"
-          />
-        : <CommonNode
-            size={size}
-            radius={radius}
-            strokeWidth={strokeWidth}
-            color="#7D8B99"
-          />;
+  kind == "root" ? (
+    <RootNode
+      size={size}
+      radius={radius}
+      strokeWidth={strokeWidth}
+      color="#2F3647"
+    />
+  ) : kind == "leaf" ? (
+    <LeafNode
+      size={size}
+      radius={radius}
+      strokeWidth={strokeWidth}
+      color="#7D8B99"
+    />
+  ) : (
+    <CommonNode
+      size={size}
+      radius={radius}
+      strokeWidth={strokeWidth}
+      color="#7D8B99"
+    />
+  );
 
 export default NodeIcon;

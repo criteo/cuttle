@@ -2,39 +2,39 @@
 
 import classNames from "classnames";
 import * as React from "react";
-import {highlightURLs} from "../utils/URLHighlighter";
+import { highlightURLs } from "../utils/URLHighlighter";
 import injectSheet from "react-jss";
 import FullscreenIcon from "react-icons/lib/md/fullscreen";
 import ExitFullscreenIcon from "react-icons/lib/md/fullscreen-exit";
 import AutoScrollIcon from "react-icons/lib/md/arrow-downward";
-
 
 type Props = {
   classes: Object,
   streams: Array<{
     timestamp: string,
     level: string,
-    message: string,
+    message: string
   }>,
-  placeholder: ?React.ChildrenArray<React.Node>,
+  placeholder: ?React.ChildrenArray<React.Node>
 };
 
 type State = {
   fullScreen: boolean,
-  autoScroll: boolean,
+  autoScroll: boolean
 };
 
 class StreamView extends React.Component<Props, State> {
   state = {
     fullScreen: false,
-    autoScroll: true,
+    autoScroll: true
   };
   scroller: ?{ scrollTop: number, scrollHeight: number, offsetHeight: number };
 
   detectManualScroll() {
     const manualScroll =
       this.scroller &&
-      this.scroller.scrollHeight - this.scroller.offsetHeight !== this.scroller.scrollTop;
+      this.scroller.scrollHeight - this.scroller.offsetHeight !==
+        this.scroller.scrollTop;
 
     if (manualScroll)
       this.setState({
@@ -43,11 +43,11 @@ class StreamView extends React.Component<Props, State> {
   }
 
   onClickFullScreen(fullScreen: boolean) {
-    this.setState({fullScreen});
+    this.setState({ fullScreen });
   }
 
   onClickAutoScroll(autoScroll: boolean) {
-    this.setState({autoScroll});
+    this.setState({ autoScroll });
   }
 
   componentDidUpdate() {
@@ -61,42 +61,43 @@ class StreamView extends React.Component<Props, State> {
     const className = classNames(props.classes.streams, {
       [props.classes.fullScreen]: this.state.fullScreen
     });
-    return <div className={className}>
-      <ul
-        ref={r => this.scroller = r}
-        onScroll={this.detectManualScroll.bind(this)}
-      >
-        {props.streams.map(({timestamp, level, message}, i) => {
-          return (
-            <li key={i}>
-              <span>{timestamp}</span>
-              <div className={props.classes[level]}>
-                {highlightURLs(message)}
-              </div>
-            </li>
-          );
-        })}
-        {props.placeholder}
-      </ul>
-      {this.state.fullScreen
-        ? <ExitFullscreenIcon
-          onClick={this.onClickFullScreen.bind(this, false)}
-          className={props.classes.fullScreenButton}
-        />
-        : <FullscreenIcon
-          onClick={this.onClickFullScreen.bind(this, true)}
-          className={props.classes.fullScreenButton}
-        />}
-      <AutoScrollIcon
-        onClick={this.onClickAutoScroll.bind(
-          this,
-          !this.state.autoScroll
+    return (
+      <div className={className}>
+        <ul
+          ref={r => (this.scroller = r)}
+          onScroll={this.detectManualScroll.bind(this)}
+        >
+          {props.streams.map(({ timestamp, level, message }, i) => {
+            return (
+              <li key={i}>
+                <span>{timestamp}</span>
+                <div className={props.classes[level]}>
+                  {highlightURLs(message)}
+                </div>
+              </li>
+            );
+          })}
+          {props.placeholder}
+        </ul>
+        {this.state.fullScreen ? (
+          <ExitFullscreenIcon
+            onClick={this.onClickFullScreen.bind(this, false)}
+            className={props.classes.fullScreenButton}
+          />
+        ) : (
+          <FullscreenIcon
+            onClick={this.onClickFullScreen.bind(this, true)}
+            className={props.classes.fullScreenButton}
+          />
         )}
-        className={classNames(props.classes.autoScrollButton, {
-          [props.classes.activeAutoScroll]: this.state.autoScroll
-        })}
-      />
-    </div>
+        <AutoScrollIcon
+          onClick={this.onClickAutoScroll.bind(this, !this.state.autoScroll)}
+          className={classNames(props.classes.autoScrollButton, {
+            [props.classes.activeAutoScroll]: this.state.autoScroll
+          })}
+        />
+      </div>
+    );
   }
 }
 
@@ -169,7 +170,7 @@ const styles = {
   },
   ERROR: {
     color: "#FF6C60 !important"
-  },
+  }
 };
 
 export default injectSheet(styles)(StreamView);

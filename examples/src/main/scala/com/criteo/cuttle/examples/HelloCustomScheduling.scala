@@ -66,14 +66,13 @@ object HelloCustomScheduling {
 
     // Finally, the scheduler logic itself
     val loopScheduler = new Scheduler[LoopScheduling] {
-      def start(jobs: Workload[LoopScheduling], executor: Executor[LoopScheduling], xa: XA, logger: Logger) = {
+      def start(jobs: Workload[LoopScheduling], executor: Executor[LoopScheduling], xa: XA, logger: Logger) =
         jobs match {
           case LoopJobs(job @ Job(id, LoopScheduling(repeat), _, _, _)) =>
             logger.info(s"Will run job `${id}' ${repeat} times")
 
             // Now the loop
             (0 to repeat).foreach { i =>
-
               // This is the semantic of our scheduler:
               // We will retry the execution until it is successful.
               def runSuccessfully(ctx: LoopContext): Future[Completed] = {
@@ -93,7 +92,6 @@ object HelloCustomScheduling {
               Await.ready(runSuccessfully(LoopContext(i)), Duration.Inf)
             }
         }
-      }
     }
 
     // __Now let's define a job!__
@@ -115,7 +113,7 @@ object HelloCustomScheduling {
               echo "Random result is $$x";
               (($$x == 0)) && echo $i || false;
             '
-          """()
+          """ ()
       }
 
     // Create a connection to the database where the application states are persisted
