@@ -820,28 +820,31 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
       }
 
     workflow.vertices.filter(job => !pausedJobIds.contains(job.id)).toList.flatMap { job =>
-      val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> (()))
+      val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> ())
       val dependenciesSatisfied = parentsMap
         .getOrElse(job, Set.empty)
         .map {
           case (_, parent, lbl) =>
-            val intervals: List[Interval[Instant]] = state(parent).collect { case Done(_) => () }.toList.map(_._1)
+            val donePeriods: IntervalMap[Instant, Unit] =  state(parent).collect { case Done(_) => () }
+            val intervals: List[Interval[Instant]] = donePeriods.toList.map(_._1)
             val newIntervals = intervals.collect(applyDep(reverseDescr(lbl)))
             newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
         }
         .fold(full)(_ whenIsDef _)
+
       val noChildrenRunning = childrenMap
         .getOrElse(job, Set.empty)
         .map {
           case (child, _, lbl) =>
-            val intervals = state(child).collect { case Running(_) => () }.toList.map(_._1)
+            val runningPeriods: IntervalMap[Instant, Unit] = state(child).collect { case Running(_) => () }
+            val intervals = runningPeriods.toList.map(_._1)
             val newIntervals = intervals.collect(applyDep(lbl))
             newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
         }
         .fold(full)(_ whenIsUndef _)
-      val toRun = state(job)
-        .collect { case Todo(maybeBackfill) => maybeBackfill }
-        .whenIsDef(dependenciesSatisfied)
+
+      val todoPeriods: IntervalMap[Instant, Option[Backfill]] = state(job).collect { case Todo(maybeBackfill) => maybeBackfill }
+      val toRun = todoPeriods.whenIsDef(dependenciesSatisfied)
         .whenIsDef(noChildrenRunning)
 
       for {
