@@ -782,11 +782,12 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
 
     def jobHasExecutionsRunningOnPeriod(job: Job[TimeSeries], period: Interval[Instant]): Boolean = {
       val jobStateOnPeriod = newState(job).intersect(period).toList
-      jobStateOnPeriod.exists { case (interval, jobState) =>
-        jobState match {
-          case Done(_) => false
-          case _ => true
-        }
+      jobStateOnPeriod.exists {
+        case (interval, jobState) =>
+          jobState match {
+            case Done(_) => false
+            case _       => true
+          }
       }
     }
 
@@ -819,28 +820,44 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
         if (low >= high) None else Some(Interval(low, high))
       }
 
+    def joinIntervals(intervals: List[Interval[Instant]]): List[Interval[Instant]] =
+      intervals
+        .foldLeft(IntervalMap.empty[Instant, Unit]) { case (intervalMap, interval) => intervalMap.update(interval, ()) }
+        .toList
+        .map { case (interval, _) => interval }
+
     workflow.vertices.filter(job => !pausedJobIds.contains(job.id)).toList.flatMap { job =>
       val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> (()))
       val dependenciesSatisfied = parentsMap
         .getOrElse(job, Set.empty)
         .map {
           case (_, parent, lbl) =>
-            val intervals: List[Interval[Instant]] = state(parent).collect { case Done(_) => () }.toList.map(_._1)
+            val donePeriods: IntervalMap[Instant, Unit] = state(parent).collect { case Done(_) => () }
+            val intervals: List[Interval[Instant]] =
+              joinIntervals(donePeriods.toList.map { case (interval, _) => interval })
             val newIntervals = intervals.collect(applyDep(reverseDescr(lbl)))
-            newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
+            val intervalMapOfSatisfiedDeps = newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
+            intervalMapOfSatisfiedDeps
         }
         .fold(full)(_ whenIsDef _)
+
       val noChildrenRunning = childrenMap
         .getOrElse(job, Set.empty)
         .map {
           case (child, _, lbl) =>
-            val intervals = state(child).collect { case Running(_) => () }.toList.map(_._1)
+            val runningPeriods: IntervalMap[Instant, Unit] = state(child).collect { case Running(_) => () }
+            val intervals = joinIntervals(runningPeriods.toList.map { case (interval, _) => interval })
             val newIntervals = intervals.collect(applyDep(lbl))
-            newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
+            val intervalMapWithCompletedChildren =
+              newIntervals.foldLeft(IntervalMap.empty[Instant, Unit])(_.update(_, ()))
+            intervalMapWithCompletedChildren
         }
         .fold(full)(_ whenIsUndef _)
-      val toRun = state(job)
-        .collect { case Todo(maybeBackfill) => maybeBackfill }
+
+      val todoPeriods: IntervalMap[Instant, Option[Backfill]] = state(job).collect {
+        case Todo(maybeBackfill) => maybeBackfill
+      }
+      val toRun = todoPeriods
         .whenIsDef(dependenciesSatisfied)
         .whenIsDef(noChildrenRunning)
 
