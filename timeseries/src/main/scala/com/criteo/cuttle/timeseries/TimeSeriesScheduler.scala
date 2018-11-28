@@ -780,18 +780,21 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
         acc + (job -> acc(job).update(context.toInterval, jobState))
     }
 
+    def jobHasExecutionsRunningOnPeriod(job: Job[TimeSeries], period: Interval[Instant]): Boolean = {
+      val jobStateOnPeriod = newState(job).intersect(period).toList
+      jobStateOnPeriod.exists { case (interval, jobState) =>
+        jobState match {
+          case Done(_) => false
+          case _ => true
+        }
+      }
+    }
+
     val notCompletedBackfills = backfills.filter { bf =>
       val itvl = Interval(bf.start, bf.end)
-      bf.jobs.exists(
-        job =>
-          newState(job)
-            .intersect(itvl)
-            .toList
-            .exists(_._2 match {
-              case Done(_) => true
-              case _       => false
-            }))
+      bf.jobs.exists(job => jobHasExecutionsRunningOnPeriod(job, itvl))
     }
+
     (newState, notCompletedBackfills, backfills -- notCompletedBackfills)
   }
 
