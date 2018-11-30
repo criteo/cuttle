@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Timer, TimerTask}
 
 import scala.concurrent.duration._
-import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
 import scala.reflect.{classTag, ClassTag}
@@ -804,7 +803,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     existingOrNew.map(
       _.fold(
         identity, {
-          case (job, execution, promise, whatToDo) =>
+          case (_, execution, promise, whatToDo) =>
             Future {
               execution.streams.debug(s"Execution: ${execution.id}")
               execution.streams.debug(s"Context: ${execution.context.asJson}")
