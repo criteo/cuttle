@@ -18,7 +18,6 @@ import com.criteo.cuttle.platforms.local._
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.{Run, TimeSeriesJob}
 import com.criteo.cuttle.{Auth, Database => CuttleDatabase, _}
 
-
 object TimeSeriesSchedulerIntegrationTests {
   // TODO: turn this into a unit test. This is not done for now as the thread pool responsible for checking the lock on
   // the state database creates non-daemon threads, which would result in the unit test not ending unless it is interrupted
