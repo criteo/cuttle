@@ -77,7 +77,7 @@ object HelloCustomScheduling {
               // We will retry the execution until it is successful.
               def runSuccessfully(ctx: LoopContext): Future[Completed] = {
                 logger.info(s"Running ${id}.${ctx.iteration}")
-                val (execution, result) = executor.run(job, ctx)
+                val (_, result) = executor.run(job, ctx)
 
                 result.recoverWith {
                   case e =>
