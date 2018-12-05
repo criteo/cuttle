@@ -597,6 +597,7 @@ class CalendarFocus extends React.Component<Props, State> {
         </h1>
         <div>
           <div className={classes.showVersion}>
+            <label className={classes.showVersionLabel}>Show versions for each execution</label>
             <input
               name="versionCheckBox"
               type="checkbox"
@@ -687,16 +688,15 @@ const styles = {
     }
   },
   showVersion: {
+    display: "flex",
+    alignItems: "center",
     fontSize: "0.8em",
     float: "left",
-    textAlign: "left",
     height: "30px",
-    width: "160px",
-    color: "#607e96",
-    "& .button": {
-      cursor: "pointer",
-      margin: "0 0.5em"
-    }
+    color: "#607e96"
+  },
+  showVersionLabel: {
+    paddingRight: "0.5em"
   },
   chevron: {
     color: "#92a2af",

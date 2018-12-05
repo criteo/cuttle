@@ -693,7 +693,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
       .unsafeRunSync
       .foreach { state =>
         atomic { implicit txn =>
-          _state() = state
+          _state() = cleanTimeseriesState(state)
         }
       }
 
@@ -1013,5 +1013,19 @@ object TimeSeriesUtils {
 
     if (errors.nonEmpty) Left(errors.toList)
     else Right(())
+  }
+
+  /**
+    * Filter potentially incorrect state intervals which were the result of bugs in previous versions. These bugs were mainly
+    * related to the addition of the project version in the serialized execution state.
+    */
+  private[timeseries] def cleanTimeseriesState(state: State): State = {
+    val cleanedState = state.map { case (job, intervalMap) =>
+      job -> intervalMap.toList
+        .foldLeft(IntervalMap.empty[Instant, JobState]) { case (aggregatedIntervals, (interval, jobState)) =>
+          aggregatedIntervals.update(interval, jobState)
+        }
+    }
+    cleanedState
   }
 }
