@@ -7,6 +7,3 @@ dev.config.json
 
 # price.log gererated by HelloCronScheduling
 price.log
-
-# vi temp files
-*.un~

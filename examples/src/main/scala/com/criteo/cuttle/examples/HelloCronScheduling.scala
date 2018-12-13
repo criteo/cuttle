@@ -35,7 +35,8 @@ object HelloCronScheduling {
       id = "ticker_job",
       // We define out schedule by a simple Cron expression, that is parsed with cron4s library.
       // For more documentation see https://github.com/alonsodomin/cron4s.
-      scheduling = CronScheduling("0-59/10 * * ? * *"),
+      // 1 corresponds to the maximum number of retries that we allow for this job
+      scheduling = CronScheduling("0-59/10 * * ? * *", 1),
       name = "Ticker Job",
       description = "Get ticker for Bitcoin price from CoinMarketCap"
     ) {
@@ -58,9 +59,9 @@ object HelloCronScheduling {
           """ ()
     }
 
-    // __Let's compute the average of 3 last Bitcoin prices, if we have less than 3 entries this job will fail.
+    // __Let's compute the average of 3 last Bitcoin prices, if we have less than 3 entries this job will fail
     val avgJob = Job(id = "avg_job",
-                     scheduling = CronScheduling("0-59/10 * * ? * *"),
+                     scheduling = CronScheduling("0-59/10 * * ? * *", 10),
                      description = "Average Bitcoin price for last 3 value") { implicit e =>
       Future {
         // We use plain old Scala APi to interact with file system.
