@@ -107,9 +107,12 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
                   nextJob <- runScheduledJob(newJob, 0, scheduledAt)
                     .map(_ => Some(newJob: CronJob))
                     .recover {
-                      case _ =>
-                        logger.debug(s"Job ${newJob.underlying.id} has failed it's going to be retried")
+                      case _ if newJob.underlying.scheduling.maxRetry > 0 =>
+                        logger.debug(s"Job ${underlying.id} has failed it's going to be retried")
                         Some(Retry(underlying, 1, scheduledAt))
+                      case e =>
+                        logger.debug(s"Job ${underlying.id} has reached the maximum number of retries")
+                        Some(New(underlying))
                     }
                 } yield nextJob
             }
@@ -122,10 +125,13 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
             nextJob <- runScheduledJob(retryJob, retryNum, scheduledAt)
               .map(_ => Some(New(underlying): CronJob))
               .recover {
-                case _ =>
+                case _ if underlying.scheduling.maxRetry >= retryNum =>
                   logger.debug(
                     s"Job ${retryJob.underlying.id} has failed it's going to be retried. Retry number: $retryNum")
                   Some(Retry(underlying, retryNum + 1, scheduledAt))
+                case e =>
+                  logger.debug(s"Job ${underlying.id} has reached the maximum number of retries")
+                  Some(New(underlying))
               }
             _ <- removeJobFromState(retryJob)
           } yield nextJob
@@ -147,7 +153,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     }
 
     val programs = workload match {
-      case CronWorkload(jobs) => jobs map New map run
+      case CronWorkload(jobs) => jobs.map(New).map(run)
     }
 
     programs.foreach(_.unsafeRunAsync(_ => ()))

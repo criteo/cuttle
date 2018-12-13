@@ -27,8 +27,9 @@ private[cron] case class CronContext(instant: Instant)(retryNum: Int) extends Sc
   *
   * @param cronExpression Cron expression to be parsed by https://github.com/alonsodomin/cron4s.
   *                       See the link above for more details.
+  * @param maxRetry The maximum number of retries authorized.
   */
-case class CronScheduling(cronExpression: String) extends Scheduling {
+case class CronScheduling(cronExpression: String, maxRetry: Int) extends Scheduling {
   override type Context = CronContext
   // https://www.baeldung.com/cron-expressions
   // https://www.freeformatter.com/cron-expression-generator-quartz.html
