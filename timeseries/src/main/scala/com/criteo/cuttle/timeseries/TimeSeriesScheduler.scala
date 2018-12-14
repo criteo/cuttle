@@ -247,9 +247,9 @@ case class TimeSeriesContext(start: Instant,
   }
 }
 
-private[timeseries] object TimeSeriesContext {
-  implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
-  implicit def decoder(implicit jobs: Set[Job[TimeSeries]]): Decoder[TimeSeriesContext] =
+object TimeSeriesContext {
+  private[timeseries] implicit val encoder: Encoder[TimeSeriesContext] = deriveEncoder
+  private[timeseries] implicit def decoder(implicit jobs: Set[Job[TimeSeries]]): Decoder[TimeSeriesContext] =
     deriveDecoder
 
   /** Provide an implicit `Ordering` for [[TimeSeriesContext]] based on the `compareTo` function. */
