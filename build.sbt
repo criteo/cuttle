@@ -190,7 +190,7 @@ lazy val cuttle =
         "org.typelevel" %% "cats-core" % "1.0.1",
         "org.typelevel" %% "cats-mtl-core" % "0.2.3",
         "codes.reactive" %% "scala-time" % "0.4.1",
-        "com.zaxxer" % "nuprocess" % "1.1.0"
+        "com.zaxxer" % "nuprocess" % "1.2.4"
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
