@@ -51,7 +51,7 @@ type SummarySlot = {
 type JobPeriodSlot =
   | {
       period: Period,
-      status: "done" | "running" | "todo",
+      status: "done" | "running" | "todo" | "paused",
       backfill: boolean,
       version: string,
       aggregated: false
@@ -126,6 +126,16 @@ let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
   return labelWidth;
 };
 
+let getLabelForStatus = status => {
+  switch(status) {
+    case "failed": return "stuck"
+    case "successful": return "done"
+    case "running": return "started"
+    case "paused": return "paused"
+    default: return "todo"
+  }
+};
+
 // Drawing methods // Summary periods
 const summaryPeriodHelper = (x1, x2) => ({
   tip: ({ period, completion }) =>
@@ -139,15 +149,7 @@ const summaryPeriodHelper = (x1, x2) => ({
 // drawing methods // job details
 const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
   tip: ({ period, status, jobName }) =>
-    `<div>${jobName} is ${
-      status == "failed"
-        ? "stuck"
-        : status == "successful"
-          ? "done"
-          : status == "running"
-            ? "started"
-            : "todo"
-    } – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+    `<div>${jobName} is ${getLabelForStatus(status)} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
   translate: ({ period }) => `translate(${x1(period) + MARGIN}, 0)`,
   width: ({ period }) => x2(period) - x1(period),
   fill: ({ status }) =>
@@ -159,7 +161,9 @@ const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
           ? "#ffbc5a"
           : status == "running"
             ? "#49d3e4"
-            : "#ecf1f5",
+              : status == "paused"
+                ? "#ffaaff"
+                : "#ecf1f5",
   // For aggregated periods, we want to zoom on click
   click: ({ period, jobId, aggregated }) =>
     aggregated
@@ -597,6 +601,7 @@ class CalendarFocus extends React.Component<Props, State> {
         </h1>
         <div>
           <div className={classes.showVersion}>
+            <label className={classes.showVersionLabel}>Show versions for each execution</label>
             <input
               name="versionCheckBox"
               type="checkbox"
@@ -687,16 +692,15 @@ const styles = {
     }
   },
   showVersion: {
+    display: "flex",
+    alignItems: "center",
     fontSize: "0.8em",
     float: "left",
-    textAlign: "left",
     height: "30px",
-    width: "160px",
-    color: "#607e96",
-    "& .button": {
-      cursor: "pointer",
-      margin: "0 0.5em"
-    }
+    color: "#607e96"
+  },
+  showVersionLabel: {
+    paddingRight: "0.5em"
   },
   chevron: {
     color: "#92a2af",

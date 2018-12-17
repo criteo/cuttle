@@ -1,137 +1,98 @@
 package com.criteo.cuttle.timeseries
 
-import java.time.ZoneOffset.UTC
-import java.time.{Duration, Instant, LocalDate}
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
-import scala.concurrent.duration.Duration.Inf
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.Future
 
-import com.wix.mysql._
-import com.wix.mysql.config.Charset._
-import com.wix.mysql.config._
-import com.wix.mysql.distribution.Version._
+import org.scalatest.FunSuite
 
-import com.criteo.cuttle.platforms.local._
-import com.criteo.cuttle.timeseries.TimeSeriesUtils.{Run, TimeSeriesJob}
-import com.criteo.cuttle.{Auth, Database => CuttleDatabase, _}
+import com.criteo.cuttle.{logger, Completed, Job, TestScheduling}
+import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
+import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
+import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 
-object TimeSeriesSchedulerSpec {
-  // TODO: turn this into a unit test. This is not done for now as the thread pool responsible for checking the lock on
-  // the state database creates non-daemon threads, which would result in the unit test not ending unless it is interrupted
-  // from the outside.
-  def main(args: Array[String]): Unit = {
-    val config = {
-      MysqldConfig
-        .aMysqldConfig(v5_7_latest)
-        .withCharset(UTF8)
-        .withTimeout(3600, TimeUnit.SECONDS)
-        .withPort(3388)
-        .build()
-    }
-    val mysqld = EmbeddedMysql.anEmbeddedMysql(config).addSchema("cuttle_dev").start()
+class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
+  private val scheduling: TimeSeries = hourly(date"2017-03-25T02:00:00Z")
+  private val testJob = Job("test_job", scheduling)(completed)
 
-    println("started!")
-    println("if needed you can connect to this running db using:")
-    println("> mysql -u root -h 127.0.0.1 -P 3388 cuttle_dev")
+  private val parentScheduling: TimeSeries = hourly(date"2017-03-25T01:00:00Z")
+  private val parentTestJob = Job("parent_test_job", parentScheduling)(completed)
+  private val scheduler = TimeSeriesScheduler(logger)
 
-    val project = CuttleProject("Hello World", version = "123", env = ("dev", false)) {
-      Jobs.childJob dependsOn Jobs.rootJob
-    }
+  private val backfill = Backfill("some-id",
+                                  date"2017-03-25T01:00:00Z",
+                                  date"2017-03-25T05:00:00Z",
+                                  Set(testJob),
+                                  priority = 0,
+                                  name = "backfill",
+                                  description = "",
+                                  status = "RUNNING",
+                                  createdBy = "")
 
-    val retryImmediatelyStrategy = new RetryStrategy {
-      def apply[S <: Scheduling](job: Job[S], context: S#Context, previouslyFailing: List[String]) = Duration.ZERO
-      def retryWindow = Duration.ZERO
-    }
+  test("identity new backfills") {
+    val state: State = Map(
+      testJob -> IntervalMap(
+        Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T01:00:00Z") -> Done(""),
+        // Backfill completed on the last 3 hours of the backfill period, first hour not yet done
+        Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z") -> Todo(Some(backfill)),
+        Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T05:00:00Z") -> Done("")
+      )
+    )
+    val (stateSnapshot, newBackfills, completedBackfills) =
+      scheduler.collectCompletedJobs(state, Set(backfill), completed = Set.empty)
+    assert(newBackfills.equals(Set(backfill)))
+    assert(completedBackfills.isEmpty)
+  }
 
-    val xa = CuttleDatabase.connect(DatabaseConfig(Seq(DBLocation("127.0.0.1", 3388)), "cuttle_dev", "root", ""))
-    val executor =
-      new Executor[TimeSeries](Seq(LocalPlatform(maxForkedProcesses = 10)), xa, logger, project.name, project.version)(
-        retryImmediatelyStrategy)
-    val scheduler = project.scheduler
+  test("complete backfills") {
+    val state: State = Map(
+      testJob -> IntervalMap(
+        Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T01:00:00Z") -> Done(""),
+        Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T05:00:00Z") -> Done("")
+      )
+    )
+    val (stateSnapshot, newBackfills, completedBackfills) = scheduler.collectCompletedJobs(
+      state,
+      Set(backfill),
+      completed = Set(
+        // Another non backfilled execution completed on the period where 'backfill' is still running
+        (testJob,
+         TimeSeriesContext(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z"),
+         Future.successful(Completed))
+      )
+    )
+    assert(completedBackfills.equals(Set(backfill)))
+    assert(newBackfills.isEmpty)
+  }
 
-    scheduler.initialize(project.jobs, xa, logger)
+  test("complete regular execution while backfill is still running") {
+    // Edge-case not possible since it is not possible to run a backfill of a job on a period where that job did not complete
+  }
 
-    var runningExecutions = Set.empty[Run]
+  test("identify jobs to do") {
+    val state: State = Map(
+      parentTestJob -> IntervalMap(
+        Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z") -> Done("v1"),
+        Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
+        Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z") -> Todo(None)
+      ),
+      testJob -> IntervalMap(
+        Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z") -> Todo(None),
+        Interval(date"2017-03-25T03:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
+        Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z") -> Todo(None)
+      )
+    )
 
-    logger.info("Starting 'root-job' and 'child-job'")
-    runningExecutions = doSynchronousExecutionStep(scheduler, runningExecutions, project.jobs, executor, xa)
-    assert(runningExecutionsToJobIdAndResult(runningExecutions).equals(Set(("root-job", true))))
-
-    logger.info("'root-job' completed, the child job 'child-job' is triggered but fails")
-    runningExecutions = doSynchronousExecutionStep(scheduler, runningExecutions, project.jobs, executor, xa)
-    assert(runningExecutionsToJobIdAndResult(runningExecutions).equals(Set(("child-job", false))))
-
-    logger.info("'child-job' is paused")
-    val guestUser = Auth.User("Guest")
-    scheduler.pauseJobs(Set(Jobs.childJob), executor, xa)(guestUser)
+    val jobsToRun = scheduler.jobsToRun(
+      (testJob dependsOn parentTestJob)(TimeSeriesDependency(Duration.ofHours(-1), Duration.ofHours(0))),
+      state,
+      date"2017-03-25T05:00:00Z",
+      "last_version"
+    )
     assert(
-      (scheduler
-        .pausedJobs()
-        .map { case PausedJob(jobId, user, date) => (jobId, user) })
-        .equals(Set(("child-job", guestUser))))
-    runningExecutions = doSynchronousExecutionStep(scheduler, runningExecutions, project.jobs, executor, xa)
-    assert(runningExecutions.isEmpty)
-
-    logger.info("'child-job' is resumed")
-    scheduler.resumeJobs(Set(Jobs.childJob), xa)(guestUser)
-    assert(scheduler.pausedJobs().isEmpty)
-    runningExecutions = doSynchronousExecutionStep(scheduler, runningExecutions, project.jobs, executor, xa)
-    assert(runningExecutionsToJobIdAndResult(runningExecutions).equals(Set(("child-job", true))))
-
-    logger.info("No more jobs to schedule for now")
-    runningExecutions = doSynchronousExecutionStep(scheduler, runningExecutions, project.jobs, executor, xa)
-    assert(runningExecutions.isEmpty)
-
-    mysqld.stop()
-  }
-
-  private def doSynchronousExecutionStep(scheduler: TimeSeriesScheduler,
-                                         runningExecutions: Set[Run],
-                                         workflow: Workflow,
-                                         executor: Executor[TimeSeries],
-                                         xa: XA): Set[(TimeSeriesJob, TimeSeriesContext, Future[Completed])] = {
-    val newRunningExecutions =
-      scheduler.updateCurrentExecutionsAndSubmitNewExecutions(runningExecutions, workflow, executor, xa)
-
-    import scala.concurrent.ExecutionContext.Implicits.global
-    val executionsResult = Future.sequence(newRunningExecutions.map {
-      case (job, executionContext, futureResult) =>
-        logger.info(s"Executed ${job.id}")
-        futureResult
-    })
-    Await.ready(executionsResult, Inf)
-    newRunningExecutions
-  }
-
-  private def runningExecutionsToJobIdAndResult(runningExecutions: Set[Run]): Set[(String, Boolean)] = {
-    def executionResultToBoolean(result: Future[Completed]) = result.value match {
-      case Some(Success(_)) => true
-      case Some(Failure(t)) => false
-      case None             => throw new Exception("The execution should have completed.")
-    }
-    runningExecutions.map {
-      case (job, executionContext, futureResult) => (job.id, executionResultToBoolean(futureResult))
-    }
-  }
-
-  object Jobs {
-    private val start: Instant = LocalDate.now.minusDays(1).atStartOfDay.toInstant(UTC)
-
-    val rootJob = Job("root-job", daily(UTC, start)) { implicit e =>
-      Future(Completed)
-    }
-
-    private var failedOnce = false
-    // A job which fails the first time it runs
-    val childJob = Job("child-job", daily(UTC, start)) { implicit e =>
-      if (!failedOnce) {
-        failedOnce = true
-        throw new Exception("Always fails at the first execution")
-      } else {
-        Future(Completed)
-      }
-    }
+      jobsToRun.toSet.equals(Set(
+        (testJob, TimeSeriesContext(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z", None, "last_version")),
+        (parentTestJob, TimeSeriesContext(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z", None, "last_version"))
+      )))
   }
 }

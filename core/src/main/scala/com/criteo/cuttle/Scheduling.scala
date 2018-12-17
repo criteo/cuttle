@@ -1,13 +1,11 @@
 package com.criteo.cuttle
 
-import lol.http.PartialService
 import io.circe.Json
 import doobie.imports._
 import cats.free._
 import java.util.Comparator
 
 import Metrics.MetricProvider
-import Auth._
 
 /** A scheduler interpret a [[Workflow]] and instanciate [[Execution Executions]] for all
   * defined [[Job Jobs]]. For example, a typical cuttle [[Scheduler]] is the [[timeseries.TimeSeries TimeSeries]]
