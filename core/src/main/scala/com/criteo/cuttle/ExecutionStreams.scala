@@ -9,8 +9,8 @@ import cats.effect.IO
 import doobie.implicits._
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.stm._
+
 
 /** The scoped output streams for an [[Execution]]. Allows the execution to log its output. */
 trait ExecutionStreams {
@@ -44,7 +44,6 @@ private[cuttle] object ExecutionStreams {
   // Note that we are limited by Int.maxValue
   private val maxExecutionLogSizeProp = "com.criteo.cuttle.maxExecutionLogSize"
   private val maxExecutionLogSize = sys.props.get(maxExecutionLogSizeProp).map(_.toInt).getOrElse(524288)
-  private val SC = utils.createScheduler("com.criteo.cuttle.ExecutionStreams.SC")
 
   logger.info(s"Transient execution streams go to $transientStorage")
 
@@ -80,11 +79,14 @@ private[cuttle] object ExecutionStreams {
   }
 
   def getStreams(id: ExecutionId, queries: Queries, xa: XA): fs2.Stream[IO, Byte] = {
+    import com.criteo.cuttle.utils.timer
+
     def go(alreadySent: Int = 0): fs2.Stream[IO, Byte] =
       fs2.Stream.eval(IO { streamsAsString(id) }).flatMap {
         case Some(content) =>
-          fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))) ++ SC.delay(go(content.length),
-                                                                                                    1 second)
+          fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))) ++
+            go(content.length).delayBy[IO](1.second)
+
         case None =>
           fs2.Stream
             .eval(
@@ -92,7 +94,7 @@ private[cuttle] object ExecutionStreams {
                 .archivedStreams(id)
                 .transact(xa)
                 .map(_.map(content => fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))))
-                  .getOrElse(fs2.Stream.raiseError(new Exception(s"Streams not found for execution $id"))))
+                  .getOrElse(fs2.Stream.raiseError[IO](new Exception(s"Streams not found for execution $id"))))
             )
             .flatMap(x => x)
       }

@@ -1,19 +1,18 @@
 package com.criteo.cuttle.timeseries.intervals
 
 import scala.math.Ordered.orderingToOrdered
+
 import cats._
 import de.sciss.fingertree.{FingerTree, Measure}
 import FingerTree._
 import Bound.{Bottom, Top}
-import cats.mtl.FunctorEmpty
-import cats.mtl._
-import cats.mtl.implicits._
+import cats.FunctorFilter
+import cats.implicits._
 
 private[timeseries] object IntervalMap {
 
   private class MeasureKey[A, B] extends Measure[(A, B), Option[A]] {
     override def toString = "Key"
-
     val zero: Option[A] = None
     def apply(x: (A, B)) = Some(x._1)
 
@@ -143,7 +142,7 @@ private[timeseries] object IntervalMap {
     }
   }
 
-  implicit def functorEmptyInstance[K: Ordering] = new FunctorEmpty[({ type Alias[a] = IntervalMap[K, a] })#Alias] {
+  implicit def functorEmptyInstance[K: Ordering] = new FunctorFilter[({ type Alias[a] = IntervalMap[K, a] })#Alias] {
     override val functor = implicitly[Functor[({ type Alias[a] = IntervalMap[K, a] })#Alias]]
 
     override def mapFilter[A, B](fa: IntervalMap[K, A])(f: A => Option[B]) = fa match {

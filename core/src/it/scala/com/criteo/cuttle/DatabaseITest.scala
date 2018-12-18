@@ -19,7 +19,7 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
   )
 
   // IOChecker needs a transactor for performing its queries
-  override val transactor: doobie.Transactor[IO] = Database.newHikariTransactor(dbConfig)
+  override val transactor: doobie.Transactor[IO] = Database.newHikariTransactor(dbConfig).allocated.unsafeRunSync()._1
 
   test("should establish the connection and instanciate a trasactor") {
     assert(Database.connect(dbConfig).isInstanceOf[doobie.Transactor[IO]])
@@ -59,5 +59,19 @@ class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
     assert(pausedJob.id == "1")
     assert(pausedJob.user == User("not defined user"))
     assert(pausedJob.date == LocalDateTime.parse("1991-11-01T15:42:00").toInstant(ZoneOffset.UTC))
+  }
+
+  test("we should be able to retrieve finished executions") {
+    Database.reset()
+
+    Database.doSchemaUpdates.transact(transactor).unsafeRunSync()
+    val ctx = TestContext()
+    val date = Some(Instant.now())
+    val el = ExecutionLog("id", "hello", date, date, ctx.asJson, ExecutionStatus.ExecutionSuccessful, None, 10)
+    (0 to 100).foreach { i =>
+      queries.logExecution(el.copy(s"${el.id}-$i"), ctx.logIntoDatabase).transact(transactor).unsafeRunSync()
+      val executionLogSize = queries.getExecutionLogSize(Set("hello")).transact(transactor).unsafeRunSync()
+      assert(executionLogSize == i + 1)
+    }
   }
 }
