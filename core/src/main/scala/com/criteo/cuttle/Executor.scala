@@ -65,6 +65,14 @@ object RetryStrategy {
     def retryWindow =
       Duration.ofMinutes(5)
   }
+
+  /** Simple retry strategy. Retry after the constant retry window.
+    * @param duration Duration of a retry window.
+    */
+  def SimpleRetryStategy(duration: scala.concurrent.duration.Duration) = new RetryStrategy {
+    def retryWindow: Duration = Duration.ofNanos(duration.toNanos)
+    def apply[S <: Scheduling](job: Job[S], ctx: S#Context, previouslyFailing: List[String]): Duration = retryWindow
+  }
 }
 
 private[cuttle] sealed trait ExecutionStatus
@@ -755,7 +763,10 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   val nextExecutionId = utils.randomUUID
 
                   val streams = new ExecutionStreams {
-                    def writeln(str: CharSequence) = ExecutionStreams.writeln(nextExecutionId, str)
+                    def writeln(str: CharSequence) = {
+                      ExecutionStreams.writeln(nextExecutionId, str)
+                      logger.debug(s"[$nextExecutionId] $str")
+                    }
                   }
 
                   // wrap the execution context so that we can register the name of the thread of each
