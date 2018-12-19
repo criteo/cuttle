@@ -4,8 +4,6 @@ import java.time.Instant
 
 import cats.effect.IO
 import cats.implicits._
-import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
-import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle._
 import com.criteo.cuttle.utils.Timeout
 
@@ -128,6 +126,8 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
     // running all jobs asynchronously
     logger.info(s"Running Cron Workload")
-    programs.foreach(_.unsafeRunAsync(_ => ()))
+    import ThreadPools.Implicits.cronContextShift
+    programs.toList.parSequence.unsafeRunSync
+    logger.info(s"Stopping Cron Workload")
   }
 }

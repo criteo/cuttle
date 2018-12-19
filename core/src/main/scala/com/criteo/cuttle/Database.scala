@@ -1,7 +1,7 @@
 package com.criteo.cuttle
 
 import java.time._
-import java.util.concurrent.{ExecutorService, TimeUnit}
+import java.util.concurrent.TimeUnit
 
 import scala.util._
 
@@ -13,7 +13,7 @@ import io.circe.syntax._
 import io.circe.parser._
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{IO, Resource}
 import doobie.util.log
 
 import com.criteo.cuttle.ExecutionStatus._

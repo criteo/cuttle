@@ -5,7 +5,6 @@ import java.util.concurrent.{ExecutorService, Executors, ScheduledExecutorServic
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
-import scala.language.higherKinds
 import scala.util.Try
 
 import cats.effect.{IO, Resource}
@@ -32,6 +31,8 @@ object ThreadPools {
 
   sealed trait DoobieThreadPool extends WrappedThreadPool with Metrics
 
+  sealed trait CronThreadPool extends WrappedThreadPool with Metrics
+
   object SideEffectThreadPool {
     def wrap(wrapRunnable: Runnable => Runnable)(
       implicit executionContext: SideEffectThreadPool): SideEffectThreadPool =
@@ -55,6 +56,7 @@ object ThreadPools {
     val SideEffectECThreadCount = Value("com.criteo.cuttle.ThreadPools.SideEffectThreadPool.nThreads")
     val DoobieECThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieCSThreadPool.nThreads")
     val DoobieConnectThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieConnectThreadPool.nThreads")
+    val CronThreadCount = Value("com.criteo.cuttle.ThreadPools.CronThreadPool.nThreads")
 
     def fromSystemProperties(value: ThreadPoolSystemProperties.Value, defaultValue: Int): Int =
       loadSystemPropertyAsInt(value.toString, defaultValue)
@@ -171,9 +173,23 @@ object ThreadPools {
 
       override def threadPoolSize(): Int = _threadPoolSize.get()
     }
+
+    // Thread pool to run Cron scheduler
+    implicit val cronThreadPool = new CronThreadPool {
+      private val _threadPoolSize: AtomicInteger = new AtomicInteger(0)
+
+      override val underlying = ExecutionContext.fromExecutorService(
+        newFixedThreadPool(fromSystemProperties(CronThreadCount, Runtime.getRuntime.availableProcessors),
+                           poolName = Some("Cron"),
+                           threadCounter = _threadPoolSize)
+      )
+
+      override def threadPoolSize(): Int = _threadPoolSize.get()
+    }
+
     implicit val serverContextShift = IO.contextShift(serverThreadPool.underlying)
     implicit val sideEffectContextShift = IO.contextShift(sideEffectThreadPool.underlying)
     implicit val doobieContextShift = IO.contextShift(doobieThreadPool.underlying)
-
+    implicit val cronContextShift = IO.contextShift(cronThreadPool.underlying)
   }
 }
