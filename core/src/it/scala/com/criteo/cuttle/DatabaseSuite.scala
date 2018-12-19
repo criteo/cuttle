@@ -19,6 +19,7 @@ class DatabaseSuite extends FunSuite with BeforeAndAfter {
 
   // service transactor is used for schema creation
   private val serviceTransactor: doobie.Transactor[IO] = Database.newHikariTransactor(dbConfig)
+    .allocated.unsafeRunSync()._1
 
   private implicit val logHandler: log.LogHandler = DoobieLogsHandler(logger).handler
 

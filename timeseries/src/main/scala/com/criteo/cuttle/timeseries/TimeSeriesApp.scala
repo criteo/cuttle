@@ -23,26 +23,26 @@ import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
 import com.criteo.cuttle._
-import com.criteo.cuttle.ThreadPools._
-import Implicits.serverThreadPool
-import com.criteo.cuttle.utils.{createScheduler, getJVMUptime}
+import com.criteo.cuttle.utils.getJVMUptime
 import com.criteo.cuttle.events.JobSuccessForced
 import com.criteo.cuttle.timeseries.TimeSeriesUtils._
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
 import com.criteo.cuttle.timeseries.intervals._
 
 private[timeseries] object TimeSeriesApp {
-  private val SC = createScheduler("com.criteo.cuttle.App.SC")
 
   def sse[A](thunk: IO[Option[A]], encode: A => IO[Json])(implicit eqInstance: Eq[A]): lol.http.Response = {
-    val stream = (Stream.emit(()) ++ SC.fixedRate[IO](1.second))
-      .evalMap(_ => IO.shift.flatMap(_ => thunk))
+    import com.criteo.cuttle.ThreadPools.Implicits.serverContextShift
+    import com.criteo.cuttle.utils.timer
+
+    val stream = (Stream.emit(()) ++ Stream.fixedRate[IO](1.seconds))
+      .evalMap[IO, Option[A]](_ => IO.shift.flatMap(_ => thunk))
       .flatMap({
         case Some(x) => Stream(x)
-        case None    => Stream.raiseError(new RuntimeException("Could not get result to stream"))
+        case None    => Stream.raiseError[IO](new RuntimeException("Could not get result to stream"))
       })
       .changes
-      .evalMap(r => encode(r))
+      .evalMap[IO, Json](r => encode(r))
       .map(ServerSentEvents.Event(_))
 
     Ok(stream)
@@ -187,6 +187,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
       Ok(Prometheus.serialize(metrics))
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$order&jobs=$jobs" =>
+      logger.debug(s"Retreiving $kind executions with sse mode $events")
       val jobIds = parseJobIds(jobs)
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)

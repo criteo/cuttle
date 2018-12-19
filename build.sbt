@@ -1,7 +1,12 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.4.7"
+val VERSION = "0.5.0"
+
+lazy val catsCore = "1.5.0"
+lazy val circe = "0.10.1"
+lazy val doobie = "0.6.0"
+lazy val lolhttp = "0.12.0"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
@@ -168,8 +173,6 @@ lazy val localdb = {
     )
 }
 
-val doobieVersion = "0.5.0"
-
 lazy val cuttle =
   (project in file("core"))
     .configs(IntegrationTest)
@@ -180,29 +183,26 @@ lazy val cuttle =
         "com.criteo.lolhttp" %% "lolhttp",
         "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml"
-      ).map(_ % "0.9.3"),
+      ).map(_ % lolhttp),
       libraryDependencies ++= Seq("core", "generic", "parser", "java8")
-        .map(module => "io.circe" %% s"circe-${module}" % "0.9.1"),
+        .map(module => "io.circe" %% s"circe-$module" % circe),
       libraryDependencies ++= Seq(
         "de.sciss" %% "fingertree" % "1.5.2",
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-        "org.typelevel" %% "cats-core" % "1.0.1",
-        "org.typelevel" %% "cats-mtl-core" % "0.2.3",
+        "org.typelevel" %% "cats-core" % catsCore,
         "codes.reactive" %% "scala-time" % "0.4.1",
-        "com.zaxxer" % "nuprocess" % "1.1.0"
+        "com.zaxxer" % "nuprocess" % "1.1.0",
+        "mysql" % "mysql-connector-java" % "6.0.6"
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
         "org.tpolecat" %% "doobie-hikari"
-      ).map(_ % doobieVersion),
-      libraryDependencies ++= Seq(
-        "mysql" % "mysql-connector-java" % "6.0.6"
-      ),
+      ).map(_ % doobie),
       libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest" % "3.0.1",
         "org.mockito" % "mockito-all" % "1.10.19",
-        "org.tpolecat" %% "doobie-scalatest" % doobieVersion
+        "org.tpolecat" %% "doobie-scalatest" % doobie
       ).map(_ % "it,test")
     )
 

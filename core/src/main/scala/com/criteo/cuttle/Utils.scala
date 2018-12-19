@@ -5,12 +5,13 @@ import java.util.concurrent.TimeUnit
 import java.lang.management.ManagementFactory
 import java.time.Instant
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
+import cats.effect.{IO, Resource}
 import cats.implicits._
-import cats.effect.IO
 import doobie._
+import doobie.hikari.HikariTransactor
 import doobie.implicits._
 import lol.http.{PartialService, Service}
 
@@ -21,7 +22,7 @@ package object utils {
     *
     * @param config Database configuration
     */
-  def transactor(config: DatabaseConfig): XA = Database.newHikariTransactor(config)
+  def transactor(config: DatabaseConfig): Resource[IO, HikariTransactor[IO]] = Database.newHikariTransactor(config)
 
   /** Executes unapplied schema evolutions
     *
@@ -51,8 +52,14 @@ package object utils {
       }
     } yield ())
 
-  private[cuttle] def createScheduler(threadPrefix: String): fs2.Scheduler =
-    fs2.Scheduler.allocate[IO](1, daemon = true, threadPrefix, exitJvmOnFatalError = false).unsafeRunSync._1
+  private[cuttle] implicit val timer: cats.effect.Timer[IO] = {
+    val timerThreadPool = ThreadPools.newFixedThreadPool(1, poolName = Some("Timer"))
+    IO.timer(ExecutionContext.fromExecutorService(timerThreadPool))
+  }
+
+  // FIXME this method only exists because Scala couldn't resolve implicits in the context of Executor.scala
+  private[cuttle] def awakeEvery(duration: FiniteDuration): fs2.Stream[IO, FiniteDuration] =
+    fs2.Stream.awakeEvery[IO](duration)
 
   /** Creates a  [[scala.concurrent.Future Future]] that resolve automatically
     * after the given duration.

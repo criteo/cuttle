@@ -16,7 +16,6 @@ import scala.math.Ordering.Implicits._
 import cats._
 import cats.effect.IO
 import cats.implicits._
-import cats.mtl.implicits._
 import de.sciss.fingertree.RangedSeq
 import doobie._
 import doobie.implicits._

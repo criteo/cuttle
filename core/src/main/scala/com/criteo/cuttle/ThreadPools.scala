@@ -5,7 +5,10 @@ import java.util.concurrent.{ExecutorService, Executors, ScheduledExecutorServic
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
+import scala.language.higherKinds
 import scala.util.Try
+
+import cats.effect.{IO, Resource}
 
 object ThreadPools {
 
@@ -26,6 +29,8 @@ object ThreadPools {
 
   // dedicated threadpool to start new executions and run user-defined side effects
   sealed trait SideEffectThreadPool extends WrappedThreadPool with Metrics
+
+  sealed trait DoobieThreadPool extends WrappedThreadPool with Metrics
 
   object SideEffectThreadPool {
     def wrap(wrapRunnable: Runnable => Runnable)(
@@ -48,6 +53,8 @@ object ThreadPools {
     type ThreadPoolSystemProperties = Value
     val ServerECThreadCount = Value("com.criteo.cuttle.ThreadPools.ServerThreadPool.nThreads")
     val SideEffectECThreadCount = Value("com.criteo.cuttle.ThreadPools.SideEffectThreadPool.nThreads")
+    val DoobieECThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieCSThreadPool.nThreads")
+    val DoobieConnectThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieConnectThreadPool.nThreads")
 
     def fromSystemProperties(value: ThreadPoolSystemProperties.Value, defaultValue: Int): Int =
       loadSystemPropertyAsInt(value.toString, defaultValue)
@@ -58,6 +65,8 @@ object ThreadPools {
         case None       => Runtime.getRuntime.availableProcessors
       }
   }
+
+  import ThreadPoolSystemProperties._
 
   def newThreadFactory(daemonThreads: Boolean = true,
                        poolName: Option[String] = None,
@@ -97,6 +106,33 @@ object ThreadPools {
                              threadCounter: AtomicInteger = new AtomicInteger(0)): ScheduledExecutorService =
     Executors.newScheduledThreadPool(numThreads, newThreadFactory(daemonThreads, poolName, threadCounter))
 
+  /**
+    * @param daemonThreads set to true to create daemon threads (threads that do not prevent the JVM from exiting when the program finishes but the threads are still running)
+    * @param poolName optional parameter to identify the threads created by this thread pool
+    * @param threadCounter reference to a counter keeping track of the total number of threads created by this thread pool
+    */
+  def newCachedThreadPool(daemonThreads: Boolean = true,
+                          poolName: Option[String] = None,
+                          threadCounter: AtomicInteger = new AtomicInteger(0)): ExecutorService =
+    Executors.newCachedThreadPool(newThreadFactory(daemonThreads, poolName, threadCounter))
+
+  private def makeResourceFromES(tp: => ExecutorService): Resource[IO, ExecutionContext] = {
+    import cats.implicits._
+    val alloc = IO.delay(tp)
+    val free = (es: ExecutorService) => IO.delay(es.shutdown())
+    Resource.make(alloc)(free).map(ExecutionContext.fromExecutor)
+  }
+
+  // Doobie needs 3 thread pools to create a Transactor two for HikariCP and one for cats ContextShift
+  val doobieConnectThreadPoolResource = makeResourceFromES(
+    ThreadPools.newFixedThreadPool(
+      fromSystemProperties(DoobieConnectThreadCount, Runtime.getRuntime.availableProcessors),
+      poolName = Some("Doobie-Connect")
+    ))
+  val doobieTransactThreadPoolResource = makeResourceFromES(
+    ThreadPools.newCachedThreadPool(poolName = Some("Doobie-Transact"))
+  )
+
   object Implicits {
     import ThreadPoolSystemProperties._
     implicit val serverThreadPool = new ServerThreadPool {
@@ -122,5 +158,22 @@ object ThreadPools {
 
       override def threadPoolSize(): Int = _threadPoolSize.get()
     }
+
+    // Doobie needs 3 thread pools to create a Transactor two for HikariCP and one for cats ContextShift
+    implicit val doobieThreadPool = new DoobieThreadPool {
+      private val _threadPoolSize: AtomicInteger = new AtomicInteger(0)
+
+      override val underlying = ExecutionContext.fromExecutorService(
+        newFixedThreadPool(fromSystemProperties(DoobieECThreadCount, Runtime.getRuntime.availableProcessors),
+                           poolName = Some("Doobie"),
+                           threadCounter = _threadPoolSize)
+      )
+
+      override def threadPoolSize(): Int = _threadPoolSize.get()
+    }
+    implicit val serverContextShift = IO.contextShift(serverThreadPool.underlying)
+    implicit val sideEffectContextShift = IO.contextShift(sideEffectThreadPool.underlying)
+    implicit val doobieContextShift = IO.contextShift(doobieThreadPool.underlying)
+
   }
 }

@@ -1,22 +1,22 @@
 package com.criteo.cuttle
 
 import java.time._
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ExecutorService, TimeUnit}
 
 import scala.util._
 
 import doobie._
 import doobie.implicits._
 import doobie.hikari._
-import doobie.hikari.implicits._
 import io.circe._
 import io.circe.syntax._
 import io.circe.parser._
 import cats.data.NonEmptyList
 import cats.implicits._
-import cats.effect.IO
+import cats.effect.{IO, Resource, Sync}
+import doobie.util.log
 
-import ExecutionStatus._
+import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.events.{Event, JobSuccessForced}
 
 /** Configuration of JDBC endpoint.
@@ -66,17 +66,16 @@ object DatabaseConfig {
 }
 
 private[cuttle] object Database {
+  implicit val logHandler: log.LogHandler = DoobieLogsHandler(logger).handler
 
-  implicit val ExecutionStatusMeta: Meta[ExecutionStatus] = Meta[Boolean].xmap(
-    x => if (x) ExecutionSuccessful else ExecutionFailed, {
+  implicit val ExecutionStatusMeta: Meta[ExecutionStatus] =
+    Meta[Boolean].imap(x => if (x) ExecutionSuccessful else ExecutionFailed: ExecutionStatus) {
       case ExecutionSuccessful => true
       case ExecutionFailed     => false
       case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
     }
-  )
 
-  implicit val JsonMeta: Meta[Json] = Meta[String].xmap(
-    x => parse(x).fold(e => throw e, identity),
+  implicit val JsonMeta: Meta[Json] = Meta[String].imap(x => parse(x).fold(e => throw e, identity))(
     x => x.noSpaces
   )
 
@@ -133,7 +132,7 @@ private[cuttle] object Database {
     """.update.run
   )
 
-  private def lockedTransactor(xa: HikariTransactor[IO]): HikariTransactor[IO] = {
+  private def lockedTransactor(xa: Transactor[IO], releaseIO: IO[Unit]): Transactor[IO] = {
     val guid = java.util.UUID.randomUUID.toString
 
     // Try to insert our lock at bootstrap
@@ -164,6 +163,8 @@ private[cuttle] object Database {
         """.update.run.transact(xa).unsafeRunSync
     })
 
+    // TODO, verify if it's in daemon mode
+
     // Refresh our lock every minute (and check that we still are the lock owner)
     ThreadPools
       .newScheduledThreadPool(1, poolName = Some("DatabaseLock"))
@@ -173,7 +174,7 @@ private[cuttle] object Database {
             if ((sql"""
             UPDATE locks SET locked_at = NOW() WHERE locked_by = ${guid}
           """.update.run.transact(xa).unsafeRunSync: Int) != 1) {
-              xa.shutdown.unsafeRunSync
+              releaseIO.unsafeRunSync()
               sys.error(s"Lock has been lost, shutting down the database connection.")
             }
         },
@@ -186,24 +187,29 @@ private[cuttle] object Database {
     xa
   }
 
-  private val doSchemaUpdates = utils.updateSchema("schema_evolutions", schemaEvolutions)
+  private[cuttle] val doSchemaUpdates = utils.updateSchema("schema_evolutions", schemaEvolutions)
 
   private val connections = collection.concurrent.TrieMap.empty[DatabaseConfig, XA]
 
-  private[cuttle] def newHikariTransactor(dbConfig: DatabaseConfig): HikariTransactor[IO] = {
-    val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
+  private[cuttle] def newHikariTransactor(dbConfig: DatabaseConfig): Resource[IO, HikariTransactor[IO]] = {
+    import com.criteo.cuttle.ThreadPools.Implicits.doobieContextShift
 
+    val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
     val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
       "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true"
 
-    HikariTransactor
-      .newHikariTransactor[IO](
+    for {
+      connectThreadPool <- ThreadPools.doobieConnectThreadPoolResource
+      transactThreadPool <- ThreadPools.doobieTransactThreadPoolResource
+      transactor <- HikariTransactor.newHikariTransactor[IO](
         "com.mysql.cj.jdbc.Driver",
         jdbcString,
         dbConfig.username,
-        dbConfig.password
+        dbConfig.password,
+        connectThreadPool,
+        transactThreadPool
       )
-      .unsafeRunSync
+    } yield transactor
   }
 
   // we remove all created Hikari transactors here,
@@ -211,13 +217,20 @@ private[cuttle] object Database {
   private[cuttle] def reset(): Unit =
     connections.clear()
 
-  def connect(dbConfig: DatabaseConfig): XA = connections.getOrElseUpdate(
-    dbConfig, {
-      val xa = lockedTransactor(newHikariTransactor(dbConfig))
-      doSchemaUpdates.transact(xa).unsafeRunSync
-      xa
-    }
-  )
+  def connect(dbConfig: DatabaseConfig): XA = {
+    // FIXME we shouldn't use allocated as it's unsafe instead we have to flatMap on the Resource[HikariTransactor]
+    val (transactor, releaseIO) = newHikariTransactor(dbConfig).allocated.unsafeRunSync
+    logger.debug("Allocated new Hikari transactor")
+    connections.getOrElseUpdate(
+      dbConfig, {
+        val xa = lockedTransactor(transactor, releaseIO)
+        logger.debug("Lock transactor")
+        doSchemaUpdates.transact(xa).unsafeRunSync
+        logger.debug("Update Cuttle Schema")
+        xa
+      }
+    )
+  }
 }
 
 private[cuttle] trait Queries {

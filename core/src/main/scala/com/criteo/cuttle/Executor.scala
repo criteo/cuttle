@@ -458,11 +458,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
     }
 
   private def startMonitoringExecutions() = {
-    val SC = utils.createScheduler("com.criteo.cuttle.platforms.ExecutionMonitor.SC")
-
     val intervalSeconds = 1
-    SC.awakeEvery[IO](intervalSeconds.second)
-      .map(_ => {
+    utils.awakeEvery(intervalSeconds.seconds).map(_ => {
         runningExecutions
           .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
           .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })
