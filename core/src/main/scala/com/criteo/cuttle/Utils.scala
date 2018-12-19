@@ -75,11 +75,31 @@ package object utils {
     def apply(timeout: Duration): Future[Unit] = {
       val p = Promise[Unit]()
       scheduler.schedule(
-        new Runnable { def run(): Unit = p.success(()) },
+        new Runnable {
+          def run(): Unit = p.success(())
+        },
         timeout.toMillis,
         TimeUnit.MILLISECONDS
       )
       p.future
+    }
+
+    /**
+      * Creates a [[cats.effect.IO]] that resolve automatically
+      * after the given duration.
+      * @param timeout Duration for the timeout.
+      * @return
+      */
+    def applyF(timeout: Duration): IO[Unit] = IO.async { cb =>
+      val runnable = new Runnable {
+        def run(): Unit = cb(Right(()))
+      }
+
+      scheduler.schedule(
+        runnable,
+        timeout.length,
+        timeout.unit
+      )
     }
   }
 
