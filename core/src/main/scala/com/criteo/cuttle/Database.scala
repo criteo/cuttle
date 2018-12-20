@@ -163,8 +163,6 @@ private[cuttle] object Database {
         """.update.run.transact(xa).unsafeRunSync
     })
 
-    // TODO, verify if it's in daemon mode
-
     // Refresh our lock every minute (and check that we still are the lock owner)
     ThreadPools
       .newScheduledThreadPool(1, poolName = Some("DatabaseLock"))

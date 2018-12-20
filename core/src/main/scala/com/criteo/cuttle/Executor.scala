@@ -177,6 +177,12 @@ private[cuttle] case class PausedJob(id: String, user: User, date: Instant) {
     PausedJobWithExecutions(id, user, date, Map.empty[Execution[S], Promise[Completed]])
 }
 
+private[cuttle] object PausedJob {
+  import io.circe.generic.semiauto._
+  implicit val encodeUser: Encoder[User] = deriveEncoder
+  implicit val encodePausedJob: Encoder[PausedJob] = deriveEncoder
+}
+
 /** [[Execution Executions]] are created by the [[Scheduler]].
   *
   * @param id The unique id for this execution. Guaranteed to be unique.
@@ -459,7 +465,9 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private def startMonitoringExecutions() = {
     val intervalSeconds = 1
-    utils.awakeEvery(intervalSeconds.seconds).map(_ => {
+    utils
+      .awakeEvery(intervalSeconds.seconds)
+      .map(_ => {
         runningExecutions
           .filter({ case (_, s) => s == ExecutionStatus.ExecutionWaiting })
           .foreach({ case (e, _) => e.updateWaitingTime(intervalSeconds) })

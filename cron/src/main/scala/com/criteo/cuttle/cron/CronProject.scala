@@ -3,53 +3,60 @@ package com.criteo.cuttle.cron
 import scala.concurrent.duration._
 
 import lol.http._
+import io.circe.{Encoder, Json}
+import io.circe.syntax._
 
 import com.criteo.cuttle._
-import com.criteo.cuttle.ThreadPools._, Implicits.serverThreadPool
+import com.criteo.cuttle.ThreadPools._
+import Implicits.serverThreadPool
+import com.criteo.cuttle.Auth.Authenticator
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
-  * See the [[CuttleProject]] companion object to create projects.
+  * See the [[CronProject]] companion object to create projects.
   */
-case class CuttleProject[S <: Scheduling] private[cuttle] (name: String,
-                                                           version: String,
-                                                           description: String,
-                                                           env: (String, Boolean),
-                                                           jobs: Workload[S],
-                                                           scheduler: Scheduler[S],
-                                                           routes: PartialService,
-                                                           logger: Logger) {
+class CronProject private[cuttle] (val name: String,
+                                   val version: String,
+                                   val description: String,
+                                   val env: (String, Boolean),
+                                   val workload: Workload[CronScheduling],
+                                   val scheduler: CronScheduler,
+                                   val authenticator: Authenticator,
+                                   val logger: Logger) {
 
   /**
     * Start scheduling and execution with the given environment. It also starts
     * an HTTP server providing an Web UI and a JSON API.
     *
-    * @param platforms The configured [[ExecutionPlatform ExecutionPlatforms]] to use to execute jobs.
-    * @param port The port to use for the HTTP daemon.
+    * @param platforms      The configured [[ExecutionPlatform ExecutionPlatforms]] to use to execute jobs.
+    * @param port           The port to use for the HTTP daemon.
     * @param databaseConfig JDBC configuration for MySQL server
-    * @param retryStrategy The strategy to use for execution retry. Default to exponential backoff.
+    * @param retryStrategy  The strategy to use for execution retry. Default to exponential backoff.
     */
   def start(
-    platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
-    port: Int = CuttleProject.port,
-    databaseConfig: DatabaseConfig = CuttleProject.databaseConfig,
-    retryStrategy: RetryStrategy = CuttleProject.retryStrategy
+    platforms: Seq[ExecutionPlatform] = CronProject.defaultPlatforms,
+    port: Int = CronProject.port,
+    databaseConfig: DatabaseConfig = CronProject.databaseConfig,
+    retryStrategy: RetryStrategy = CronProject.retryStrategy
   ): Unit = {
     logger.info("Connecting to database")
-    val transactor = Database.connect(databaseConfig)
+    implicit val transactor = Database.connect(databaseConfig)
 
     logger.info("Creating Executor")
-    val executor = new Executor[S](platforms, transactor, logger, name, version)(retryStrategy)
+    val executor = new Executor[CronScheduling](platforms, transactor, logger, name, version)(retryStrategy)
 
     logger.info("Scheduler starting workflow")
-    scheduler.start(jobs, executor, transactor, logger)
+    scheduler.start(workload, executor, transactor, logger)
+
+    logger.info("Creating Cron App for http server")
+    val cronApp = CronApp(this, executor)
 
     logger.info("Starting server")
     Server.listen(port, onError = { e =>
       logger.error(e.getMessage)
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(routes)
+    })(cronApp.routes)
 
     logger.info(s"Listening on http://localhost:$port")
   }
@@ -59,31 +66,30 @@ case class CuttleProject[S <: Scheduling] private[cuttle] (name: String,
 /**
   * Create new projects using a timeseries scheduler.
   */
-object CuttleProject {
+object CronProject {
 
   /**
     * Create a new project.
-    * @param name The project name as displayed in the UI.
-    * @param version The project version as displayed in the UI.
-    * @param description The project version as displayed in the UI.
-    * @param env The environment as displayed in the UI (The string is the name while the boolean indicates
-    *            if the environment is a production one).
+    *
+    * @param name          The project name as displayed in the UI.
+    * @param version       The project version as displayed in the UI.
+    * @param description   The project version as displayed in the UI.
+    * @param env           The environment as displayed in the UI (The string is the name while the boolean indicates
+    *                      if the environment is a production one).
     * @param authenticator The way to authenticate HTTP request for the UI and the private API.
-    * @param jobs The workflow to run in this project.
-    * @param scheduler The scheduler instance to use to schedule the Workflow jobs.
-    * @param logger The logger to use to log internal debug informations.
+    * @param jobs          The workflow to run in this project.
+    * @param scheduler     The scheduler instance to use to schedule the Workflow jobs.
+    * @param logger        The logger to use to log internal debug informations.
     */
-  def apply[S <: Scheduling](name: String,
-                             version: String = "",
-                             description: String = "",
-                             env: (String, Boolean) = ("", false),
-                             authenticator: Auth.Authenticator = Auth.GuestAuth)(
-    jobs: Workload[S])(implicit scheduler: Scheduler[S], logger: Logger): CuttleProject[S] = {
-    val cronApp = CronApp()
-    new CuttleProject(name, version, description, env, jobs, scheduler, cronApp.routes, logger)
-  }
+  def apply(name: String,
+            version: String = "",
+            description: String = "",
+            env: (String, Boolean) = ("", false),
+            authenticator: Auth.Authenticator = Auth.GuestAuth)(
+    jobs: Workload[CronScheduling])(implicit scheduler: CronScheduler, logger: Logger): CronProject =
+    new CronProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 
-  private[CuttleProject] val defaultPlatforms: Seq[ExecutionPlatform] = {
+  private[CronProject] val defaultPlatforms: Seq[ExecutionPlatform] = {
     import java.util.concurrent.TimeUnit.SECONDS
 
     import platforms._
@@ -101,7 +107,21 @@ object CuttleProject {
     )
   }
 
-  private[CuttleProject] val port = 8888
-  private[CuttleProject] val databaseConfig = DatabaseConfig.fromEnv
-  private[CuttleProject] val retryStrategy = RetryStrategy.SimpleRetryStategy(1.minute)
+  private[CronProject] val port = 8888
+  private[CronProject] val databaseConfig = DatabaseConfig.fromEnv
+  private[CronProject] val retryStrategy = RetryStrategy.SimpleRetryStategy(1.minute)
+
+  implicit def projectEncoder = new Encoder[CronProject] {
+    override def apply(project: CronProject) =
+      Json.obj(
+        "name" -> project.name.asJson,
+        "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
+        "description" -> Option(project.description).filterNot(_.isEmpty).asJson,
+        "scheduler" -> project.scheduler.name.asJson,
+        "env" -> Json.obj(
+          "name" -> Option(project.env._1).filterNot(_.isEmpty).asJson,
+          "critical" -> project.env._2.asJson
+        )
+      )
+  }
 }
