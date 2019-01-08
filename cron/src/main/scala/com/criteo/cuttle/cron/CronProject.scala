@@ -8,7 +8,7 @@ import io.circe.syntax._
 
 import com.criteo.cuttle._
 import com.criteo.cuttle.ThreadPools._
-import Implicits.serverThreadPool
+import com.criteo.cuttle.ThreadPools.Implicits.serverThreadPool
 import com.criteo.cuttle.Auth.Authenticator
 
 /**
@@ -40,7 +40,7 @@ class CronProject private[cuttle] (val name: String,
     retryStrategy: RetryStrategy = CronProject.retryStrategy
   ): Unit = {
     logger.info("Connecting to database")
-    implicit val transactor = Database.connect(databaseConfig)
+    implicit val transactor = com.criteo.cuttle.Database.connect(databaseConfig)
 
     logger.info("Creating Executor")
     val executor = new Executor[CronScheduling](platforms, transactor, logger, name, version)(retryStrategy)

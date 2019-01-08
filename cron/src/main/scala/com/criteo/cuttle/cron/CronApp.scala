@@ -3,7 +3,7 @@ package com.criteo.cuttle.cron
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import scala.util.{Try, _}
+import scala.util.{Success, Try}
 
 import cats.data.EitherT
 import cats.effect.IO

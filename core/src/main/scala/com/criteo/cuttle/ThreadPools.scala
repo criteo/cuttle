@@ -11,11 +11,11 @@ import cats.effect.{IO, Resource}
 
 object ThreadPools {
 
-  sealed trait WrappedThreadPool {
+  trait WrappedThreadPool {
     val underlying: ExecutionContext
   }
 
-  sealed trait Metrics {
+  trait Metrics {
     def threadPoolSize(): Int
   }
 
@@ -30,8 +30,6 @@ object ThreadPools {
   sealed trait SideEffectThreadPool extends WrappedThreadPool with Metrics
 
   sealed trait DoobieThreadPool extends WrappedThreadPool with Metrics
-
-  sealed trait CronThreadPool extends WrappedThreadPool with Metrics
 
   object SideEffectThreadPool {
     def wrap(wrapRunnable: Runnable => Runnable)(
@@ -174,22 +172,8 @@ object ThreadPools {
       override def threadPoolSize(): Int = _threadPoolSize.get()
     }
 
-    // Thread pool to run Cron scheduler
-    implicit val cronThreadPool = new CronThreadPool {
-      private val _threadPoolSize: AtomicInteger = new AtomicInteger(0)
-
-      override val underlying = ExecutionContext.fromExecutorService(
-        newFixedThreadPool(fromSystemProperties(CronThreadCount, Runtime.getRuntime.availableProcessors),
-                           poolName = Some("Cron"),
-                           threadCounter = _threadPoolSize)
-      )
-
-      override def threadPoolSize(): Int = _threadPoolSize.get()
-    }
-
     implicit val serverContextShift = IO.contextShift(serverThreadPool.underlying)
     implicit val sideEffectContextShift = IO.contextShift(sideEffectThreadPool.underlying)
     implicit val doobieContextShift = IO.contextShift(doobieThreadPool.underlying)
-    implicit val cronContextShift = IO.contextShift(cronThreadPool.underlying)
   }
 }

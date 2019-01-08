@@ -33,7 +33,15 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
   private def logState = IO(logger.debug(state.toString()))
 
-  private def externalDecider[A](dbConnection: doobie.ConnectionIO[A])(implicit transactor: XA, txn: InTxnEnd): Unit =
+  /**
+    * We associate a commit of new STM state with a DB commit.
+    * It means that STM state commit only happens whether we commit to DB successfully.
+    * That allows us to keep STM and DB in sync.
+    * @param dbConnection doobie DB connection
+    * @param transactor  doobie transactor
+    * @param txn current STM transaction context
+    */
+  private def setExernalDecider[A](dbConnection: doobie.ConnectionIO[A])(implicit transactor: XA, txn: InTxnEnd): Unit =
     Txn.setExternalDecider(new ExternalDecider {
       def shouldCommit(implicit txn: InTxnEnd): Boolean = {
         dbConnection.transact(transactor).unsafeRunSync
@@ -52,7 +60,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
       if (jobsToPause.isEmpty) Left(Seq.empty)
       else {
         val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
-        externalDecider(pauseQuery)
+        setExernalDecider(pauseQuery)
 
         Right(jobsToPause.flatMap { toPause =>
           logger.debug(s"Retrieve executions to pause for $toPause")
@@ -81,7 +89,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     val resumeQuery = jobIdsToResume.map(queries.resumeJob).reduceLeft(_ *> _)
 
     atomic { implicit tx =>
-      externalDecider(resumeQuery)
+      setExernalDecider(resumeQuery)
       state.resumeJobs(jobs)
     }
     val programs = jobs.map { job =>
@@ -158,7 +166,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
   }
 
   private def unsafeRunAsync(programs: Set[IO[Completed]]) = {
-    import ThreadPools.Implicits.cronContextShift
+    import com.criteo.cuttle.cron.Implicits._
     programs.toList.parSequence.unsafeRunAsyncAndForget()
   }
 
