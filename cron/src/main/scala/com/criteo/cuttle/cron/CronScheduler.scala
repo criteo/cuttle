@@ -1,12 +1,13 @@
 package com.criteo.cuttle.cron
 
+import java.time.Instant
+
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import cats.effect.IO
 import cats.implicits._
 import doobie.implicits._
 import io.circe.Json
-
 import com.criteo.cuttle._
 import com.criteo.cuttle.utils.Timeout
 
@@ -50,6 +51,8 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     })
 
   private[cron] def getPausedJobs = state.getPausedJobs()
+
+  private[cron] def snapshot(jobIds: Set[String]) = state.snapshot(jobIds)
 
   private[cron] def pauseJobs(jobs: Set[CronJob], executor: Executor[CronScheduling])(implicit transactor: XA,
                                                                                       user: Auth.User): Unit = {
@@ -170,7 +173,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     programs.toList.parSequence.unsafeRunAsyncAndForget()
   }
 
-  override def getStats(jobIds: Set[String]): Json = state.snapshot(jobIds)
+  override def getStats(jobIds: Set[String]): Json = state.snapshotAsJson(jobIds)
 
   override def start(workload: Workload[CronScheduling],
                      executor: Executor[CronScheduling],

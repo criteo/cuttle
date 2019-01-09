@@ -257,6 +257,9 @@ lazy val cron =
     .settings(
       libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5"
     )
+    .settings(
+      fork in Test := true,
+    )
     .dependsOn(cuttle % "compile->compile;test->test")
 
 lazy val examples =
