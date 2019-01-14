@@ -5,18 +5,17 @@ import java.util.concurrent.{ExecutorService, Executors, ScheduledExecutorServic
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
-import scala.language.higherKinds
 import scala.util.Try
 
 import cats.effect.{IO, Resource}
 
 object ThreadPools {
 
-  sealed trait WrappedThreadPool {
+  trait WrappedThreadPool {
     val underlying: ExecutionContext
   }
 
-  sealed trait Metrics {
+  trait Metrics {
     def threadPoolSize(): Int
   }
 
@@ -55,6 +54,7 @@ object ThreadPools {
     val SideEffectECThreadCount = Value("com.criteo.cuttle.ThreadPools.SideEffectThreadPool.nThreads")
     val DoobieECThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieCSThreadPool.nThreads")
     val DoobieConnectThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieConnectThreadPool.nThreads")
+    val CronThreadCount = Value("com.criteo.cuttle.ThreadPools.CronThreadPool.nThreads")
 
     def fromSystemProperties(value: ThreadPoolSystemProperties.Value, defaultValue: Int): Int =
       loadSystemPropertyAsInt(value.toString, defaultValue)
@@ -171,9 +171,9 @@ object ThreadPools {
 
       override def threadPoolSize(): Int = _threadPoolSize.get()
     }
+
     implicit val serverContextShift = IO.contextShift(serverThreadPool.underlying)
     implicit val sideEffectContextShift = IO.contextShift(sideEffectThreadPool.underlying)
     implicit val doobieContextShift = IO.contextShift(doobieThreadPool.underlying)
-
   }
 }

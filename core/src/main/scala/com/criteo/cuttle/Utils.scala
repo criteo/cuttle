@@ -7,13 +7,15 @@ import java.time.Instant
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future, Promise}
-
 import cats.effect.{IO, Resource}
+import cats.Eq
 import cats.implicits._
 import doobie._
 import doobie.hikari.HikariTransactor
 import doobie.implicits._
-import lol.http.{PartialService, Service}
+import io.circe.Json
+import lol.http.{PartialService, ServerSentEvents, Service}
+import lol.http._
 
 /** A set of basic utilities useful to write workflows. */
 package object utils {
@@ -127,4 +129,25 @@ package object utils {
   }
 
   private[cuttle] def getJVMUptime = ManagementFactory.getRuntimeMXBean.getUptime / 1000
+
+  private[cuttle] def sse[A](thunk: IO[Option[A]], encode: A => IO[Json])(
+    implicit eqInstance: Eq[A]): lol.http.Response = {
+    import scala.concurrent.duration._
+    import io.circe._
+    import lol.json._
+    import fs2.Stream
+    import com.criteo.cuttle.ThreadPools.Implicits.serverContextShift
+
+    val stream = (Stream.emit(()) ++ Stream.fixedRate[IO](1.seconds))
+      .evalMap[IO, Option[A]](_ => IO.shift.flatMap(_ => thunk))
+      .flatMap({
+        case Some(x) => Stream(x)
+        case None    => Stream.raiseError[IO](sys.error("Could not get result to stream"))
+      })
+      .changes
+      .evalMap[IO, Json](r => encode(r))
+      .map(ServerSentEvents.Event(_))
+
+    Ok(stream)
+  }
 }

@@ -7,8 +7,7 @@ package com.criteo.cuttle.examples
 // The main package contains everything needed to create
 // a cuttle project.
 import com.criteo.cuttle._
-import com.criteo.cuttle.cron.{CronScheduler, CronScheduling, CronWorkload}
-import com.criteo.cuttle.platforms.local
+import com.criteo.cuttle.cron.{CronProject, CronScheduler, CronScheduling, CronWorkload}
 
 import scala.io.Source
 
@@ -17,7 +16,6 @@ import scala.io.Source
 import com.criteo.cuttle.platforms.local._
 
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 object HelloCronScheduling {
 
@@ -85,28 +83,17 @@ object HelloCronScheduling {
     // Jobs are grouped in workload.
     val workload = CronWorkload(Set(tickerJob, avgJob))
 
-    // Create a connection to the database where the application states are persisted.
-    val stateDbTransactor = Database.connect(DatabaseConfig.fromEnv)
+    // Instantiate Cron scheduler with a default stdout logger which will be passed implicitly to Cron project.
+    implicit val scheduler = CronScheduler(logger)
 
-    // Finally we bootstrap our cuttle project
-    val executor = new Executor[CronScheduling](
-      // The local platform is used to execute the bash commands defined in the hello job in a dedicated thread pool.
-      Seq(local.LocalPlatform(maxForkedProcesses = 10)),
-      stateDbTransactor,
-      logger,
-      projectName = "Hello Cron Scheduling Example",
-      projectVersion = "0.0.1"
-    )(
-      // We tell to scheduler how to handle failures,
-      // The scheduler will try to submit an retry as soon as he can but
-      // the executor is going to retry the execution every 5 seconds.
-      RetryStrategy.SimpleRetryStategy(5.seconds)
-    )
-
-    // Instantiate Cron scheduler with a default stdout logger.
-    val scheduler = CronScheduler(logger)
+    // Project instantiation, it takes an implicit scheduler that we've just defined!
+    val project = CronProject(
+      name = "Hello Cron Scheduling Example",
+      version = "0.0.1",
+      description = "My first Cron with Cuttle project"
+    )(workload)
 
     // __Finally start it!__
-    scheduler.start(workload, executor, stateDbTransactor)
+    project.start()
   }
 }
