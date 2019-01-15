@@ -253,11 +253,16 @@ lazy val timeseries =
 
 lazy val cron =
   (project in file("cron"))
+    .configs(IntegrationTest)
     .settings(commonSettings: _*)
+    .settings(Defaults.itSettings: _*)
     .settings(
       libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5"
     )
-    .dependsOn(cuttle % "compile->compile;test->test")
+    .settings(
+      fork in Test := true
+    )
+    .dependsOn(cuttle % "compile->compile;test->test;it->it")
 
 lazy val examples =
   (project in file("examples"))

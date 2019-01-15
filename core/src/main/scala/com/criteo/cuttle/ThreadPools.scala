@@ -54,12 +54,11 @@ object ThreadPools {
     val SideEffectECThreadCount = Value("com.criteo.cuttle.ThreadPools.SideEffectThreadPool.nThreads")
     val DoobieECThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieCSThreadPool.nThreads")
     val DoobieConnectThreadCount = Value("com.criteo.cuttle.ThreadPools.DoobieConnectThreadPool.nThreads")
-    val CronThreadCount = Value("com.criteo.cuttle.ThreadPools.CronThreadPool.nThreads")
 
     def fromSystemProperties(value: ThreadPoolSystemProperties.Value, defaultValue: Int): Int =
       loadSystemPropertyAsInt(value.toString, defaultValue)
 
-    private def loadSystemPropertyAsInt(propertyName: String, defaultValue: Int) =
+    def loadSystemPropertyAsInt(propertyName: String, defaultValue: Int) =
       Option(System.getProperties().getProperty(propertyName)) match {
         case Some(size) => Try[Int] { size.toInt }.getOrElse(Runtime.getRuntime.availableProcessors)
         case None       => Runtime.getRuntime.availableProcessors

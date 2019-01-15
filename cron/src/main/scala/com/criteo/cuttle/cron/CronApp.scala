@@ -19,11 +19,6 @@ import com.criteo.cuttle.utils.getJVMUptime
 
 private[cron] case class CronApp(project: CronProject, executor: Executor[CronScheduling])(
   implicit val transactor: XA) {
-  // Fair assumptions about start and end date within which we operate by default if user doesn't specify his interval.
-  // We choose these dates over Instant.MIN and Instant.MAX because MySQL works within this range.
-  private val minStartDateForExecutions = Instant.parse("1000-01-01T00:00:00Z")
-  private val maxStartDateForExecutions = Instant.parse("9999-12-31T23:59:59Z")
-
   private val scheduler = project.scheduler
   private val workload = project.workload
 
@@ -81,22 +76,15 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
     case GET at "/api/jobs/paused" =>
       Ok(scheduler.getPausedJobs.asJson)
 
-    case GET at url"/api/cron/executions?job=$job&start=$start&end=$end" =>
+    // we only show 20 recent executions by default but it could be modified via query parameter
+    case GET at url"/api/cron/executions?job=$job&start=$start&end=$end&limit=$limit" =>
       val jsonOrError: EitherT[IO, Throwable, Json] = for {
         job <- EitherT.fromOption[IO](workload.all.find(_.id == job), throw new Exception(s"Unknow job $job"))
         startDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(start)).getOrElse(minStartDateForExecutions))
         endDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(end)).getOrElse(maxStartDateForExecutions))
-        archived <- {
-          val context = Database.sqlGetContextsBetween(startDate, endDate)
-          EitherT.right[Throwable](
-            executor.archivedExecutions(context, Set(job.id), "", asc = true, 0, Int.MaxValue, transactor))
-        }
-        running <- EitherT.rightT[IO, Throwable](executor.runningExecutions.collect {
-          case (e, status)
-              if e.job.id == job && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(endDate) =>
-            e.toExecutionLog(status)
-        })
-      } yield (archived ++ running).asJson
+        limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
+        executionList <- EitherT.right[Throwable](buildExecutionsList(executor, job, startDate, endDate, limit))
+      } yield executionList.asJson
 
       jsonOrError.value.map {
         case Right(json) => Ok(json)
@@ -142,11 +130,33 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
       }
     }
 
+    case POST at url"/api/jobs/$id/pause_redirect" => { implicit user =>
+      workload.all.find(_.id == id).fold(NotFound) { job =>
+        scheduler.pauseJobs(Set(job), executor)
+        Redirect("/", 302)
+      }
+    }
+
+    case POST at url"/api/jobs/$id/resume_redirect" => { implicit user =>
+      workload.all.find(_.id == id).fold(NotFound) { job =>
+        scheduler.resumeJobs(Set(job), executor)
+        Redirect("/", 302)
+      }
+    }
+
   }
 
   private val api = publicApi orElse project.authenticator(privateApi)
+  private val uiRoutes = UI(project, executor).routes()
 
-  val routes: PartialService = api.orElse {
-    case _ => NotFound
-  }
+  val routes: PartialService = api
+    .orElse(uiRoutes)
+    .orElse {
+      executor.platforms.foldLeft(PartialFunction.empty: PartialService) {
+        case (s, p) => s.orElse(p.publicRoutes).orElse(project.authenticator(p.privateRoutes))
+      }
+    }
+    .orElse {
+      case _ => NotFound
+    }
 }

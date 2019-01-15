@@ -93,7 +93,7 @@ private[cron] case class CronState(logger: Logger) {
     paused() = paused() -- jobs
   }
 
-  private[cron] def snapshot(jobIds: Set[String]) = atomic { implicit txn =>
+  private[cron] def snapshotAsJson(jobIds: Set[String]) = atomic { implicit txn =>
     val activeJobsSnapshot = executions().collect {
       case (cronJob, state) if jobIds.contains(cronJob.id) =>
         cronJob.asJson
@@ -116,6 +116,13 @@ private[cron] case class CronState(logger: Logger) {
     Json.arr(
       acc: _*
     )
+  }
+
+  private[cron] def snapshot(jobIds: Set[String]) = atomic { implicit txn =>
+    val activeJobsSnapshot = executions().filterKeys(cronJob => jobIds.contains(cronJob.id))
+    val pausedJobsSnapshot = paused().filterKeys(cronJob => jobIds.contains(cronJob.id))
+
+    activeJobsSnapshot -> pausedJobsSnapshot
   }
 
   override def toString(): String = {

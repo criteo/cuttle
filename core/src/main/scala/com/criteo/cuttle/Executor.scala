@@ -589,6 +589,17 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                                          xa: XA): IO[Seq[ExecutionLog]] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa)
 
+  /**
+    * Used to query archived executions without a context.
+    */
+  private[cuttle] def rawArchivedExecutions(jobs: Set[String],
+                                            sort: String,
+                                            asc: Boolean,
+                                            offset: Int,
+                                            limit: Int,
+                                            xa: XA): IO[Seq[ExecutionLog]] =
+    queries.getRawExecutionLog(jobs, sort, asc, offset, limit).transact(xa)
+
   private[cuttle] def cancelExecution(executionId: String)(implicit user: User): Unit = {
     val toCancel = atomic { implicit tx =>
       (runningState.keys ++ throttledState.keys)
