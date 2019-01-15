@@ -1,7 +1,5 @@
 package com.criteo.cuttle.cron
 
-import java.time.Instant
-
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import cats.effect.IO

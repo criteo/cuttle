@@ -142,7 +142,7 @@ package object utils {
       .evalMap[IO, Option[A]](_ => IO.shift.flatMap(_ => thunk))
       .flatMap({
         case Some(x) => Stream(x)
-        case None    => Stream.raiseError[IO](sys.error("Could not get result to stream"))
+        case None    => Stream.raiseError[IO](new RuntimeException("Could not get result to stream"))
       })
       .changes
       .evalMap[IO, Json](r => encode(r))
