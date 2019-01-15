@@ -89,11 +89,33 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     }
   }
 
-  private implicit val activeToHtml = ToHtml { activeJobs: Map[CronJob, Either[Instant, CronExecution]] =>
-    tmpl"""
-      <h3>Active</h3>
-      <table border="1" width="100%">
-        <thead>
+  private implicit val pausedToHtml = ToHtml { pausedJobs: Map[CronJob, PausedJob] =>
+    foldHtml(pausedJobs.toList) {
+      case (cronJob, pausedJob) =>
+        tmpl"""
+          <tr style="background: @ROSE">
+            <td>@cronJob.id</td>
+            <td>@cronJob.name</td>
+            <td>@cronJob.scheduling.cronExpression</td>
+            <td>@cronJob.scheduling.maxRetry</td>
+            <td>Paused by @pausedJob.user.userId at @timeFormat(pausedJob.date) </td>
+            <td><a href="/job/@cronJob.id/executions?limit=20">Executions</a></td>
+            <td>
+              <form method="POST" action="/api/jobs/@cronJob.id/resume_redirect"/>
+              <input type="submit" value="Resume">
+              </form>
+            </td
+          </tr>
+        """
+    }
+  }
+
+  def home(activeAndPausedJobs: (Map[CronJob, Either[Instant, CronExecution]], Map[CronJob, PausedJob])) = {
+    val (activeJobs, pausedJobs) = activeAndPausedJobs
+    Layout(
+      tmpl"""
+        <table border="1" width="100%">
+          <thead>
           <tr>
             @th("ID")
             @th("Name")
@@ -120,47 +142,10 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
               </td
             </tr>
         }
+        @pausedJobs
       </table>
     """
-  }
-
-  private implicit val pausedToHtml = ToHtml { pausedJobs: Map[CronJob, PausedJob] =>
-    tmpl"""
-      <h3>Paused</h3>
-      <table border="1" width="100%">
-        <thead>
-          <tr>
-            @th("ID")
-            @th("User")
-            @th("Date")
-            @th("Executions")
-            @th("Resume")
-          </tr>
-        </thead>
-        @foldHtml(pausedJobs.toList) {
-          case (_, pausedJob) =>
-            <tr>
-              <td>@pausedJob.id</td>
-              <td>@pausedJob.user.userId</td>
-              <td>@timeFormat(pausedJob.date)</td>
-              <td><a href="/job/@pausedJob.id/executions?limit=20">Executions</a></td>
-              <td>
-                <form method="POST" action="/api/jobs/@pausedJob.id/resume_redirect">
-                  <input type="submit" value="Resume">
-                </form>
-              </td>
-            </tr>
-        }
-      </table>
-         """
-  }
-
-  def home(activeAndPausedJobs: (Map[CronJob, Either[Instant, CronExecution]], Map[CronJob, PausedJob])) = {
-    val (activeJobs, pausedJobs) = activeAndPausedJobs
-    Layout(tmpl"""
-      @activeJobs
-      @pausedJobs
-    """)
+    )
   }
 
   private implicit val executionStatusToHtml = ToHtml[ExecutionStatus] {

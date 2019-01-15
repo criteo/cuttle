@@ -71,13 +71,13 @@ class UIITest extends FlatSpec with Matchers {
       tickerJob -> PausedJob(tickerJob.id, User("Bobby"), Instant.now())
     )
     val activeAndPausedJobs = (activeJobs, pausedJobs)
-    saveToFile(ui.home(activeAndPausedJobs).content, "src/test/resources/index.html")
+    saveToFile(ui.home(activeAndPausedJobs).content, "index.html")
   }
 
   "executions page" should "render execution list" in {
     val executionLogs = Seq(
       avgExecution.toExecutionLog(ExecutionStatus.ExecutionSuccessful)
     )
-    saveToFile(ui.executions(avgJob, executionLogs).content, "src/test/resources/executions.html")
+    saveToFile(ui.executions(avgJob, executionLogs).content, "executions.html")
   }
 }
