@@ -16,7 +16,7 @@ import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
   * It was used for dev purposes but could be useful on the CI as a first indicator that pages could be rendered w/out throwing.
   */
 // TODO: Implement a snapshot testing of the UI ala https://jestjs.io/docs/en/snapshot-testing
-class UISpec extends FlatSpec with Matchers {
+class UIITest extends FlatSpec with Matchers {
   val tickerJob = Job(
     id = "ticker_job",
     scheduling = CronScheduling("0-59/10 * * ? * *", 1),
