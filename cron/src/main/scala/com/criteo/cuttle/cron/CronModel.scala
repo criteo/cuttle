@@ -17,27 +17,6 @@ import com.criteo.cuttle.{ExecutionStatus, Logger, PausedJob, Scheduling, Schedu
 
 private[cron] case class ScheduledAt(instant: Instant, delay: FiniteDuration)
 
-/** A [[CronContext]] is passed to [[com.criteo.cuttle.Execution executions]] initiated by
-  * the [[CronScheduler]].
-  */
-private[cron] case class CronContext(instant: Instant)(retryNum: Int) extends SchedulingContext {
-  val retry: Int = retryNum
-
-  def compareTo(other: SchedulingContext): Int = other match {
-    case CronContext(otherInstant) =>
-      instant.compareTo(otherInstant)
-  }
-
-  override def asJson: Json = CronContext.encoder(this)
-}
-
-private[cron] case object CronContext {
-  implicit val encoder: Encoder[CronContext] = Encoder.forProduct2("interval", "retry")(cc => cc.instant -> cc.retry)
-  implicit def decoder: Decoder[CronContext] =
-    Decoder.forProduct2[CronContext, Instant, Int]("interval", "retry")((instant: Instant, retry: Int) =>
-      CronContext(instant)(retry))
-}
-
 /**
   * The state of Cron Scheduler that allows concurrently safe mutations.
   */
@@ -141,6 +120,27 @@ private[cron] case class CronState(logger: Logger) {
     builder.append("======End State======")
     builder.toString()
   }
+}
+
+/** A [[CronContext]] is passed to [[com.criteo.cuttle.Execution executions]] initiated by
+  * the [[CronScheduler]].
+  */
+case class CronContext(instant: Instant)(retryNum: Int) extends SchedulingContext {
+  val retry: Int = retryNum
+
+  def compareTo(other: SchedulingContext): Int = other match {
+    case CronContext(otherInstant) =>
+      instant.compareTo(otherInstant)
+  }
+
+  override def asJson: Json = CronContext.encoder(this)
+}
+
+case object CronContext {
+  implicit val encoder: Encoder[CronContext] = Encoder.forProduct2("interval", "retry")(cc => cc.instant -> cc.retry)
+  implicit def decoder: Decoder[CronContext] =
+    Decoder.forProduct2[CronContext, Instant, Int]("interval", "retry")((instant: Instant, retry: Int) =>
+      CronContext(instant)(retry))
 }
 
 /** Configure a [[com.criteo.cuttle.Job job]] as a [[CronScheduling]] job.

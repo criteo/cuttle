@@ -127,7 +127,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
               runAndRetry(job, scheduledAt, nextRetry)
             } else {
               logger.debug(s"Job ${job.id} has reached the maximum number of retries")
-              IO.raiseError(e)
+              IO.pure(Completed)
             }
         }
       }
