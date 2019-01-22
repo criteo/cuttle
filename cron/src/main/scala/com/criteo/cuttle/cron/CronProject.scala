@@ -107,9 +107,9 @@ object CronProject {
     )
   }
 
-  private[CronProject] val port = 8888
-  private[CronProject] val databaseConfig = DatabaseConfig.fromEnv
-  private[CronProject] val retryStrategy = RetryStrategy.SimpleRetryStategy(1.minute)
+  private[CronProject] lazy val port = 8888
+  private[CronProject] lazy val databaseConfig = DatabaseConfig.fromEnv
+  private[CronProject] lazy val retryStrategy = RetryStrategy.SimpleRetryStategy(1.minute)
 
   implicit def projectEncoder = new Encoder[CronProject] {
     override def apply(project: CronProject) =
