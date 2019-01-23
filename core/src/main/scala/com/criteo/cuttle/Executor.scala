@@ -779,10 +779,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                   val nextExecutionId = utils.randomUUID
 
                   val streams = new ExecutionStreams {
-                    def writeln(str: CharSequence) = {
+                    def writeln(str: CharSequence) =
                       ExecutionStreams.writeln(nextExecutionId, str)
-                      logger.debug(s"[$nextExecutionId] $str")
-                    }
                   }
 
                   // wrap the execution context so that we can register the name of the thread of each
