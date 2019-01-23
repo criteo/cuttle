@@ -14,7 +14,6 @@ import io.circe.parser._
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.{IO, Resource}
-import doobie.util.log
 
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.events.{Event, JobSuccessForced}
@@ -66,7 +65,6 @@ object DatabaseConfig {
 }
 
 private[cuttle] object Database {
-  implicit val logHandler: log.LogHandler = DoobieLogsHandler(logger).handler
 
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] =
     Meta[Boolean].imap(x => if (x) ExecutionSuccessful else ExecutionFailed: ExecutionStatus) {
