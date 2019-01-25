@@ -35,7 +35,7 @@ class CuttleProject private[cuttle] (val name: String,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
     paused: Boolean = false
   ): Unit = {
-    val xa = CuttleDatabase.connect(databaseConfig)
+    val xa = CuttleDatabase.connect(databaseConfig)(logger)
     val executor = new Executor[TimeSeries](platforms, xa, logger, name, version)(retryStrategy)
 
     if (paused) {
@@ -69,7 +69,7 @@ class CuttleProject private[cuttle] (val name: String,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
   ): (Service, () => Unit) = {
-    val xa = CuttleDatabase.connect(databaseConfig)
+    val xa = CuttleDatabase.connect(databaseConfig)(logger)
     val executor = new Executor[TimeSeries](platforms, xa, logger, name, version)(retryStrategy)
 
     val startScheduler = () => {

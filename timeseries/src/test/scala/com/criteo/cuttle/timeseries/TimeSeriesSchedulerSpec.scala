@@ -6,10 +6,11 @@ import scala.concurrent.Future
 
 import org.scalatest.FunSuite
 
-import com.criteo.cuttle.{logger, Completed, Job, TestScheduling}
+import com.criteo.cuttle.{Completed, Job, TestScheduling}
 import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
 import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
+import com.criteo.cuttle.Utils.logger
 
 class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
   private val scheduling: TimeSeries = hourly(date"2017-03-25T02:00:00Z")
@@ -38,7 +39,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
         Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T05:00:00Z") -> Done("")
       )
     )
-    val (stateSnapshot, newBackfills, completedBackfills) =
+    val (_, newBackfills, completedBackfills) =
       scheduler.collectCompletedJobs(state, Set(backfill), completed = Set.empty)
     assert(newBackfills.equals(Set(backfill)))
     assert(completedBackfills.isEmpty)
@@ -51,7 +52,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
         Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T05:00:00Z") -> Done("")
       )
     )
-    val (stateSnapshot, newBackfills, completedBackfills) = scheduler.collectCompletedJobs(
+    val (_, newBackfills, completedBackfills) = scheduler.collectCompletedJobs(
       state,
       Set(backfill),
       completed = Set(

@@ -165,7 +165,6 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
       Ok(Prometheus.serialize(metrics))
 
     case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$order&jobs=$jobs" =>
-      logger.debug(s"Retreiving $kind executions with sse mode $events")
       val jobIds = parseJobIds(jobs)
       val limit = Try(l.toInt).toOption.getOrElse(25)
       val offset = Try(o.toInt).toOption.getOrElse(0)
@@ -343,7 +342,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
         "end" -> interval.hi.asJson
       )
   }
-  private val queries = new Queries {}
+  private val queries = Queries(project.logger)
 
   private trait ExecutionPeriod {
     val period: Interval[Instant]

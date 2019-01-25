@@ -1,7 +1,6 @@
 package com.criteo.cuttle.timeseries
 
 import java.time.ZoneOffset.UTC
-import java.time.temporal.ChronoUnit.HOURS
 import java.time.{Duration, Instant, LocalDate}
 import java.util.concurrent.TimeUnit
 
@@ -17,6 +16,7 @@ import com.wix.mysql.distribution.Version._
 import com.criteo.cuttle.platforms.local._
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.{Run, TimeSeriesJob}
 import com.criteo.cuttle.{Auth, Database => CuttleDatabase, _}
+import Utils.logger
 
 object TimeSeriesSchedulerIntegrationTests {
   // TODO: turn this into a unit test. This is not done for now as the thread pool responsible for checking the lock on

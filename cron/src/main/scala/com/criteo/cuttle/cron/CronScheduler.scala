@@ -27,7 +27,8 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
   override val name = "cron"
 
-  private val queries = new Queries {}
+  private val queries = Queries(logger)
+
   private val state = CronState(logger)
 
   private def logState = IO(logger.debug(state.toString()))

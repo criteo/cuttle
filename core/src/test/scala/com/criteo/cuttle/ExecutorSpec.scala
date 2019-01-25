@@ -12,6 +12,7 @@ import org.scalatest.FunSuite
 import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
 import com.criteo.cuttle.ThreadPools.Implicits.sideEffectContextShift
 import com.criteo.cuttle.ThreadPools._
+import com.criteo.cuttle.Utils.logger
 
 import com.criteo.cuttle.Metrics.Prometheus
 

@@ -17,7 +17,6 @@ import doobie.implicits._
 
 private[timeseries] object Database {
   import TimeSeriesUtils._
-  import com.criteo.cuttle.Database._
 
   import intervals.{Interval, IntervalMap}
 

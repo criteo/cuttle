@@ -45,8 +45,6 @@ private[cuttle] object ExecutionStreams {
   private val maxExecutionLogSizeProp = "com.criteo.cuttle.maxExecutionLogSize"
   private val maxExecutionLogSize = sys.props.get(maxExecutionLogSizeProp).map(_.toInt).getOrElse(524288)
 
-  logger.info(s"Transient execution streams go to $transientStorage")
-
   private def logFile(id: ExecutionId): File = new File(transientStorage, id)
 
   private def getWriter(id: ExecutionId): PrintWriter = {

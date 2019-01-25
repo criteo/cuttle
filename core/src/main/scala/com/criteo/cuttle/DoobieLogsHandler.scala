@@ -6,7 +6,7 @@ case class DoobieLogsHandler(private val logger: Logger) {
   implicit val handler: LogHandler = LogHandler {
 
     case Success(s, a, e1, e2) =>
-      logger.debug(s"""
+      logger.trace(s"""
                      | Successful Statement Execution:
                      |
                      | ${s.lines.dropWhile(_.trim.isEmpty).mkString("\n  ")}
