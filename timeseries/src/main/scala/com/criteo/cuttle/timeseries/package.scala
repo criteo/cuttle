@@ -72,7 +72,22 @@ package object timeseries {
     * @param start The instant this calendar will start.
     * @param end The optional instant this calendar will end.
     */
-  def hourly(start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Hourly, start, end)
+  def hourly(start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = NHourly(1), start, end)
+
+  /** Defines a N-hourly calendar starting at the specified instant.
+    *
+    * It is just a generalization of the hourly scheduling allowing
+    * to schedule intervals of n hours.
+    *
+    * @param hours The number of hours of the intervals.
+    *              Can be any positive divider of 24 except 24.
+    * @param start The instant this calendar will start.
+    * @param end The optional instant this calendar will end.
+    */
+  def nhourly(hours: Int, start: Instant, end: Option[Instant] = None): TimeSeries =
+    if (hours <= 0 || hours >= 24 || 24 % hours != 0)
+      throw new IllegalArgumentException("hours should be a strictly positive divider of 24 different than 24")
+    else TimeSeries(calendar = NHourly(hours), start, end)
 
   /** Defines an daily calendar starting at the specified instant, and using the specified time zone.
     * Days are defined as complete calendar days starting a midnight and during 24 hours. If the specified

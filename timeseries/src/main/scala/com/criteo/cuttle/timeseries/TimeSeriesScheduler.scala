@@ -28,7 +28,7 @@ import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.Internal._
-import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Hourly, Monthly, Weekly}
+import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Monthly, NHourly, Weekly}
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
 import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 
@@ -78,13 +78,15 @@ private[timeseries] sealed trait TimeSeriesCalendarView {
 
 /** Define the available calendars. */
 object TimeSeriesCalendar {
-
-  /** An hourly calendar. Hours are defined as complete calendar hours starting
+  /** A calendar for periods of n hours. Hours are defined as complete calendar hours starting
     * at 00 minutes, 00 seconds. */
-  case object Hourly extends TimeSeriesCalendar {
-    def truncate(t: Instant) = t.truncatedTo(HOURS)
-    def next(t: Instant) =
-      t.truncatedTo(HOURS).plus(1, HOURS)
+  case class NHourly(n: Int) extends TimeSeriesCalendar {
+    def truncate(t: Instant): Instant = {
+        val hour = (t.atOffset(java.time.ZoneOffset.UTC).getHour / n) * n
+        t.truncatedTo(HOURS).atOffset(java.time.ZoneOffset.UTC).withHour(hour).toInstant
+    }
+    def next(t: Instant): Instant =
+      truncate(t).plus(n, HOURS)
   }
 
   /** An daily calendar. Days are defined as complete calendar days starting a midnight and
@@ -125,7 +127,7 @@ object TimeSeriesCalendar {
 
   private[timeseries] implicit val calendarEncoder = new Encoder[TimeSeriesCalendar] {
     override def apply(calendar: TimeSeriesCalendar) = calendar match {
-      case Hourly => Json.obj("period" -> "hourly".asJson)
+      case NHourly(h)        => Json.obj("period" -> "hourly".asJson, "n" -> h.asJson)
       case Daily(tz: ZoneId) =>
         Json.obj(
           "period" -> "daily".asJson,
@@ -148,7 +150,7 @@ object TimeSeriesCalendar {
 
 private[timeseries] object TimeSeriesCalendarView {
   def apply(calendar: TimeSeriesCalendar) = calendar match {
-    case TimeSeriesCalendar.Hourly               => new HourlyView(1)
+    case TimeSeriesCalendar.NHourly(h)           => new NHourlyView(h, 1)
     case TimeSeriesCalendar.Daily(tz)            => new DailyView(tz, 1)
     case TimeSeriesCalendar.Weekly(tz, firstDay) => new WeeklyView(tz, firstDay, 1)
     case TimeSeriesCalendar.Monthly(tz)          => new MonthlyView(tz, 1)
@@ -160,9 +162,9 @@ private[timeseries] object TimeSeriesCalendarView {
     def next(t: Instant) = (1 to over._1).foldLeft(calendar.truncate(t))((acc, _) => calendar.next(acc))
     def upper(): TimeSeriesCalendarView
   }
-  case class HourlyView(aggregationFactor: Int) extends GenericView {
-    def over = (1, Hourly)
-    override def upper: TimeSeriesCalendarView = new DailyView(UTC, aggregationFactor * 24)
+  case class NHourlyView(aggregationFactor: Int, nHours: Int) extends GenericView {
+    override def over: (Int, TimeSeriesCalendar) = (1, NHourly(nHours))
+    override def upper(): TimeSeriesCalendarView = new DailyView(UTC, aggregationFactor * 24 / nHours)
   }
   case class DailyView(tz: ZoneId, aggregationFactor: Int) extends GenericView {
     def over = (1, Daily(tz))
@@ -974,7 +976,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
 
   private def getAbsoluteLatency(job: TimeSeriesJob, lastSuccess: Instant): Long = {
     val expectedSuccess = job.scheduling.calendar match {
-      case Hourly        => Instant.now.minus(1, HOURS)
+      case NHourly(h)    => Instant.now.minus(1, HOURS)
       case Daily(tz)     => Instant.now.atZone(tz).minus(1, DAYS).toInstant
       case Weekly(tz, _) => Instant.now.atZone(tz).minus(1, WEEKS).toInstant
       case Monthly(tz)   => Instant.now.atZone(tz).minus(1, MONTHS).toInstant
