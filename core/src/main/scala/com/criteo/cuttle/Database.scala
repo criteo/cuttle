@@ -10,13 +10,11 @@ import doobie.implicits._
 import doobie.hikari._
 import io.circe._
 import io.circe.syntax._
-import io.circe.parser._
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.{IO, Resource}
 import doobie.util.log
 
-import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.events.{Event, JobSuccessForced}
 
 /** Configuration of JDBC endpoint.
@@ -220,10 +218,6 @@ private[cuttle] object Database {
 
 private[cuttle] case class Queries(logger: Logger) {
   implicit val logHandler: log.LogHandler = DoobieLogsHandler(logger).handler
-
-  implicit val JsonMeta: Meta[Json] = Meta[String].imap(x => parse(x).fold(e => throw e, identity))(
-    x => x.noSpaces
-  )
 
   def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]): ConnectionIO[Int] =
     for {

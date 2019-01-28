@@ -9,6 +9,6 @@ package object examples {
     override def debug(message: => String): Unit = logMe(message, "DEBUG")
     override def warn(message: => String): Unit = logMe(message, "WARNING")
     override def error(message: => String): Unit = logMe(message, "ERROR")
-    override def trace(message: => String): Unit = logMe(message, "ERROR")
+    override def trace(message: => String): Unit = logMe(message, "TRACE")
   }
 }
