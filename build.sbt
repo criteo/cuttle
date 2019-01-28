@@ -168,7 +168,7 @@ lazy val localdb = {
     .settings(
       publishArtifact := false,
       libraryDependencies ++= Seq(
-        "com.wix" % "wix-embedded-mysql" % "2.1.4"
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0"
       )
     )
 }
@@ -211,7 +211,7 @@ lazy val timeseries =
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
-        "com.wix" % "wix-embedded-mysql" % "2.1.4" % "test"
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
       ))
     .settings(
       // Webpack
@@ -267,6 +267,10 @@ lazy val cron =
 lazy val examples =
   (project in file("examples"))
     .settings(commonSettings: _*)
+    .settings(
+      libraryDependencies ++= Seq(
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
+      ))
     .settings(
       publishArtifact := false,
       fork in Test := true,

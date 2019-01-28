@@ -35,21 +35,34 @@ object TestExample {
     } else {
       println("-- Starting a local database")
 
-      val localdb =
-        new ProcessBuilder("java", "-cp", System.getProperty("java.class.path"), "com.criteo.cuttle.localdb.LocalDB")
-          .start()
+      try {
+        val localdb =
+          new ProcessBuilder("java", "-cp", System.getProperty("java.class.path"), "com.criteo.cuttle.localdb.LocalDB")
+            .start()
 
-      val in = new BufferedReader(new InputStreamReader(localdb.getInputStream))
-      var line = ""
+        val in = new BufferedReader(new InputStreamReader(localdb.getInputStream))
+        val err = new BufferedReader(new InputStreamReader(localdb.getErrorStream))
+        var line = ""
 
-      while ({ line = in.readLine; line != null }) {
-        println(line)
-        if (line == "started!") {
-          run(example)
-          localdb.destroy()
-          System.exit(0)
+        while ({ line = in.readLine; line != null }) {
+          println(line)
+          if (line == "started!") {
+            run(example)
+            localdb.destroy()
+            System.exit(0)
+          }
         }
+
+        while ({ line = err.readLine; line != null }) {
+          println(line)
+        }
+
+        println(s"-- Database exited with code ${localdb.exitValue()}")
+      } catch {
+        case e: Throwable =>
+          e.printStackTrace()
       }
+
     }
   }
 
