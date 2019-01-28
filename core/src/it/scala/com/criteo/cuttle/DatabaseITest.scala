@@ -3,12 +3,14 @@ package com.criteo.cuttle
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 import java.time.temporal.ChronoUnit
 
+import scala.concurrent.Future
+
 import cats.effect.IO
-import com.criteo.cuttle.Auth.User
 import doobie.implicits._
 import doobie.scalatest.IOChecker
 
-import scala.concurrent.Future
+import com.criteo.cuttle.Auth.User
+
 
 class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
   val dbConfig = DatabaseConfig(

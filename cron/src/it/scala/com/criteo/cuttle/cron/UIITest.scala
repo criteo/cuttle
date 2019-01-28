@@ -10,6 +10,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import com.criteo.cuttle.Auth.User
 import com.criteo.cuttle.{Job, _}
 import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
+import com.criteo.cuttle.cron.Utils.logger
 
 /**
   * These tests don't verify anything but the rendering for "/" and "/executions" pages.

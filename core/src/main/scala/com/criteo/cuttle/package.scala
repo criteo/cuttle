@@ -4,7 +4,7 @@ import scala.concurrent._
 
 import cats.effect.IO
 import cats.free._
-import doobie.imports._
+import doobie._
 
 package cuttle {
 
@@ -61,12 +61,4 @@ package object cuttle {
     */
   implicit def scopedExecutionContext(implicit execution: Execution[_]): ExecutionContext = execution.executionContext
 
-  /** Default implicit logger that output everything to __stdout__ */
-  implicit val logger = new Logger {
-    def logMe(message: => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
-    override def info(message: => String): Unit = logMe(message, "INFO")
-    override def debug(message: => String): Unit = logMe(message, "DEBUG")
-    override def warning(message: => String): Unit = logMe(message, "WARNING")
-    override def error(message: => String): Unit = logMe(message, "ERROR")
-  }
 }

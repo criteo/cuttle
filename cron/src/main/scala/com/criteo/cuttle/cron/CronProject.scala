@@ -40,7 +40,7 @@ class CronProject private[cuttle] (val name: String,
     retryStrategy: RetryStrategy = CronProject.retryStrategy
   ): Unit = {
     logger.info("Connecting to database")
-    implicit val transactor = com.criteo.cuttle.Database.connect(databaseConfig)
+    implicit val transactor = com.criteo.cuttle.Database.connect(databaseConfig)(logger)
 
     logger.info("Creating Executor")
     val executor = new Executor[CronScheduling](platforms, transactor, logger, name, version)(retryStrategy)

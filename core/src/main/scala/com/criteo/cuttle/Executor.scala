@@ -9,9 +9,8 @@ import java.util.{Timer, TimerTask}
 import scala.concurrent.duration._
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
-import scala.reflect.{classTag, ClassTag}
+import scala.reflect.{ClassTag, classTag}
 import scala.util._
-
 import cats.Eq
 import cats.effect.IO
 import cats.implicits._
@@ -21,12 +20,12 @@ import io.circe._
 import io.circe.java8.time._
 import io.circe.syntax._
 import lol.http.PartialService
-
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.ThreadPools.{SideEffectThreadPool, _}
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle.platforms.ExecutionPool
+import doobie.util.Meta
 
 /** The strategy to use to retry stuck executions.
   *
@@ -77,6 +76,13 @@ object RetryStrategy {
 
 private[cuttle] sealed trait ExecutionStatus
 private[cuttle] object ExecutionStatus {
+  implicit val ExecutionStatusMeta: Meta[ExecutionStatus] =
+    Meta[Boolean].imap(x => if (x) ExecutionSuccessful else ExecutionFailed: ExecutionStatus) {
+      case ExecutionSuccessful => true
+      case ExecutionFailed     => false
+      case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
+    }
+
   case object ExecutionSuccessful extends ExecutionStatus
   case object ExecutionFailed extends ExecutionStatus
   case object ExecutionRunning extends ExecutionStatus
@@ -413,9 +419,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
 
   private implicit val contextOrdering: Ordering[S#Context] = Ordering.by(c => c: SchedulingContext)
 
-  private val queries = new Queries {
-    val appLogger: Logger = logger
-  }
+  private val queries = Queries(logger)
 
   // TODO: move to the scheduler
   private[cuttle] val runningState = TMap.empty[Execution[S], Future[Completed]]

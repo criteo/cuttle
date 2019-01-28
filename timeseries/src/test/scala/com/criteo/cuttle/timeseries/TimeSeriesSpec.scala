@@ -8,6 +8,7 @@ import org.scalatest.FunSuite
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.intervals.Bound.{Finite, Top}
 import com.criteo.cuttle.timeseries.intervals._
+import com.criteo.cuttle.Utils.logger
 
 class TimeSeriesSpec extends FunSuite with TestScheduling {
   val scheduling: TimeSeries = hourly(date"2017-03-25T02:00:00Z")

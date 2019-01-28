@@ -346,9 +346,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
     _pausedJobs()
   }
 
-  private val queries = new Queries {
-    val appLogger: Logger = logger
-  }
+  private val queries = Queries(logger)
 
   private[timeseries] def state: (State, Set[Backfill]) = atomic { implicit txn =>
     (_state(), _backfills())

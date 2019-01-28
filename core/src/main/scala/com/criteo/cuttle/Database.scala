@@ -10,12 +10,13 @@ import doobie.implicits._
 import doobie.hikari._
 import io.circe._
 import io.circe.syntax._
+import io.circe.Json
 import io.circe.parser._
 import cats.data.NonEmptyList
 import cats.implicits._
 import cats.effect.{IO, Resource}
+import doobie.util.log
 
-import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.events.{Event, JobSuccessForced}
 
 /** Configuration of JDBC endpoint.
@@ -66,14 +67,7 @@ object DatabaseConfig {
 
 private[cuttle] object Database {
 
-  implicit val ExecutionStatusMeta: Meta[ExecutionStatus] =
-    Meta[Boolean].imap(x => if (x) ExecutionSuccessful else ExecutionFailed: ExecutionStatus) {
-      case ExecutionSuccessful => true
-      case ExecutionFailed     => false
-      case x                   => sys.error(s"Unexpected ExecutionLog status to write in database: $x")
-    }
-
-  implicit val JsonMeta: Meta[Json] = Meta[String].imap(x => parse(x).fold(e => throw e, identity))(
+  implicit val JsonMeta: Meta[Json] = Meta[String].imap(x => parse(x).fold(e => throw e, identity _))(
     x => x.noSpaces
   )
 
@@ -213,7 +207,7 @@ private[cuttle] object Database {
   private[cuttle] def reset(): Unit =
     connections.clear()
 
-  def connect(dbConfig: DatabaseConfig): XA = {
+  def connect(dbConfig: DatabaseConfig)(implicit logger: Logger): XA = {
     // FIXME we shouldn't use allocated as it's unsafe instead we have to flatMap on the Resource[HikariTransactor]
     val (transactor, releaseIO) = newHikariTransactor(dbConfig).allocated.unsafeRunSync
     logger.debug("Allocated new Hikari transactor")
@@ -229,8 +223,10 @@ private[cuttle] object Database {
   }
 }
 
-private[cuttle] trait Queries {
+private[cuttle] case class Queries(logger: Logger) {
   import Database._
+
+  implicit val logHandler: log.LogHandler = DoobieLogsHandler(logger).handler
 
   def logExecution(e: ExecutionLog, logContext: ConnectionIO[String]): ConnectionIO[Int] =
     for {
