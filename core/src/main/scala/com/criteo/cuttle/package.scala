@@ -4,8 +4,6 @@ import scala.concurrent._
 
 import cats.effect.IO
 import cats.free._
-import io.circe.Json
-import io.circe.parser._
 import doobie._
 
 package cuttle {
@@ -63,7 +61,4 @@ package object cuttle {
     */
   implicit def scopedExecutionContext(implicit execution: Execution[_]): ExecutionContext = execution.executionContext
 
-  implicit val JsonMeta: Meta[Json] = Meta[String].imap(x => parse(x).fold(e => throw e, identity _))(
-    x => x.noSpaces
-  )
 }
