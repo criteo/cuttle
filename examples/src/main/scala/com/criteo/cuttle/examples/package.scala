@@ -7,8 +7,8 @@ package object examples {
     def logMe(message: => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
     override def info(message: => String): Unit = logMe(message, "INFO")
     override def debug(message: => String): Unit = logMe(message, "DEBUG")
-    override def warn(message: => String): Unit = logMe(message, "WARNING")
+    override def warn(message: => String): Unit = logMe(message, "WARN")
     override def error(message: => String): Unit = logMe(message, "ERROR")
-    override def trace(message: => String): Unit = logMe(message, "TRACE")
+    override def trace(message: => String): Unit = ()
   }
 }

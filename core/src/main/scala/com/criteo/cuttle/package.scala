@@ -34,7 +34,7 @@ package cuttle {
   *  - [[Scheduler]] is defined for a given [[Scheduling]] mechanism.
   *  - [[Execution]]s are created by a [[Scheduler]] for a given [[Job]] and [[SchedulingContext]].
   *  - [[Executor]] handles the [[SideEffect]]s execution.
-  *  - [[SideEffect]]s are plain asynchronous Scala functions and can use [[ExecutionPlatform]]s to
+  *  - [[SideEffect]]s are plain asynchronous Scala functions and can use [[com.criteo.cuttle.ExecutionPlatform]]s to
   *    access underlying resources.
   */
 package object cuttle {
@@ -42,6 +42,7 @@ package object cuttle {
   /** Doobie transactor. See https://github.com/tpolecat/doobie. */
   type XA = Transactor[IO]
   private[cuttle] val NoUpdate: ConnectionIO[Int] = Free.pure(0)
+
 
   /** The side effect function represents the real job execution. It returns a `Future[Completed]` to
     * indicate the execution result (we use [[Completed]] here instead of `Unit` to avoid automatic value
@@ -60,5 +61,17 @@ package object cuttle {
     * The threadpool will be chosen carefully by the [[Executor]].
     */
   implicit def scopedExecutionContext(implicit execution: Execution[_]): ExecutionContext = execution.executionContext
+
+  /** Default implicit logger that output everything to __stdout__ */
+  @deprecated("Global implicits are bad, this implementation will be removed in a next version, please switch to yours.", "01/28/2019")
+  implicit val logger = new Logger {
+    def logMe(message: => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
+    override def info(message: => String): Unit = logMe(message, "INFO")
+    override def debug(message: => String): Unit = logMe(message, "DEBUG")
+    override def warn(message: => String): Unit = logMe(message, "WARN")
+    def warning(message: => String): Unit = logMe(message, "WARNING")
+    override def error(message: => String): Unit = logMe(message, "ERROR")
+    override def trace(message: => String): Unit = ()
+  }
 
 }
