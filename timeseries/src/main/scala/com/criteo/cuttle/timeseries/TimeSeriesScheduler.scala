@@ -150,7 +150,7 @@ object TimeSeriesCalendar {
 
 private[timeseries] object TimeSeriesCalendarView {
   def apply(calendar: TimeSeriesCalendar) = calendar match {
-    case TimeSeriesCalendar.NHourly(h)           => new NHourlyView(h, 1)
+    case TimeSeriesCalendar.NHourly(h)           => new NHourlyView(1, h)
     case TimeSeriesCalendar.Daily(tz)            => new DailyView(tz, 1)
     case TimeSeriesCalendar.Weekly(tz, firstDay) => new WeeklyView(tz, firstDay, 1)
     case TimeSeriesCalendar.Monthly(tz)          => new MonthlyView(tz, 1)
