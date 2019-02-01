@@ -35,7 +35,7 @@ private[timeseries] object TimeSeriesApp {
         "name" -> project.name.asJson,
         "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
         "description" -> Option(project.description).filterNot(_.isEmpty).asJson,
-        "scheduler" -> project.scheduler.name.asJson,
+        "scheduler" -> "timeseries".asJson,
         "env" -> Json.obj(
           "name" -> Option(project.env._1).filterNot(_.isEmpty).asJson,
           "critical" -> project.env._2.asJson
@@ -85,9 +85,9 @@ private[timeseries] object TimeSeriesApp {
 
 }
 
-private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: Executor[TimeSeries], xa: XA) {
+private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: Executor[TimeSeries], scheduler: TimeSeriesScheduler, xa: XA) {
 
-  import project.{jobs, scheduler}
+  import project.{jobs}
 
   import JobState._
   import TimeSeriesApp._

@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Timer, TimerTask}
 
 import scala.concurrent.duration._
+import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
 import scala.reflect.{ClassTag, classTag}
@@ -411,7 +412,8 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
                                                  xa: XA,
                                                  logger: Logger,
                                                  val projectName: String,
-                                                 val projectVersion: String)(implicit retryStrategy: RetryStrategy)
+                                                 val projectVersion: String,
+                                                 logsRetention: Option[ScalaDuration] = None)(implicit retryStrategy: RetryStrategy)
     extends MetricProvider[S] {
 
   import ExecutionStatus._
@@ -723,7 +725,7 @@ class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPla
         .andThen {
           case result =>
             try {
-              ExecutionStreams.archive(execution.id, queries, xa)
+              ExecutionStreams.archive(execution.id, queries, logsRetention, xa)
             } catch {
               case e: Throwable =>
                 e.printStackTrace()

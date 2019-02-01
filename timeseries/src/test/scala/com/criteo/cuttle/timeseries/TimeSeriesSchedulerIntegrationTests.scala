@@ -43,7 +43,7 @@ object TimeSeriesSchedulerIntegrationTests {
     val executor =
       new Executor[TimeSeries](Seq(LocalPlatform(maxForkedProcesses = 10)), xa, logger, project.name, project.version)(
         retryImmediatelyStrategy)
-    val scheduler = project.scheduler
+    val scheduler = new TimeSeriesScheduler(logger)
 
     scheduler.initialize(project.jobs, xa, logger)
 

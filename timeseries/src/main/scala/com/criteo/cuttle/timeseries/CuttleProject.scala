@@ -5,6 +5,7 @@ import lol.http._
 import com.criteo.cuttle._
 import com.criteo.cuttle.{Database => CuttleDatabase}
 import com.criteo.cuttle.ThreadPools._, Implicits.serverThreadPool
+import scala.concurrent.duration.Duration
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
@@ -15,7 +16,6 @@ class CuttleProject private[cuttle] (val name: String,
                                      val description: String,
                                      val env: (String, Boolean),
                                      val jobs: Workflow,
-                                     val scheduler: TimeSeriesScheduler,
                                      val authenticator: Auth.Authenticator,
                                      val logger: Logger) {
 
@@ -27,30 +27,28 @@ class CuttleProject private[cuttle] (val name: String,
     * @param httpPort The port to use for the HTTP daemon.
     * @param databaseConfig JDBC configuration for MySQL server 5.7.
     * @param retryStrategy The strategy to use for execution retry. Default to exponential backoff.
+    * @param paused Automatically pause all jobs at startup.
+    * @param stateRetention If specified, automatically clean the timeseries state older than the given duration.
+    * @param logsRetention If specified, automatically clean the execution logs older than the given duration.
     */
   def start(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
     httpPort: Int = 8888,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
-    paused: Boolean = false
+    paused: Boolean = false,
+    stateRetention: Option[Duration] = None,
+    logsRetention: Option[Duration] = None
   ): Unit = {
-    val xa = CuttleDatabase.connect(databaseConfig)(logger)
-    val executor = new Executor[TimeSeries](platforms, xa, logger, name, version)(retryStrategy)
+    val (routes, startScheduler) = build(platforms, databaseConfig, retryStrategy, paused, stateRetention, logsRetention)
 
-    if (paused) {
-      logger.info("Pausing workflow")
-      scheduler.pauseJobs(jobs.all, executor, xa)(Auth.User("Startup"))
-    }
-
-    logger.info("Start workflow")
-    scheduler.start(jobs, executor, xa, logger)
+    startScheduler()
 
     logger.info("Start server")
     Server.listen(port = httpPort, onError = { e =>
       e.printStackTrace()
       InternalServerError(e.getMessage)
-    })(TimeSeriesApp(this, executor, xa).routes)
+    })(routes)
 
     logger.info(s"Listening on http://localhost:$httpPort")
   }
@@ -61,23 +59,34 @@ class CuttleProject private[cuttle] (val name: String,
     * @param platforms The configured [[ExecutionPlatform ExecutionPlatforms]] to use to execute jobs.
     * @param databaseConfig JDBC configuration for MySQL server 5.7.
     * @param retryStrategy The strategy to use for execution retry. Default to exponential backoff.
+    * @param paused Automatically pause all jobs at startup.
+    * @param stateRetention If specified, automatically clean the timeseries state older than the given duration.
+    * @param logsRetention If specified, automatically clean the execution logs older than the given duration.
     *
     * @return a tuple with cuttleRoutes (needed to start a server) and a function to start the scheduler
     */
   def build(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
-    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy
+    retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
+    paused: Boolean = false,
+    stateRetention: Option[Duration] = None,
+    logsRetention: Option[Duration] = None
   ): (Service, () => Unit) = {
     val xa = CuttleDatabase.connect(databaseConfig)(logger)
-    val executor = new Executor[TimeSeries](platforms, xa, logger, name, version)(retryStrategy)
+    val executor = new Executor[TimeSeries](platforms, xa, logger, name, version, logsRetention)(retryStrategy)
+    val scheduler = new TimeSeriesScheduler(logger, stateRetention)
 
     val startScheduler = () => {
+      if (paused) {
+        logger.info("Pausing workflow")
+        scheduler.pauseJobs(jobs.all, executor, xa)(Auth.User("Startup"))
+      }
       logger.info("Start workflow")
       scheduler.start(jobs, executor, xa, logger)
     }
 
-    (TimeSeriesApp(this, executor, xa).routes, startScheduler)
+    (TimeSeriesApp(this, executor, scheduler, xa).routes, startScheduler)
   }
 }
 
@@ -95,16 +104,14 @@ object CuttleProject {
     *            if the environment is a production one).
     * @param authenticator The way to authenticate HTTP request for the UI and the private API.
     * @param jobs The workflow to run in this project.
-    * @param scheduler The scheduler instance to use to schedule the Workflow jobs.
     * @param logger The logger to use to log internal debug informations.
     */
   def apply(name: String,
             version: String = "",
             description: String = "",
             env: (String, Boolean) = ("", false),
-            authenticator: Auth.Authenticator = Auth.GuestAuth)(jobs: Workflow)(implicit scheduler: TimeSeriesScheduler,
-                                                                                logger: Logger): CuttleProject =
-    new CuttleProject(name, version, description, env, jobs, scheduler, authenticator, logger)
+            authenticator: Auth.Authenticator = Auth.GuestAuth)(jobs: Workflow)(implicit logger: Logger): CuttleProject =
+    new CuttleProject(name, version, description, env, jobs, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
     import java.util.concurrent.TimeUnit.SECONDS

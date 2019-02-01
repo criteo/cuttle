@@ -2,6 +2,7 @@ package com.criteo.cuttle
 
 import java.time._
 import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration => ScalaDuration}
 
 import scala.util._
 
@@ -351,6 +352,15 @@ private[cuttle] case class Queries(logger: Logger) {
     sql"""
       INSERT INTO executions_streams (id, streams) VALUES
       (${id}, ${streams})
+    """.update.run
+
+  def applyLogsRetention(logsRetention: ScalaDuration): ConnectionIO[Int] =
+    sql"""
+      DELETE es
+        FROM executions_streams es
+        JOIN executions e
+          ON es.id = e.id
+       WHERE end_time < ${Instant.now.minusSeconds(logsRetention.toSeconds)}
     """.update.run
 
   def archivedStreams(id: String): ConnectionIO[Option[String]] =
