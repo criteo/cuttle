@@ -32,18 +32,20 @@ class CronProject private[cuttle] (val name: String,
     * @param port           The port to use for the HTTP daemon.
     * @param databaseConfig JDBC configuration for MySQL server
     * @param retryStrategy  The strategy to use for execution retry. Default to exponential backoff.
+    * @param logsRetention  If specified, automatically clean the execution logs older than the given duration.
     */
   def start(
     platforms: Seq[ExecutionPlatform] = CronProject.defaultPlatforms,
     port: Int = CronProject.port,
     databaseConfig: DatabaseConfig = CronProject.databaseConfig,
-    retryStrategy: RetryStrategy = CronProject.retryStrategy
+    retryStrategy: RetryStrategy = CronProject.retryStrategy,
+    logsRetention: Option[Duration] = None
   ): Unit = {
     logger.info("Connecting to database")
     implicit val transactor = com.criteo.cuttle.Database.connect(databaseConfig)(logger)
 
     logger.info("Creating Executor")
-    val executor = new Executor[CronScheduling](platforms, transactor, logger, name, version)(retryStrategy)
+    val executor = new Executor[CronScheduling](platforms, transactor, logger, name, version, logsRetention)(retryStrategy)
 
     logger.info("Scheduler starting workflow")
     scheduler.start(workload, executor, transactor, logger)

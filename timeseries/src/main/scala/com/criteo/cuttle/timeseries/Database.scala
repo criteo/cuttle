@@ -4,6 +4,7 @@ import com.criteo.cuttle._
 import Internal._
 
 import java.time._
+import scala.concurrent.duration.Duration
 
 import cats.Applicative
 import cats.data.{NonEmptyList, OptionT}
@@ -48,36 +49,6 @@ private[timeseries] object Database {
     } yield ()
   }
 
-  val cleanBigTimeseriesState: ConnectionIO[Unit] = {
-    sql"""
-      CREATE TABLE IF NOT EXISTS timeseries_state_temp (
-        state     JSON NOT NULL,
-        date      DATETIME NOT NULL,
-        PRIMARY KEY (date),
-        KEY timeseries_state_by_date (date)
-      ) ENGINE = INNODB;
-
-      TRUNCATE TABLE timeseries_state_temp;
-
-      INSERT INTO timeseries_state_temp
-      SELECT
-        *
-      FROM timeseries_state
-      WHERE date > (NOW() - INTERVAL 1 WEEK);
-
-      TRUNCATE TABLE timeseries_state;
-
-      INSERT INTO timeseries_state
-      SELECT
-        *
-      FROM timeseries_state_temp;
-
-      DROP TABLE timeseries_state_temp;
-
-      OPTIMIZE table timeseries_state;
-    """.update.run.map(_ => Unit)
-  }
-
   val schema = List(
     sql"""
       CREATE TABLE timeseries_state (
@@ -115,7 +86,7 @@ private[timeseries] object Database {
       CREATE INDEX timeseries_backfills_by_status ON timeseries_backfills (status);
     """.update.run,
     contextIdMigration,
-    cleanBigTimeseriesState
+    NoUpdate // We removed this migration, so we reserve this slot
   )
 
   val doSchemaUpdates: ConnectionIO[Unit] = utils.updateSchema("timeseries", schema)
@@ -161,10 +132,16 @@ private[timeseries] object Database {
       .value
   }
 
-  def serializeState(state: State): ConnectionIO[Int] = {
+  def serializeState(state: State, retention: Option[Duration]): ConnectionIO[Int] = {
     import JobState.{Done, Todo}
 
     val now = Instant.now()
+    val cleanStateBefore = retention.map { duration =>
+      if(duration.toSeconds <= 0 )
+        sys.error(s"State retention is badly configured: ${duration}")
+      else
+        now.minusSeconds(duration.toSeconds)
+    }
     val stateJson = state.toList.map {
       case (job, im) =>
         (job.id, im.toList.filter {
@@ -178,8 +155,11 @@ private[timeseries] object Database {
     }.asJson
 
     for {
-      // First clean state older that 1 week ago
-      _ <- sql"DELETE FROM timeseries_state where date < (${now} - INTERVAL 1 WEEK)".update.run
+      // Apply state retention if needed
+      _ <-
+        cleanStateBefore.map { t =>
+          sql"DELETE FROM timeseries_state where date < ${t}".update.run
+        }.getOrElse(NoUpdate)
       // Insert the latest state
       x <- sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
     } yield x

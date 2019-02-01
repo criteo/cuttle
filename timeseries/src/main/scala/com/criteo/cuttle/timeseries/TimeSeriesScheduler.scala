@@ -295,10 +295,7 @@ case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[
 }
 
 /** [[TimeSeries]] utilities. */
-object TimeSeries {
-  /* Provide a default [[TimeSeriesScheduler]] for [[TimeSeries]] scheduling. */
-  implicit def scheduler(implicit logger: Logger) = TimeSeriesScheduler(logger)
-}
+object TimeSeries
 
 private[timeseries] sealed trait JobState
 private[timeseries] object JobState {
@@ -328,7 +325,7 @@ private[timeseries] object JobState {
   * The scheduler also allow to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
   * or not and an audit log of backfills is kept.
   */
-case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
+case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDuration] = None) extends Scheduler[TimeSeries] {
   import JobState.{Done, Running, Todo}
   import TimeSeriesUtils._
 
@@ -651,7 +648,7 @@ case class TimeSeriesScheduler(logger: Logger) extends Scheduler[TimeSeries] {
     }
 
     if (completed.nonEmpty || toRun.nonEmpty)
-      runOrLogAndDie(Database.serializeState(stateSnapshot).transact(xa).unsafeRunSync,
+      runOrLogAndDie(Database.serializeState(stateSnapshot, stateRetention).transact(xa).unsafeRunSync,
                      "TimeseriesScheduler, cannot serialize state, shutting down")
 
     if (completedBackfills.nonEmpty)
