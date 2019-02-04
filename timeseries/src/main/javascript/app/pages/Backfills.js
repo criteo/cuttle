@@ -252,7 +252,8 @@ const styles = {
     flex: "1",
     display: "flex",
     flexDirection: "column",
-    position: "relative"
+    position: "relative",
+    minHeight: 0
   },
   title: {
     fontSize: "1.2em",

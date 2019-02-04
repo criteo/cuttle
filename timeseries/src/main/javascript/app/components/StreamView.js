@@ -107,6 +107,7 @@ const styles = {
     display: "flex",
     background: "#23252f",
     position: "relative",
+    minHeight: "0",
 
     "& ul": {
       flex: "1",

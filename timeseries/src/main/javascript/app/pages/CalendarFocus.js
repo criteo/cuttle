@@ -671,7 +671,8 @@ const styles = {
     flex: "1",
     display: "flex",
     flexDirection: "column",
-    position: "relative"
+    position: "relative",
+    minHeight: "0"
   },
   title: {
     fontSize: "1.2em",
@@ -722,7 +723,8 @@ const styles = {
     boxShadow: "0px 1px 2px #BECBD6",
     flex: "1",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    minHeight: "0"
   },
   axis: {
     "& path.domain, & line": {
