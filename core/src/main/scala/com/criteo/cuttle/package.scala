@@ -62,16 +62,4 @@ package object cuttle {
     */
   implicit def scopedExecutionContext(implicit execution: Execution[_]): ExecutionContext = execution.executionContext
 
-  /** Default implicit logger that output everything to __stdout__ */
-  @deprecated("Global implicits are bad, this implementation will be removed in a next version, please switch to yours.", "01/28/2019")
-  implicit val logger = new Logger {
-    def logMe(message: => String, level: String) = println(s"${java.time.Instant.now}\t${level}\t${message}")
-    override def info(message: => String): Unit = logMe(message, "INFO")
-    override def debug(message: => String): Unit = logMe(message, "DEBUG")
-    override def warn(message: => String): Unit = logMe(message, "WARN")
-    def warning(message: => String): Unit = logMe(message, "WARNING")
-    override def error(message: => String): Unit = logMe(message, "ERROR")
-    override def trace(message: => String): Unit = ()
-  }
-
 }
