@@ -227,7 +227,9 @@ class JobsComp extends React.Component<Props, State> {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
-    return !isEqual(this.state.pausedJobs, nextState.pausedJobs);
+    return !isEqual(this.props, nextProps) ||
+        !isEqual(this.state.data, nextState.data) ||
+        !isEqual(this.state.pausedJobs, nextState.pausedJobs);
   }
 
   render() {
