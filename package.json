@@ -63,7 +63,7 @@
     "react-motion-ui-pack": "^0.10.2",
     "react-paginate": "^4.4.2",
     "react-redux": "^5.0.2",
-    "react-select": "^1.0.0-rc.5",
+    "react-select": "^2.3.0",
     "react-tooltip": "^3.3.0",
     "react-vega-lite": "1.1.2",
     "redux": "^3.6.0",

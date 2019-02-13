@@ -383,6 +383,7 @@ class WorkflowComponent extends React.Component<Props, State> {
         }
       }, this.state.jobColors);
 
+    let options = map(nodes, n => ({ value: n.id, label: n.name }));
     return (
       <div className={classes.main}>
         <Dagger
@@ -396,9 +397,9 @@ class WorkflowComponent extends React.Component<Props, State> {
           <Select
             className={classes.jobSelector}
             name="jobSelector"
-            options={map(nodes, n => ({ value: n.id, label: n.name }))}
+            options={options}
             onChange={o => navTo("/workflow/" + o.value)}
-            value={startNode.id}
+            value={options.filter(({ id }) => id === startNode.id)}
             clearable={false}
           />
           <Link
