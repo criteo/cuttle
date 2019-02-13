@@ -13,6 +13,7 @@ import Link from "../components/Link";
 import { Badge } from "../components/Badge";
 import type { JobStatus } from "../../ApplicationState";
 import PopoverMenu from "../components/PopoverMenu";
+import isEqual from "lodash/isEqual";
 
 type Props = {
   classes: any,
@@ -156,6 +157,13 @@ const fetchPausedJobs = (
     .then(persist);
 };
 
+const jobAction = (action, job, persist) => {
+  return fetch(`/api/jobs/${action}?jobs=${job}`, {
+    method: "POST",
+    credentials: "include"
+  }).then(() => fetchPausedJobs(persist));
+};
+
 const NoJobs = ({
   className,
   status,
@@ -180,40 +188,20 @@ const activeJobsProps = {
 };
 
 const jobMenu = ({
+  persist,
   job,
   status,
   classes
 }: {
+  persist: any,
   job: string,
   status: string,
   classes: any
 }) => {
   const menuItems =
     status === "paused"
-      ? [
-          <span
-            onClick={() =>
-              fetch(`/api/jobs/resume?jobs=${job}`, {
-                method: "POST",
-                credentials: "include"
-              })
-            }
-          >
-            Resume
-          </span>
-        ]
-      : [
-          <span
-            onClick={() =>
-              fetch(`/api/jobs/pause?jobs=${job}`, {
-                method: "POST",
-                credentials: "include"
-              })
-            }
-          >
-            Pause
-          </span>
-        ];
+      ? [<span onClick={() => jobAction("resume", job, persist)}>Resume</span>]
+      : [<span onClick={() => jobAction("pause", job, persist)}>Pause</span>];
 
   return <PopoverMenu className={classes.menu} items={menuItems} />;
 };
@@ -234,7 +222,12 @@ class JobsComp extends React.Component<Props, State> {
   }
 
   componentWillReceiveProps() {
-    this.componentDidMount();
+    const persist = this.setState.bind(this);
+    fetchPausedJobs(persist);
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    return !isEqual(this.state.pausedJobs, nextState.pausedJobs);
   }
 
   render() {
@@ -260,6 +253,7 @@ class JobsComp extends React.Component<Props, State> {
           )
           .sort(sortFunction(sort));
 
+        const persist = this.setState.bind(this);
         return preparedData.length !== 0 ? (
           <Table
             data={preparedData}
@@ -281,7 +275,12 @@ class JobsComp extends React.Component<Props, State> {
                     </Link>
                   );
                 case "actions":
-                  return jobMenu({ job: row.id, status: row.status, classes });
+                  return jobMenu({
+                    persist: persist,
+                    job: row.id,
+                    status: row.status,
+                    classes
+                  });
                 default:
                   return column2Comp[column](row);
               }
