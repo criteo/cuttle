@@ -18,7 +18,7 @@ object HelloTimeSeriesWithManyJobs {
 
     val start: Instant = LocalDate.now.atStartOfDay.toInstant(UTC)
 
-    val jobs: Workflow = (1 to 2500).toArray
+    val jobs: Workflow = (1 to 1500).toArray
       .map({ i =>
         Job(s"hello$i", daily(UTC, start), s"Hello $i", tags = Set(Tag("hello"))) { implicit e =>
           val partitionToCompute = e.context.start + "-" + e.context.end
