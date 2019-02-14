@@ -85,7 +85,10 @@ private[timeseries] object TimeSeriesApp {
 
 }
 
-private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: Executor[TimeSeries], scheduler: TimeSeriesScheduler, xa: XA) {
+private[timeseries] case class TimeSeriesApp(project: CuttleProject,
+                                             executor: Executor[TimeSeries],
+                                             scheduler: TimeSeriesScheduler,
+                                             xa: XA) {
 
   import project.{jobs}
 
@@ -123,11 +126,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
       }
     }
 
-    case GET at url"/api/statistics?events=$events&jobs=$jobs" =>
-      val jobIds = parseJobIds(jobs)
-      val ids = if (jobIds.isEmpty) allIds else jobIds
-
-      def getStats: IO[Option[(Json, Json)]] =
+    case request @ POST at url"/api/statistics" => {
+      def getStats(ids: Set[String]): IO[Option[(Json, Json)]] =
         executor
           .getStats(ids)
           .map(
@@ -143,12 +143,21 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject, executor: E
               "scheduler" -> schedulerStats
             ))
       }
-
-      events match {
-        case "true" | "yes" =>
-          sse(IO.suspend(getStats), (x: (Json, Json)) => IO(asJson(x)))
-        case _ => getStats.map(_.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError))
-      }
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json.hcursor
+            .downField("jobs")
+            .as[Set[String]]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              jobIds => {
+                val ids = if (jobIds.isEmpty) allIds else jobIds
+                getStats(ids).map(_.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError))
+              }
+            )
+        }
+    }
 
     case GET at url"/api/statistics/$jobName" =>
       executor
