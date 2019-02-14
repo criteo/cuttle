@@ -44,3 +44,26 @@ private[timeseries] case class BackfillCreate(
   endDate: Instant,
   priority: Int
 )
+
+private[timeseries] object SortQuery {
+  implicit val decodeExecutionsParams: Decoder[SortQuery] = deriveDecoder[SortQuery]
+}
+
+private[timeseries] case class SortQuery(
+  column: String,
+  order: String
+) {
+  val asc = order.toLowerCase == "asc"
+}
+
+private[timeseries] object ExecutionsQuery {
+  implicit val decodeExecutionsParams: Decoder[ExecutionsQuery] = deriveDecoder[ExecutionsQuery]
+}
+private[timeseries] case class ExecutionsQuery(
+  jobs: Set[String],
+  sort: SortQuery,
+  limit: Int,
+  offset: Int
+) {
+  def jobIds(allIds: Set[String]) = if (jobs.isEmpty) allIds else jobs
+}

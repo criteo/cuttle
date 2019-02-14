@@ -7,6 +7,7 @@ import Measure from "react-measure";
 import _ from "lodash";
 import numeral from "numeraljs";
 import { navigate } from "redux-url";
+import isEqual from "lodash/isEqual";
 
 import ReactPaginate from "react-paginate";
 import PrevIcon from "react-icons/lib/md/navigate-before";
@@ -22,7 +23,7 @@ import Table from "../components/Table";
 import { ROW_HEIGHT } from "../components/Table";
 import Link from "../components/Link";
 import TimeRangeLink from "../components/TimeRangeLink";
-import { listenEvents } from "../../Utils";
+import { PostEventSource } from "../../Utils";
 import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
 import { urlFormat } from "../utils/Date";
 import Status from "../components/Status";
@@ -36,7 +37,7 @@ type Props = {
     page: number,
     rowsPerPage: number,
     sort: { column: string, order: "asc" | "desc" }
-  ) => string,
+  ) => any,
   columns: Array<
     | "job"
     | "context"
@@ -64,7 +65,7 @@ type State = {
   page: number,
   total: number,
   rowsPerPage: number,
-  query: ?string,
+  query: any,
   eventSource: any
 };
 
@@ -89,9 +90,13 @@ class ExecutionLogs extends React.Component<Props, State> {
     let { sort } = this.props;
     let { query, page, rowsPerPage, eventSource } = this.state;
     let newQuery = this.props.request(page, rowsPerPage, sort);
-    if (newQuery != query) {
-      eventSource && eventSource.close();
-      eventSource = listenEvents(newQuery, this.updateData.bind(this));
+    if (!isEqual(newQuery, query)) {
+      eventSource && eventSource.stopPolling();
+      eventSource = new PostEventSource(newQuery.endpoint, newQuery);
+      eventSource.onmessage(json => {
+        this.updateData(json.data);
+      });
+      eventSource.startPolling();
       this.setState({
         ...this.state,
         query: newQuery,
@@ -103,7 +108,7 @@ class ExecutionLogs extends React.Component<Props, State> {
 
   componentWillUnmount() {
     let { eventSource } = this.state;
-    eventSource && eventSource.close();
+    eventSource && eventSource.stopPolling();
   }
 
   componentWillReceiveProps(nextProps: Props) {
@@ -449,9 +454,6 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
       selectedJobs,
       envCritical
     }) => {
-      let jobsFilter = selectedJobs.length
-        ? `&jobs=${selectedJobs.join(",")}`
-        : "";
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Finished executions</h1>
@@ -462,12 +464,15 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
             page={page}
             workflow={workflow}
             columns={["job", "context", "endTime", "status", "detail"]}
-            request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/finished?events=true&offset=${page *
-                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
-                sort.order
-              }${jobsFilter}`
-            }
+            request={(page, rowsPerPage, sort) => {
+              return {
+                endpoint: "/api/executions/status/finished",
+                jobs: selectedJobs,
+                sort: sort,
+                limit: rowsPerPage,
+                offset: page * rowsPerPage
+              };
+            }}
             label="finished"
             sort={{ column: sort || "endTime", order: order || "desc" }}
             selectedJobs={selectedJobs}
@@ -493,11 +498,9 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
       const isFilterApplied = selectedJobs.length > 0;
 
       const menuItems = [];
-      let jobsFilter = "";
       if (isFilterApplied) {
+        //TODO pass jobs through body
         const selectedJobsString = selectedJobs.join(",");
-        jobsFilter = `&jobs=${selectedJobsString}`;
-
         const pauseFiltered = () =>
           fetch(`/api/jobs/pause?jobs=${selectedJobsString}`, {
             method: "POST",
@@ -530,12 +533,15 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
             page={page}
             workflow={workflow}
             columns={["job", "context", "startTime", "status", "detail"]}
-            request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/started?events=true&offset=${page *
-                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
-                sort.order
-              }${jobsFilter}`
-            }
+            request={(page, rowsPerPage, sort) => {
+              return {
+                endpoint: "/api/executions/status/started",
+                jobs: selectedJobs,
+                sort: sort,
+                limit: rowsPerPage,
+                offset: page * rowsPerPage
+              };
+            }}
             label="started"
             sort={{ column: sort || "context", order: order || "asc" }}
             selectedJobs={selectedJobs}
@@ -561,11 +567,9 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
       const isFilterApplied = selectedJobs.length > 0;
 
       const menuItems = [];
-      let jobsFilter = "";
       if (isFilterApplied) {
+        //TODO pass jobs through body
         const selectedJobsString = selectedJobs.join(",");
-        jobsFilter = `&jobs=${selectedJobsString}`;
-
         const resumeFiltered = () =>
           fetch(`/api/jobs/resume?jobs=${selectedJobsString}`, {
             method: "POST",
@@ -598,12 +602,15 @@ export const Paused = connect(mapStateToProps, mapDispatchToProps)(
             page={page}
             workflow={workflow}
             columns={["job", "context", "status", "detail"]}
-            request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/paused?events=true&offset=${page *
-                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
-                sort.order
-              }${jobsFilter}`
-            }
+            request={(page, rowsPerPage, sort) => {
+              return {
+                endpoint: "/api/executions/status/paused",
+                jobs: selectedJobs,
+                sort: sort,
+                limit: rowsPerPage,
+                offset: page * rowsPerPage
+              };
+            }}
             label="paused"
             sort={{ column: sort || "context", order: order || "asc" }}
             selectedJobs={selectedJobs}
@@ -627,9 +634,9 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
       envCritical
     }) => {
       const isFilterApplied = selectedJobs.length > 0;
+      //TODO pass jobs through body
       const selectedJobsString = selectedJobs.join(",");
       const jobsFilter = `jobs=${selectedJobsString}`;
-
       const relaunch = () => {
         fetch(
           `/api/executions/relaunch${isFilterApplied ? `?${jobsFilter}` : ""}`,
@@ -661,12 +668,15 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
               "status",
               "detail"
             ]}
-            request={(page, rowsPerPage, sort) =>
-              `/api/executions/status/stuck?events=true&offset=${page *
-                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
-                sort.order
-              }${isFilterApplied ? `&${jobsFilter}` : ""}`
-            }
+            request={(page, rowsPerPage, sort) => {
+              return {
+                endpoint: "/api/executions/status/stuck",
+                jobs: selectedJobs,
+                sort: sort,
+                limit: rowsPerPage,
+                offset: page * rowsPerPage
+              };
+            }}
             label="stuck"
             sort={{ column: sort || "failed", order: order || "asc" }}
             selectedJobs={selectedJobs}

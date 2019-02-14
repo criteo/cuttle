@@ -173,40 +173,40 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           Gauge("cuttle_jvm_uptime_seconds").labeled(("version", project.version), getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
-    case GET at url"/api/executions/status/$kind?limit=$l&offset=$o&events=$events&sort=$sort&order=$order&jobs=$jobs" =>
-      val jobIds = parseJobIds(jobs)
-      val limit = Try(l.toInt).toOption.getOrElse(25)
-      val offset = Try(o.toInt).toOption.getOrElse(0)
-      val asc = order.toLowerCase == "asc"
-      val ids = if (jobIds.isEmpty) allIds else jobIds
-
-      def getExecutions: IO[Option[(Int, List[ExecutionLog])]] = kind match {
+    case request @ POST at url"/api/executions/status/$kind" => {
+      def getExecutions(q: ExecutionsQuery): IO[Option[(Int, List[ExecutionLog])]] = kind match {
         case "started" =>
           IO(
             Some(
-              executor.runningExecutionsSizeTotal(ids) -> executor
-                .runningExecutions(ids, sort, asc, offset, limit)
+              executor.runningExecutionsSizeTotal(q.jobIds(allIds)) -> executor
+                .runningExecutions(q.jobIds(allIds), q.sort.column, q.sort.asc, q.offset, q.limit)
                 .toList))
         case "stuck" =>
           IO(
             Some(
-              executor.failingExecutionsSize(ids) -> executor
-                .failingExecutions(ids, sort, asc, offset, limit)
+              executor.failingExecutionsSize(q.jobIds(allIds)) -> executor
+                .failingExecutions(q.jobIds(allIds), q.sort.column, q.sort.asc, q.offset, q.limit)
                 .toList))
         case "finished" =>
           executor
-            .archivedExecutionsSize(ids)
+            .archivedExecutionsSize(q.jobIds(allIds))
             .map(ids => Some(ids -> executor.allRunning.toList))
         case _ =>
           IO.pure(None)
       }
 
-      def asJson(x: (Int, Seq[ExecutionLog])): IO[Json] = x match {
+      def asJson(q: ExecutionsQuery, x: (Int, Seq[ExecutionLog])): IO[Json] = x match {
         case (total, executions) =>
           (kind match {
             case "finished" =>
               executor
-                .archivedExecutions(scheduler.allContexts, ids, sort, asc, offset, limit, xa)
+                .archivedExecutions(scheduler.allContexts,
+                                    q.jobIds(allIds),
+                                    q.sort.column,
+                                    q.sort.asc,
+                                    q.offset,
+                                    q.limit,
+                                    xa)
                 .map(execs => execs.asJson)
             case _ =>
               IO(executions.asJson)
@@ -214,23 +214,28 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             data =>
               Json.obj(
                 "total" -> total.asJson,
-                "offset" -> offset.asJson,
-                "limit" -> limit.asJson,
-                "sort" -> sort.asJson,
-                "asc" -> asc.asJson,
+                "offset" -> q.offset.asJson,
+                "limit" -> q.limit.asJson,
+                "sort" -> q.sort.asJson,
                 "data" -> data
             ))
       }
 
-      events match {
-        case "true" | "yes" =>
-          sse(getExecutions, asJson)
-        case _ =>
-          getExecutions
-            .flatMap(
-              _.map(e => asJson(e).map(json => Ok(json)))
-                .getOrElse(NotFound))
-      }
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json
+            .as[ExecutionsQuery]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              query => {
+                getExecutions(query)
+                  .flatMap(_.map(e => asJson(query, e).map(json => Ok(json)))
+                    .getOrElse(NotFound))
+              }
+            )
+        }
+    }
 
     case GET at url"/api/executions/$id?events=$events" =>
       def getExecution = IO.suspend(executor.getExecution(scheduler.allContexts, id))
