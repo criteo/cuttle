@@ -684,11 +684,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           case None               => BadRequest
         }
 
-    case request @ GET at url"/api/timeseries/calendar?jobs=$jobs" =>
-      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
-        .filter(_.nonEmpty)
-        .getOrElse(project.jobs.all.map(_.id))
-        .toSet
+    case request @ POST at url"/api/timeseries/calendar" => {
 
       type WatchedState = ((TimeSeriesUtils.State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeries#Context)])
 
@@ -696,11 +692,11 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
       def watchState(): Option[WatchedState] = Some((scheduler.state, executor.allFailingJobsWithContext))
 
-      def getCalendar(watchedState: WatchedState): Json = {
+      def getCalendar(watchedState: WatchedState, jobs: Set[String]): Json = {
         val ((jobStates, backfills), _) = watchedState
         val backfillDomain =
           backfills.foldLeft(IntervalMap.empty[Instant, Unit]) { (acc, bf) =>
-            if (bf.jobs.map(_.id).intersect(filteredJobs).nonEmpty)
+            if (bf.jobs.map(_.id).intersect(jobs).nonEmpty)
               acc.update(Interval(bf.start, bf.end), ())
             else
               acc
@@ -710,7 +706,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         lazy val failingExecutionIds = executor.allFailingExecutions.map(_.id).toSet
         val jobStatesOnPeriod: Set[JobStateOnPeriod] = for {
           job <- project.jobs.all
-          if filteredJobs.contains(job.id)
+          if jobs.contains(job.id)
           (interval, jobState) <- jobStates(job).intersect(upToMidnightToday).toList
           (start, end) <- Daily(UTC).split(interval)
         } yield
@@ -752,16 +748,26 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                  else Map.empty)
           }
           .asJson
-
       }
 
-      if (request.headers.get(h"Accept").contains(h"text/event-stream"))
-        sse(IO { watchState() }, (s: WatchedState) => IO.pure(getCalendar(s)))
-      else
-        watchState() match {
-          case Some(watchedState) => Ok(getCalendar(watchedState))
-          case None               => BadRequest
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json.hcursor
+            .downField("jobs")
+            .as[Set[String]]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              jobIds => {
+                val ids = if (jobIds.isEmpty) project.jobs.all.map(_.id) else jobIds
+                watchState() match {
+                  case Some(watchedState) => Ok(getCalendar(watchedState, ids))
+                  case None               => BadRequest
+                }
+              }
+            )
         }
+    }
 
     case GET at url"/api/timeseries/lastruns?job=$jobId" =>
       val (jobStates, _) = scheduler.state
