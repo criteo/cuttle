@@ -29,8 +29,6 @@ const routes = {
     openPage({ id: "executions/stuck", page, sort, order }),
   "/executions/finished": (_, { page, sort, order }) =>
     openPage({ id: "executions/finished", page, sort, order }),
-  "/executions/paused": (_, { page, sort, order }) =>
-    openPage({ id: "executions/paused", page, sort, order }),
   "/executions/:id": ({ id }) =>
     openPage({ id: "executions/detail", execution: id }),
   "/workflow/*": ({ _ }, { showDetail, refPath }) =>

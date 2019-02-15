@@ -495,37 +495,9 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
       selectedJobs,
       envCritical
     }) => {
-      const isFilterApplied = selectedJobs.length > 0;
-
-      const menuItems = [];
-      if (isFilterApplied) {
-        //TODO pass jobs through body
-        const selectedJobsString = selectedJobs.join(",");
-        const pauseFiltered = () =>
-          fetch(`/api/jobs/pause?jobs=${selectedJobsString}`, {
-            method: "POST",
-            credentials: "include"
-          });
-
-        menuItems.push(
-          <span onClick={pauseFiltered}>{`Pause ${
-            selectedJobs.length
-          } filtered jobs`}</span>
-        );
-      } else {
-        const pauseAll = () =>
-          fetch("/api/jobs/pause", {
-            method: "POST",
-            credentials: "include"
-          });
-
-        menuItems.push(<span onClick={pauseAll}>{"Pause everything"}</span>);
-      }
-
       return (
         <div className={classes.container}>
           <h1 className={classes.title}>Started executions</h1>
-          <PopoverMenu className={classes.menu} items={menuItems} />
           <ExecutionLogs
             envCritical={envCritical}
             classes={classes}
@@ -543,75 +515,6 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
               };
             }}
             label="started"
-            sort={{ column: sort || "context", order: order || "asc" }}
-            selectedJobs={selectedJobs}
-          />
-        </div>
-      );
-    }
-  )
-);
-
-export const Paused = connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(
-    ({
-      classes,
-      workflow,
-      page,
-      sort,
-      order,
-      open,
-      selectedJobs,
-      envCritical
-    }) => {
-      const isFilterApplied = selectedJobs.length > 0;
-
-      const menuItems = [];
-      if (isFilterApplied) {
-        //TODO pass jobs through body
-        const selectedJobsString = selectedJobs.join(",");
-        const resumeFiltered = () =>
-          fetch(`/api/jobs/resume?jobs=${selectedJobsString}`, {
-            method: "POST",
-            credentials: "include"
-          });
-
-        menuItems.push(
-          <span onClick={resumeFiltered}>{`Resume ${
-            selectedJobs.length
-          } filtered jobs`}</span>
-        );
-      } else {
-        const resumeAll = () =>
-          fetch("/api/jobs/resume", {
-            method: "POST",
-            credentials: "include"
-          });
-
-        menuItems.push([<span onClick={resumeAll}>Resume everything</span>]);
-      }
-
-      return (
-        <div className={classes.container}>
-          <h1 className={classes.title}>Paused executions</h1>
-          <PopoverMenu className={classes.menu} items={menuItems} />
-          <ExecutionLogs
-            envCritical={envCritical}
-            classes={classes}
-            open={open}
-            page={page}
-            workflow={workflow}
-            columns={["job", "context", "status", "detail"]}
-            request={(page, rowsPerPage, sort) => {
-              return {
-                endpoint: "/api/executions/status/paused",
-                jobs: selectedJobs,
-                sort: sort,
-                limit: rowsPerPage,
-                offset: page * rowsPerPage
-              };
-            }}
-            label="paused"
             sort={{ column: sort || "context", order: order || "asc" }}
             selectedJobs={selectedJobs}
           />

@@ -35,12 +35,6 @@ export type Page =
       order?: "asc" | "desc"
     }
   | {
-      id: "executions/paused",
-      page?: number,
-      sort?: string,
-      order?: "asc" | "desc"
-    }
-  | {
       id: "executions/finished",
       page?: number,
       sort?: string,
