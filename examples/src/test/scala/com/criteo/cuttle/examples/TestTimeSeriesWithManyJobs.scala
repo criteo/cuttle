@@ -20,7 +20,10 @@ object TestTimeSeriesWithManyJobs {
 
     val jobs: Workflow = (1 to 1500).toArray
       .map({ i =>
-        Job(s"hello$i", daily(UTC, start), s"Hello $i", tags = Set(Tag("hello"))) { implicit e =>
+        Job(s"hello-with-a-relatively-long-id-just-for-the-fun-to-break-things$i",
+            daily(UTC, start),
+            s"Hello $i",
+            tags = Set(Tag("hello"), Tag(s"hello-${i / 100}xx"))) { implicit e =>
           val partitionToCompute = e.context.start + "-" + e.context.end
           e.streams.info(s"Hello $i for $partitionToCompute")
           Future.successful(Completed)
