@@ -157,11 +157,13 @@ const fetchPausedJobs = (
     .then(persist);
 };
 
-const jobAction = (action, job, persist) => {
-  return fetch(`/api/jobs/${action}?jobs=${job}`, {
-    method: "POST",
-    credentials: "include"
-  }).then(() => fetchPausedJobs(persist));
+const jobAction = (action, jobs, persist) => {
+  return () =>
+    fetch(`/api/jobs/${action}`, {
+      method: "POST",
+      credentials: "include",
+      body: JSON.stringify({ jobs: jobs })
+    }).then(() => fetchPausedJobs(persist));
 };
 
 const NoJobs = ({
@@ -200,8 +202,8 @@ const jobMenu = ({
 }) => {
   const menuItems =
     status === "paused"
-      ? [<span onClick={() => jobAction("resume", job, persist)}>Resume</span>]
-      : [<span onClick={() => jobAction("pause", job, persist)}>Pause</span>];
+      ? [<span onClick={jobAction("resume", job, persist)}>Resume</span>]
+      : [<span onClick={jobAction("pause", job, persist)}>Pause</span>];
 
   return <PopoverMenu className={classes.menu} items={menuItems} />;
 };
@@ -227,9 +229,11 @@ class JobsComp extends React.Component<Props, State> {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
-    return !isEqual(this.props, nextProps) ||
-        !isEqual(this.state.data, nextState.data) ||
-        !isEqual(this.state.pausedJobs, nextState.pausedJobs);
+    return (
+      !isEqual(this.props, nextProps) ||
+      !isEqual(this.state.data, nextState.data) ||
+      !isEqual(this.state.pausedJobs, nextState.pausedJobs)
+    );
   }
 
   render() {
@@ -308,9 +312,28 @@ class JobsComp extends React.Component<Props, State> {
       }
     };
 
+    const jobs = selectedJobs.join(",");
+    const persist = this.setState.bind(this);
+    const pause = jobAction("pause", jobs, persist);
+    const resume = jobAction("resume", jobs, persist);
+    const isFilterApplied = selectedJobs.length > 0;
+    const menuItems = [];
+    if (isFilterApplied) {
+      menuItems.push(
+        <span onClick={pause}>Pause {selectedJobs.length} filtered jobs</span>,
+        <span onClick={resume}>Resume {selectedJobs.length} filtered jobs</span>
+      );
+    } else {
+      menuItems.push(
+        <span onClick={pause}>Pause everything</span>,
+        <span onClick={resume}>Resume everything</span>
+      );
+    }
+
     return (
       <div className={classes.container}>
         <h1 className={classes.title}>Jobs</h1>
+        <PopoverMenu className={classes.menu} items={menuItems} />
         <div className={classes.grid}>
           <div className={classes.data}>
             <Data />

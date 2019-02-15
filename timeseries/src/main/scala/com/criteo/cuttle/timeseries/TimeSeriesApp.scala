@@ -284,18 +284,24 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       Ok
     }
 
-    case POST at url"/api/jobs/pause?jobs=$jobs" => { implicit user =>
-      getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
-        scheduler.pauseJobs(jobs, executor, xa)
-        Ok
-      })
+    case request @ POST at url"/api/jobs/pause" => { implicit user =>
+      request.readAs[Json].flatMap { json =>
+        val jobs = json.hcursor.get[String]("jobs").getOrElse("")
+        getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
+          scheduler.pauseJobs(jobs, executor, xa)
+          Ok
+        })
+      }
     }
 
-    case POST at url"/api/jobs/resume?jobs=$jobs" => { implicit user =>
-      getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
-        scheduler.resumeJobs(jobs, xa)
-        Ok
-      })
+    case request @ POST at url"/api/jobs/resume" => { implicit user =>
+      request.readAs[Json].flatMap { json =>
+        val jobs = json.hcursor.get[String]("jobs").getOrElse("")
+        getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
+          scheduler.resumeJobs(jobs, xa)
+          Ok
+        })
+      }
     }
     case POST at url"/api/jobs/all/unpause" => { implicit user =>
       scheduler.resumeJobs(jobs.all, xa)
