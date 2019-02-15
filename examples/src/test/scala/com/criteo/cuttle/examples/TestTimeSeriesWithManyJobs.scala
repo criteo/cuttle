@@ -1,4 +1,4 @@
-// Example: Hello cuttle timeseries with load!
+// Test: Cuttle timeseries with many jobs!
 
 // This a very simple cuttle project using the time series scheduler
 // to execute a lot of jobs to do load tests
@@ -12,7 +12,7 @@ import java.time._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object HelloTimeSeriesWithManyJobs {
+object TestTimeSeriesWithManyJobs {
 
   def main(args: Array[String]): Unit = {
 

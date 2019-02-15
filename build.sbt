@@ -33,7 +33,7 @@ lazy val commonSettings = Seq(
   devMode := Option(System.getProperty("devMode")).isDefined,
   writeClasspath := {
     val f = file(s"/tmp/classpath_${organization.value}.${name.value}")
-    val classpath = (fullClasspath in Runtime).value
+    val classpath = (fullClasspath in Test).value
     IO.write(f, classpath.map(_.data).mkString(":"))
     streams.value.log.info(f.getAbsolutePath)
     f
