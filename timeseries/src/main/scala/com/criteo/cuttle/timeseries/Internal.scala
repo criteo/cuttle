@@ -67,3 +67,14 @@ private[timeseries] case class ExecutionsQuery(
 ) {
   def jobIds(allIds: Set[String]) = if (jobs.isEmpty) allIds else jobs
 }
+
+private[timeseries] object CalendarFocusQuery {
+  implicit val decodeExecutionsParams: Decoder[CalendarFocusQuery] = deriveDecoder[CalendarFocusQuery]
+}
+private[timeseries] case class CalendarFocusQuery(
+  jobs: Set[String],
+  start: String,
+  end: String
+) {
+  def jobIds(allIds: Set[String]) = if (jobs.isEmpty) allIds else jobs
+}

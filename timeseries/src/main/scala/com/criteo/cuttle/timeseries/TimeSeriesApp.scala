@@ -496,19 +496,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           BadRequest
       }
 
-    case request @ GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
+    case request @ POST at url"/api/timeseries/calendar/focus" =>
       type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
-
-      val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
-        .filter(_.nonEmpty)
-        .getOrElse(project.jobs.all.map(_.id))
-        .toSet
 
       def watchState(): Option[WatchedState] = Some((scheduler.state, executor.allFailingJobsWithContext))
 
-      def getFocusView(watchedState: WatchedState) = {
-        val startDate = Instant.parse(start)
-        val endDate = Instant.parse(end)
+      def getFocusView(watchedState: WatchedState, q: CalendarFocusQuery, filteredJobs: Set[String]) = {
+        val startDate = Instant.parse(q.start)
+        val endDate = Instant.parse(q.end)
         val period = Interval(startDate, endDate)
         val ((jobStates, backfills), _) = watchedState
         val backfillDomain =
@@ -676,12 +671,23 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         )
       }
 
-      if (request.headers.get(h"Accept").contains(h"text/event-stream"))
-        sse(IO { watchState() }, (s: WatchedState) => IO(getFocusView(s)))
-      else
-        watchState() match {
-          case Some(watchedState) => Ok(getFocusView(watchedState))
-          case None               => BadRequest
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json
+            .as[CalendarFocusQuery]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              query => {
+                val jobs = Try(query.jobs.filter(_.nonEmpty)).toOption
+                  .filter(_.nonEmpty)
+                  .getOrElse(project.jobs.all.map(_.id))
+                watchState() match {
+                  case Some(watchedState) => Ok(getFocusView(watchedState, query, jobs))
+                  case None               => BadRequest
+                }
+              }
+            )
         }
 
     case request @ POST at url"/api/timeseries/calendar" => {
