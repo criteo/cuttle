@@ -45,9 +45,10 @@ class Calendar extends React.Component<Props, State> {
   }
 
   listenForUpdates(props: Props) {
-    let { selectedJobs } = props;
-    let { query, eventSource } = this.state;
-    let newQuery = { jobs: selectedJobs };
+    const { selectedJobs } = props;
+    const { query } = this.state;
+    const newQuery = { jobs: selectedJobs };
+    let { eventSource } = this.state;
     if (!isEqual(newQuery, query)) {
       eventSource && eventSource.stopPolling();
       eventSource = new PostEventSource("/api/timeseries/calendar", newQuery);

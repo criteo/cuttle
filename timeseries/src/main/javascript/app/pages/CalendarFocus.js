@@ -317,13 +317,14 @@ class CalendarFocus extends React.Component<Props, State> {
   }
 
   listenForUpdates(props: Props) {
-    let { selectedJobs, start, end } = props;
-    let { query, eventSource } = this.state;
-    let newQuery = {
+    const { selectedJobs, start, end } = props;
+    const { query } = this.state;
+    const newQuery = {
       jobs: selectedJobs,
       start: moment(start).toISOString(),
       end: moment(end).toISOString()
     };
+    let { eventSource } = this.state;
     if (!_.isEqual(newQuery, query)) {
       eventSource && eventSource.stopPolling();
       eventSource = new PostEventSource(
