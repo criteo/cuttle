@@ -409,6 +409,178 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       e => (e.jobExecutions, e.parentExecutions)
     )
 
+  private type FocusWatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
+  private[timeseries] def getFocusView(watchedState: FocusWatchedState,
+                                       q: CalendarFocusQuery,
+                                       filteredJobs: Set[String]): Json = {
+    val startDate = Instant.parse(q.start)
+    val endDate = Instant.parse(q.end)
+    val period = Interval(startDate, endDate)
+    val ((jobStates, backfills), _) = watchedState
+    val backfillDomain =
+      backfills.foldLeft(IntervalMap.empty[Instant, Unit]) { (acc, bf) =>
+        if (bf.jobs.map(_.id).intersect(filteredJobs).nonEmpty)
+          acc.update(Interval(bf.start, bf.end), ())
+        else
+          acc
+      }
+
+    val pausedJobs = scheduler.pausedJobs().map(_.id)
+    val allFailingExecutionIds = executor.allFailingExecutions.map(_.id).toSet
+    val allWaitingExecutionIds = executor.allRunning
+      .filter(_.status == ExecutionWaiting)
+      .map(_.id)
+      .toSet
+
+    def findAggregationLevel(n: Int,
+                             calendarView: TimeSeriesCalendarView,
+                             interval: Interval[Instant]): TimeSeriesCalendarView = {
+      val aggregatedExecutions = calendarView.calendar.split(interval)
+      if (aggregatedExecutions.size <= n)
+        calendarView
+      else
+        findAggregationLevel(n, calendarView.upper(), interval)
+    }
+
+    def aggregateExecutions(
+      job: TimeSeriesJob,
+      period: Interval[Instant],
+      calendarView: TimeSeriesCalendarView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
+      calendarView.calendar
+        .split(period)
+        .flatMap { interval =>
+          {
+            val (start, end) = interval
+            val currentlyAggregatedPeriod = jobStates(job)
+              .intersect(Interval(start, end))
+              .toList
+              .sortBy(_._1.lo)
+            currentlyAggregatedPeriod match {
+              case Nil => None
+              case _   => Some((Interval(start, end), currentlyAggregatedPeriod))
+            }
+          }
+        }
+
+    def getVersionFromState(jobState: JobState): String = jobState match {
+      case Done(version) => version
+      case _             => ""
+    }
+
+    def getStatusLabelFromState(jobState: JobState, job: Job[TimeSeries]): String =
+      jobState match {
+        case Running(executionId) =>
+          if (allFailingExecutionIds.contains(executionId))
+            "failed"
+          else if (allWaitingExecutionIds.contains(executionId))
+            "waiting"
+          else if (pausedJobs.contains(job.id))
+            "paused"
+          else "running"
+        case Todo(_) => if (pausedJobs.contains(job.id)) "paused" else "todo"
+        case Done(_) => "successful"
+      }
+
+    val jobTimelines =
+      (for { job <- project.jobs.all if filteredJobs.contains(job.id) } yield {
+        val calendarView = findAggregationLevel(
+          48,
+          TimeSeriesCalendarView(job.scheduling.calendar),
+          period
+        )
+        val jobExecutions: List[Option[ExecutionPeriod]] = for {
+          (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, calendarView)
+        } yield {
+          val inBackfill = backfills.exists(
+            bf =>
+              bf.jobs.contains(job) &&
+                IntervalMap(interval -> 0)
+                  .intersect(Interval(bf.start, bf.end))
+                  .toList
+                  .nonEmpty)
+          if (calendarView.aggregationFactor == 1) {
+            jobStatesOnIntervals match {
+              case (_, state) :: Nil =>
+                Some(
+                  JobExecution(interval, getStatusLabelFromState(state, job), inBackfill, getVersionFromState(state)))
+              case _ => None
+            }
+          } else {
+            jobStatesOnIntervals match {
+              case jobStates: List[(Interval[Instant], JobState)] if jobStates.nonEmpty => {
+                val (duration, done, error) = jobStates.foldLeft((0L, 0L, false)) {
+                  case ((accumulatedDuration, accumulatedDoneDuration, hasErrors), (period, jobState)) =>
+                    val (lo, hi) = period.toPair
+                    val jobStatus = getStatusLabelFromState(jobState, job)
+                    (accumulatedDuration + lo.until(hi, ChronoUnit.SECONDS),
+                     accumulatedDoneDuration + (if (jobStatus == "successful") lo.until(hi, ChronoUnit.SECONDS)
+                                                else 0),
+                     hasErrors || jobStatus == "failed")
+                }
+                Some(AggregatedJobExecution(interval, done.toDouble / duration.toDouble, error, inBackfill))
+              }
+              case Nil => None
+            }
+          }
+        }
+        JobTimeline(job.id, calendarView, jobExecutions.flatten)
+      }).toList
+
+    Json.obj(
+      "summary" -> jobTimelines
+        .maxBy(_.executions.size)
+        .calendarView
+        .calendar
+        .split(period)
+        .flatMap {
+          case (lo, hi) =>
+            val isInbackfill = backfillDomain.intersect(Interval(lo, hi)).toList.nonEmpty
+
+            case class JobSummary(periodLengthInSeconds: Long, periodDoneInSeconds: Long, hasErrors: Boolean)
+
+            val jobSummaries: Set[JobSummary] = for {
+              job <- project.jobs.all
+              if filteredJobs.contains(job.id)
+              (interval, jobState) <- jobStates(job).intersect(Interval(lo, hi)).toList
+            } yield {
+              val (lo, hi) = interval.toPair
+              JobSummary(
+                periodLengthInSeconds = lo.until(hi, ChronoUnit.SECONDS),
+                periodDoneInSeconds = jobState match {
+                  case Done(_) => lo.until(hi, ChronoUnit.SECONDS)
+                  case _       => 0
+                },
+                hasErrors = jobState match {
+                  case Running(executionId) => allFailingExecutionIds.contains(executionId)
+                  case _                    => false
+                }
+              )
+            }
+            if (jobSummaries.nonEmpty) {
+              val aggregatedJobSummary = jobSummaries.reduce { (a: JobSummary, b: JobSummary) =>
+                JobSummary(a.periodLengthInSeconds + b.periodLengthInSeconds,
+                           a.periodDoneInSeconds + b.periodDoneInSeconds,
+                           a.hasErrors || b.hasErrors)
+              }
+              Some(
+                AggregatedJobExecution(
+                  Interval(lo, hi),
+                  aggregatedJobSummary.periodDoneInSeconds.toDouble / aggregatedJobSummary.periodLengthInSeconds.toDouble,
+                  aggregatedJobSummary.hasErrors,
+                  isInbackfill
+                )
+              )
+            } else {
+              None
+            }
+        }
+        .asJson,
+      "jobs" -> jobTimelines.map(jt => jt.jobId -> jt).toMap.asJson
+    )
+  }
+  private[timeseries] def focusWatchState(): Option[FocusWatchedState] =
+    Some((scheduler.state, executor.allFailingJobsWithContext))
+
   private[timeseries] def publicRoutes(): PartialService = {
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
       type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
@@ -496,181 +668,16 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           BadRequest
       }
 
-    case request @ POST at url"/api/timeseries/calendar/focus" =>
-      type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
+    case GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
+      val filteredJobs = Option(jobs.split(",").toSet.filterNot(_.isEmpty)).filterNot(_.isEmpty).getOrElse(allIds)
+      val q = CalendarFocusQuery(filteredJobs, start, end)
 
-      def watchState(): Option[WatchedState] = Some((scheduler.state, executor.allFailingJobsWithContext))
-
-      def getFocusView(watchedState: WatchedState, q: CalendarFocusQuery, filteredJobs: Set[String]) = {
-        val startDate = Instant.parse(q.start)
-        val endDate = Instant.parse(q.end)
-        val period = Interval(startDate, endDate)
-        val ((jobStates, backfills), _) = watchedState
-        val backfillDomain =
-          backfills.foldLeft(IntervalMap.empty[Instant, Unit]) { (acc, bf) =>
-            if (bf.jobs.map(_.id).intersect(filteredJobs).nonEmpty)
-              acc.update(Interval(bf.start, bf.end), ())
-            else
-              acc
-          }
-
-        val pausedJobs = scheduler.pausedJobs().map(_.id)
-        val allFailingExecutionIds = executor.allFailingExecutions.map(_.id).toSet
-        val allWaitingExecutionIds = executor.allRunning
-          .filter(_.status == ExecutionWaiting)
-          .map(_.id)
-          .toSet
-
-        def findAggregationLevel(n: Int,
-                                 calendarView: TimeSeriesCalendarView,
-                                 interval: Interval[Instant]): TimeSeriesCalendarView = {
-          val aggregatedExecutions = calendarView.calendar.split(interval)
-          if (aggregatedExecutions.size <= n)
-            calendarView
-          else
-            findAggregationLevel(n, calendarView.upper(), interval)
-        }
-
-        def aggregateExecutions(
-          job: TimeSeriesJob,
-          period: Interval[Instant],
-          calendarView: TimeSeriesCalendarView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
-          calendarView.calendar
-            .split(period)
-            .flatMap { interval =>
-              {
-                val (start, end) = interval
-                val currentlyAggregatedPeriod = jobStates(job)
-                  .intersect(Interval(start, end))
-                  .toList
-                  .sortBy(_._1.lo)
-                currentlyAggregatedPeriod match {
-                  case Nil => None
-                  case _   => Some((Interval(start, end), currentlyAggregatedPeriod))
-                }
-              }
-            }
-
-        def getVersionFromState(jobState: JobState): String = jobState match {
-          case Done(version) => version
-          case _             => ""
-        }
-
-        def getStatusLabelFromState(jobState: JobState, job: Job[TimeSeries]): String =
-          jobState match {
-            case Running(executionId) =>
-              if (allFailingExecutionIds.contains(executionId))
-                "failed"
-              else if (allWaitingExecutionIds.contains(executionId))
-                "waiting"
-              else if (pausedJobs.contains(job.id))
-                "paused"
-              else "running"
-            case Todo(_) => if (pausedJobs.contains(job.id)) "paused" else "todo"
-            case Done(_) => "successful"
-          }
-
-        val jobTimelines =
-          (for { job <- project.jobs.all if filteredJobs.contains(job.id) } yield {
-            val calendarView = findAggregationLevel(
-              48,
-              TimeSeriesCalendarView(job.scheduling.calendar),
-              period
-            )
-            val jobExecutions: List[Option[ExecutionPeriod]] = for {
-              (interval, jobStatesOnIntervals) <- aggregateExecutions(job, period, calendarView)
-            } yield {
-              val inBackfill = backfills.exists(
-                bf =>
-                  bf.jobs.contains(job) &&
-                    IntervalMap(interval -> 0)
-                      .intersect(Interval(bf.start, bf.end))
-                      .toList
-                      .nonEmpty)
-              if (calendarView.aggregationFactor == 1) {
-                jobStatesOnIntervals match {
-                  case (_, state) :: Nil =>
-                    Some(
-                      JobExecution(interval,
-                                   getStatusLabelFromState(state, job),
-                                   inBackfill,
-                                   getVersionFromState(state)))
-                  case _ => None
-                }
-              } else {
-                jobStatesOnIntervals match {
-                  case jobStates: List[(Interval[Instant], JobState)] if jobStates.nonEmpty => {
-                    val (duration, done, error) = jobStates.foldLeft((0L, 0L, false)) {
-                      case ((accumulatedDuration, accumulatedDoneDuration, hasErrors), (period, jobState)) =>
-                        val (lo, hi) = period.toPair
-                        val jobStatus = getStatusLabelFromState(jobState, job)
-                        (accumulatedDuration + lo.until(hi, ChronoUnit.SECONDS),
-                         accumulatedDoneDuration + (if (jobStatus == "successful") lo.until(hi, ChronoUnit.SECONDS)
-                                                    else 0),
-                         hasErrors || jobStatus == "failed")
-                    }
-                    Some(AggregatedJobExecution(interval, done.toDouble / duration.toDouble, error, inBackfill))
-                  }
-                  case Nil => None
-                }
-              }
-            }
-            JobTimeline(job.id, calendarView, jobExecutions.flatten)
-          }).toList
-
-        Json.obj(
-          "summary" -> jobTimelines
-            .maxBy(_.executions.size)
-            .calendarView
-            .calendar
-            .split(period)
-            .flatMap {
-              case (lo, hi) =>
-                val isInbackfill = backfillDomain.intersect(Interval(lo, hi)).toList.nonEmpty
-
-                case class JobSummary(periodLengthInSeconds: Long, periodDoneInSeconds: Long, hasErrors: Boolean)
-
-                val jobSummaries: Set[JobSummary] = for {
-                  job <- project.jobs.all
-                  if filteredJobs.contains(job.id)
-                  (interval, jobState) <- jobStates(job).intersect(Interval(lo, hi)).toList
-                } yield {
-                  val (lo, hi) = interval.toPair
-                  JobSummary(
-                    periodLengthInSeconds = lo.until(hi, ChronoUnit.SECONDS),
-                    periodDoneInSeconds = jobState match {
-                      case Done(_) => lo.until(hi, ChronoUnit.SECONDS)
-                      case _       => 0
-                    },
-                    hasErrors = jobState match {
-                      case Running(executionId) => allFailingExecutionIds.contains(executionId)
-                      case _                    => false
-                    }
-                  )
-                }
-                if (jobSummaries.nonEmpty) {
-                  val aggregatedJobSummary = jobSummaries.reduce { (a: JobSummary, b: JobSummary) =>
-                    JobSummary(a.periodLengthInSeconds + b.periodLengthInSeconds,
-                               a.periodDoneInSeconds + b.periodDoneInSeconds,
-                               a.hasErrors || b.hasErrors)
-                  }
-                  Some(
-                    AggregatedJobExecution(
-                      Interval(lo, hi),
-                      aggregatedJobSummary.periodDoneInSeconds.toDouble / aggregatedJobSummary.periodLengthInSeconds.toDouble,
-                      aggregatedJobSummary.hasErrors,
-                      isInbackfill
-                    )
-                  )
-                } else {
-                  None
-                }
-            }
-            .asJson,
-          "jobs" -> jobTimelines.map(jt => jt.jobId -> jt).toMap.asJson
-        )
+      focusWatchState() match {
+        case Some(watchedState) => Ok(getFocusView(watchedState, q, filteredJobs))
+        case None               => BadRequest
       }
 
+    case request @ POST at url"/api/timeseries/calendar/focus" =>
       request
         .readAs[Json]
         .flatMap { json =>
@@ -679,10 +686,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             .fold(
               df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
               query => {
-                val jobs = Try(query.jobs.filter(_.nonEmpty)).toOption
-                  .filter(_.nonEmpty)
-                  .getOrElse(project.jobs.all.map(_.id))
-                watchState() match {
+                val jobs = Option(query.jobs.filterNot(_.isEmpty)).filterNot(_.isEmpty).getOrElse(allIds)
+                focusWatchState() match {
                   case Some(watchedState) => Ok(getFocusView(watchedState, query, jobs))
                   case None               => BadRequest
                 }
