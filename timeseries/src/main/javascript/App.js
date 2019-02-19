@@ -16,7 +16,7 @@ import * as Actions from "./actions";
 import Calendar from "./app/pages/Calendar";
 import CalendarFocus from "./app/pages/CalendarFocus";
 import Workflow from "./app/pages/Workflow";
-import { Started, Stuck, Paused, Finished } from "./app/pages/ExecutionLogs";
+import { Started, Stuck, Finished } from "./app/pages/ExecutionLogs";
 import Execution from "./app/pages/Execution";
 import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
 import Backfill from "./app/pages/Backfill";
@@ -82,8 +82,6 @@ class App extends React.Component<Props> {
             return <Started />;
           case "executions/stuck":
             return <Stuck />;
-          case "executions/paused":
-            return <Paused />;
           case "executions/finished":
             return <Finished />;
           case "executions/detail":
