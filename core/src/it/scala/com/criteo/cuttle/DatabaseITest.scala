@@ -11,7 +11,6 @@ import doobie.scalatest.IOChecker
 
 import com.criteo.cuttle.Auth.User
 
-
 class DatabaseITest extends DatabaseSuite with IOChecker with TestScheduling {
   val dbConfig = DatabaseConfig(
     Seq(DBLocation("localhost", 3388)),

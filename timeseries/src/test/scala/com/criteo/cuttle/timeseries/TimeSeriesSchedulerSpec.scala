@@ -103,31 +103,35 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
   test("Generate right n-hours periods") {
 
     def checkPeriod(period: Int) = {
-      val allIntervals = nhourly(period, start)
-        .calendar.inInterval(oneDayInterval, 1).toList
+      val allIntervals = nhourly(period, start).calendar.inInterval(oneDayInterval, 1).toList
 
-      assert(allIntervals.size.equals(24/period))
+      assert(allIntervals.size.equals(24 / period))
 
-      assert(allIntervals.forall({ case (lo, hi) =>
-        Duration.between(lo, hi) == Duration.ofHours(period)
+      assert(allIntervals.forall({
+        case (lo, hi) =>
+          Duration.between(lo, hi) == Duration.ofHours(period)
       }))
 
-      assert(allIntervals.zip(allIntervals.drop(1)).forall({ case (lo, hi) =>
-        Duration.between(lo._2, hi._1) == Duration.ofHours(0)
-      }))
+      assert(
+        allIntervals
+          .zip(allIntervals.drop(1))
+          .forall({
+            case (lo, hi) =>
+              Duration.between(lo._2, hi._1) == Duration.ofHours(0)
+          }))
     }
 
-    List(1,2,3,4,6,8,12).map(i => checkPeriod(i))
+    List(1, 2, 3, 4, 6, 8, 12).map(i => checkPeriod(i))
   }
 
   test("NHourly can only be created for dividers of 24") {
     assertThrows[IllegalArgumentException](nhourly(-1, start))
     assertThrows[IllegalArgumentException](nhourly(0, start))
 
-    List(1,2,3,4,6,8,12).foreach(i => {
+    List(1, 2, 3, 4, 6, 8, 12).foreach(i => {
       nhourly(i, start)
     })
-    List(5,7,9,10,11,13,15,16,17,18,19,20,21,22,23).foreach(i => {
+    List(5, 7, 9, 10, 11, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23).foreach(i => {
       assertThrows[IllegalArgumentException](nhourly(i, start))
     })
 

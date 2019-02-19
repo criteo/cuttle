@@ -11,7 +11,6 @@ import doobie.implicits._
 import scala.concurrent.duration._
 import scala.concurrent.stm._
 
-
 /** The scoped output streams for an [[Execution]]. Allows the execution to log its output. */
 trait ExecutionStreams {
 
@@ -151,14 +150,14 @@ private[cuttle] object ExecutionStreams {
 
   def archive(id: ExecutionId, queries: Queries, logsRetention: Option[Duration], xa: XA): Unit = {
     (for {
-      _ <-
-        queries
-          .archiveStreams(id, streamsAsString(id).getOrElse(sys.error(s"Cannot archive streams for execution $id")))
-          .transact(xa)
-      _ <-
-        logsRetention.map { retention =>
+      _ <- queries
+        .archiveStreams(id, streamsAsString(id).getOrElse(sys.error(s"Cannot archive streams for execution $id")))
+        .transact(xa)
+      _ <- logsRetention
+        .map { retention =>
           queries.applyLogsRetention(retention).transact(xa)
-        }.getOrElse(IO.unit)
+        }
+        .getOrElse(IO.unit)
     } yield ()).unsafeRunSync()
     discard(id)
   }

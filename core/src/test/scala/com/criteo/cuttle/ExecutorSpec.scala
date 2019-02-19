@@ -30,7 +30,9 @@ class ExecutorSpec extends FunSuite with TestScheduling {
 
     val testExecutor = new Executor[TestScheduling](
       Seq.empty,
-      xa = Transactor.fromConnection[IO](connection, sideEffectThreadPool).copy(strategy0 = doobie.util.transactor.Strategy.void),
+      xa = Transactor
+        .fromConnection[IO](connection, sideEffectThreadPool)
+        .copy(strategy0 = doobie.util.transactor.Strategy.void),
       logger,
       "project_name",
       "test_version"

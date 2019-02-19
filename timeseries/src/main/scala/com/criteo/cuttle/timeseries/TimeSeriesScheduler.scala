@@ -78,12 +78,13 @@ private[timeseries] sealed trait TimeSeriesCalendarView {
 
 /** Define the available calendars. */
 object TimeSeriesCalendar {
+
   /** A calendar for periods of n hours. Hours are defined as complete calendar hours starting
     * at 00 minutes, 00 seconds. */
   case class NHourly(n: Int) extends TimeSeriesCalendar {
     def truncate(t: Instant): Instant = {
-        val hour = (t.atOffset(java.time.ZoneOffset.UTC).getHour / n) * n
-        t.truncatedTo(HOURS).atOffset(java.time.ZoneOffset.UTC).withHour(hour).toInstant
+      val hour = (t.atOffset(java.time.ZoneOffset.UTC).getHour / n) * n
+      t.truncatedTo(HOURS).atOffset(java.time.ZoneOffset.UTC).withHour(hour).toInstant
     }
     def next(t: Instant): Instant =
       truncate(t).plus(n, HOURS)
@@ -127,7 +128,7 @@ object TimeSeriesCalendar {
 
   private[timeseries] implicit val calendarEncoder = new Encoder[TimeSeriesCalendar] {
     override def apply(calendar: TimeSeriesCalendar) = calendar match {
-      case NHourly(h)        => Json.obj("period" -> "hourly".asJson, "n" -> h.asJson)
+      case NHourly(h) => Json.obj("period" -> "hourly".asJson, "n" -> h.asJson)
       case Daily(tz: ZoneId) =>
         Json.obj(
           "period" -> "daily".asJson,
@@ -325,7 +326,8 @@ private[timeseries] object JobState {
   * The scheduler also allow to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
   * or not and an audit log of backfills is kept.
   */
-case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDuration] = None) extends Scheduler[TimeSeries] {
+case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDuration] = None)
+    extends Scheduler[TimeSeries] {
   import JobState.{Done, Running, Todo}
   import TimeSeriesUtils._
 
@@ -1016,11 +1018,13 @@ object TimeSeriesUtils {
     * related to the addition of the project version in the serialized execution state.
     */
   private[timeseries] def cleanTimeseriesState(state: State): State = {
-    val cleanedState = state.map { case (job, intervalMap) =>
-      job -> intervalMap.toList
-        .foldLeft(IntervalMap.empty[Instant, JobState]) { case (aggregatedIntervals, (interval, jobState)) =>
-          aggregatedIntervals.update(interval, jobState)
-        }
+    val cleanedState = state.map {
+      case (job, intervalMap) =>
+        job -> intervalMap.toList
+          .foldLeft(IntervalMap.empty[Instant, JobState]) {
+            case (aggregatedIntervals, (interval, jobState)) =>
+              aggregatedIntervals.update(interval, jobState)
+          }
     }
     cleanedState
   }

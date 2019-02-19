@@ -43,7 +43,6 @@ package object cuttle {
   type XA = Transactor[IO]
   private[cuttle] val NoUpdate: ConnectionIO[Int] = Free.pure(0)
 
-
   /** The side effect function represents the real job execution. It returns a `Future[Completed]` to
     * indicate the execution result (we use [[Completed]] here instead of `Unit` to avoid automatic value
     * discarding, but [[Completed]] do not maintain additional state).

@@ -45,7 +45,8 @@ class CronProject private[cuttle] (val name: String,
     implicit val transactor = com.criteo.cuttle.Database.connect(databaseConfig)(logger)
 
     logger.info("Creating Executor")
-    val executor = new Executor[CronScheduling](platforms, transactor, logger, name, version, logsRetention)(retryStrategy)
+    val executor =
+      new Executor[CronScheduling](platforms, transactor, logger, name, version, logsRetention)(retryStrategy)
 
     logger.info("Scheduler starting workflow")
     scheduler.start(workload, executor, transactor, logger)

@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.stm._
 import scala.concurrent.{Future, Promise}
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{classTag, ClassTag}
 import scala.util._
 import cats.Eq
 import cats.effect.IO
@@ -408,12 +408,13 @@ private[cuttle] object Executor {
 
 /** An [[Executor]] is responsible to actually execute the [[SideEffect]] functions for the
   * given [[Execution Executions]]. */
-class Executor[S <: Scheduling] private[cuttle] (val platforms: Seq[ExecutionPlatform],
-                                                 xa: XA,
-                                                 logger: Logger,
-                                                 val projectName: String,
-                                                 val projectVersion: String,
-                                                 logsRetention: Option[ScalaDuration] = None)(implicit retryStrategy: RetryStrategy)
+class Executor[S <: Scheduling] private[cuttle] (
+  val platforms: Seq[ExecutionPlatform],
+  xa: XA,
+  logger: Logger,
+  val projectName: String,
+  val projectVersion: String,
+  logsRetention: Option[ScalaDuration] = None)(implicit retryStrategy: RetryStrategy)
     extends MetricProvider[S] {
 
   import ExecutionStatus._

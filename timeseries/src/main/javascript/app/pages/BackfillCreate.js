@@ -243,12 +243,12 @@ class BackfillCreate extends React.Component<Props> {
                 validate={[required, validInteger]}
                 props={{ alwaysDisplayError: true }}
               />
-              <InfoIcon style={styles.icon}
-                        data-for="backfill-priority-tooltip"
-                        data-tip="The lower the number, the higher the priority of the backfilled execution(s)."/>
-              <ReactTooltip
-                  id="backfill-priority-tooltip"
-                  effect="float"/>
+              <InfoIcon
+                style={styles.icon}
+                data-for="backfill-priority-tooltip"
+                data-tip="The lower the number, the higher the priority of the backfilled execution(s)."
+              />
+              <ReactTooltip id="backfill-priority-tooltip" effect="float" />
             </dd>
             <dt key={"description_"} className="double-height">
               {"Description"}
