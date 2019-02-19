@@ -7,12 +7,12 @@ import classNames from "classnames";
 import { navigate } from "redux-url";
 import injectSheet from "react-jss";
 import moment from "moment";
-import _ from "lodash";
+import isEqual from "lodash/isEqual";
 
 import { Calendar as MiniCalendar } from "react-calendar";
 import Spinner from "../components/Spinner";
 
-import { listenEvents } from "../../Utils";
+import { PostEventSource } from "../../Utils";
 
 type Props = {
   classes: any,
@@ -30,7 +30,7 @@ type Day = {
 
 type State = {
   data: ?Array<Day>,
-  query: ?string,
+  query: ?any,
   eventSource: ?any
 };
 
@@ -45,16 +45,21 @@ class Calendar extends React.Component<Props, State> {
   }
 
   listenForUpdates(props: Props) {
-    let jobsFilter = props.selectedJobs.length
-      ? `&jobs=${props.selectedJobs.join(",")}`
-      : "";
-    let query = `/api/timeseries/calendar?events=true${jobsFilter}`;
-    if (this.state.query != query) {
-      this.state.eventSource && this.state.eventSource.close();
-      let eventSource = listenEvents(query, this.updateData.bind(this));
+    const { selectedJobs } = props;
+    const { query } = this.state;
+    const newQuery = { jobs: selectedJobs };
+    let { eventSource } = this.state;
+    if (!isEqual(newQuery, query)) {
+      eventSource && eventSource.stopPolling();
+      eventSource = new PostEventSource("/api/timeseries/calendar", newQuery);
+      eventSource.onmessage(json => {
+        this.updateData(json.data);
+      });
+      eventSource.startPolling();
       this.setState({
         ...this.state,
         data: null,
+        query: newQuery,
         eventSource
       });
     }
@@ -72,7 +77,7 @@ class Calendar extends React.Component<Props, State> {
 
   componentWillUnmount() {
     let { eventSource } = this.state;
-    eventSource && eventSource.close();
+    eventSource && eventSource.stopPolling();
   }
 
   updateData(json: Array<Day>) {
