@@ -27,7 +27,8 @@ class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueu
   private val _tokens = Ref(tokens)
   private val _lastRefill = Ref(Instant.now)
 
-  fs2.Stream.awakeEvery[IO](refillRateInMs.milliseconds)
+  fs2.Stream
+    .awakeEvery[IO](refillRateInMs.milliseconds)
     .flatMap(_ => {
       atomic { implicit txn =>
         if (_tokens() < tokens) {

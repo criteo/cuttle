@@ -137,7 +137,7 @@ private[timeseries] object Database {
 
     val now = Instant.now()
     val cleanStateBefore = retention.map { duration =>
-      if(duration.toSeconds <= 0 )
+      if (duration.toSeconds <= 0)
         sys.error(s"State retention is badly configured: ${duration}")
       else
         now.minusSeconds(duration.toSeconds)
@@ -156,10 +156,11 @@ private[timeseries] object Database {
 
     for {
       // Apply state retention if needed
-      _ <-
-        cleanStateBefore.map { t =>
+      _ <- cleanStateBefore
+        .map { t =>
           sql"DELETE FROM timeseries_state where date < ${t}".update.run
-        }.getOrElse(NoUpdate)
+        }
+        .getOrElse(NoUpdate)
       // Insert the latest state
       x <- sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
     } yield x

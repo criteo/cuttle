@@ -40,7 +40,8 @@ class CuttleProject private[cuttle] (val name: String,
     stateRetention: Option[Duration] = None,
     logsRetention: Option[Duration] = None
   ): Unit = {
-    val (routes, startScheduler) = build(platforms, databaseConfig, retryStrategy, paused, stateRetention, logsRetention)
+    val (routes, startScheduler) =
+      build(platforms, databaseConfig, retryStrategy, paused, stateRetention, logsRetention)
 
     startScheduler()
 
@@ -106,11 +107,12 @@ object CuttleProject {
     * @param jobs The workflow to run in this project.
     * @param logger The logger to use to log internal debug informations.
     */
-  def apply(name: String,
-            version: String = "",
-            description: String = "",
-            env: (String, Boolean) = ("", false),
-            authenticator: Auth.Authenticator = Auth.GuestAuth)(jobs: Workflow)(implicit logger: Logger): CuttleProject =
+  def apply(
+    name: String,
+    version: String = "",
+    description: String = "",
+    env: (String, Boolean) = ("", false),
+    authenticator: Auth.Authenticator = Auth.GuestAuth)(jobs: Workflow)(implicit logger: Logger): CuttleProject =
     new CuttleProject(name, version, description, env, jobs, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
