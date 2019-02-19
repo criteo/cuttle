@@ -72,10 +72,10 @@ To run the example application, checkout the repository, launch the [sbt](http:/
 
 The library is cross-built for __Scala 2.11__ and __Scala 2.12__.
 
-The core module to use is `"com.criteo.cuttle" %% "cuttle" % "0.5.0"`.
+The core module to use is `"com.criteo.cuttle" %% "cuttle" % "0.7.0"`.
 
 You also need to fetch one __Scheduler__ implementation:
-- __TimeSeries__: `"com.criteo.cuttle" %% "timeseries" % "0.5.0"`.
+- __TimeSeries__: `"com.criteo.cuttle" %% "timeseries" % "0.7.0"`.
 
 # License
 
