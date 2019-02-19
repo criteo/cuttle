@@ -9,6 +9,7 @@ import { createRouter } from "redux-url";
 import { render } from "react-dom";
 import ReduxThunk from "redux-thunk";
 import { reducer as formReducer } from "redux-form";
+import isEqual from "lodash/isEqual";
 
 import "../style/index.less";
 
@@ -16,7 +17,7 @@ import App from "./App";
 import { appReducer } from "./ApplicationState";
 import * as Actions from "./actions";
 import type { State } from "./ApplicationState";
-import { listenEvents } from "./Utils";
+import { PostEventSource } from "./Utils";
 
 import { openPage } from "./actions";
 
@@ -99,49 +100,26 @@ router.sync();
 store.dispatch(Actions.loadAppData());
 
 // Global stats listener
-let statisticsQuery = null,
-  statisticsListener = null,
-  statisticsError = null;
-let listenForStatistics = (query: string) => {
-  if (query != statisticsQuery) {
-    statisticsListener && statisticsListener.close();
-    statisticsListener = listenEvents(
-      query,
-      stats => {
-        if (statisticsError) {
-          clearTimeout(statisticsError);
-          statisticsError = undefined;
-        }
-        store.dispatch(Actions.updateStatistics(stats));
-      },
-      error => {
-        if (!statisticsError) {
-          statisticsError = setTimeout(
-            () =>
-              store.dispatch(
-                Actions.updateStatistics({
-                  running: 0,
-                  paused: 0,
-                  failing: 0,
-                  waiting: 0,
-                  scheduler: null,
-                  error: true
-                })
-              ),
-            15000
-          );
-        }
-      }
-    );
-    statisticsQuery = query;
+let selectedJobs = null,
+  eventSource = null;
+
+let listenForStatistics = (state: State) => {
+  const jobs = state.selectedJobs;
+  if (!isEqual(jobs, selectedJobs)) {
+    const query = `/api/statistics`;
+    eventSource && eventSource.stopPolling();
+    eventSource = new PostEventSource(query, { jobs: jobs });
+    eventSource.onmessage(stats => {
+      store.dispatch(Actions.updateStatistics(stats.data));
+    });
+    eventSource.startPolling();
+    selectedJobs = jobs;
   }
 };
+
 store.subscribe(() => {
   let state: State = store.getState().app;
-  let jobsFilter = state.selectedJobs.length
-    ? `&jobs=${state.selectedJobs.join(",")}`
-    : "";
-  listenForStatistics(`/api/statistics?events=true${jobsFilter}`);
+  listenForStatistics(state);
   if (state.project && state.project.name) {
     if (state.project.env.name) {
       document.title = `${state.project.name} – ${state.project.env.name}`;

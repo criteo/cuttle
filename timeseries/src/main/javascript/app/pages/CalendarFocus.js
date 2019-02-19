@@ -23,7 +23,7 @@ import Spinner from "../components/Spinner";
 
 import type { Workflow } from "../../datamodel";
 
-import { listenEvents } from "../../Utils";
+import { PostEventSource } from "../../Utils";
 
 type Props = {
   classes: any,
@@ -71,7 +71,7 @@ type Stats = {
 
 type State = {
   data: ?Stats,
-  query: ?string,
+  query: ?any,
   eventSource: ?any,
   showVersion: boolean
 };
@@ -127,12 +127,17 @@ let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
 };
 
 let getLabelForStatus = status => {
-  switch(status) {
-    case "failed": return "stuck"
-    case "successful": return "done"
-    case "running": return "started"
-    case "paused": return "paused"
-    default: return "todo"
+  switch (status) {
+    case "failed":
+      return "stuck";
+    case "successful":
+      return "done";
+    case "running":
+      return "started";
+    case "paused":
+      return "paused";
+    default:
+      return "todo";
   }
 };
 
@@ -149,7 +154,9 @@ const summaryPeriodHelper = (x1, x2) => ({
 // drawing methods // job details
 const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
   tip: ({ period, status, jobName }) =>
-    `<div>${jobName} is ${getLabelForStatus(status)} – ${formatDate(period.start)} to ${formatDate(period.end)} UTC</div>`,
+    `<div>${jobName} is ${getLabelForStatus(status)} – ${formatDate(
+      period.start
+    )} to ${formatDate(period.end)} UTC</div>`,
   translate: ({ period }) => `translate(${x1(period) + MARGIN}, 0)`,
   width: ({ period }) => x2(period) - x1(period),
   fill: ({ status }) =>
@@ -161,9 +168,9 @@ const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
           ? "#ffbc5a"
           : status == "running"
             ? "#49d3e4"
-              : status == "paused"
-                ? "#ffaaff"
-                : "#ecf1f5",
+            : status == "paused"
+              ? "#ffaaff"
+              : "#ecf1f5",
   // For aggregated periods, we want to zoom on click
   click: ({ period, jobId, aggregated }) =>
     aggregated
@@ -310,20 +317,27 @@ class CalendarFocus extends React.Component<Props, State> {
   }
 
   listenForUpdates(props: Props) {
-    let { start, end } = props;
-    let jobsFilter =
-      props.selectedJobs.length > 0
-        ? `&jobs=${props.selectedJobs.join(",")}`
-        : "";
-    let query = `/api/timeseries/calendar/focus?start=${moment(
-      start
-    ).toISOString()}&end=${moment(end).toISOString()}${jobsFilter}`;
-    let { query: currentQuery, eventSource: currentEventSource } = this.state;
-    if (currentQuery != query) {
-      currentEventSource && currentEventSource.close();
-      let eventSource = listenEvents(query, this.updateData.bind(this));
+    const { selectedJobs, start, end } = props;
+    const { query } = this.state;
+    const newQuery = {
+      jobs: selectedJobs,
+      start: moment(start).toISOString(),
+      end: moment(end).toISOString()
+    };
+    let { eventSource } = this.state;
+    if (!_.isEqual(newQuery, query)) {
+      eventSource && eventSource.stopPolling();
+      eventSource = new PostEventSource(
+        "/api/timeseries/calendar/focus",
+        newQuery
+      );
+      eventSource.onmessage(json => {
+        this.updateData(json.data);
+      });
+      eventSource.startPolling();
       this.setState({
         data: null,
+        query: newQuery,
         eventSource
       });
     }
@@ -601,7 +615,9 @@ class CalendarFocus extends React.Component<Props, State> {
         </h1>
         <div>
           <div className={classes.showVersion}>
-            <label className={classes.showVersionLabel}>Show versions for each execution</label>
+            <label className={classes.showVersionLabel}>
+              Show versions for each execution
+            </label>
             <input
               name="versionCheckBox"
               type="checkbox"
