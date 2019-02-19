@@ -7,6 +7,8 @@ import { compose } from "redux";
 import { navigate } from "redux-url";
 import { displayFormat } from "../utils/Date";
 import OpenIcon from "react-icons/lib/md/zoom-in";
+import ResumeIcon from "react-icons/lib/md/play-arrow";
+import PauseIcon from "react-icons/lib/md/pause";
 import Spinner from "../components/Spinner";
 import Table from "../components/Table";
 import Link from "../components/Link";
@@ -14,6 +16,7 @@ import { Badge } from "../components/Badge";
 import type { JobStatus } from "../../ApplicationState";
 import PopoverMenu from "../components/PopoverMenu";
 import isEqual from "lodash/isEqual";
+import classNames from "classnames";
 
 type Props = {
   classes: any,
@@ -189,25 +192,6 @@ const activeJobsProps = {
   status: "active"
 };
 
-const jobMenu = ({
-  persist,
-  job,
-  status,
-  classes
-}: {
-  persist: any,
-  job: string,
-  status: string,
-  classes: any
-}) => {
-  const menuItems =
-    status === "paused"
-      ? [<span onClick={jobAction("resume", job, persist)}>Resume</span>]
-      : [<span onClick={jobAction("pause", job, persist)}>Pause</span>];
-
-  return <PopoverMenu className={classes.menu} items={menuItems} />;
-};
-
 class JobsComp extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -281,12 +265,23 @@ class JobsComp extends React.Component<Props, State> {
                     </Link>
                   );
                 case "actions":
-                  return jobMenu({
-                    persist: persist,
-                    job: row.id,
-                    status: row.status,
-                    classes
-                  });
+                  return row.status === "paused" ? (
+                    <a
+                      onClick={jobAction("resume", row.id, persist)}
+                      className={classNames(classes.link, classes.actionIcon)}
+                      title="Resume"
+                    >
+                      <ResumeIcon />
+                    </a>
+                  ) : (
+                    <a
+                      onClick={jobAction("pause", row.id, persist)}
+                      className={classNames(classes.link, classes.actionIcon)}
+                      title="Pause"
+                    >
+                      <PauseIcon />
+                    </a>
+                  );
                 default:
                   return column2Comp[column](row);
               }
@@ -392,6 +387,13 @@ const styles = {
     paddingBottom: "15%"
   },
   openIcon: {
+    fontSize: "22px",
+    color: "#607e96",
+    padding: "15px",
+    margin: "-15px"
+  },
+  actionIcon: {
+    cursor: "pointer",
     fontSize: "22px",
     color: "#607e96",
     padding: "15px",
