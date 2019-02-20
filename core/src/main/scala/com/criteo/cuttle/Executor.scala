@@ -806,8 +806,10 @@ class Executor[S <: Scheduling] private[cuttle] (
                       }
                   })(Implicits.sideEffectThreadPool)
 
-                  val previousFailures: List[String] = recentFailures(job -> context)._2.failedExecutions.map(_.id)
-                  val retryInterval = retryStrategy(job, context, previousFailures)
+                  val previousFailures: List[String] = recentFailures
+                    .get(job -> context).map(rf => 
+                      rf._2.failedExecutions.map(_.id)
+                    ).getOrElse(List.empty)
 
                   val execution = Execution(
                     id = nextExecutionId,
@@ -824,6 +826,7 @@ class Executor[S <: Scheduling] private[cuttle] (
                   if (recentFailures.contains(job -> context)) {
                     val (_, failingJob) = recentFailures(job -> context)
                     recentFailures += ((job -> context) -> (Some(execution) -> failingJob))
+                    val retryInterval = retryStrategy(job, context, previousFailures)
                     val launchDate = failingJob.failedExecutions.head.endTime.get.plus(retryInterval)
                     throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
                     (job, execution, promise, Throttled(launchDate))
