@@ -206,7 +206,8 @@ case class Execution[S <: Scheduling](
   streams: ExecutionStreams,
   platforms: Seq[ExecutionPlatform],
   projectName: String,
-  projectVersion: String
+  projectVersion: String,
+  previousFailures: List[String]
 )(implicit val executionContext: SideEffectThreadPool) {
 
   private var waitingSeconds = 0
@@ -805,6 +806,9 @@ class Executor[S <: Scheduling] private[cuttle] (
                       }
                   })(Implicits.sideEffectThreadPool)
 
+                  val previousFailures: List[String] = recentFailures(job -> context)._2.failedExecutions.map(_.id)
+                  val retryInterval = retryStrategy(job, context, previousFailures)
+
                   val execution = Execution(
                     id = nextExecutionId,
                     job,
@@ -812,16 +816,15 @@ class Executor[S <: Scheduling] private[cuttle] (
                     streams = streams,
                     platforms,
                     projectName,
-                    projectVersion
+                    projectVersion,
+                    previousFailures
                   )(sideEffectExecutionContext)
                   val promise = Promise[Completed]
 
                   if (recentFailures.contains(job -> context)) {
                     val (_, failingJob) = recentFailures(job -> context)
                     recentFailures += ((job -> context) -> (Some(execution) -> failingJob))
-                    val throttleFor =
-                      retryStrategy(job, context, recentFailures(job -> context)._2.failedExecutions.map(_.id))
-                    val launchDate = failingJob.failedExecutions.head.endTime.get.plus(throttleFor)
+                    val launchDate = failingJob.failedExecutions.head.endTime.get.plus(retryInterval)
                     throttledState += (execution -> ((promise, failingJob.copy(nextRetry = Some(launchDate)))))
                     (job, execution, promise, Throttled(launchDate))
                   } else {
