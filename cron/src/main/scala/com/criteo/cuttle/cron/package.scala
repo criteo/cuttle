@@ -37,7 +37,7 @@ package object cron {
   private[cron] val minStartDateForExecutions = Instant.parse("1000-01-01T00:00:00Z")
   private[cron] val maxStartDateForExecutions = Instant.parse("9999-12-31T23:59:59Z")
 
-  // This function was implmented because executor.archivedExecutions returns duplicates when passing the same table
+  // This function was implemented because executor.archivedExecutions returns duplicates when passing the same table
   // into the context query.
   private[cron] def buildExecutionsList(executor: Executor[CronScheduling],
                                         job: CronJob,
@@ -46,9 +46,9 @@ package object cron {
                                         limit: Int)(implicit transactor: XA) =
     for {
       archived <- executor.rawArchivedExecutions(Set(job.id), "", asc = false, 0, limit, transactor)
-      running <- IO.delay(executor.runningExecutions.collect {
+      running <- IO(executor.runningExecutions.collect {
         case (e, status)
-            if e.job.id == job && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(endDate) =>
+            if e.job.id == job.id && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(endDate) =>
           e.toExecutionLog(status)
       })
     } yield (running ++ archived)
