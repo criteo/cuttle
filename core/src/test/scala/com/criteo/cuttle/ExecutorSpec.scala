@@ -118,7 +118,8 @@ class ExecutorSpec extends FunSuite with TestScheduling {
       },
       platforms = Seq.empty,
       "project_name",
-      "test_version"
+      "test_version",
+      List.empty
     )
 
   private val fooTag = Tag("foo")

@@ -77,6 +77,7 @@ object HelloTimeSeries {
           tags = Set(Tag("hello"), Tag("unsafe"))) { implicit e =>
         // Here we mix a Scala code execution and a sh script execution.
         e.streams.info("Hello 3 from an unsafe job")
+        e.streams.info(s"My previous failures are ${e.previousFailures}")
         val completed = exec"sleep 3" ()
 
         completed.map { _ =>
