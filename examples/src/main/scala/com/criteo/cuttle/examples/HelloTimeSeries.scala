@@ -120,6 +120,6 @@ object HelloTimeSeries {
       world dependsOn (hello1 and hello2 and hello3)
     }.
     // Starts the scheduler and an HTTP server.
-    start(logsRetention = Some(1.minute))
+    start(logsRetention = Some(1.hour))
   }
 }
