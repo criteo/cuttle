@@ -548,7 +548,7 @@ class CalendarFocus extends React.Component<Props, State> {
 
   componentWillUnmount() {
     const { eventSource } = this.state;
-    eventSource && eventSource.close();
+    eventSource && eventSource.stopPolling();
   }
 
   updateData(json) {
