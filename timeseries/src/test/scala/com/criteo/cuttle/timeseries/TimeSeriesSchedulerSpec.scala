@@ -6,6 +6,7 @@ import scala.concurrent.Future
 
 import org.scalatest.FunSuite
 
+import com.criteo.cuttle.Auth
 import com.criteo.cuttle.{Completed, Job, TestScheduling}
 import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
@@ -19,6 +20,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
   private val parentScheduling: TimeSeries = hourly(date"2017-03-25T01:00:00Z")
   private val parentTestJob = Job("parent_test_job", parentScheduling)(completed)
   private val scheduler = TimeSeriesScheduler(logger)
+  implicit val toto = Auth.User("toto")
 
   private val backfill = Backfill("some-id",
                                   date"2017-03-25T01:00:00Z",
@@ -91,10 +93,14 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
       "last_version"
     )
     assert(
-      jobsToRun.toSet.equals(Set(
-        (testJob, TimeSeriesContext(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z", None, "last_version")),
-        (parentTestJob, TimeSeriesContext(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z", None, "last_version"))
-      )))
+      jobsToRun.toSet.equals(
+        Set(
+          (testJob, TimeSeriesContext(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z", None, "last_version")),
+          (parentTestJob,
+           TimeSeriesContext(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z", None, "last_version"))
+        )
+      )
+    )
   }
 
   val oneDayInterval = Interval(Instant.parse("2019-01-01T00:00:00Z"), Instant.parse("2019-01-02T00:00:00Z"))
@@ -118,7 +124,8 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
           .forall({
             case (lo, hi) =>
               Duration.between(lo._2, hi._1) == Duration.ofHours(0)
-          }))
+          })
+      )
     }
 
     List(1, 2, 3, 4, 6, 8, 12).map(i => checkPeriod(i))
@@ -137,5 +144,30 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
 
     assertThrows[IllegalArgumentException](nhourly(24, start))
     assertThrows[IllegalArgumentException](nhourly(25, start))
+  }
+
+  test("create backfills with fragmented versions") {
+    val state: State = Map(
+      testJob -> IntervalMap(
+        Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
+        Interval(date"2017-03-25T12:00:00Z", date"2017-03-27T00:00:00Z") -> Done("456"),
+        Interval(date"2017-03-27T00:00:00Z", date"2017-03-28T00:00:00Z") -> Done("789")
+      )
+    )
+    val backfills =
+      scheduler.createBackfills(
+        "lol",
+        "",
+        Set(testJob),
+        state,
+        date"2017-03-25T00:00:00Z",
+        date"2017-03-26T00:00:00Z",
+        0
+      )
+    assert(backfills.size == 1)
+    assert(backfills(0).start == date"2017-03-25T00:00:00Z")
+    assert(backfills(0).end == date"2017-03-26T00:00:00Z")
+    assert(backfills(0).jobs.head == testJob)
+    assert(backfills(0).jobs.last == testJob)
   }
 }

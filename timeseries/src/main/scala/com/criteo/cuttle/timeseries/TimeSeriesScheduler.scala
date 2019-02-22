@@ -393,11 +393,13 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
         _ <- assert(
           validIn.head._1 == start,
           s"The start date[${validIn.head._1}] of first successful execution doesn't equal to backfill start date" +
-            s"[$start].")
+            s"[$start]."
+        )
         _ <- assert(
           validIn.last._2 == end,
           s"The end date[${validIn.last._2}] of last successful execution doesn't equal to backfill end date" +
-            s"[$end].")
+            s"[$end]."
+        )
         valid <- assert(validIn.zip(validIn.tail).forall { case (prev, next) => prev._2 == next._1 },
                         "There are some unsuccessful intervals.")
       } yield valid
@@ -500,12 +502,20 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
     // Find jobs which can be backfilled on the requested period. Those are the jobs whose state is 'Done'.
     val candidateBackfillsByPeriod: List[(TimeInterval, TimeSeriesJob)] = jobs.flatMap { job =>
       // collect all periods that are intersecting with [start, end]
-      val interval2State: List[(Interval[Instant], JobState)] = states(job).intersect(queryInterval).toList
       // in a Done state, and correct periodicity
-      interval2State.collect {
-        case (Interval(Finite(lo), Finite(hi)), Done(_)) =>
-          (lo, hi) -> job
-      }
+      states(job)
+        .intersect(queryInterval)
+        .mapFilter {
+          case Done(_) =>
+            Some(job)
+          case _ =>
+            None
+        }
+        .toList
+        .map {
+          case (Interval(Finite(lo), Finite(hi)), job) =>
+            ((lo, hi), job)
+        }
     }.toList
 
     val candidateBackfillsGroupedByPeriod: Map[TimeInterval, Set[TimeSeriesJob]] = candidateBackfillsByPeriod
@@ -564,7 +574,8 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
   }
 
   private[timeseries] def pauseJobs(jobs: Set[Job[TimeSeries]], executor: Executor[TimeSeries], xa: XA)(
-    implicit user: Auth.User): Unit = {
+    implicit user: Auth.User
+  ): Unit = {
     val executionsToCancel = atomic { implicit tx =>
       val pauseDate = Instant.now()
       val pausedJobIds = _pausedJobs().map(_.id)
@@ -880,7 +891,8 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
         backfills.filter(
           bf =>
             bf.status == "RUNNING" &&
-              bf.jobs.map(_.id).intersect(jobs).nonEmpty)
+              bf.jobs.map(_.id).intersect(jobs).nonEmpty
+        )
     }
 
     runningBackfills.size
