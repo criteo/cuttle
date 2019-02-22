@@ -532,55 +532,61 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         JobTimeline(job.id, calendarView, jobExecutions.flatten)
       }).toList
 
-    Json.obj(
-      "summary" -> jobTimelines
-        .maxBy(_.executions.size)
-        .calendarView
-        .calendar
-        .split(period)
-        .flatMap {
-          case (lo, hi) =>
-            val isInbackfill = backfillDomain.intersect(Interval(lo, hi)).toList.nonEmpty
+    val summary =
+      if (jobTimelines.isEmpty) List.empty
+      else {
+        jobTimelines
+          .maxBy(_.executions.size)
+          .calendarView
+          .calendar
+          .split(period)
+          .flatMap {
+            case (lo, hi) =>
+              val isInbackfill = backfillDomain.intersect(Interval(lo, hi)).toList.nonEmpty
 
-            case class JobSummary(periodLengthInSeconds: Long, periodDoneInSeconds: Long, hasErrors: Boolean)
+              case class JobSummary(periodLengthInSeconds: Long, periodDoneInSeconds: Long, hasErrors: Boolean)
 
-            val jobSummaries: Set[JobSummary] = for {
-              job <- project.jobs.all
-              if filteredJobs.contains(job.id)
-              (interval, jobState) <- jobStates(job).intersect(Interval(lo, hi)).toList
-            } yield {
-              val (lo, hi) = interval.toPair
-              JobSummary(
-                periodLengthInSeconds = lo.until(hi, ChronoUnit.SECONDS),
-                periodDoneInSeconds = jobState match {
-                  case Done(_) => lo.until(hi, ChronoUnit.SECONDS)
-                  case _       => 0
-                },
-                hasErrors = jobState match {
-                  case Running(executionId) => allFailingExecutionIds.contains(executionId)
-                  case _                    => false
-                }
-              )
-            }
-            if (jobSummaries.nonEmpty) {
-              val aggregatedJobSummary = jobSummaries.reduce { (a: JobSummary, b: JobSummary) =>
-                JobSummary(a.periodLengthInSeconds + b.periodLengthInSeconds,
-                           a.periodDoneInSeconds + b.periodDoneInSeconds,
-                           a.hasErrors || b.hasErrors)
-              }
-              Some(
-                AggregatedJobExecution(
-                  Interval(lo, hi),
-                  aggregatedJobSummary.periodDoneInSeconds.toDouble / aggregatedJobSummary.periodLengthInSeconds.toDouble,
-                  aggregatedJobSummary.hasErrors,
-                  isInbackfill
+              val jobSummaries: Set[JobSummary] = for {
+                job <- project.jobs.all
+                if filteredJobs.contains(job.id)
+                (interval, jobState) <- jobStates(job).intersect(Interval(lo, hi)).toList
+              } yield {
+                val (lo, hi) = interval.toPair
+                JobSummary(
+                  periodLengthInSeconds = lo.until(hi, ChronoUnit.SECONDS),
+                  periodDoneInSeconds = jobState match {
+                    case Done(_) => lo.until(hi, ChronoUnit.SECONDS)
+                    case _       => 0
+                  },
+                  hasErrors = jobState match {
+                    case Running(executionId) => allFailingExecutionIds.contains(executionId)
+                    case _                    => false
+                  }
                 )
-              )
-            } else {
-              None
-            }
+              }
+              if (jobSummaries.nonEmpty) {
+                val aggregatedJobSummary = jobSummaries.reduce { (a: JobSummary, b: JobSummary) =>
+                  JobSummary(a.periodLengthInSeconds + b.periodLengthInSeconds,
+                            a.periodDoneInSeconds + b.periodDoneInSeconds,
+                            a.hasErrors || b.hasErrors)
+                }
+                Some(
+                  AggregatedJobExecution(
+                    Interval(lo, hi),
+                    aggregatedJobSummary.periodDoneInSeconds.toDouble / aggregatedJobSummary.periodLengthInSeconds.toDouble,
+                    aggregatedJobSummary.hasErrors,
+                    isInbackfill
+                  )
+                )
+              } else {
+                None
+              }
+          }
+
         }
-        .asJson,
+
+    Json.obj(
+      "summary" -> summary.asJson,
       "jobs" -> jobTimelines.map(jt => jt.jobId -> jt).toMap.asJson
     )
   }
