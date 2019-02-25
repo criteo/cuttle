@@ -5,9 +5,12 @@ import scala.math.Ordering.Implicits._
 import cats.implicits._
 
 import io.circe._
+import io.circe.syntax._
 import io.circe.generic.semiauto._
 
 import Bound.{Bottom, Finite, Top}
+
+import scala.util._
 
 private[timeseries] case class Interval[V: Ordering](lo: Bound[V], hi: Bound[V]) {
   if (lo >= hi)
@@ -28,7 +31,20 @@ private[timeseries] object Interval {
   def full[V: Ordering] = Interval[V](Bottom, Top)
 
   implicit def encoder[V: Ordering: Encoder]: Encoder[Interval[V]] =
-    deriveEncoder
+    new Encoder[Interval[V]] {
+      def apply(interval: Interval[V]) = Json.arr(
+        interval.lo.asJson,
+        interval.hi.asJson
+      )
+    }
+
   implicit def decoder[V: Ordering: Decoder]: Decoder[Interval[V]] =
-    deriveDecoder
+    Decoder.decodeArray[Bound[V]].emapTry { array =>
+      Try {
+        val Array(lo, hi) = array
+        Interval(lo, hi)
+      }
+    }
+    // For backward compatibility we fallback to the generated decoder
+    .or(deriveDecoder[Interval[V]])
 }

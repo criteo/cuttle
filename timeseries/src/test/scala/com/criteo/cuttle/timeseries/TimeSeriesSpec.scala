@@ -191,6 +191,7 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     import io.circe.parser._
 
     implicit val jobs: Set[Job[TimeSeries]] = Set.empty
+    implicit val backfills: List[Backfill] = List.empty
 
     val state = """{
       "Done": {}
@@ -205,6 +206,7 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     import io.circe.parser._
 
     implicit val jobs: Set[Job[TimeSeries]] = Set.empty
+    implicit val backfills: List[Backfill] = List.empty
 
     val state = """{
       "Done": { "projectVersion" : "version" }

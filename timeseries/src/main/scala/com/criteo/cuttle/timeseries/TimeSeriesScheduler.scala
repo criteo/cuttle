@@ -208,7 +208,25 @@ private[timeseries] object Backfill {
   implicit val eqInstance: Eq[Backfill] = Eq.fromUniversalEquals[Backfill]
   implicit val encoder: Encoder[Backfill] = deriveEncoder
   implicit def decoder(implicit jobs: Set[Job[TimeSeries]]) =
-    deriveDecoder[Backfill]
+    new Decoder[Backfill] {
+      def apply(c: HCursor): Decoder.Result[Backfill] =
+        for {
+          id <- c.downField("id").as[String]
+          start <- c.downField("start").as[Instant]
+          end <- c.downField("end").as[Instant]
+          jobs <-
+            c.downField("jobs").as[Seq[String]].right.map { jobIds =>
+              jobIds.flatMap { jobId =>
+                jobs.find(_.id == jobId).toSeq
+              }.toSet
+            }
+          priority <- c.downField("priority").as[Int]
+          name <- c.downField("name").as[String]
+          description <- c.downField("description").as[String]
+          status <- c.downField("status").as[String]
+          createdBy <- c.downField("createdBy").as[String]
+        } yield Backfill(id, start, end, jobs, priority, name, description, status, createdBy)
+    }
 }
 
 /** A [[TimeSeriesContext]] is passed to [[com.criteo.cuttle.Execution Executions]] initiated by
@@ -304,16 +322,49 @@ private[timeseries] object JobState {
   case class Todo(maybeBackfill: Option[Backfill]) extends JobState
   case class Running(executionId: String) extends JobState
 
+  import TimeSeriesUtils._
+
+  implicit val doneEncoder: Encoder[Done] = new Encoder[Done] {
+    def apply(done: Done) =
+      Json.obj(
+        "v" -> done.projectVersion.asJson
+      )
+  }
+
   implicit val doneDecoder: Decoder[Done] = new Decoder[Done] {
-    final def apply(c: HCursor): Decoder.Result[Done] =
+    def apply(c: HCursor): Decoder.Result[Done] =
       for {
-        version <- c.downField("projectVersion").as[String].orElse(Right("no-version"))
+        version <-
+          c.downField("v").as[String]
+            .orElse(c.downField("projectVersion").as[String])
+            .orElse(Right("no-version"))
       } yield Done(version)
   }
 
-  import TimeSeriesUtils._
+  implicit val todoEncoder: Encoder[Todo] = new Encoder[Todo] {
+    def apply(todo: Todo) =
+      todo.maybeBackfill.map { backfill =>
+        Json.obj("backfill" -> todo.maybeBackfill.map(_.id).asJson)
+      }.getOrElse(Json.obj())
+  }
+
+  implicit def todoDecoder(implicit jobs: Set[TimeSeriesJob], backfills: List[Backfill]): Decoder[Todo] =
+    new Decoder[Todo] {
+      def apply(c: HCursor): Decoder.Result[Todo] = {
+        for {
+          maybeBackfill <-
+            c.downField("backfill").as[String].right.map { id =>
+              backfills.find(_.id == id)
+            }
+            // Legacy format
+            .orElse(c.downField("maybeBackfill").as[Option[Backfill]])
+            .orElse(Right(None))
+        } yield Todo(maybeBackfill)
+      }
+    }
+
   implicit val encoder: Encoder[JobState] = deriveEncoder
-  implicit def decoder(implicit jobs: Set[TimeSeriesJob]): Decoder[JobState] = deriveDecoder
+  implicit def decoder(implicit jobs: Set[TimeSeriesJob], backfills: List[Backfill]): Decoder[JobState] = deriveDecoder
   implicit val eqInstance: Eq[JobState] = Eq.fromUniversalEquals[JobState]
 }
 
@@ -685,8 +736,22 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
     Database.doSchemaUpdates.transact(xa).unsafeRunSync
     logger.info("Database up-to-date")
 
+    val incompleteBackfills = Database
+      .queryBackfills(Some(sql"""status = 'RUNNING'"""))
+      .to[List]
+      .map(_.map {
+        case (id, name, description, jobsIdsString, priority, start, end, _, status, createdBy) =>
+          val jobsIds = jobsIdsString.split(",")
+          val jobs = workflow.vertices.filter { job =>
+            jobsIds.contains(job.id)
+          }
+          Backfill(id, start, end, jobs, priority, name, description, status, createdBy)
+      })
+      .transact(xa)
+      .unsafeRunSync
+
     Database
-      .deserializeState(workflow.vertices)
+      .deserializeState(workflow.vertices, incompleteBackfills)
       .transact(xa)
       .unsafeRunSync
       .foreach { state =>
@@ -696,19 +761,6 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
       }
 
     atomic { implicit txn =>
-      val incompleteBackfills = Database
-        .queryBackfills(Some(sql"""status = 'RUNNING'"""))
-        .to[List]
-        .map(_.map {
-          case (id, name, description, jobsIdsString, priority, start, end, _, status, createdBy) =>
-            val jobsIds = jobsIdsString.split(",")
-            val jobs = workflow.vertices.filter { job =>
-              jobsIds.contains(job.id)
-            }
-            Backfill(id, start, end, jobs, priority, name, description, status, createdBy)
-        })
-        .transact(xa)
-        .unsafeRunSync
 
       _backfills() = _backfills() ++ incompleteBackfills
       _pausedJobs() = _pausedJobs() ++ queries.getPausedJobs.transact(xa).unsafeRunSync()
