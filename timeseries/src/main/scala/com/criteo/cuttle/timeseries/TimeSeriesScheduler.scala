@@ -377,7 +377,9 @@ private[timeseries] object JobState {
   * The scheduler also allow to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
   * or not and an audit log of backfills is kept.
   */
-case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDuration] = None)
+case class TimeSeriesScheduler(logger: Logger,
+                               stateRetention: Option[ScalaDuration] = None,
+                               maxVersionsHistory: Option[Int] = None)
     extends Scheduler[TimeSeries] {
   import JobState.{Done, Running, Todo}
   import TimeSeriesUtils._
@@ -444,11 +446,13 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
         _ <- assert(
           validIn.head._1 == start,
           s"The start date[${validIn.head._1}] of first successful execution doesn't equal to backfill start date" +
-            s"[$start].")
+            s"[$start]."
+        )
         _ <- assert(
           validIn.last._2 == end,
           s"The end date[${validIn.last._2}] of last successful execution doesn't equal to backfill end date" +
-            s"[$end].")
+            s"[$end]."
+        )
         valid <- assert(validIn.zip(validIn.tail).forall { case (prev, next) => prev._2 == next._1 },
                         "There are some unsuccessful intervals.")
       } yield valid
@@ -615,7 +619,8 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
   }
 
   private[timeseries] def pauseJobs(jobs: Set[Job[TimeSeries]], executor: Executor[TimeSeries], xa: XA)(
-    implicit user: Auth.User): Unit = {
+    implicit user: Auth.User
+  ): Unit = {
     val executionsToCancel = atomic { implicit tx =>
       val pauseDate = Instant.now()
       val pausedJobIds = _pausedJobs().map(_.id)
@@ -664,6 +669,25 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
     }
   }
 
+  private[timeseries] def compressState(state: Map[TimeSeriesJob, IntervalMap[Instant, JobState]], maxVersions: Int) =
+    state.mapValues {
+      case imap =>
+        // Search for all known versions of this jobs
+        val allKnownVersions =
+          imap.toList.collect {
+            case (_, JobState.Done(version)) =>
+              version
+          }
+
+        val latestVersions = allKnownVersions.takeRight(maxVersions).toSet
+        imap.map {
+          case JobState.Done(version) if !latestVersions.contains(version) =>
+            JobState.Done("old")
+          case same =>
+            same
+        }
+    }
+
   /**
     * Given a list of current executions, update their state and submit new executions depending on the current time and
     * changes in execution states.
@@ -700,9 +724,15 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
       }
     }
 
-    if (completed.nonEmpty || toRun.nonEmpty)
+    if (completed.nonEmpty || toRun.nonEmpty) {
+      maxVersionsHistory.foreach { maxVersions =>
+        atomic { implicit txn =>
+          _state() = compressState(_state(), maxVersions)
+        }
+      }
       runOrLogAndDie(Database.serializeState(stateSnapshot, stateRetention).transact(xa).unsafeRunSync,
                      "TimeseriesScheduler, cannot serialize state, shutting down")
+    }
 
     if (completedBackfills.nonEmpty)
       runOrLogAndDie(
@@ -932,7 +962,8 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
         backfills.filter(
           bf =>
             bf.status == "RUNNING" &&
-              bf.jobs.map(_.id).intersect(jobs).nonEmpty)
+              bf.jobs.map(_.id).intersect(jobs).nonEmpty
+        )
     }
 
     runningBackfills.size
