@@ -1,11 +1,14 @@
-package com.criteo.cuttle.timeseries
+package com.criteo.cuttle.timeseries.intervals
 
 import org.scalatest.FunSuite
+import de.sciss.fingertree.FingerTree
 
+import com.criteo.cuttle.timeseries._
 import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
-import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 import com.criteo.cuttle.{Job, TestScheduling}
+
+import IntervalMap._
 
 class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
   private val scheduling: TimeSeries = hourly(date"2017-03-25T02:00:00Z")
@@ -14,20 +17,20 @@ class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
 
   test("clean overlapping state intervals") {
     val state: State = Map(
-      jobA -> IntervalMap(
+      jobA -> new IntervalMap.Impl(FingerTree(
         Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z") -> Done("v1"),
         Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
         Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T06:00:00Z") -> Todo(None),
         // Interval overlapping with previously defined interval
         Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z") -> Todo(None)
-      ),
-      jobB -> IntervalMap(
+      )),
+      jobB -> new IntervalMap.Impl(FingerTree(
         Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z") -> Todo(None),
         Interval(date"2017-03-25T03:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
         Interval(date"2017-03-25T04:30:00Z", date"2017-03-25T05:00:00Z") -> Todo(None),
         // Interval contiguous to the previous Done interval for jobB
         Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T04:30:00Z") -> Done("v2")
-      )
+      ))
     )
 
     TimeSeriesUtils.cleanTimeseriesState(state).foreach {
