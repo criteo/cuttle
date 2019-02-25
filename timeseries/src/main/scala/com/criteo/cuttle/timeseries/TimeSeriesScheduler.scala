@@ -555,12 +555,20 @@ case class TimeSeriesScheduler(logger: Logger,
     // Find jobs which can be backfilled on the requested period. Those are the jobs whose state is 'Done'.
     val candidateBackfillsByPeriod: List[(TimeInterval, TimeSeriesJob)] = jobs.flatMap { job =>
       // collect all periods that are intersecting with [start, end]
-      val interval2State: List[(Interval[Instant], JobState)] = states(job).intersect(queryInterval).toList
       // in a Done state, and correct periodicity
-      interval2State.collect {
-        case (Interval(Finite(lo), Finite(hi)), Done(_)) =>
-          (lo, hi) -> job
-      }
+      states(job)
+        .intersect(queryInterval)
+        .mapFilter {
+          case Done(_) =>
+            Some(job)
+          case _ =>
+            None
+        }
+        .toList
+        .map {
+          case (Interval(Finite(lo), Finite(hi)), job) =>
+            ((lo, hi), job)
+        }
     }.toList
 
     val candidateBackfillsGroupedByPeriod: Map[TimeInterval, Set[TimeSeriesJob]] = candidateBackfillsByPeriod

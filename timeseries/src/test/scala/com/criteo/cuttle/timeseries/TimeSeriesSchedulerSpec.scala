@@ -6,6 +6,7 @@ import scala.concurrent.Future
 
 import org.scalatest.FunSuite
 
+import com.criteo.cuttle.Auth
 import com.criteo.cuttle.{Completed, Job, TestScheduling}
 import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
@@ -19,6 +20,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
   private val parentScheduling: TimeSeries = hourly(date"2017-03-25T01:00:00Z")
   private val parentTestJob = Job("parent_test_job", parentScheduling)(completed)
   private val scheduler = TimeSeriesScheduler(logger)
+  implicit val toto = Auth.User("toto")
 
   private val backfill = Backfill("some-id",
                                   date"2017-03-25T01:00:00Z",
@@ -142,6 +144,31 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
 
     assertThrows[IllegalArgumentException](nhourly(24, start))
     assertThrows[IllegalArgumentException](nhourly(25, start))
+  }
+
+  test("create backfills with fragmented versions") {
+    val state: State = Map(
+      testJob -> IntervalMap(
+        Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
+        Interval(date"2017-03-25T12:00:00Z", date"2017-03-27T00:00:00Z") -> Done("456"),
+        Interval(date"2017-03-27T00:00:00Z", date"2017-03-28T00:00:00Z") -> Done("789")
+      )
+    )
+    val backfills =
+      scheduler.createBackfills(
+        "lol",
+        "",
+        Set(testJob),
+        state,
+        date"2017-03-25T00:00:00Z",
+        date"2017-03-26T00:00:00Z",
+        0
+      )
+    assert(backfills.size == 1)
+    assert(backfills(0).start == date"2017-03-25T00:00:00Z")
+    assert(backfills(0).end == date"2017-03-26T00:00:00Z")
+    assert(backfills(0).jobs.head == testJob)
+    assert(backfills(0).jobs.last == testJob)
   }
 
   test("discard old versions in state") {
