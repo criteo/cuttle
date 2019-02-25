@@ -119,21 +119,36 @@ private[timeseries] object Database {
     """.update.run *> Applicative[ConnectionIO].pure(id)
   }
 
-  def deserializeState(implicit jobs: Set[Job[TimeSeries]]): ConnectionIO[Option[State]] = {
+  def dbStateDecoder(json: Json)(implicit jobs: Set[Job[TimeSeries]], backfills: List[Backfill]): Option[State] = {
     type StoredState = List[(String, List[(Interval[Instant], JobState)])]
+    json.as[StoredState].right.toOption.map(_.flatMap {
+      case (jobId, st) =>
+        jobs.find(_.id == jobId).map(job => job -> IntervalMap(st: _*))
+    }.toMap)
+  }
+
+  def dbStateEncoder(state: State): Json =
+    state.toList.map {
+      case (job, im) =>
+        (job.id, im.toList.filter {
+          case (_, jobState) =>
+            jobState match {
+              case JobState.Done(_) => true
+              case JobState.Todo(_) => true
+              case _       => false
+            }
+        })
+    }.asJson
+
+  def deserializeState(implicit jobs: Set[Job[TimeSeries]], backfills: List[Backfill]): ConnectionIO[Option[State]] = {
     OptionT {
       sql"SELECT state FROM timeseries_state ORDER BY date DESC LIMIT 1"
         .query[Json]
         .option
-    }.map(_.as[StoredState].right.get.flatMap {
-        case (jobId, st) =>
-          jobs.find(_.id == jobId).map(job => job -> IntervalMap(st: _*))
-      }.toMap)
-      .value
+    }.map(json => dbStateDecoder(json).get).value
   }
 
   def serializeState(state: State, retention: Option[Duration]): ConnectionIO[Int] = {
-    import JobState.{Done, Todo}
 
     val now = Instant.now()
     val cleanStateBefore = retention.map { duration =>
@@ -142,17 +157,7 @@ private[timeseries] object Database {
       else
         now.minusSeconds(duration.toSeconds)
     }
-    val stateJson = state.toList.map {
-      case (job, im) =>
-        (job.id, im.toList.filter {
-          case (_, jobState) =>
-            jobState match {
-              case Done(_) => true
-              case Todo(_) => true
-              case _       => false
-            }
-        })
-    }.asJson
+    val stateJson = dbStateEncoder(state)
 
     for {
       // Apply state retention if needed
