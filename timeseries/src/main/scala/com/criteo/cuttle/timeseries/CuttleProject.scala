@@ -30,6 +30,7 @@ class CuttleProject private[cuttle] (val name: String,
     * @param paused Automatically pause all jobs at startup.
     * @param stateRetention If specified, automatically clean the timeseries state older than the given duration.
     * @param logsRetention If specified, automatically clean the execution logs older than the given duration.
+    * @param maxVersionsHistory If specified keep only the version information for the x latest versions.
     */
   def start(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
@@ -38,10 +39,11 @@ class CuttleProject private[cuttle] (val name: String,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
     paused: Boolean = false,
     stateRetention: Option[Duration] = None,
-    logsRetention: Option[Duration] = None
+    logsRetention: Option[Duration] = None,
+    maxVersionsHistory: Option[Int] = None
   ): Unit = {
     val (routes, startScheduler) =
-      build(platforms, databaseConfig, retryStrategy, paused, stateRetention, logsRetention)
+      build(platforms, databaseConfig, retryStrategy, paused, stateRetention, logsRetention, maxVersionsHistory)
 
     startScheduler()
 
@@ -63,6 +65,7 @@ class CuttleProject private[cuttle] (val name: String,
     * @param paused Automatically pause all jobs at startup.
     * @param stateRetention If specified, automatically clean the timeseries state older than the given duration.
     * @param logsRetention If specified, automatically clean the execution logs older than the given duration.
+    * @param maxVersionsHistory If specified keep only the version information for the x latest versions.
     *
     * @return a tuple with cuttleRoutes (needed to start a server) and a function to start the scheduler
     */
@@ -72,11 +75,12 @@ class CuttleProject private[cuttle] (val name: String,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
     paused: Boolean = false,
     stateRetention: Option[Duration] = None,
-    logsRetention: Option[Duration] = None
+    logsRetention: Option[Duration] = None,
+    maxVersionsHistory: Option[Int] = None
   ): (Service, () => Unit) = {
     val xa = CuttleDatabase.connect(databaseConfig)(logger)
     val executor = new Executor[TimeSeries](platforms, xa, logger, name, version, logsRetention)(retryStrategy)
-    val scheduler = new TimeSeriesScheduler(logger, stateRetention)
+    val scheduler = new TimeSeriesScheduler(logger, stateRetention, maxVersionsHistory)
 
     val startScheduler = () => {
       if (paused) {
@@ -112,7 +116,8 @@ object CuttleProject {
     version: String = "",
     description: String = "",
     env: (String, Boolean) = ("", false),
-    authenticator: Auth.Authenticator = Auth.GuestAuth)(jobs: Workflow)(implicit logger: Logger): CuttleProject =
+    authenticator: Auth.Authenticator = Auth.GuestAuth
+  )(jobs: Workflow)(implicit logger: Logger): CuttleProject =
     new CuttleProject(name, version, description, env, jobs, authenticator, logger)
 
   private[CuttleProject] def defaultPlatforms: Seq[ExecutionPlatform] = {
