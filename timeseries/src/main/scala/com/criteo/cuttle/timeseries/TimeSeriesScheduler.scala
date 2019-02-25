@@ -326,7 +326,9 @@ private[timeseries] object JobState {
   * The scheduler also allow to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
   * or not and an audit log of backfills is kept.
   */
-case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDuration] = None)
+case class TimeSeriesScheduler(logger: Logger,
+                               stateRetention: Option[ScalaDuration] = None,
+                               maxVersionsHistory: Option[Int] = None)
     extends Scheduler[TimeSeries] {
   import JobState.{Done, Running, Todo}
   import TimeSeriesUtils._
@@ -624,6 +626,25 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
     }
   }
 
+  private[timeseries] def compressState(state: Map[TimeSeriesJob, IntervalMap[Instant, JobState]], maxVersions: Int) =
+    state.mapValues {
+      case imap =>
+        // Search for all known versions of this jobs
+        val allKnownVersions =
+          imap.toList.collect {
+            case (_, JobState.Done(version)) =>
+              version
+          }
+
+        val latestVersions = allKnownVersions.takeRight(maxVersions).toSet
+        imap.map {
+          case JobState.Done(version) if !latestVersions.contains(version) =>
+            JobState.Done("old")
+          case same =>
+            same
+        }
+    }
+
   /**
     * Given a list of current executions, update their state and submit new executions depending on the current time and
     * changes in execution states.
@@ -660,9 +681,15 @@ case class TimeSeriesScheduler(logger: Logger, stateRetention: Option[ScalaDurat
       }
     }
 
-    if (completed.nonEmpty || toRun.nonEmpty)
+    if (completed.nonEmpty || toRun.nonEmpty) {
+      maxVersionsHistory.foreach { maxVersions =>
+        atomic { implicit txn =>
+          _state() = compressState(_state(), maxVersions)
+        }
+      }
       runOrLogAndDie(Database.serializeState(stateSnapshot, stateRetention).transact(xa).unsafeRunSync,
                      "TimeseriesScheduler, cannot serialize state, shutting down")
+    }
 
     if (completedBackfills.nonEmpty)
       runOrLogAndDie(

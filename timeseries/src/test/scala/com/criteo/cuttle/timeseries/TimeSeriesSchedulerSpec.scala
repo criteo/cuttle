@@ -10,7 +10,7 @@ import com.criteo.cuttle.Auth
 import com.criteo.cuttle.{Completed, Job, TestScheduling}
 import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
-import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
+import com.criteo.cuttle.timeseries.intervals.{Bound, Interval, IntervalMap}
 import com.criteo.cuttle.Utils.logger
 
 class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
@@ -170,4 +170,85 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
     assert(backfills(0).jobs.head == testJob)
     assert(backfills(0).jobs.last == testJob)
   }
+
+  test("discard old versions in state") {
+    val state: State = Map(
+      testJob -> IntervalMap(
+        Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T00:00:00Z") -> Done("000"),
+        Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
+        Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
+        Interval(date"2017-03-25T14:00:00Z", date"2017-03-27T00:00:00Z") -> Done("456"),
+        Interval(date"2017-03-27T00:00:00Z", date"2017-03-28T00:00:00Z") -> Done("789"),
+        Interval(Bound.Finite(date"2017-03-28T00:00:00Z"), Bound.Top) -> Todo(None)
+      )
+    )
+
+    assert(
+      scheduler.compressState(state, 20) ==
+        Map(
+          testJob -> IntervalMap(
+            Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T00:00:00Z") -> Done("000"),
+            Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
+            Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
+            Interval(date"2017-03-25T14:00:00Z", date"2017-03-27T00:00:00Z") -> Done("456"),
+            Interval(date"2017-03-27T00:00:00Z", date"2017-03-28T00:00:00Z") -> Done("789"),
+            Interval(Bound.Finite(date"2017-03-28T00:00:00Z"), Bound.Top) -> Todo(None)
+          )
+        )
+    )
+
+    assert(
+      scheduler.compressState(state, 3) ==
+        Map(
+          testJob -> IntervalMap(
+            Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T00:00:00Z") -> Done("old"),
+            Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
+            Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
+            Interval(date"2017-03-25T14:00:00Z", date"2017-03-27T00:00:00Z") -> Done("456"),
+            Interval(date"2017-03-27T00:00:00Z", date"2017-03-28T00:00:00Z") -> Done("789"),
+            Interval(Bound.Finite(date"2017-03-28T00:00:00Z"), Bound.Top) -> Todo(None)
+          )
+        )
+    )
+
+    assert(
+      scheduler.compressState(state, 2) ==
+        Map(
+          testJob -> IntervalMap(
+            Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("old"),
+            Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
+            Interval(date"2017-03-25T14:00:00Z", date"2017-03-27T00:00:00Z") -> Done("456"),
+            Interval(date"2017-03-27T00:00:00Z", date"2017-03-28T00:00:00Z") -> Done("789"),
+            Interval(Bound.Finite(date"2017-03-28T00:00:00Z"), Bound.Top) -> Todo(None)
+          )
+        )
+    )
+
+    assert(
+      scheduler.compressState(state, 1) ==
+        Map(
+          testJob -> IntervalMap(
+            Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("old"),
+            Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
+            Interval(date"2017-03-25T14:00:00Z", date"2017-03-27T00:00:00Z") -> Done("old"),
+            Interval(date"2017-03-27T00:00:00Z", date"2017-03-28T00:00:00Z") -> Done("789"),
+            Interval(Bound.Finite(date"2017-03-28T00:00:00Z"), Bound.Top) -> Todo(None)
+          )
+        )
+    )
+
+    assert(
+      scheduler.compressState(state, 0) ==
+        Map(
+          testJob -> IntervalMap(
+            Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("old"),
+            Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
+            Interval(date"2017-03-25T14:00:00Z", date"2017-03-28T00:00:00Z") -> Done("old"),
+            Interval(Bound.Finite(date"2017-03-28T00:00:00Z"), Bound.Top) -> Todo(None)
+          )
+        )
+    )
+
+  }
+
 }
