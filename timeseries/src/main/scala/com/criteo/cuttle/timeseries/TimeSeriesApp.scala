@@ -849,36 +849,22 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         case "true" | "yes" => sse(backfills, (b: Json) => IO.pure(b))
         case _              => backfills.map(bf => Ok(bf.asJson))
       }
-    case GET at url"/api/timeseries/backfills/$backfillId/executions?events=$events&limit=$l&offset=$o&sort=$sort&order=$a" => {
-      val limit = Try(l.toInt).toOption.getOrElse(25)
-      val offset = Try(o.toInt).toOption.getOrElse(0)
-      val asc = (a.toLowerCase == "asc")
-      def asTotalJson(x: (Int, Double, Seq[ExecutionLog])) = x match {
-        case (total, completion, executions) =>
-          Json.obj(
-            "total" -> total.asJson,
-            "offset" -> offset.asJson,
-            "limit" -> limit.asJson,
-            "sort" -> sort.asJson,
-            "asc" -> asc.asJson,
-            "data" -> executions.asJson,
-            "completion" -> completion.asJson
-          )
-      }
-      val ordering = {
-        val columnOrdering = sort match {
-          case "job"       => Ordering.by((_: ExecutionLog).job)
-          case "startTime" => Ordering.by((_: ExecutionLog).startTime)
-          case "status"    => Ordering.by((_: ExecutionLog).status.toString)
-          case _           => Ordering.by((_: ExecutionLog).id)
-        }
-        if (asc) {
-          columnOrdering
-        } else {
-          columnOrdering.reverse
-        }
-      }
-      def allExecutions(): IO[Option[(Int, Double, List[ExecutionLog])]] = {
+    case request @ POST at url"/api/timeseries/backfills/$backfillId/executions" => {
+      def allExecutions(q: ExecutionsQuery): IO[Option[(Int, Double, List[ExecutionLog])]] = {
+
+          val ordering = {
+            val columnOrdering = q.sort.column match {
+              case "job"       => Ordering.by((_: ExecutionLog).job)
+              case "startTime" => Ordering.by((_: ExecutionLog).startTime)
+              case "status"    => Ordering.by((_: ExecutionLog).status.toString)
+              case _           => Ordering.by((_: ExecutionLog).id)
+            }
+            if (q.sort.asc) {
+              columnOrdering
+            } else {
+              columnOrdering.reverse
+            }
+          }
 
         val runningExecutions = executor.runningExecutions
           .filter(t => {
@@ -900,16 +886,34 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                 case total => (total - runningExecutions.size).toDouble / total
               }
             }
-            Some((executions.size, completion, executions.sorted(ordering).drop(offset).take(limit).toList))
+            Some((executions.size, completion, executions.sorted(ordering).drop(q.offset).take(q.limit).toList))
           })
       }
 
-      events match {
-        case "true" | "yes" =>
-          sse(allExecutions(), (e: (Int, Double, List[ExecutionLog])) => IO.pure(asTotalJson(e)))
-        case _ =>
-          allExecutions().map(_.map(e => Ok(asTotalJson(e))).getOrElse(NotFound))
-      }
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json
+            .as[ExecutionsQuery]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              q => {
+                allExecutions(q)
+                  .map(_.map {
+                    case (total, completion, executions) =>
+                      Ok(Json.obj(
+                        "total" -> total.asJson,
+                        "offset" -> q.offset.asJson,
+                        "limit" -> q.limit.asJson,
+                        "sort" -> q.sort.column.asJson,
+                        "asc" -> q.sort.asc.asJson,
+                        "data" -> executions.asJson,
+                        "completion" -> completion.asJson
+                      ))
+                  }.getOrElse(NotFound))
+              }
+            )
+        }
     }
   }: PartialService
 

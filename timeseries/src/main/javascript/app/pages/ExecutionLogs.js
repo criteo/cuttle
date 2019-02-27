@@ -616,12 +616,15 @@ export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
             page={page}
             workflow={workflow}
             columns={["job", "context", "status", "detail"]}
-            request={(page, rowsPerPage, sort) =>
-              `/api/timeseries/backfills/${backfillId}/executions?events=true&offset=${page *
-                rowsPerPage}&limit=${rowsPerPage}&sort=${sort.column}&order=${
-                sort.order
-              }${jobsFilter}`
-            }
+            request={(page, rowsPerPage, sort) => {
+              return {
+                endpoint: `/api/timeseries/backfills/${backfillId}/executions`,
+                jobs: selectedJobs,
+                sort: sort,
+                limit: rowsPerPage,
+                offset: page * rowsPerPage
+              };
+            }}
             label=""
             sort={{ column: sort || "failed", order: order || "asc" }}
             selectedJobs={selectedJobs}
