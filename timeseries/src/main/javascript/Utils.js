@@ -22,12 +22,15 @@ export class PostEventSource {
     this._url = url;
     this._observers = [];
     this._body = body;
+    this._polling = false;
   }
   stopPolling() {
+    this._polling = false;
     this._poller && clearTimeout(this._poller);
   }
   startPolling() {
     if (this._poller) return;
+    this._polling = true;
     this._poller = 1;
 
     const poll = () =>
@@ -39,11 +42,15 @@ export class PostEventSource {
         .then(data => data.json())
         .then(
           data => {
-            this._observers.forEach(o => o({ data }));
-            this._poller = setTimeout(() => poll(), 5000);
+            if(this._polling) {
+              this._observers.forEach(o => o({ data }));
+              this._poller = setTimeout(() => poll(), 5000);
+            }
           },
           err => {
-            this._poller = setTimeout(() => poll(), 15000);
+            if(this._polling) {
+              this._poller = setTimeout(() => poll(), 15000);
+            }
           }
         );
 
