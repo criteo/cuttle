@@ -965,9 +965,10 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         val requestedInterval = Interval(startDate, endDate)
         scheduler.forceSuccess(job, requestedInterval, executor.projectVersion)
         def filterOp(e: Execution[TimeSeries]): Boolean = {
-          e.job.id == jobId && e.context.start.compareTo(startDate) > 0 && e.context.end.compareTo(endDate) < 0
+          val contextInterval = Interval(e.context.start, e.context.end)
+          e.job.id == jobId && contextInterval.intersects(requestedInterval)
         }
-        val runningExecutions = executor.runningExecutions.map(_._1).filter(filterOp)
+        val runningExecutions = executor.runningExecutions.collect { case (e, s) if filterOp(e) => e }
         val failingExecutions = executor.allFailingExecutions.filter(filterOp)
         val executions = runningExecutions ++ failingExecutions
         executions.foreach(_.cancel())
