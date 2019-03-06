@@ -963,10 +963,12 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         job <- Try(project.jobs.all.find(_.id == jobId).getOrElse(throw new Exception(s"Unknow job $jobId")))
       } yield {
         val requestedInterval = Interval(startDate, endDate)
-        //self.forceSuccess(job, requestedInterval, executor.cuttleProject.version)
         scheduler.forceSuccess(job, requestedInterval, executor.projectVersion)
-        val runningExecutions = executor.runningExecutions.filter(e => e._1.job.id == jobId).map(_._1)
-        val failingExecutions = executor.allFailingExecutions.filter(_.job.id == jobId)
+        def filterOp(e: Execution[TimeSeries]): Boolean = {
+          e.job.id == jobId && e.context.start.compareTo(startDate) > 0 && e.context.end.compareTo(endDate) < 0
+        }
+        val runningExecutions = executor.runningExecutions.map(_._1).filter(filterOp)
+        val failingExecutions = executor.allFailingExecutions.filter(filterOp)
         val executions = runningExecutions ++ failingExecutions
         executions.foreach(_.cancel())
         (executions.length, JobSuccessForced(Instant.now(), user, jobId, startDate, endDate))
