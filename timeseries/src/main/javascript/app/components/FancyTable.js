@@ -17,6 +17,7 @@ const FancyTableComponent = ({ classes, key, children }: Props) => (
 
 const styles = {
   definitions: {
+    overflow: "auto",
     margin: "0",
     display: "flex",
     flexFlow: "row",
