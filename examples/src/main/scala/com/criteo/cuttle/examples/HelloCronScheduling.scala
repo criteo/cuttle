@@ -1,7 +1,6 @@
-// Example: Hello custom scheduling!
+// Example: Hello CRON scheduling!
 
-// This a minimal cuttle project providing a
-// basic scheduler running a single job n times.
+// This a minimal cuttle project demonstrating the CRON scheduler
 package com.criteo.cuttle.examples
 
 // The main package contains everything needed to create
