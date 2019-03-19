@@ -7,6 +7,7 @@ package com.criteo.cuttle.examples
 // The main package contains everything needed to create
 // a cuttle project.
 import com.criteo.cuttle._
+import cats.implicits._
 
 // The local platform allows to locally fork some processes
 // (_here we will just fork shell scripts_).
@@ -21,6 +22,7 @@ import java.time.ZoneOffset.UTC
 import java.time._
 
 import scala.concurrent.duration._
+import scala.concurrent._
 
 object HelloTimeSeries {
 
@@ -37,87 +39,49 @@ object HelloTimeSeries {
     // date declared before.
     val hello1 =
       Job("hello1", hourly(start), "Hello 1", tags = Set(Tag("hello"))) {
-        // The side effect function takes the execution as parameter. The execution
-        // contains useful meta data as well as the __context__ which is basically the
-        // input data for our execution.
         implicit e =>
-          // Because this job uses a time series scheduling configuration the context
-          // contains the information about the time partition to compute, ie the start
-          // and end date.
-          val partitionToCompute = (e.context.start) + "-" + (e.context.end)
-
-          e.streams.info(s"Hello 1 for $partitionToCompute")
-          e.streams.info("Check my project page at https://github.com/criteo/cuttle")
-          e.streams.info("Do it quickly! I will wait you here for 1 second")
-          e.park(1.seconds).map(_ => Completed)
-      }
-
-    // Our second job is also on hourly job that executes a sh script.
-    // The `exec` interpolation is provided by the local platform.
-    // It allows us to declare a sh script to execute.
-    // More details are in [[exec]] doc.
-    val hello2 = Job("hello2", hourly(start), "Dependency for cuttle_example.world_stats") { implicit e =>
-      exec"""sh -c '
-         |    echo Looping for 20 seconds...
-         |    for i in `seq 1 20`
-         |    do
-         |        date
-         |        sleep 1
-         |    done
-         |    echo Ok
-         |'""" ()
-    }
-
-    // Here is our third job. Look how we can also define some metadata such as a human friendly
-    // name and a set of tags. This information is used in the UI to help retrieving your jobs.
-    val hello3 =
-      Job("hello3",
-          hourly(start),
-          "prepare-export-job.cuttle_example.hello3_stats_daily",
-          tags = Set(Tag("hello"), Tag("unsafe"))) { implicit e =>
-        // Here we mix a Scala code execution and a sh script execution.
-        e.streams.info("Hello 3 from an unsafe job")
-        e.streams.info(s"My previous failures are ${e.previousFailures}")
-        val completed = exec"sleep 3" ()
-
-        completed.map { _ =>
-          // We generate an artificial failure if the partition is for 2 days ago between 00 and 01
-          // and if the `/tmp/hello3_success` file does not exist.
-          if (e.context.start == LocalDate.now.minusDays(2).atStartOfDay.toInstant(UTC)
-              && !new java.io.File("/tmp/hello3_success").exists) {
-            e.streams.error("Oops, please create the /tmp/hello3_success file to make this execution pass...")
-
-            // Throwing an exception is enough to fail the execution, but you can also return
-            // a failed Future.
-            sys.error("Oops!!!")
-          } else {
-
-            // The completed value is returned to cuttle to announce the job execution as
-            // successful. In this case the time series scheduler will mark the partition as
-            // successful for job __hello3__ and store this information in his internal state.
-            Completed
+          def sleep(n: Int): Future[Unit] = n match {
+            case 0 => Future.successful(())
+            case x@_ =>
+              e.streams.info("sleeping...")
+              e.park(1.seconds) >> sleep(n - 1)
           }
-        }
+
+          sleep(200).map(_ => Completed)
       }
 
-    // Our last job is a daily job. For the daily job we still need to annouce a start date, plus
-    // we need to define the time zone for which _days_ must be considered. The partitions for
-    // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
-    val world = Job("world", daily(UTC, start), "export-job.cuttle.world_stats", tags = Set(Tag("world"))) {
-      implicit e =>
-        e.streams.info("World!")
-        // Here we compose our executions in a for-comprehension.
-        for {
-          _ <- e.park(3.seconds)
-          completed <- exec"sleep 3" ()
-        } yield completed
-    }
+    val hello2 =
+      Job("hello2", hourly(start), "Hello 2", tags = Set(Tag("hello"))) {
+        implicit e =>
+          def sleepBlockingExecContext(n: Int): Future[Unit] = Future {
+            java.lang.Thread.sleep(n * 1000)
+            ()
+          }
+
+          sleepBlockingExecContext(200).map(_ => Completed)
+      }
+
+    val hello3 =
+      Job("hello3", hourly(start), "Hello 3", tags = Set(Tag("hello"))) {
+        implicit e =>
+          def sleepBlockingMainContext(n: Int): Future[Unit] = {
+            (1 to n).map { _ =>
+               e.streams.info("Sleeping 1s...")
+               java.lang.Thread.sleep(1000)
+            }
+
+            Future.successful(())
+          }
+
+
+          sleepBlockingMainContext(200).map(_ => Completed)
+      }
 
     // Finally we bootstrap our cuttle project.
     CuttleProject("Hello World", version = "123", env = ("dev", false)) {
       // Any cuttle project contains a Workflow to execute. This Workflow is composed from jobs
       // or from others smaller Workflows.
-      world dependsOn (hello1 and hello2 and hello3)
+      hello1 and hello2 and hello3
     }.
     // Starts the scheduler and an HTTP server.
     start(logsRetention = Some(1.hour))
