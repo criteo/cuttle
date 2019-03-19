@@ -215,12 +215,6 @@ case class Execution[S <: Scheduling](
   private val cancelListeners = TSet.empty[CancellationListener]
   private val cancelled = Ref(false)
 
-  /**
-    * An execution with forcedSuccess set to true will have its side effect return a successful Future instance even if the
-    * user code raised an exception or returned a failed Future instance.
-    */
-  private[cuttle] val forcedSuccess = Ref(false)
-
   /** Returns `true` if this [[Execution]] has been cancelled. */
   def isCancelled = cancelled.single()
 
@@ -272,15 +266,6 @@ case class Execution[S <: Scheduling](
     }
     hasBeenCancelled
   }
-
-  def forceSuccess()(implicit user: User): Unit =
-    if (!atomic { implicit txn =>
-          forcedSuccess.getAndTransform(_ => true)
-        }) {
-      streams.debug(
-        s"""Possible execution failures will be ignored and final execution status will be marked as success.
-                       |Change initiated by user ${user.userId} at ${Instant.now().toString}.""".stripMargin)
-    }
 
   private[cuttle] def toExecutionLog(status: ExecutionStatus, failing: Option[FailingJob] = None) =
     ExecutionLog(
@@ -650,14 +635,6 @@ class Executor[S <: Scheduling] private[cuttle] (
     }
   }
 
-  private[cuttle] def forceSuccess(executionId: String)(implicit user: User): Unit = {
-    val toForce = atomic { implicit tx =>
-      (runningState.keys ++ throttledState.keys)
-        .find(execution => execution.id == executionId)
-    }
-    toForce.foreach(_.forceSuccess())
-  }
-
   private[cuttle] def gracefulShutdown(timeout: scala.concurrent.duration.Duration)(implicit user: User): Unit = {
 
     import utils._
@@ -692,7 +669,7 @@ class Executor[S <: Scheduling] private[cuttle] (
     promise.completeWith(
       (Try(execution.run()) match {
         case Success(f) => f
-        case Failure(e) => if (execution.forcedSuccess.single()) Future.successful(Completed) else Future.failed(e)
+        case Failure(e) => Future.failed(e)
       }).andThen {
           case Success(_) =>
             execution.streams.debug(s"Execution successful")
