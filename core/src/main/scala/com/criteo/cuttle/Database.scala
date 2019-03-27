@@ -66,7 +66,7 @@ object DatabaseConfig {
   }
 }
 
-private[cuttle] object Database {
+object Database {
 
   implicit val JsonMeta: Meta[Json] = Meta[String].imap(x => parse(x).fold(e => throw e, identity _))(
     x => x.noSpaces

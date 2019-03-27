@@ -377,13 +377,13 @@ trait ExecutionPlatform {
   def waiting: Set[Execution[_]]
 }
 
-private[cuttle] object ExecutionPlatform {
+object ExecutionPlatform {
   implicit def fromExecution(implicit e: Execution[_]): Seq[ExecutionPlatform] = e.platforms
   def lookup[E: ClassTag](implicit platforms: Seq[ExecutionPlatform]): Option[E] =
     platforms.find(classTag[E].runtimeClass.isInstance).map(_.asInstanceOf[E])
 }
 
-private[cuttle] object Executor {
+object Executor {
 
   // we save a mapping of ThreadName -> ExecutionStreams to be able to redirect logs comming
   // form different SideEffect (Futures) to the corresponding ExecutionStreams
@@ -394,7 +394,7 @@ private[cuttle] object Executor {
 
 /** An [[Executor]] is responsible to actually execute the [[SideEffect]] functions for the
   * given [[Execution Executions]]. */
-class Executor[S <: Scheduling] private[cuttle] (
+class Executor[S <: Scheduling] (
   val platforms: Seq[ExecutionPlatform],
   xa: XA,
   logger: Logger,
