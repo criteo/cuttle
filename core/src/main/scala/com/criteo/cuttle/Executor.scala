@@ -480,7 +480,7 @@ class Executor[S <: Scheduling] (
     }
   }
 
-  private[cuttle] def allRunning: Seq[ExecutionLog] =
+  def allRunning: Seq[ExecutionLog] =
     flagWaitingExecutions(runningState.single.keys.toSeq).map {
       case (execution, status) =>
         execution.toExecutionLog(status)
@@ -489,18 +489,18 @@ class Executor[S <: Scheduling] (
   private[cuttle] def jobStatsForLastThirtyDays(jobId: String): IO[Seq[ExecutionStat]] =
     queries.jobStatsForLastThirtyDays(jobId).transact(xa)
 
-  private[cuttle] def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
+  def runningExecutions: Seq[(Execution[S], ExecutionStatus)] =
     flagWaitingExecutions(runningState.single.keys.toSeq)
 
-  private[cuttle] def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
+  def runningExecutionsSizeTotal(filteredJobs: Set[String]): Int =
     runningState.single.keys.count(e => filteredJobs.contains(e.job.id))
 
-  private[cuttle] def runningExecutionsSizes(filteredJobs: Set[String]): (Int, Int) = {
+  def runningExecutionsSizes(filteredJobs: Set[String]): (Int, Int) = {
     val statuses =
       flagWaitingExecutions(runningState.single.keys.toSeq.filter(e => filteredJobs.contains(e.job.id))).map(_._2)
     (statuses.count(_ == ExecutionRunning), statuses.count(_ == ExecutionWaiting))
   }
-  private[cuttle] def runningExecutions(filteredJobs: Set[String],
+  def runningExecutions(filteredJobs: Set[String],
                                         sort: String,
                                         asc: Boolean,
                                         offset: Int,
@@ -524,19 +524,19 @@ class Executor[S <: Scheduling] (
           execution.toExecutionLog(status)
       })
 
-  private[cuttle] def allFailingExecutions: Seq[Execution[S]] =
+  def allFailingExecutions: Seq[Execution[S]] =
     throttledState.single.keys.toSeq
 
-  private[cuttle] def allFailingJobsWithContext: Set[(Job[S], S#Context)] =
+  def allFailingJobsWithContext: Set[(Job[S], S#Context)] =
     allFailingExecutions.map(e => (e.job, e.context)).toSet
 
   // Count as failing all jobs that have failed and are not running (throttledState)
   // and all jobs that have recently failed and are now running.
-  private[cuttle] def failingExecutionsSize(filteredJobs: Set[String]): Int =
+  def failingExecutionsSize(filteredJobs: Set[String]): Int =
     throttledState.single.keys.filter(e => filteredJobs.contains(e.job.id)).size +
       retryingExecutionsSize(filteredJobs)
 
-  private[cuttle] def failingExecutions(filteredJobs: Set[String],
+  def failingExecutions(filteredJobs: Set[String],
                                         sort: String,
                                         asc: Boolean,
                                         offset: Int,
