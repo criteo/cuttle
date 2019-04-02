@@ -2,7 +2,7 @@ val devMode = settingKey[Boolean]("Some build optimization are applied in devMod
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
 
-val VERSION = "0.9.4"
+val VERSION = "0.9.5"
 
 
 lazy val catsCore = "1.5.0"
