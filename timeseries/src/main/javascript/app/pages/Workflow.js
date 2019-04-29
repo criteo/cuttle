@@ -3,7 +3,6 @@
 import React from "react";
 import injectSheet from "react-jss";
 import ReactTooltip from "react-tooltip";
-import { createClassFromLiteSpec } from "react-vega-lite";
 
 import entries from "lodash/entries";
 import filter from "lodash/filter";
@@ -52,116 +51,6 @@ type State = {
   // job is a member of this object wiht a particular color only if it's paused
   jobColors: ?{ [string]: string }
 };
-
-const AverageRunWaitChart = createClassFromLiteSpec("AverageRunWaitChart", {
-  width: "550",
-  title: "Runtime of jobs across time",
-  mark: "area",
-  transform: [
-    {
-      calculate: "datum.kind == 'run' ? 'Running' : 'Waiting'",
-      as: "runningSeconds"
-    }
-  ],
-  encoding: {
-    x: {
-      field: "startTime",
-      type: "temporal",
-      timeUnit: "utcyearmonthday",
-      axis: {
-        title: null,
-        format: "%d/%m",
-        labelAngle: -45
-      }
-    },
-    y: {
-      field: "seconds",
-      type: "quantitative",
-      aggregate: "sum",
-      axis: {
-        title: "Duration (s)"
-      }
-    },
-    color: {
-      type: "nominal",
-      field: "runningSeconds",
-      scale: {
-        range: ["#00BCD4", "#ff9800"]
-      },
-      legend: { title: "Status" }
-    }
-  }
-});
-
-const MaxRuntimeChart = createClassFromLiteSpec("MaxRuntimeChart", {
-  width: "550",
-  mark: "line",
-  transform: [
-    {
-      calculate: "datum.durationSeconds - datum.waitingSeconds",
-      as: "runningSeconds"
-    }
-  ],
-  encoding: {
-    x: {
-      field: "startTime",
-      timeUnit: "utcyearmonthday",
-      type: "temporal",
-      axis: {
-        title: null,
-        format: "%d/%m",
-        labelAngle: -45
-      }
-    },
-    y: {
-      aggregate: "max",
-      type: "quantitative",
-      field: "runningSeconds",
-      axis: {
-        title: "Max running time (s)"
-      }
-    }
-  },
-  config: {
-    mark: {
-      color: "#00BCD4"
-    }
-  }
-});
-
-const SumFailuresChart = createClassFromLiteSpec("SumFailuresChart", {
-  width: "550",
-  title: "Failures across time.",
-  mark: "bar",
-  transform: [
-    { calculate: "datum.status === 'failed' ? 1 : 0", as: "failures" }
-  ],
-  encoding: {
-    x: {
-      field: "startTime",
-      timeUnit: "utcyearmonthday",
-      type: "temporal",
-      axis: {
-        format: "%d/%m",
-        title: null,
-        labelAngle: -45
-      }
-    },
-    y: {
-      type: "quantitative",
-      aggregate: "sum",
-      field: "failures",
-      axis: {
-        title: "Number of failures"
-      }
-    }
-  },
-  config: {
-    mark: {
-      color: "#e91e63"
-    }
-  }
-});
 
 type ExecutionStat = {
   startTime: string,
@@ -294,7 +183,7 @@ class WorkflowComponent extends React.Component<Props, State> {
 
     ReactTooltip.rebuild();
 
-    const renderTimeSeriesSechduling = () => [
+    const renderTimeSeriesScheduling = () => [
       startNode.scheduling.calendar && [
         <dt key="period">Period:</dt>,
         <dd key="period_">{startNode.scheduling.calendar.period}</dd>
@@ -308,68 +197,6 @@ class WorkflowComponent extends React.Component<Props, State> {
         <dd key="maxPeriods_">{startNode.scheduling.maxPeriods}</dd>
       ]
     ];
-
-    const charts = (data: any) => {
-      if (data) {
-        return (
-          <div className={classes.charts}>
-            <div className={classes.chartSection}>
-              <h3>Average run/wait times over last 30 days</h3>
-              <AverageRunWaitChart
-                className="chart"
-                data={{ values: aggregateDataSet(data) }}
-              />
-            </div>
-            <div className={classes.chartSection}>
-              <h3>Max runtime over last 30 days</h3>
-              <MaxRuntimeChart className="chart" data={{ values: data }} />
-            </div>
-            <div className={classes.chartSection}>
-              <h3>Number of failures over last 30 days</h3>
-              <SumFailuresChart className="chart" data={{ values: data }} />
-            </div>
-          </div>
-        );
-      }
-      return (
-        <div style={{ textAlign: "center" }}>
-          <div style={{ display: "inline-block", marginTop: "50px" }}>
-            <Spinner />
-          </div>
-        </div>
-      );
-    };
-
-    const JobMenu = ({ job }: { job: string }) => {
-      const menuItems =
-        this.state.jobColors && this.state.jobColors[job]
-          ? [
-              <span
-                onClick={() =>
-                  fetch(`/api/jobs/resume?jobs=${job}`, {
-                    method: "POST",
-                    credentials: "include"
-                  }).then(() => this.updatePausedJobs())
-                }
-              >
-                Resume
-              </span>
-            ]
-          : [
-              <span
-                onClick={() =>
-                  fetch(`/api/jobs/pause?jobs=${job}`, {
-                    method: "POST",
-                    credentials: "include"
-                  }).then(() => this.updatePausedJobs())
-                }
-              >
-                Pause
-              </span>
-            ];
-
-      return <PopoverMenu className={classes.menu} items={menuItems} />;
-    };
 
     const daggerTags =
       this.state.jobColors &&
@@ -412,13 +239,12 @@ class WorkflowComponent extends React.Component<Props, State> {
         {showDetail && (
           <Window closeUrl={refPath || `/workflow/${job}`} title="Job details">
             <div className={classes.jobCard}>
-              <JobMenu job={startNode.id} />
               <FancyTable>
                 <dt key="id">Id:</dt>
                 <dd key="id_">{startNode.id}</dd>
                 <dt key="name">Name:</dt>
                 <dd key="name_">{startNode.name}</dd>
-                {renderTimeSeriesSechduling()}
+                {renderTimeSeriesScheduling()}
                 {startNode.tags.length > 0 && [
                   <dt key="tags">Tags:</dt>,
                   <dd key="tags_" className={classes.tags}>
@@ -458,7 +284,6 @@ class WorkflowComponent extends React.Component<Props, State> {
                   ]}
               </FancyTable>
             </div>
-            {charts(this.state.data)}
           </Window>
         )}
       </div>
