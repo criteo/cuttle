@@ -109,10 +109,10 @@ class Calendar extends React.Component<Props, State> {
                     stuck
                       ? "stuck"
                       : completion == 1
-                        ? "done"
-                        : completion == 0
-                          ? "todo"
-                          : `progress-${completion.toString().substring(2, 3)}`
+                      ? "done"
+                      : completion == 0
+                      ? "todo"
+                      : `progress-${completion.toString().substring(2, 3)}`
                   ].concat(backfill ? ["backfill"] : []),
                   component: ["day"]
                 };
@@ -289,6 +289,7 @@ const mapDispatchToProps = dispatch => ({
   }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(Calendar)
-);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(injectSheet(styles)(Calendar));

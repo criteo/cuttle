@@ -430,5 +430,8 @@ const mapDispatchToProps = dispatch => ({
 
 export const Jobs = compose(
   injectSheet(styles),
-  connect(mapStateToProps, mapDispatchToProps)
+  connect(
+    mapStateToProps,
+    mapDispatchToProps
+  )
 )(JobsComp);

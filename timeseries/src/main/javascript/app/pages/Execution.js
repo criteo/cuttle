@@ -55,7 +55,7 @@ const ProgressBarComponent = ({
   const height = 8;
   const barWidth =
     totalTimeSeconds !== 0
-      ? waitingTimeSeconds / totalTimeSeconds * totalWidth
+      ? (waitingTimeSeconds / totalTimeSeconds) * totalWidth
       : 0;
 
   const tooltip =

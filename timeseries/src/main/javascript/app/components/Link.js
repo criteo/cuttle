@@ -55,6 +55,7 @@ const styles = {
   }
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(Link)
-);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(injectSheet(styles)(Link));
