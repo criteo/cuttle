@@ -1,13 +1,17 @@
+const process = require("process");
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const FlowStatusWebpackPlugin = require("flow-status-webpack-plugin");
+const merge = require("webpack-merge");
+
+const env = process.env.NODE_ENV || "production";
 
 const outputPath = path.resolve(
   __dirname,
   "timeseries/target/scala-2.11/classes/public"
 );
 
-module.exports = {
+const common = {
   entry: {
     app: [path.resolve(__dirname, "timeseries/src/main/javascript/index.js")]
   },
@@ -68,3 +72,7 @@ module.exports = {
     })
   ]
 };
+
+module.exports = merge(common, {
+  mode: env
+});
