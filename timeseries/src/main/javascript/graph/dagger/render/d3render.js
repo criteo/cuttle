@@ -190,6 +190,7 @@ export const enter = (
           tags
         );
         node.on("click", () => onClick(d.id));
+        console.log(node);
         transitionNode(node, currentLayout.nodes[d.id]).on("end", () =>
           resolve("enter nodes done")
         );

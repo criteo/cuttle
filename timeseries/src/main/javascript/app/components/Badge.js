@@ -6,7 +6,7 @@ import React from "react";
 import _ from "lodash";
 import numeral from "numeraljs";
 
-export type BadgeKind = "success" | "info" | "error" | "warning";
+export type BadgeKind = "success" | "info" | "error" | "warning" | "alt";
 
 type Props = {
   kind: BadgeKind,
