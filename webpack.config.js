@@ -1,6 +1,7 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const FlowStatusWebpackPlugin = require("flow-status-webpack-plugin");
+const UglifyJSPlugin = require("uglifyjs-webpack-plugin");
 
 const outputPath = path.resolve(
   __dirname,
@@ -65,6 +66,9 @@ module.exports = {
     new FlowStatusWebpackPlugin({
       binaryPath: path.resolve(__dirname, "node_modules/.bin/flow"),
       failOnError: true
+    }),
+    new UglifyJSPlugin({
+      mangle: false
     })
   ]
 };
