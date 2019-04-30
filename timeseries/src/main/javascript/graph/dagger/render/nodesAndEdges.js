@@ -1,5 +1,8 @@
-import { nodeKind, edgeKind } from "../layout/symbolic/annotatedGraph";
 import * as d3 from "d3";
+import "d3-transition";
+import "d3-selection";
+
+import { nodeKind, edgeKind } from "../layout/symbolic/annotatedGraph";
 import { textWrap } from "d3plus-text";
 import { forEach, identity, reduce } from "lodash";
 import { interpolatePath } from "d3-interpolate-path";

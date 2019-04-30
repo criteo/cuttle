@@ -20,9 +20,10 @@ import type { ExecutionLog } from "../../datamodel";
 import StreamView from "../components/StreamView";
 import TextWithDashedLine from "../components/TextWithDashedLine";
 
+type Level = "DEBUG" | "INFO" | "ERROR";
 type Line = {
   timestamp: string,
-  level: "DEBUG" | "INFO" | "ERROR",
+  level: Level,
   message: string
 };
 
@@ -179,11 +180,12 @@ class Execution extends React.Component<Props, State> {
     } else if (json == "BOS" && streamsEventSource) {
       this.shouldOverwriteStreams = true;
     } else {
-      let lines = [];
+      let lines: Array<Line> = [];
       json.map(line => {
         let groups = /([^ ]+) ([^ ]+)\s+- (.*)/.exec(line);
         if (groups) {
-          let [_, timestamp, level, message] = groups;
+          let [_, timestamp, levelAsString, message] = groups;
+          const level: Level = (levelAsString: any);
           lines.push({
             timestamp: moment.utc(timestamp).format("YYYY-MM-DD HH:mm:ss"),
             level,
@@ -193,8 +195,9 @@ class Execution extends React.Component<Props, State> {
       });
       const streamsHead = this.shouldOverwriteStreams ? [] : this.state.streams;
       this.shouldOverwriteStreams = false;
+      const streams = streamsHead.concat(lines);
       this.setState({
-        streams: streamsHead.concat(lines)
+        streams
       });
     }
   }
