@@ -567,6 +567,9 @@ const mapStateToProps = ({
   }
 }) => ({ showDetail, refPath });
 
-export default connect(mapStateToProps, dispatch => ({
-  navTo: link => dispatch(navigate(link))
-}))(injectSheet(styles)(WorkflowComponent));
+export default connect(
+  mapStateToProps,
+  dispatch => ({
+    navTo: link => dispatch(navigate(link))
+  })
+)(injectSheet(styles)(WorkflowComponent));

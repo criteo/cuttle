@@ -13,8 +13,7 @@ const dagger = buildDagger(overallGraph, {
     setup: minimap => {
       minimap.nodes().on("mouseover", event => {
         const target = event.cyTarget;
-        d3
-          .select("#minimap-hover-node")
+        d3.select("#minimap-hover-node")
           .style("opacity", 0)
           .text(target.id())
           .style("opacity", 1);

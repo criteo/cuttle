@@ -110,14 +110,13 @@ let tickFormat = date =>
   (d3.utcHour(date) < date
     ? d3.utcFormat("")
     : d3.utcDay(date) < date
-      ? d3.utcFormat("%H:00")
-      : d3.utcFormat("%Y-%m-%d"))(date);
+    ? d3.utcFormat("%H:00")
+    : d3.utcFormat("%Y-%m-%d"))(date);
 
 let getMaxLabelWidth = (jobNames, svg, jobNameClass) => {
   let g = svg.append("g").attr("id", "widthHack");
   _.forEach(jobNames, job => {
-    g
-      .append("text")
+    g.append("text")
       .attr("class", jobNameClass)
       .text(job);
   });
@@ -163,14 +162,14 @@ const jobPeriodsHelper = (x1, x2, showExecutions, drillDown) => ({
     status == "failed"
       ? "#e91e63"
       : status == "successful"
-        ? "#62cc64"
-        : status == "waiting"
-          ? "#ffbc5a"
-          : status == "running"
-            ? "#49d3e4"
-            : status == "paused"
-              ? "#ffaaff"
-              : "#ecf1f5",
+      ? "#62cc64"
+      : status == "waiting"
+      ? "#ffbc5a"
+      : status == "running"
+      ? "#49d3e4"
+      : status == "paused"
+      ? "#ffaaff"
+      : "#ecf1f5",
   // For aggregated periods, we want to zoom on click
   click: ({ period, jobId, aggregated }) =>
     aggregated
@@ -219,9 +218,8 @@ const drawJobPeriods = (
   const newPeriodSlot = enterPeriodNode
     .append("g")
     .attr("class", classNames("periodSlot", periodClass))
-    .attr(
-      "data-tip",
-      d => (d.aggregated || summary ? aggregatedHelper.tip(d) : helper.tip(d))
+    .attr("data-tip", d =>
+      d.aggregated || summary ? aggregatedHelper.tip(d) : helper.tip(d)
     )
     .attr("transform", helper.translate);
 
@@ -255,14 +253,12 @@ const drawJobPeriods = (
       "width",
       d => adjustedWidth(d) - (d.aggregated || summary ? strokeWidth : 0)
     )
-    .attr(
-      "fill",
-      d => (d.aggregated || summary ? aggregatedHelper.fill(d) : helper.fill(d))
+    .attr("fill", d =>
+      d.aggregated || summary ? aggregatedHelper.fill(d) : helper.fill(d)
     )
     .attr("stroke-width", d => (d.aggregated || summary ? strokeWidth : 0))
-    .attr(
-      "stroke",
-      d => (d.aggregated || summary ? helper.stroke(d) : "transparent")
+    .attr("stroke", d =>
+      d.aggregated || summary ? helper.stroke(d) : "transparent"
     )
     .style("cursor", cursor);
 
@@ -478,9 +474,8 @@ class CalendarFocus extends React.Component<Props, State> {
 
       // display legend for every distinct project version
       const versions = Object.keys(jobs).map(k =>
-        jobs[k].map(
-          periodSlot =>
-            !periodSlot.aggregated ? periodSlot.version : undefined
+        jobs[k].map(periodSlot =>
+          !periodSlot.aggregated ? periodSlot.version : undefined
         )
       );
       const distinctVersions = [...new Set([].concat(...versions))].filter(
@@ -824,6 +819,7 @@ const mapDispatchToProps = dispatch => ({
   }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(CalendarFocus)
-);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(injectSheet(styles)(CalendarFocus));

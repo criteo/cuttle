@@ -76,4 +76,7 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
   }
 });
 
-export default connect(null, mapDispatchToProps)(injectSheet(styles)(Window));
+export default connect(
+  null,
+  mapDispatchToProps
+)(injectSheet(styles)(Window));

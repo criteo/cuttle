@@ -283,9 +283,8 @@ const tagBulletVerticalOffset = ({ height }) => {
 
 // join words by whitespace, unless it's delimited by -_
 const joinWords = (words: Array<string>): string =>
-  reduce(
-    words,
-    (acc, word) => (/[-_]$/.test(acc) ? acc + word : acc + " " + word)
+  reduce(words, (acc, word) =>
+    /[-_]$/.test(acc) ? acc + word : acc + " " + word
   );
 
 export const drawNode = (

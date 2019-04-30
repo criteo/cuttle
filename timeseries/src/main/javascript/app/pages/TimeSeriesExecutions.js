@@ -373,6 +373,7 @@ const mapStateToProps = ({ app: { project } }) => ({
 });
 const mapDispatchToProps = () => ({});
 
-export default connect(mapStateToProps, mapDispatchToProps)(
-  injectSheet(styles)(TimeSeriesExecutions)
-);
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(injectSheet(styles)(TimeSeriesExecutions));

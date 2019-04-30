@@ -39,9 +39,8 @@ const computeDijkstraPath = (minimap, start) => {
   const path = minimap.elements().dijkstra(minimap.getElementById(start));
   return end =>
     compact(
-      map(
-        path.pathTo(minimap.getElementById(end)),
-        n => (n.isNode() ? n.id() : null)
+      map(path.pathTo(minimap.getElementById(end)), n =>
+        n.isNode() ? n.id() : null
       )
     );
 };

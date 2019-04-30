@@ -404,6 +404,9 @@ const mapDispatchToProps = dispatch => ({
 
 export default compose(
   injectSheet(styles),
-  connect(mapStateToProps, mapDispatchToProps),
+  connect(
+    mapStateToProps,
+    mapDispatchToProps
+  ),
   reduxForm({ form: "backfillForm" })
 )(BackfillCreate);

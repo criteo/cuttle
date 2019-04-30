@@ -42,13 +42,13 @@ export class PostEventSource {
         .then(data => data.json())
         .then(
           data => {
-            if(this._polling) {
+            if (this._polling) {
               this._observers.forEach(o => o({ data }));
               this._poller = setTimeout(() => poll(), 5000);
             }
           },
           err => {
-            if(this._polling) {
+            if (this._polling) {
               this._poller = setTimeout(() => poll(), 15000);
             }
           }

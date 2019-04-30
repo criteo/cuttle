@@ -141,14 +141,13 @@ class JobSelector extends React.Component<Props, State> {
           <JobIcon className={classes.optionIcon} />
         )}
         {label}
-        {others &&
-          others.length > 0 && (
-            <em className={classes.more}>
-              {`${kind != "tag" ? "+" : ""}${others.length} job${
-                others.length > 1 ? "s" : ""
-              }`}
-            </em>
-          )}
+        {others && others.length > 0 && (
+          <em className={classes.more}>
+            {`${kind != "tag" ? "+" : ""}${others.length} job${
+              others.length > 1 ? "s" : ""
+            }`}
+          </em>
+        )}
       </span>
     );
 

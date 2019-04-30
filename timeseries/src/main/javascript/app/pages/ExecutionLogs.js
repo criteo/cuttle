@@ -442,7 +442,10 @@ const mapDispatchToProps = dispatch => ({
   }
 });
 
-export const Finished = connect(mapStateToProps, mapDispatchToProps)(
+export const Finished = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(
   injectSheet(styles)(
     ({
       classes,
@@ -483,7 +486,10 @@ export const Finished = connect(mapStateToProps, mapDispatchToProps)(
   )
 );
 
-export const Started = connect(mapStateToProps, mapDispatchToProps)(
+export const Started = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(
   injectSheet(styles)(
     ({
       classes,
@@ -524,7 +530,10 @@ export const Started = connect(mapStateToProps, mapDispatchToProps)(
   )
 );
 
-export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
+export const Stuck = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(
   injectSheet(styles)(
     ({
       classes,
@@ -590,7 +599,10 @@ export const Stuck = connect(mapStateToProps, mapDispatchToProps)(
   )
 );
 
-export const BackfillsExecutions = connect(mapStateToProps, mapDispatchToProps)(
+export const BackfillsExecutions = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(
   injectSheet(styles)(
     ({
       classes,
