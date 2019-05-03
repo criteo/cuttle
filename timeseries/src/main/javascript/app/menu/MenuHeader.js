@@ -25,7 +25,7 @@ const MenuHeader = ({
   projectVersion
 }: Props) => (
   <Link className={classNames(classes.main, className)} href="/">
-    <span className={classes.projectName}>{projectName}</span>
+    <span title={projectName} className={classes.projectName}>{projectName}</span>
     {projectVersion && (
       <span className={classes.projectVersion}>{projectVersion}</span>
     )}
@@ -59,7 +59,10 @@ const styles = {
   },
   projectName: {
     fontWeight: "bold",
-    fontSize: "1.2em"
+    fontSize: "1.2em",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+    overflow: "hidden"
   },
   projectVersion: {
     fontSize: ".65em",
