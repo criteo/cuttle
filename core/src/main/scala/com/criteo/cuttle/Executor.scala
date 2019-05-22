@@ -75,8 +75,8 @@ object RetryStrategy {
   }
 }
 
-private[cuttle] sealed trait ExecutionStatus
-private[cuttle] object ExecutionStatus {
+sealed trait ExecutionStatus
+object ExecutionStatus {
   implicit val ExecutionStatusMeta: Meta[ExecutionStatus] =
     Meta[Boolean].imap(x => if (x) ExecutionSuccessful else ExecutionFailed: ExecutionStatus) {
       case ExecutionSuccessful => true
@@ -570,16 +570,15 @@ class Executor[S <: Scheduling] (
           execution.toExecutionLog(executionStatus).copy(failing = Some(failingJob))
       })
 
-  private[cuttle] def archivedExecutionsSize(jobs: Set[String]): IO[Int] =
+  def archivedExecutionsSize(jobs: Set[String]): IO[Int] =
     queries.getExecutionLogSize(jobs).transact(xa)
 
-  private[cuttle] def archivedExecutions(queryContexts: Fragment,
+  def archivedExecutions(queryContexts: Fragment,
                                          jobs: Set[String],
                                          sort: String,
                                          asc: Boolean,
                                          offset: Int,
-                                         limit: Int,
-                                         xa: XA): IO[Seq[ExecutionLog]] =
+                                         limit: Int): IO[Seq[ExecutionLog]] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa)
 
   /**
@@ -589,8 +588,7 @@ class Executor[S <: Scheduling] (
                                             sort: String,
                                             asc: Boolean,
                                             offset: Int,
-                                            limit: Int,
-                                            xa: XA): IO[Seq[ExecutionLog]] =
+                                            limit: Int): IO[Seq[ExecutionLog]] =
     queries.getRawExecutionLog(jobs, sort, asc, offset, limit).transact(xa)
 
   private[cuttle] def cancelExecution(executionId: String)(implicit user: User): Unit = {
@@ -615,7 +613,7 @@ class Executor[S <: Scheduling] (
       case (a: Option[ExecutionLog]) => IO.pure(a)
     }
 
-  private[cuttle] def openStreams(executionId: String): fs2.Stream[IO, Byte] =
+  def openStreams(executionId: String): fs2.Stream[IO, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
   private[cuttle] def relaunch(jobs: Set[String])(implicit user: User): Unit = {

@@ -205,8 +205,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                                     q.sort.column,
                                     q.sort.asc,
                                     q.offset,
-                                    q.limit,
-                                    xa)
+                                    q.limit)
                 .map(execs => execs.asJson)
             case _ =>
               IO(executions.asJson)
@@ -607,7 +606,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         val requestedInterval = Interval(startDate, endDate)
         val contextQuery = Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
         val archivedExecutions =
-          executor.archivedExecutions(contextQuery, Set(jobId), "", asc = true, 0, Int.MaxValue, xa)
+          executor.archivedExecutions(contextQuery, Set(jobId), "", asc = true, 0, Int.MaxValue)
         val runningExecutions = executor.runningExecutions
           .filter {
             case (e, _) =>
