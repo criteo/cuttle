@@ -43,9 +43,9 @@ package object cron {
                                         job: CronJob,
                                         startDate: Instant,
                                         endDate: Instant,
-                                        limit: Int)(implicit transactor: XA) =
+                                        limit: Int) =
     for {
-      archived <- executor.rawArchivedExecutions(Set(job.id), "", asc = false, 0, limit, transactor)
+      archived <- executor.rawArchivedExecutions(Set(job.id), "", asc = false, 0, limit)
       running <- IO(executor.runningExecutions.collect {
         case (e, status)
             if e.job.id == job.id && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(endDate) =>
