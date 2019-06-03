@@ -6,8 +6,6 @@ import cats._
 import de.sciss.fingertree.{FingerTree, Measure}
 import FingerTree._
 import Bound.{Bottom, Top}
-import cats.FunctorFilter
-import cats.implicits._
 
 private[timeseries] object IntervalMap {
 
@@ -142,8 +140,10 @@ private[timeseries] object IntervalMap {
     override def toString = toList.toString
   }
 
-  implicit def functorInstance[K: Ordering] = new Functor[({ type Alias[a] = IntervalMap[K, a] })#Alias] {
-    override def map[A, B](m: IntervalMap[K, A])(f: A => B): IntervalMap[K, B] = m match {
+  implicit def eqInstance[K: Ordering, A] = Eq.fromUniversalEquals[IntervalMap[K, A]]
+
+  implicit class FunctorEmptyInstance[K: Ordering, A](val m: IntervalMap[K, A]) {
+    def map[B](f: A => B): IntervalMap[K, B] = m match {
       case impl: Impl[K, A] =>
         val elems = impl.tree.toList.map {
           case (itvl, v) => itvl -> f(v)
@@ -153,17 +153,13 @@ private[timeseries] object IntervalMap {
             imap.update(interval, value)
         }
     }
-  }
 
-  implicit def functorEmptyInstance[K: Ordering] = new FunctorFilter[({ type Alias[a] = IntervalMap[K, a] })#Alias] {
-    override val functor = implicitly[Functor[({ type Alias[a] = IntervalMap[K, a] })#Alias]]
-
-    override def mapFilter[A, B](fa: IntervalMap[K, A])(f: A => Option[B]) = fa match {
-      case impl: Impl[_, _] =>
+    def mapFilter[B](f: A => Option[B]): IntervalMap[K, B] = m match {
+      case impl: Impl[K, A] =>
         val elems = impl.tree.toList.map {
           case (itvl, v) => f(v).map(itvl -> _)
         }
-        elems.foldLeft(IntervalMap.empty[K,B]) {
+        elems.foldLeft(IntervalMap.empty[K, B]) {
           case (imap, Some((interval, value))) =>
             imap.update(interval, value)
           case (imap, None) =>
@@ -171,14 +167,11 @@ private[timeseries] object IntervalMap {
         }
     }
 
-    override def collect[A, B](fa: IntervalMap[K, A])(f: PartialFunction[A, B]) = mapFilter(fa)(f.lift)
+    def collect[B](f: PartialFunction[A, B]) = mapFilter(f.lift)
 
-    override def flattenOption[A](fa: IntervalMap[K, Option[A]]) = mapFilter(fa)(identity)
-
-    override def filter[A](fa: IntervalMap[K, A])(f: A => Boolean) = mapFilter(fa)(a => Some(a).filter(f))
+    def filter(f: A => Boolean): IntervalMap[K, A] = mapFilter(a => Some(a).filter(f))
   }
 
-  implicit def eqInstance[K: Ordering, A] = Eq.fromUniversalEquals[IntervalMap[K, A]]
 }
 
 private[timeseries] sealed trait IntervalMap[A, B] {
