@@ -139,9 +139,9 @@ private[timeseries] object IntervalMap {
     override def toString = toList.toString
   }
 
-  implicit def eqInstance[K: Ordering, A] = Eq.fromUniversalEquals[IntervalMap[K, A]]
+  private[timeseries] implicit def eqInstance[K: Ordering, A] = Eq.fromUniversalEquals[IntervalMap[K, A]]
 
-  implicit class FunctorEmptyInstance[K: Ordering, A](val m: IntervalMap[K, A]) {
+  private[timeseries] implicit class FunctorEmptyInstance[K: Ordering, A](val m: IntervalMap[K, A]) {
     def map[B](f: A => B)(implicit m2: MeasureKey[Interval[K], B]): IntervalMap[K, B] = m match {
       case impl: Impl[K, A] =>
         val elems = impl.tree.toList.map {

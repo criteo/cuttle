@@ -5,6 +5,7 @@ import java.time.{Instant, ZoneId}
 import scala.language.experimental.macros
 import scala.language.implicitConversions
 import codes.reactive.scalatime._
+import com.criteo.cuttle.timeseries.TimeSeriesUtils.TimeSeriesJob
 import com.criteo.cuttle.timeseries.intervals.{Interval, MeasureKey}
 
 import scala.reflect.macros.blackbox
@@ -139,6 +140,12 @@ package object timeseries {
     */
   def monthly(tz: ZoneId, start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Monthly(tz), start, end)
 
-  implicit def measure[A, B]: MeasureKey[Interval[A], B] = new MeasureKey[Interval[A], B]
+  def measure[A, B]: MeasureKey[Interval[A], B] = new MeasureKey[Interval[A], B]
+
+  implicit val m1 = measure[java.time.Instant, JobState]
+  implicit val m2 = measure[java.time.Instant, Unit]
+  implicit val m3 = measure[java.time.Instant, Int]
+  implicit val m4 = measure[java.time.Instant, TimeSeriesJob]
+  implicit val m5 = measure[java.time.Instant, Option[Backfill]]
 
 }
