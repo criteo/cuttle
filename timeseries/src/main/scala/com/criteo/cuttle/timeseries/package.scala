@@ -4,8 +4,8 @@ import java.time.{Instant, ZoneId}
 
 import scala.language.experimental.macros
 import scala.language.implicitConversions
-
 import codes.reactive.scalatime._
+import com.criteo.cuttle.timeseries.intervals.{Interval, MeasureKey}
 
 import scala.reflect.macros.blackbox
 
@@ -138,5 +138,7 @@ package object timeseries {
     * @param tz The time zone for which these months are defined.
     */
   def monthly(tz: ZoneId, start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Monthly(tz), start, end)
+
+  implicit def measure[A, B]: MeasureKey[Interval[A], B] = new MeasureKey[Interval[A], B]
 
 }

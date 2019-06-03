@@ -1,26 +1,24 @@
 package com.criteo.cuttle.timeseries.intervals
 
 import scala.math.Ordered.orderingToOrdered
-
 import cats._
 import de.sciss.fingertree.{FingerTree, Measure}
 import FingerTree._
 import Bound.{Bottom, Top}
 
+private[timeseries] class MeasureKey[A, B] extends Measure[(A, B), Option[A]] {
+  override def toString = "Key"
+  val zero: Option[A] = None
+  def apply(x: (A, B)) = Some(x._1)
+
+  def |+|(a: Option[A], b: Option[A]) = b
+}
+
 private[timeseries] object IntervalMap {
-
-  private[intervals] class MeasureKey[A, B] extends Measure[(A, B), Option[A]] {
-    override def toString = "Key"
-    val zero: Option[A] = None
-    def apply(x: (A, B)) = Some(x._1)
-
-    def |+|(a: Option[A], b: Option[A]) = b
-  }
-  private[intervals] implicit def measure[A, B] = new MeasureKey[Interval[A], B]
 
   private[intervals] type Elem[A, B] = (Interval[A], B)
 
-  def apply[A: Ordering, B](elems: Elem[A, B]*): IntervalMap[A, B] = {
+  def apply[A: Ordering, B](elems: Elem[A, B]*)(implicit m: MeasureKey[Interval[A], B]): IntervalMap[A, B] = {
     val sortedElems = elems.sortBy(_._1.lo)
     val isOverlapping = sortedElems.toList.sliding(2).exists {
       case List((Interval(_, hi), v1), (Interval(lo, _), v2)) =>
@@ -33,10 +31,11 @@ private[timeseries] object IntervalMap {
     new Impl(FingerTree(sortedElems: _*))
   }
 
-  def empty[A: Ordering, B]: IntervalMap[A, B] =
+  def empty[A: Ordering, B](implicit m: MeasureKey[Interval[A], B]): IntervalMap[A, B] =
     new Impl(FingerTree.empty)
 
-  private[intervals] class Impl[A: Ordering, B](val tree: FingerTree[Option[Interval[A]], Elem[A, B]]) extends IntervalMap[A, B] {
+  private[intervals] class Impl[A: Ordering, B](val tree: FingerTree[Option[Interval[A]], Elem[A, B]])
+                                               (implicit val m: MeasureKey[Interval[A], B]) extends IntervalMap[A, B] {
     def toList = tree.toList
 
     def lower(interval: Interval[A]): (Option[Interval[A]] => Boolean) = {
@@ -96,7 +95,7 @@ private[timeseries] object IntervalMap {
       new Impl((remainingLeft :+ (Interval(newLo, newHi) -> value)) ++ remainingRight)
     }
 
-    def mapKeys[K: Ordering](f: A => K) =
+    def mapKeys[K: Ordering](f: A => K)(implicit m: MeasureKey[Interval[K], B]) =
       new Impl(FingerTree(tree.toList.map {
         case (interval, v) => (interval.map(f) -> v)
       }: _*))
@@ -143,7 +142,7 @@ private[timeseries] object IntervalMap {
   implicit def eqInstance[K: Ordering, A] = Eq.fromUniversalEquals[IntervalMap[K, A]]
 
   implicit class FunctorEmptyInstance[K: Ordering, A](val m: IntervalMap[K, A]) {
-    def map[B](f: A => B): IntervalMap[K, B] = m match {
+    def map[B](f: A => B)(implicit m2: MeasureKey[Interval[K], B]): IntervalMap[K, B] = m match {
       case impl: Impl[K, A] =>
         val elems = impl.tree.toList.map {
           case (itvl, v) => itvl -> f(v)
@@ -154,7 +153,7 @@ private[timeseries] object IntervalMap {
         }
     }
 
-    def mapFilter[B](f: A => Option[B]): IntervalMap[K, B] = m match {
+    def mapFilter[B](f: A => Option[B])(implicit m2: MeasureKey[Interval[K], B]): IntervalMap[K, B] = m match {
       case impl: Impl[K, A] =>
         val elems = impl.tree.toList.map {
           case (itvl, v) => f(v).map(itvl -> _)
@@ -167,9 +166,9 @@ private[timeseries] object IntervalMap {
         }
     }
 
-    def collect[B](f: PartialFunction[A, B]) = mapFilter(f.lift)
+    def collect[B](f: PartialFunction[A, B])(implicit m: MeasureKey[Interval[K], B]): IntervalMap[K, B] = mapFilter(f.lift)
 
-    def filter(f: A => Boolean): IntervalMap[K, A] = mapFilter(a => Some(a).filter(f))
+    def filter(f: A => Boolean)(implicit m: MeasureKey[Interval[K], A]): IntervalMap[K, A] = mapFilter(a => Some(a).filter(f))
   }
 
 }
@@ -180,7 +179,7 @@ private[timeseries] sealed trait IntervalMap[A, B] {
   def toList: List[Elem[A, B]]
   def update(interval: Interval[A], value: B): IntervalMap[A, B]
   def intersect(interval: Interval[A]): IntervalMap[A, B]
-  def mapKeys[K: Ordering](f: A => K): IntervalMap[K, B]
+  def mapKeys[K: Ordering](f: A => K)(implicit m: MeasureKey[Interval[K], B]): IntervalMap[K, B]
   def whenIsDef[C](other: IntervalMap[A, C]): IntervalMap[A, B]
   def whenIsUndef[C](other: IntervalMap[A, C]): IntervalMap[A, B]
 }
