@@ -933,22 +933,25 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                          |""".stripMargin
                   )),
               backfill => {
-                val jobIdsToBackfill = backfill.jobs.split(",").toSet
-                scheduler
-                  .backfillJob(
-                    backfill.name,
-                    backfill.description,
-                    jobs.all.filter(job => jobIdsToBackfill.contains(job.id)),
-                    backfill.startDate,
-                    backfill.endDate,
-                    backfill.priority,
-                    executor.runningState,
-                    xa
-                  )
-                  .map {
-                    case Right(_)     => Ok("ok".asJson)
-                    case Left(errors) => BadRequest(errors)
-                  }
+                val jobIdsToBackfill = backfill.jobs.toSet
+                jobIdsToBackfill.partition(j => jobs.all.map(_.id).contains(j)) match {
+                  case (_, r) if !r.isEmpty => BadRequest(s"Contains unknown job ids: ${r.map(s => s"'$s'").mkString(",")}")
+                  case (filtered, _) => scheduler
+                    .backfillJob(
+                      backfill.name,
+                      backfill.description,
+                      jobs.all.filter(j => filtered.contains(j.id)),
+                      backfill.startDate,
+                      backfill.endDate,
+                      backfill.priority,
+                      executor.runningState,
+                      xa
+                    )
+                    .map {
+                      case Right(_)     => Ok("ok".asJson)
+                      case Left(errors) => BadRequest(errors)
+                    }
+                }
               }
             )
         )

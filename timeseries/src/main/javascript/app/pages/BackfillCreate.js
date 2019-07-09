@@ -151,7 +151,7 @@ class BackfillCreate extends React.Component<Props> {
       body: JSON.stringify({
         name: name,
         description: description || "",
-        jobs: jobs.join(","),
+        jobs: jobs,
         priority: priority,
         startDate: start.toISOString(),
         endDate: end.toISOString()
