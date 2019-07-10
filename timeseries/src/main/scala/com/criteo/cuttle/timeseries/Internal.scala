@@ -39,7 +39,7 @@ private[timeseries] object BackfillCreate {
 private[timeseries] case class BackfillCreate(
   name: String,
   description: String,
-  jobs: String,
+  jobs: List[String],
   startDate: Instant,
   endDate: Instant,
   priority: Int
