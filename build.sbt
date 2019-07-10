@@ -187,7 +187,7 @@ lazy val cuttle =
       libraryDependencies ++= Seq("core", "generic", "parser", "java8")
         .map(module => "io.circe" %% s"circe-$module" % circe),
       libraryDependencies ++= Seq(
-        "de.sciss" %% "fingertree" % "1.5.2",
+        "de.sciss" %% "fingertree" % "1.5.4",
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.typelevel" %% "cats-core" % catsCore,
