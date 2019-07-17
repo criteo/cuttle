@@ -191,7 +191,7 @@ lazy val cuttle =
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.typelevel" %% "cats-core" % catsCore,
-        "codes.reactive" %% "scala-time" % "0.4.1",
+        "codes.reactive" %% "scala-time" % "0.4.2",
         "com.zaxxer" % "nuprocess" % "1.1.0",
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
