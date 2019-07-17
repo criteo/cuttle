@@ -3,7 +3,7 @@ val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
 val VERSION = "0.9.9"
 
-lazy val catsCore = "1.5.0"
+lazy val catsCore = "1.6.1"
 lazy val circe = "0.10.1"
 lazy val doobie = "0.6.0"
 lazy val lolhttp = "0.12.0"
