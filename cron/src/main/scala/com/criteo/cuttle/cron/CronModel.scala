@@ -134,6 +134,8 @@ case class CronContext(instant: Instant)(retryNum: Int) extends SchedulingContex
   }
 
   override def asJson: Json = CronContext.encoder(this)
+
+  override def longRunningId(): String = toString
 }
 
 case object CronContext {
