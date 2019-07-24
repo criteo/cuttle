@@ -265,6 +265,10 @@ case class TimeSeriesContext(start: Instant,
         thisBackfillPriority.compareTo(otherBackfillPriority)
       }
   }
+
+  override def longRunningId(): String = {
+    (start, end, backfill).toString
+  }
 }
 
 object TimeSeriesContext {

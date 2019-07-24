@@ -18,6 +18,7 @@ trait TestScheduling {
     val toJson: Json = Json.Null
     val log: ConnectionIO[String] = "id".pure[ConnectionIO]
     def compareTo(other: SchedulingContext) = 0
+    override def longRunningId(): String = toString
   }
 
   case class TestScheduling(config: Unit = ()) extends Scheduling {
