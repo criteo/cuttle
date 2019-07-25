@@ -75,14 +75,12 @@ class AuthenticationSpec extends FunSuite {
     }
     val privateAuthenticatedApi: AuthenticatedService = {
       case GET at "/private/authenticated" =>
-        _ =>
-          Ok("privateauthenticated")
+        _ => Ok("privateauthenticated")
     }
 
     val privateNonAuthenticatedApi: AuthenticatedService = {
       case GET at "/private/nonauthenticated" =>
-        _ =>
-          Ok("privatenonauthenticated")
+        _ => Ok("privatenonauthenticated")
     }
 
     val completeApi = publicApi

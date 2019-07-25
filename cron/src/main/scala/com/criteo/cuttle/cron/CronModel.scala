@@ -84,9 +84,11 @@ private[cron] case class CronState(logger: Logger) {
               )
             )
           )
-          .deepMerge(Json.obj(
-            "status" -> "active".asJson
-          ))
+          .deepMerge(
+            Json.obj(
+              "status" -> "active".asJson
+            )
+          )
     }
     val pausedJobsSnapshot = paused().collect {
       case (cronJob, pausedJob) if jobIds.contains(cronJob.id) => pausedJob.asJson
@@ -141,8 +143,9 @@ case class CronContext(instant: Instant)(retryNum: Int) extends SchedulingContex
 case object CronContext {
   implicit val encoder: Encoder[CronContext] = Encoder.forProduct2("interval", "retry")(cc => cc.instant -> cc.retry)
   implicit def decoder: Decoder[CronContext] =
-    Decoder.forProduct2[CronContext, Instant, Int]("interval", "retry")((instant: Instant, retry: Int) =>
-      CronContext(instant)(retry))
+    Decoder.forProduct2[CronContext, Instant, Int]("interval", "retry")(
+      (instant: Instant, retry: Int) => CronContext(instant)(retry)
+    )
 }
 
 /** Configure a [[com.criteo.cuttle.Job job]] as a [[CronScheduling]] job.

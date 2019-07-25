@@ -90,8 +90,10 @@ private[cuttle] object ExecutionStreams {
               queries
                 .archivedStreams(id)
                 .transact(xa)
-                .map(_.map(content => fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))))
-                  .getOrElse(fs2.Stream.raiseError[IO](new Exception(s"Streams not found for execution $id"))))
+                .map(
+                  _.map(content => fs2.Stream.chunk(fs2.Chunk.bytes(content.drop(alreadySent).getBytes("utf8"))))
+                    .getOrElse(fs2.Stream.raiseError[IO](new Exception(s"Streams not found for execution $id")))
+                )
             )
             .flatMap(x => x)
       }

@@ -39,12 +39,14 @@ private[timeseries] object Interval {
     }
 
   implicit def decoder[V: Ordering: Decoder]: Decoder[Interval[V]] =
-    Decoder.decodeArray[Bound[V]].emapTry { array =>
-      Try {
-        val Array(lo, hi) = array
-        Interval(lo, hi)
+    Decoder
+      .decodeArray[Bound[V]]
+      .emapTry { array =>
+        Try {
+          val Array(lo, hi) = array
+          Interval(lo, hi)
+        }
       }
-    }
-    // For backward compatibility we fallback to the generated decoder
-    .or(deriveDecoder[Interval[V]])
+      // For backward compatibility we fallback to the generated decoder
+      .or(deriveDecoder[Interval[V]])
 }
