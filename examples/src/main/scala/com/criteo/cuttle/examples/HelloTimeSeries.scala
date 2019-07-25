@@ -19,6 +19,7 @@ import com.criteo.cuttle.timeseries._
 // time series scheduler.
 import java.time.ZoneOffset.UTC
 import java.time._
+import java.time.{Duration => JavaDuration}
 
 import scala.concurrent.duration._
 
@@ -28,9 +29,9 @@ object HelloTimeSeries {
   def main(args: Array[String]): Unit = {
 
     // We define a common start date for all our jobs. This is required by the
-    // time series scheduler to define a start date for each job. Here we dynaically
+    // time series scheduler to define a start date for each job. Here we dynamically
     // compute it as 7 days ago (_and we round it to midnight UTC_).
-    val start: Instant = LocalDate.now.minusDays(7).atStartOfDay.toInstant(UTC)
+    val start: Instant = LocalDate.now.minusDays(1).atStartOfDay.toInstant(UTC)
 
     // Here is our first job. The second parameter is the scheduling configuration.
     // __hello1__ is defined as a job computing hourly partitions starting at the start
@@ -70,11 +71,15 @@ object HelloTimeSeries {
 
     // Here is our third job. Look how we can also define some metadata such as a human friendly
     // name and a set of tags. This information is used in the UI to help retrieving your jobs.
+    // This job will be executed in batching mode, it means that it will always wait for some period of
+    // time(10 seconds here) and create a single executions for each 5 consequent partition available to compute.
     val hello3 =
-      Job("hello3",
-          hourly(start),
-          "prepare-export-job.cuttle_example.hello3_stats_daily",
-          tags = Set(Tag("hello"), Tag("unsafe"))) { implicit e =>
+      Job(
+        "hello3",
+        hourly(start, batching = TimeSeriesBatching(5, JavaDuration.ofSeconds(10))),
+        "prepare-export-job.cuttle_example.hello3_stats_daily",
+        tags = Set(Tag("hello"), Tag("unsafe"))
+      ) { implicit e =>
         // Here we mix a Scala code execution and a sh script execution.
         e.streams.info("Hello 3 from an unsafe job")
         e.streams.info(s"My previous failures are ${e.previousFailures}")
@@ -100,7 +105,7 @@ object HelloTimeSeries {
         }
       }
 
-    // Our last job is a daily job. For the daily job we still need to annouce a start date, plus
+    // Our last job is a daily job. For the daily job we still need to announce a start date, plus
     // we need to define the time zone for which _days_ must be considered. The partitions for
     // daily jobs will usually be 24 hours, unless you are choosing a time zone with light saving.
     val world = Job("world", daily(UTC, start), "export-job.cuttle.world_stats", tags = Set(Tag("world"))) {
