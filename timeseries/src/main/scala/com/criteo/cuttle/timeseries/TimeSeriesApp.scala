@@ -119,7 +119,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           "project" -> project.name.asJson,
           "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
           "status" -> status.asJson
-      )
+        )
       executor.healthCheck() match {
         case Success(_) => Ok(projectJson("ok"))
         case _          => InternalServerError(projectJson("ko"))
@@ -134,14 +134,16 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             stats =>
               Try(
                 stats -> scheduler.getStats(ids)
-              ).toOption)
+              ).toOption
+          )
 
       def asJson(x: (Json, Json)) = x match {
         case (executorStats, schedulerStats) =>
           executorStats.deepMerge(
             Json.obj(
               "scheduler" -> schedulerStats
-            ))
+            )
+          )
       }
       request
         .readAs[Json]
@@ -180,13 +182,17 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             Some(
               executor.runningExecutionsSizeTotal(q.jobIds(allIds)) -> executor
                 .runningExecutions(q.jobIds(allIds), q.sort.column, q.sort.asc, q.offset, q.limit)
-                .toList))
+                .toList
+            )
+          )
         case "stuck" =>
           IO(
             Some(
               executor.failingExecutionsSize(q.jobIds(allIds)) -> executor
                 .failingExecutions(q.jobIds(allIds), q.sort.column, q.sort.asc, q.offset, q.limit)
-                .toList))
+                .toList
+            )
+          )
         case "finished" =>
           executor
             .archivedExecutionsSize(q.jobIds(allIds))
@@ -217,7 +223,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                 "limit" -> q.limit.asJson,
                 "sort" -> q.sort.asJson,
                 "data" -> data
-            ))
+              )
+          )
       }
 
       request
@@ -229,8 +236,10 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
               query => {
                 getExecutions(query)
-                  .flatMap(_.map(e => asJson(query, e).map(json => Ok(json)))
-                    .getOrElse(NotFound))
+                  .flatMap(
+                    _.map(e => asJson(query, e).map(json => Ok(json)))
+                      .getOrElse(NotFound)
+                  )
               }
             )
         }
@@ -264,7 +273,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             Content(
               stream = streams,
               headers = Map(h"Content-Type" -> h"text/plain")
-            ))
+            )
+          )
       }
 
     case GET at "/api/jobs/paused" =>
@@ -414,8 +424,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       e => (e.jobExecutions, e.parentExecutions)
     )
 
-  private type FocusWatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
-  private[timeseries] def getFocusView(watchedState: FocusWatchedState,
+  private[timeseries] def getFocusView(watchedState: WatchedState,
                                        q: CalendarFocusQuery,
                                        filteredJobs: Set[String]): Json = {
     val startDate = Instant.parse(q.start)
@@ -450,7 +459,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     def aggregateExecutions(
       job: TimeSeriesJob,
       period: Interval[Instant],
-      calendarView: TimeSeriesCalendarView): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
+      calendarView: TimeSeriesCalendarView
+    ): List[(Interval[Instant], List[(Interval[Instant], JobState)])] =
       calendarView.calendar
         .split(period)
         .flatMap { interval =>
@@ -502,12 +512,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                 IntervalMap(interval -> 0)
                   .intersect(Interval(bf.start, bf.end))
                   .toList
-                  .nonEmpty)
+                  .nonEmpty
+          )
           if (calendarView.aggregationFactor == 1) {
             jobStatesOnIntervals match {
               case (_, state) :: Nil =>
                 Some(
-                  JobExecution(interval, getStatusLabelFromState(state, job), inBackfill, getVersionFromState(state)))
+                  JobExecution(interval, getStatusLabelFromState(state, job), inBackfill, getVersionFromState(state))
+                )
               case _ => None
             }
           } else {
@@ -566,8 +578,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               if (jobSummaries.nonEmpty) {
                 val aggregatedJobSummary = jobSummaries.reduce { (a: JobSummary, b: JobSummary) =>
                   JobSummary(a.periodLengthInSeconds + b.periodLengthInSeconds,
-                            a.periodDoneInSeconds + b.periodDoneInSeconds,
-                            a.hasErrors || b.hasErrors)
+                             a.periodDoneInSeconds + b.periodDoneInSeconds,
+                             a.hasErrors || b.hasErrors)
                 }
                 Some(
                   AggregatedJobExecution(
@@ -582,22 +594,21 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               }
           }
 
-        }
+      }
 
     Json.obj(
       "summary" -> summary.asJson,
       "jobs" -> jobTimelines.map(jt => jt.jobId -> jt).toMap.asJson
     )
   }
-  private[timeseries] def focusWatchState(): Option[FocusWatchedState] =
-    Some((scheduler.state, executor.allFailingJobsWithContext))
+
+  private def snapshotWatchedState() = (scheduler.state, executor.allFailingJobsWithContext)
+
+  private[timeseries] def getFocusView(q: CalendarFocusQuery, jobs: Set[String]): Json =
+    getFocusView(snapshotWatchedState(), q, jobs)
 
   private[timeseries] def publicRoutes(): PartialService = {
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
-      type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
-
-      def watchState(): Option[WatchedState] = Some((scheduler.state, executor.allFailingJobsWithContext))
-
       def getExecutions(watchedState: WatchedState): IO[Json] = {
         val job = jobs.vertices.find(_.id == jobId).get
         val calendar = job.scheduling.calendar
@@ -634,7 +645,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         archivedExecutions.map(
           archivedExecutions =>
             ExecutionDetails(archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions,
-                             parentExecutions(requestedInterval, job, jobStates)).asJson)
+                             parentExecutions(requestedInterval, job, jobStates)).asJson
+        )
       }
 
       def parentExecutions(requestedInterval: Interval[Instant],
@@ -669,24 +681,18 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         runningDependencies ++ failingDependencies ++ remainingDependenciesDeps.toSeq
       }
 
-      watchState() match {
-        case Some(watchedState) =>
-          if (request.headers.get(h"Accept").contains(h"text/event-stream"))
-            sse(IO { Some(watchedState) }, (s: WatchedState) => getExecutions(s))
-          else
-            getExecutions(watchedState).map(Ok(_))
-        case None =>
-          BadRequest
+      val watchedState = snapshotWatchedState()
+      if (request.headers.get(h"Accept").contains(h"text/event-stream")) {
+        sse(IO { Some(watchedState) }, (s: WatchedState) => getExecutions(s))
+      } else {
+        getExecutions(watchedState).map(Ok(_))
       }
 
     case GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
       val filteredJobs = Option(jobs.split(",").toSet.filterNot(_.isEmpty)).filterNot(_.isEmpty).getOrElse(allIds)
       val q = CalendarFocusQuery(filteredJobs, start, end)
 
-      focusWatchState() match {
-        case Some(watchedState) => Ok(getFocusView(watchedState, q, filteredJobs))
-        case None               => BadRequest
-      }
+      Ok(getFocusView(q, filteredJobs))
 
     case request @ POST at url"/api/timeseries/calendar/focus" =>
       request
@@ -698,17 +704,12 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
               query => {
                 val jobs = Option(query.jobs.filterNot(_.isEmpty)).filterNot(_.isEmpty).getOrElse(allIds)
-                focusWatchState() match {
-                  case Some(watchedState) => Ok(getFocusView(watchedState, query, jobs))
-                  case None               => BadRequest
-                }
+                Ok(getFocusView(query, jobs))
               }
             )
         }
 
     case request @ POST at url"/api/timeseries/calendar" => {
-
-      type WatchedState = ((TimeSeriesUtils.State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeries#Context)])
 
       case class JobStateOnPeriod(start: Instant, duration: Long, isDone: Boolean, isStuck: Boolean)
 
@@ -731,19 +732,18 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           if jobs.contains(job.id)
           (interval, jobState) <- jobStates(job).intersect(upToMidnightToday).toList
           (start, end) <- Daily(UTC).split(interval)
-        } yield
-          JobStateOnPeriod(
-            Daily(UTC).truncate(start),
-            start.until(end, ChronoUnit.SECONDS),
-            jobState match {
-              case Done(_) => true
-              case _       => false
-            },
-            jobState match {
-              case Running(exec) => failingExecutionIds.contains(exec)
-              case _             => false
-            }
-          )
+        } yield JobStateOnPeriod(
+          Daily(UTC).truncate(start),
+          start.until(end, ChronoUnit.SECONDS),
+          jobState match {
+            case Done(_) => true
+            case _       => false
+          },
+          jobState match {
+            case Running(exec) => failingExecutionIds.contains(exec)
+            case _             => false
+          }
+        )
 
         jobStatesOnPeriod
           .groupBy { case JobStateOnPeriod(start, _, _, _) => start }
@@ -851,19 +851,19 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     case request @ POST at url"/api/timeseries/backfills/$backfillId/executions" => {
       def allExecutions(q: ExecutionsQuery): IO[Option[(Int, Double, List[ExecutionLog])]] = {
 
-          val ordering = {
-            val columnOrdering = q.sort.column match {
-              case "job"       => Ordering.by((_: ExecutionLog).job)
-              case "startTime" => Ordering.by((_: ExecutionLog).startTime)
-              case "status"    => Ordering.by((_: ExecutionLog).status.toString)
-              case _           => Ordering.by((_: ExecutionLog).id)
-            }
-            if (q.sort.asc) {
-              columnOrdering
-            } else {
-              columnOrdering.reverse
-            }
+        val ordering = {
+          val columnOrdering = q.sort.column match {
+            case "job"       => Ordering.by((_: ExecutionLog).job)
+            case "startTime" => Ordering.by((_: ExecutionLog).startTime)
+            case "status"    => Ordering.by((_: ExecutionLog).status.toString)
+            case _           => Ordering.by((_: ExecutionLog).id)
           }
+          if (q.sort.asc) {
+            columnOrdering
+          } else {
+            columnOrdering.reverse
+          }
+        }
 
         val runningExecutions = executor.runningExecutions
           .filter(t => {
@@ -900,15 +900,17 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                 allExecutions(q)
                   .map(_.map {
                     case (total, completion, executions) =>
-                      Ok(Json.obj(
-                        "total" -> total.asJson,
-                        "offset" -> q.offset.asJson,
-                        "limit" -> q.limit.asJson,
-                        "sort" -> q.sort.column.asJson,
-                        "asc" -> q.sort.asc.asJson,
-                        "data" -> executions.asJson,
-                        "completion" -> completion.asJson
-                      ))
+                      Ok(
+                        Json.obj(
+                          "total" -> total.asJson,
+                          "offset" -> q.offset.asJson,
+                          "limit" -> q.limit.asJson,
+                          "sort" -> q.sort.column.asJson,
+                          "asc" -> q.sort.asc.asJson,
+                          "data" -> executions.asJson,
+                          "completion" -> completion.asJson
+                        )
+                      )
                   }.getOrElse(NotFound))
               }
             )
@@ -931,26 +933,29 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                          |Error: Cannot parse request body.
                          |$df
                          |""".stripMargin
-                  )),
+                  )
+                ),
               backfill => {
                 val jobIdsToBackfill = backfill.jobs.toSet
                 jobIdsToBackfill.partition(j => jobs.all.map(_.id).contains(j)) match {
-                  case (_, r) if !r.isEmpty => BadRequest(s"Contains unknown job ids: ${r.map(s => s"'$s'").mkString(",")}")
-                  case (filtered, _) => scheduler
-                    .backfillJob(
-                      backfill.name,
-                      backfill.description,
-                      jobs.all.filter(j => filtered.contains(j.id)),
-                      backfill.startDate,
-                      backfill.endDate,
-                      backfill.priority,
-                      executor.runningState,
-                      xa
-                    )
-                    .map {
-                      case Right(_)     => Ok("ok".asJson)
-                      case Left(errors) => BadRequest(errors)
-                    }
+                  case (_, r) if !r.isEmpty =>
+                    BadRequest(s"Contains unknown job ids: ${r.map(s => s"'$s'").mkString(",")}")
+                  case (filtered, _) =>
+                    scheduler
+                      .backfillJob(
+                        backfill.name,
+                        backfill.description,
+                        jobs.all.filter(j => filtered.contains(j.id)),
+                        backfill.startDate,
+                        backfill.endDate,
+                        backfill.priority,
+                        executor.runningState,
+                        xa
+                      )
+                      .map {
+                        case Right(_)     => Ok("ok".asJson)
+                        case Left(errors) => BadRequest(errors)
+                      }
                 }
               }
             )
@@ -996,11 +1001,9 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
   val index: AuthenticatedService = {
     case req if req.url.startsWith("/api/") =>
-      _ =>
-        NotFound
+      _ => NotFound
     case _ =>
-      _ =>
-        Ok(ClasspathResource(s"/public/index.html"))
+      _ => Ok(ClasspathResource(s"/public/index.html"))
   }
 
   /** List of */
