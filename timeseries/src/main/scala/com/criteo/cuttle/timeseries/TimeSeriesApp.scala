@@ -449,6 +449,67 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       e => (e.jobExecutions, e.parentExecutions)
     )
 
+  private def getAllExecutions(watchedState: WatchedState,
+                               job: Job[TimeSeries],
+                               startDate: Instant,
+                               endDate: Instant): IO[Seq[Seq[ExecutionLog]]] = {
+    val calendar = job.scheduling.calendar
+    val contextQuery =
+      Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
+    val interval = Interval(startDate, endDate)
+    val archivedExecutions =
+      executor.archivedExecutions(
+        contextQuery,
+        Set(job.id),
+        "",
+        asc = true,
+        0,
+        Int.MaxValue
+      )
+    val runningExecutions = executor.runningExecutions
+      .collect {
+        case (e, status) if e.job == job && e.context.toInterval.intersects(interval) =>
+          e.toExecutionLog(status)
+      }
+
+    val remainingExecutions =
+      for {
+        (interval, maybeBackfill) <- watchedState._1
+          ._1(job)
+          .intersect(interval)
+          .toList
+          .collect {
+            case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill)
+          }
+        (lo, hi) <- calendar.split(interval)
+      } yield {
+        val context =
+          TimeSeriesContext(
+            calendar.truncate(lo),
+            calendar.ceil(hi),
+            maybeBackfill,
+            executor.projectVersion
+          )
+        ExecutionLog(
+          "",
+          job.id,
+          None,
+          None,
+          context.asJson,
+          ExecutionTodo,
+          None,
+          0
+        )
+      }
+    val throttledExecutions = executor.allFailingExecutions
+      .collect {
+        case e if e.job == job && e.context.toInterval.intersects(interval) =>
+          e.toExecutionLog(ExecutionThrottled)
+      }
+
+    archivedExecutions.map(Seq(_, runningExecutions, remainingExecutions, throttledExecutions))
+  }
+
   private[timeseries] def getFocusView(watchedState: WatchedState,
                                        q: CalendarFocusQuery,
                                        filteredJobs: Set[String]): Json = {
@@ -672,82 +733,13 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
   private[timeseries] def publicRoutes(): PartialService = {
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
-      def getExecutions(watchedState: WatchedState): IO[Json] = {
-        val job = jobs.vertices.find(_.id == jobId).get
-        val calendar = job.scheduling.calendar
-        val startDate = Instant.parse(start)
-        val endDate = Instant.parse(end)
-        val requestedInterval = Interval(startDate, endDate)
-        val contextQuery =
-          Database.sqlGetContextsBetween(Some(startDate), Some(endDate))
-        val archivedExecutions =
-          executor.archivedExecutions(
-            contextQuery,
-            Set(jobId),
-            "",
-            asc = true,
-            0,
-            Int.MaxValue
-          )
-        val runningExecutions = executor.runningExecutions
-          .filter {
-            case (e, _) =>
-              e.job.id == jobId && e.context.toInterval.intersects(
-                requestedInterval
-              )
-          }
-          .map { case (e, status) => e.toExecutionLog(status) }
+      val job = jobs.vertices.find(_.id == jobId).get
+      val startDate = Instant.parse(start)
+      val endDate = Instant.parse(end)
+      val requestInterval = Interval(startDate, endDate)
+      val watchedState = snapshotWatchedState()
 
-        val ((jobStates, _), _) = watchedState
-        val remainingExecutions =
-          for {
-            (interval, maybeBackfill) <- jobStates(job)
-              .intersect(requestedInterval)
-              .toList
-              .collect {
-                case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill)
-              }
-            (lo, hi) <- calendar.split(interval)
-          } yield {
-            val context =
-              TimeSeriesContext(
-                calendar.truncate(lo),
-                calendar.ceil(hi),
-                maybeBackfill,
-                executor.projectVersion
-              )
-            ExecutionLog(
-              "",
-              job.id,
-              None,
-              None,
-              context.asJson,
-              ExecutionTodo,
-              None,
-              0
-            )
-          }
-        val throttledExecutions = executor.allFailingExecutions
-          .filter(
-            e => e.job == job && e.context.toInterval.intersects(requestedInterval)
-          )
-          .map(_.toExecutionLog(ExecutionThrottled))
-
-        archivedExecutions.map(
-          archivedExecutions =>
-            ExecutionDetails(
-              archivedExecutions ++ runningExecutions ++ remainingExecutions ++ throttledExecutions,
-              parentExecutions(requestedInterval, job, jobStates)
-            ).asJson
-        )
-      }
-
-      def parentExecutions(
-        requestedInterval: Interval[Instant],
-        job: Job[TimeSeries],
-        state: Map[Job[TimeSeries], IntervalMap[Instant, JobState]]
-      ): Seq[ExecutionLog] = {
-
+      def parentExecutions(state: Map[Job[TimeSeries], IntervalMap[Instant, JobState]]): Seq[ExecutionLog] = {
         val calendar = job.scheduling.calendar
         val parentJobs = jobs.edges
           .collect({ case (child, parent, _) if child == job => parent })
@@ -755,7 +747,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           .filter {
             case (e, _) =>
               parentJobs.contains(e.job) && e.context.toInterval.intersects(
-                requestedInterval
+                requestInterval
               )
           }
           .map({ case (e, status) => e.toExecutionLog(status) })
@@ -764,14 +756,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             .filter(
               e =>
                 parentJobs.contains(e.job) && e.context.toInterval
-                  .intersects(requestedInterval)
+                  .intersects(requestInterval)
             )
             .map(_.toExecutionLog(ExecutionThrottled))
         val remainingDependenciesDeps =
           for {
             parentJob <- parentJobs
             (interval, maybeBackfill) <- state(parentJob)
-              .intersect(requestedInterval)
+              .intersect(requestInterval)
               .toList
               .collect {
                 case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill)
@@ -800,14 +792,22 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         runningDependencies ++ failingDependencies ++ remainingDependenciesDeps.toSeq
       }
 
-      val watchedState = snapshotWatchedState()
+      def executionDetailsAsJson(watchedState: WatchedState): IO[Json] =
+        getAllExecutions(watchedState, job, startDate, endDate).map(
+          executionEnsemble =>
+            ExecutionDetails(
+              executionEnsemble.reduce(_ ++ _),
+              parentExecutions(watchedState._1._1)
+            ).asJson
+        )
+
       if (request.headers.get(h"Accept").contains(h"text/event-stream")) {
         sse(
           IO { Some(watchedState) },
-          (s: WatchedState) => getExecutions(s)
+          (s: WatchedState) => executionDetailsAsJson(s)
         )
       } else {
-        getExecutions(watchedState).map(Ok(_))
+        executionDetailsAsJson(watchedState).map(Ok(_))
       }
 
     case GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
