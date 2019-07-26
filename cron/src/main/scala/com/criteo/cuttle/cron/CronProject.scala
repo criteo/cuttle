@@ -84,12 +84,13 @@ object CronProject {
     * @param scheduler     The scheduler instance to use to schedule the Workflow jobs.
     * @param logger        The logger to use to log internal debug informations.
     */
-  def apply(name: String,
-            version: String = "",
-            description: String = "",
-            env: (String, Boolean) = ("", false),
-            authenticator: Auth.Authenticator = Auth.GuestAuth)(
-    jobs: Workload[CronScheduling])(implicit scheduler: CronScheduler, logger: Logger): CronProject =
+  def apply(
+    name: String,
+    version: String = "",
+    description: String = "",
+    env: (String, Boolean) = ("", false),
+    authenticator: Auth.Authenticator = Auth.GuestAuth
+  )(jobs: Workload[CronScheduling])(implicit scheduler: CronScheduler, logger: Logger): CronProject =
     new CronProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 
   private[CronProject] val defaultPlatforms: Seq[ExecutionPlatform] = {

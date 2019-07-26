@@ -214,12 +214,11 @@ private[timeseries] object Backfill {
           id <- c.downField("id").as[String]
           start <- c.downField("start").as[Instant]
           end <- c.downField("end").as[Instant]
-          jobs <-
-            c.downField("jobs").as[Seq[String]].right.map { jobIds =>
-              jobIds.flatMap { jobId =>
-                jobs.find(_.id == jobId).toSeq
-              }.toSet
-            }
+          jobs <- c.downField("jobs").as[Seq[String]].right.map { jobIds =>
+            jobIds.flatMap { jobId =>
+              jobs.find(_.id == jobId).toSeq
+            }.toSet
+          }
           priority <- c.downField("priority").as[Int]
           name <- c.downField("name").as[String]
           description <- c.downField("description").as[String]
@@ -266,9 +265,8 @@ case class TimeSeriesContext(start: Instant,
       }
   }
 
-  override def longRunningId(): String = {
+  override def longRunningId(): String =
     (start, end, backfill).toString
-  }
 }
 
 object TimeSeriesContext {
@@ -338,33 +336,38 @@ private[timeseries] object JobState {
   implicit val doneDecoder: Decoder[Done] = new Decoder[Done] {
     def apply(c: HCursor): Decoder.Result[Done] =
       for {
-        version <-
-          c.downField("v").as[String]
-            .orElse(c.downField("projectVersion").as[String])
-            .orElse(Right("no-version"))
+        version <- c
+          .downField("v")
+          .as[String]
+          .orElse(c.downField("projectVersion").as[String])
+          .orElse(Right("no-version"))
       } yield Done(version)
   }
 
   implicit val todoEncoder: Encoder[Todo] = new Encoder[Todo] {
     def apply(todo: Todo) =
-      todo.maybeBackfill.map { backfill =>
-        Json.obj("backfill" -> todo.maybeBackfill.map(_.id).asJson)
-      }.getOrElse(Json.obj())
+      todo.maybeBackfill
+        .map { backfill =>
+          Json.obj("backfill" -> todo.maybeBackfill.map(_.id).asJson)
+        }
+        .getOrElse(Json.obj())
   }
 
   implicit def todoDecoder(implicit jobs: Set[TimeSeriesJob], backfills: List[Backfill]): Decoder[Todo] =
     new Decoder[Todo] {
-      def apply(c: HCursor): Decoder.Result[Todo] = {
+      def apply(c: HCursor): Decoder.Result[Todo] =
         for {
-          maybeBackfill <-
-            c.downField("backfill").as[String].right.map { id =>
+          maybeBackfill <- c
+            .downField("backfill")
+            .as[String]
+            .right
+            .map { id =>
               backfills.find(_.id == id)
             }
             // Legacy format
             .orElse(c.downField("maybeBackfill").as[Option[Backfill]])
             .orElse(Right(None))
         } yield Todo(maybeBackfill)
-      }
     }
 
   implicit val encoder: Encoder[JobState] = deriveEncoder
@@ -468,14 +471,15 @@ case class TimeSeriesScheduler(logger: Logger,
     })
   }
 
-  private def updateBackfillState(backfill: Backfill): Map[TimeSeriesJob, IntervalMap[Instant, JobState]] = atomic { implicit txn =>
-    _backfills() = _backfills() + backfill
-    _state() = _state() ++ backfill.jobs.map(job => {
-      val newStart = job.scheduling.calendar.truncate(backfill.start)
-      val newEnd = job.scheduling.calendar.ceil(backfill.end)
-      job -> _state().apply(job).update(Interval(newStart, newEnd), Todo(Some(backfill)))
-    })
-    _state()
+  private def updateBackfillState(backfill: Backfill): Map[TimeSeriesJob, IntervalMap[Instant, JobState]] = atomic {
+    implicit txn =>
+      _backfills() = _backfills() + backfill
+      _state() = _state() ++ backfill.jobs.map(job => {
+        val newStart = job.scheduling.calendar.truncate(backfill.start)
+        val newEnd = job.scheduling.calendar.ceil(backfill.end)
+        job -> _state().apply(job).update(Interval(newStart, newEnd), Todo(Some(backfill)))
+      })
+      _state()
   }
 
   /**
@@ -535,9 +539,11 @@ case class TimeSeriesScheduler(logger: Logger,
         val dbUpdate: IO[Either[String, Unit]] = backfills
           .map { newBackfill =>
             val updatedState = updateBackfillState(newBackfill)
-            runOrLogAndDie((Database.createBackfill(newBackfill) >>
-              Database.serializeState(updatedState, stateRetention)).transact(xa),
-              "TimeseriesScheduler, cannot serialize state, shutting down")
+            runOrLogAndDie(
+              (Database.createBackfill(newBackfill) >>
+                Database.serializeState(updatedState, stateRetention)).transact(xa),
+              "TimeseriesScheduler, cannot serialize state, shutting down"
+            )
           }
           .sequence
           .map(_ => Right(Unit))
@@ -805,7 +811,6 @@ case class TimeSeriesScheduler(logger: Logger,
       }
 
     atomic { implicit txn =>
-
       _backfills() = _backfills() ++ incompleteBackfills
       _pausedJobs() = _pausedJobs() ++ queries.getPausedJobs.transact(xa).unsafeRunSync()
 
@@ -843,16 +848,17 @@ case class TimeSeriesScheduler(logger: Logger,
   private def runOrLogAndDie[K](thunk: IO[K], message: => String): IO[K] = {
     import java.io._
 
-    IO.suspend(thunk).onError({
-      case e =>
-        IO {
-          logger.error(message)
-          val sw = new StringWriter
-          e.printStackTrace(new PrintWriter(sw))
-          logger.error(sw.toString)
-          System.exit(-1)
-        }
-    })
+    IO.suspend(thunk)
+      .onError({
+        case e =>
+          IO {
+            logger.error(message)
+            val sw = new StringWriter
+            e.printStackTrace(new PrintWriter(sw))
+            logger.error(sw.toString)
+            System.exit(-1)
+          }
+      })
   }
 
   private[timeseries] def collectCompletedJobs(state: State,
@@ -1083,6 +1089,7 @@ object TimeSeriesUtils {
   type Executable = (TimeSeriesJob, TimeSeriesContext)
   type Run = (TimeSeriesJob, TimeSeriesContext, Future[Completed])
   type State = Map[TimeSeriesJob, IntervalMap[Instant, JobState]]
+  type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
 
   val UTC: ZoneId = ZoneId.of("UTC")
 

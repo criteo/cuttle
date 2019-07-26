@@ -38,7 +38,8 @@ private[timeseries] object IntervalMap {
   def empty[A: Ordering, B]: IntervalMap[A, B] =
     new Impl(FingerTree.empty)
 
-  private[intervals] class Impl[A: Ordering, B](val tree: FingerTree[Option[Interval[A]], Elem[A, B]]) extends IntervalMap[A, B] {
+  private[intervals] class Impl[A: Ordering, B](val tree: FingerTree[Option[Interval[A]], Elem[A, B]])
+      extends IntervalMap[A, B] {
     def toList = tree.toList
 
     def lower(interval: Interval[A]): (Option[Interval[A]] => Boolean) = {
@@ -133,7 +134,7 @@ private[timeseries] object IntervalMap {
     }
 
     override def equals(other: Any) = other match {
-      case otherImpl: Impl[_,_] =>
+      case otherImpl: Impl[_, _] =>
         this.toList == otherImpl.toList
       case _ =>
         false
@@ -148,7 +149,7 @@ private[timeseries] object IntervalMap {
         val elems = impl.tree.toList.map {
           case (itvl, v) => itvl -> f(v)
         }
-        elems.foldLeft(IntervalMap.empty[K,B]) {
+        elems.foldLeft(IntervalMap.empty[K, B]) {
           case (imap, (interval, value)) =>
             imap.update(interval, value)
         }
@@ -163,7 +164,7 @@ private[timeseries] object IntervalMap {
         val elems = impl.tree.toList.map {
           case (itvl, v) => f(v).map(itvl -> _)
         }
-        elems.foldLeft(IntervalMap.empty[K,B]) {
+        elems.foldLeft(IntervalMap.empty[K, B]) {
           case (imap, Some((interval, value))) =>
             imap.update(interval, value)
           case (imap, None) =>
