@@ -1089,6 +1089,7 @@ object TimeSeriesUtils {
   type Executable = (TimeSeriesJob, TimeSeriesContext)
   type Run = (TimeSeriesJob, TimeSeriesContext, Future[Completed])
   type State = Map[TimeSeriesJob, IntervalMap[Instant, JobState]]
+  type WatchedState = ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
 
   val UTC: ZoneId = ZoneId.of("UTC")
 
