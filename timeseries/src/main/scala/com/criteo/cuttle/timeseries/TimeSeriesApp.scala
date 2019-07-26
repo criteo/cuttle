@@ -839,9 +839,6 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
       case class JobStateOnPeriod(start: Instant, duration: Long, isDone: Boolean, isStuck: Boolean)
 
-      def watchState(): Option[WatchedState] =
-        Some((scheduler.state, executor.allFailingJobsWithContext))
-
       def getCalendar(watchedState: WatchedState, jobs: Set[String]): Json = {
         val ((jobStates, backfills), _) = watchedState
         val backfillDomain =
@@ -922,10 +919,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               jobIds => {
                 val ids =
                   if (jobIds.isEmpty) project.jobs.all.map(_.id) else jobIds
-                watchState() match {
-                  case Some(watchedState) => Ok(getCalendar(watchedState, ids))
-                  case None               => BadRequest
-                }
+                Ok(getCalendar(snapshotWatchedState(), ids))
               }
             )
         }
