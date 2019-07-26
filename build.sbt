@@ -211,7 +211,7 @@ lazy val timeseries =
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
-        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % "test"
       )
     )
     .settings(
@@ -272,7 +272,7 @@ lazy val examples =
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
-        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % "test"
       )
     )
     .settings(
