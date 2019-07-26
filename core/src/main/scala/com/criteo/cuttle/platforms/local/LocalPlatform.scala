@@ -108,8 +108,9 @@ class LocalProcess(command: String) {
     * @param execution The execution for which this process is forked. The process out will be redirected to
     *                  the [[com.criteo.cuttle.ExecutionStreams execution streams]].
     */
-  def execAndRetrieveOutput[S <: Scheduling](env: Map[String, String] = sys.env)(
-    implicit execution: Execution[S]): Future[(String, String)] = {
+  def execAndRetrieveOutput[S <: Scheduling](
+    env: Map[String, String] = sys.env
+  )(implicit execution: Execution[S]): Future[(String, String)] = {
     val out = new StringBuffer
     val err = new StringBuffer
     exec0(env, x => out.append(x), x => err.append(x)).map(_ => (out.toString, err.toString))

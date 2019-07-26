@@ -54,7 +54,8 @@ class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueu
             "available_tokens" -> _tokens.single.get.asJson,
             "refill_rate_in_ms" -> refillRateInMs.asJson,
             "last_refill" -> _lastRefill.single.get.asJson
-          ))
+          )
+        )
     }: PartialService).orElse(super.routes(urlPrefix))
 
 }
