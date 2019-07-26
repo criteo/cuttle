@@ -32,8 +32,9 @@ object ThreadPools {
   sealed trait DoobieThreadPool extends WrappedThreadPool with Metrics
 
   object SideEffectThreadPool {
-    def wrap(wrapRunnable: Runnable => Runnable)(
-      implicit executionContext: SideEffectThreadPool): SideEffectThreadPool =
+    def wrap(
+      wrapRunnable: Runnable => Runnable
+    )(implicit executionContext: SideEffectThreadPool): SideEffectThreadPool =
       new SideEffectThreadPool {
         private val delegate = executionContext.underlying
 
@@ -127,7 +128,8 @@ object ThreadPools {
     ThreadPools.newFixedThreadPool(
       fromSystemProperties(DoobieConnectThreadCount, Runtime.getRuntime.availableProcessors),
       poolName = Some("Doobie-Connect")
-    ))
+    )
+  )
   val doobieTransactThreadPoolResource = makeResourceFromES(
     ThreadPools.newCachedThreadPool(poolName = Some("Doobie-Transact"))
   )
