@@ -449,9 +449,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       e => (e.jobExecutions, e.parentExecutions)
     )
 
-  private type FocusWatchedState =
-    ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
-  private[timeseries] def getFocusView(watchedState: FocusWatchedState,
+  private[timeseries] def getFocusView(watchedState: WatchedState,
                                        q: CalendarFocusQuery,
                                        filteredJobs: Set[String]): Json = {
     val startDate = Instant.parse(q.start)
@@ -557,6 +555,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                     getVersionFromState(state)
                   )
                 )
+
               case _ => None
             }
           } else {
@@ -665,17 +664,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       "jobs" -> jobTimelines.map(jt => jt.jobId -> jt).toMap.asJson
     )
   }
-  private[timeseries] def focusWatchState(): Option[FocusWatchedState] =
-    Some((scheduler.state, executor.allFailingJobsWithContext))
+
+  private def snapshotWatchedState() = (scheduler.state, executor.allFailingJobsWithContext)
+
+  private[timeseries] def getFocusView(q: CalendarFocusQuery, jobs: Set[String]): Json =
+    getFocusView(snapshotWatchedState(), q, jobs)
 
   private[timeseries] def publicRoutes(): PartialService = {
     case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
-      type WatchedState =
-        ((State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeriesContext)])
-
-      def watchState(): Option[WatchedState] =
-        Some((scheduler.state, executor.allFailingJobsWithContext))
-
       def getExecutions(watchedState: WatchedState): IO[Json] = {
         val job = jobs.vertices.find(_.id == jobId).get
         val calendar = job.scheduling.calendar
@@ -804,17 +800,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         runningDependencies ++ failingDependencies ++ remainingDependenciesDeps.toSeq
       }
 
-      watchState() match {
-        case Some(watchedState) =>
-          if (request.headers.get(h"Accept").contains(h"text/event-stream"))
-            sse(
-              IO { Some(watchedState) },
-              (s: WatchedState) => getExecutions(s)
-            )
-          else
-            getExecutions(watchedState).map(Ok(_))
-        case None =>
-          BadRequest
+      val watchedState = snapshotWatchedState()
+      if (request.headers.get(h"Accept").contains(h"text/event-stream")) {
+        sse(
+          IO { Some(watchedState) },
+          (s: WatchedState) => getExecutions(s)
+        )
+      } else {
+        getExecutions(watchedState).map(Ok(_))
       }
 
     case GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
@@ -823,11 +816,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         .getOrElse(allIds)
       val q = CalendarFocusQuery(filteredJobs, start, end)
 
-      focusWatchState() match {
-        case Some(watchedState) =>
-          Ok(getFocusView(watchedState, q, filteredJobs))
-        case None => BadRequest
-      }
+      Ok(getFocusView(q, filteredJobs))
 
     case request @ POST at url"/api/timeseries/calendar/focus" =>
       request
@@ -841,23 +830,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                 val jobs = Option(query.jobs.filterNot(_.isEmpty))
                   .filterNot(_.isEmpty)
                   .getOrElse(allIds)
-                focusWatchState() match {
-                  case Some(watchedState) =>
-                    Ok(getFocusView(watchedState, query, jobs))
-                  case None => BadRequest
-                }
+                Ok(getFocusView(query, jobs))
               }
             )
         }
 
     case request @ POST at url"/api/timeseries/calendar" => {
 
-      type WatchedState = ((TimeSeriesUtils.State, Set[Backfill]), Set[(Job[TimeSeries], TimeSeries#Context)])
-
       case class JobStateOnPeriod(start: Instant, duration: Long, isDone: Boolean, isStuck: Boolean)
-
-      def watchState(): Option[WatchedState] =
-        Some((scheduler.state, executor.allFailingJobsWithContext))
 
       def getCalendar(watchedState: WatchedState, jobs: Set[String]): Json = {
         val ((jobStates, backfills), _) = watchedState
@@ -939,10 +919,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               jobIds => {
                 val ids =
                   if (jobIds.isEmpty) project.jobs.all.map(_.id) else jobIds
-                watchState() match {
-                  case Some(watchedState) => Ok(getCalendar(watchedState, ids))
-                  case None               => BadRequest
-                }
+                Ok(getCalendar(snapshotWatchedState(), ids))
               }
             )
         }
