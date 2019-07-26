@@ -48,6 +48,8 @@ object HelloCustomScheduling {
         case LoopContext(otherIteration) =>
           iteration - otherIteration
       }
+
+      override def longRunningId(): String = toString
     }
 
     // This our scheduling definition and configuration. For example
