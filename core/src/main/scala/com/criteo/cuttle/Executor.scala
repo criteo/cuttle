@@ -91,6 +91,19 @@ object ExecutionStatus {
   case object ExecutionThrottled extends ExecutionStatus
   case object ExecutionWaiting extends ExecutionStatus
   case object ExecutionTodo extends ExecutionStatus
+
+  implicit lazy val executionStatEncoder: Encoder[ExecutionStatus] = new Encoder[ExecutionStatus] {
+    override def apply(stat: ExecutionStatus): Json =
+      (stat match {
+        case ExecutionSuccessful => "successful"
+        case ExecutionFailed     => "failed"
+        case ExecutionRunning    => "running"
+        case ExecutionWaiting    => "waiting"
+        case ExecutionPaused     => "paused"
+        case ExecutionThrottled  => "throttled"
+        case ExecutionTodo       => "todo"
+      }).asJson
+  }
 }
 
 private[cuttle] case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[Instant]) {
@@ -117,6 +130,20 @@ private[cuttle] class ExecutionStat(
   val status: ExecutionStatus
 )
 
+private[cuttle] object ExecutionStat {
+  implicit val executionStatEncoder: Encoder[ExecutionStat] =
+    new Encoder[ExecutionStat] {
+      override def apply(execution: ExecutionStat): Json =
+        Json.obj(
+          "startTime" -> execution.startTime.asJson,
+          "endTime" -> execution.endTime.asJson,
+          "durationSeconds" -> execution.durationSeconds.asJson,
+          "waitingSeconds" -> execution.waitingSeconds.asJson,
+          "status" -> execution.status.asJson
+        )
+    }
+}
+
 private[cuttle] object ExecutionLog {
   implicit val execLogEq: Eq[ExecutionLog] = Eq.fromUniversalEquals[ExecutionLog]
 
@@ -127,15 +154,7 @@ private[cuttle] object ExecutionLog {
       "startTime" -> execution.startTime.asJson,
       "endTime" -> execution.endTime.asJson,
       "context" -> execution.context,
-      "status" -> (execution.status match {
-        case ExecutionSuccessful => "successful"
-        case ExecutionFailed     => "failed"
-        case ExecutionRunning    => "running"
-        case ExecutionWaiting    => "waiting"
-        case ExecutionPaused     => "paused"
-        case ExecutionThrottled  => "throttled"
-        case ExecutionTodo       => "todo"
-      }).asJson,
+      "status" -> execution.status.asJson,
       "failing" -> execution.failing.map {
         case FailingJob(failedExecutions, nextRetry) =>
           Json.obj(
