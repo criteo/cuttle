@@ -29,8 +29,8 @@ import com.criteo.cuttle.utils.sse
 
 private[timeseries] object TimeSeriesApp {
 
-  implicit def projectEncoder = new Encoder[CuttleProject] {
-    override def apply(project: CuttleProject) =
+  implicit def projectEncoder: Encoder[CuttleProject] = new Encoder[CuttleProject] {
+    override def apply(project: CuttleProject): Json =
       Json.obj(
         "name" -> project.name.asJson,
         "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
@@ -45,50 +45,42 @@ private[timeseries] object TimeSeriesApp {
       )
   }
 
-  implicit val executionStatEncoder: Encoder[ExecutionStat] =
-    new Encoder[ExecutionStat] {
-      override def apply(execution: ExecutionStat): Json =
-        Json.obj(
-          "startTime" -> execution.startTime.asJson,
-          "endTime" -> execution.endTime.asJson,
-          "durationSeconds" -> execution.durationSeconds.asJson,
-          "waitingSeconds" -> execution.waitingSeconds.asJson,
-          "status" -> (execution.status match {
-            case ExecutionSuccessful => "successful"
-            case ExecutionFailed     => "failed"
-            case ExecutionRunning    => "running"
-            case ExecutionWaiting    => "waiting"
-            case ExecutionPaused     => "paused"
-            case ExecutionThrottled  => "throttled"
-            case ExecutionTodo       => "todo"
-          }).asJson
-        )
+  implicit val intervalEncoder = new Encoder[Interval[Instant]] {
+    implicit val boundEncoder = new Encoder[Bound[Instant]] {
+      override def apply(bound: Bound[Instant]) = bound match {
+        case Bottom    => "-oo".asJson
+        case Top       => "+oo".asJson
+        case Finite(t) => t.asJson
+      }
     }
 
-  implicit val tagEncoder = new Encoder[Tag] {
-    override def apply(tag: Tag) =
-      Json.obj(
-        "name" -> tag.name.asJson,
-        "description" -> Option(tag.description).filterNot(_.isEmpty).asJson
+    override def apply(interval: Interval[Instant]) =
+      Json.obj("start" -> interval.lo.asJson, "end" -> interval.hi.asJson)
+  }
+
+  implicit val executionPeriodEncoder = new Encoder[ExecutionPeriod] {
+    override def apply(executionPeriod: ExecutionPeriod) = {
+      val coreFields = List(
+        "period" -> executionPeriod.period.asJson,
+        "backfill" -> executionPeriod.backfill.asJson,
+        "aggregated" -> executionPeriod.aggregated.asJson,
+        "version" -> executionPeriod.version.asJson
       )
+      val finalFields = executionPeriod match {
+        case JobExecution(_, status, _, _) =>
+          ("status" -> status.asJson) :: coreFields
+        case AggregatedJobExecution(_, completion, error, _, _) =>
+          ("completion" -> completion.asJson) :: ("error" -> error.asJson) :: coreFields
+      }
+      Json.obj(finalFields: _*)
+    }
   }
 
-  implicit def jobEncoder = new Encoder[Job[TimeSeries]] {
-    override def apply(job: Job[TimeSeries]) =
-      Json
-        .obj(
-          "id" -> job.id.asJson,
-          "name" -> Option(job.name)
-            .filterNot(_.isEmpty)
-            .getOrElse(job.id)
-            .asJson,
-          "description" -> Option(job.description).filterNot(_.isEmpty).asJson,
-          "scheduling" -> job.scheduling.asJson,
-          "tags" -> job.tags.map(_.name).asJson
-        )
-        .asJson
-  }
+  case class JobTimeline(jobId: String, calendarView: TimeSeriesCalendarView, executions: List[ExecutionPeriod])
 
+  implicit val jobTimelineEncoder = new Encoder[JobTimeline] {
+    override def apply(jobTimeline: JobTimeline) = jobTimeline.executions.asJson
+  }
 }
 
 private[timeseries] case class TimeSeriesApp(project: CuttleProject,
@@ -383,71 +375,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     }
   }
 
-  private implicit val intervalEncoder = new Encoder[Interval[Instant]] {
-    implicit val boundEncoder = new Encoder[Bound[Instant]] {
-      override def apply(bound: Bound[Instant]) = bound match {
-        case Bottom    => "-oo".asJson
-        case Top       => "+oo".asJson
-        case Finite(t) => t.asJson
-      }
-    }
-
-    override def apply(interval: Interval[Instant]) =
-      Json.obj("start" -> interval.lo.asJson, "end" -> interval.hi.asJson)
-  }
   private val queries = Queries(project.logger)
-
-  private trait ExecutionPeriod {
-    val period: Interval[Instant]
-    val backfill: Boolean
-    val aggregated: Boolean
-    val version: String
-  }
-
-  private case class JobExecution(period: Interval[Instant], status: String, backfill: Boolean, version: String)
-      extends ExecutionPeriod {
-    override val aggregated: Boolean = false
-  }
-
-  private case class AggregatedJobExecution(period: Interval[Instant],
-                                            completion: Double,
-                                            error: Boolean,
-                                            backfill: Boolean,
-                                            version: String = "")
-      extends ExecutionPeriod {
-    override val aggregated: Boolean = true
-  }
-
-  private case class JobTimeline(jobId: String, calendarView: TimeSeriesCalendarView, executions: List[ExecutionPeriod])
-
-  private implicit val executionPeriodEncoder = new Encoder[ExecutionPeriod] {
-    override def apply(executionPeriod: ExecutionPeriod) = {
-      val coreFields = List(
-        "period" -> executionPeriod.period.asJson,
-        "backfill" -> executionPeriod.backfill.asJson,
-        "aggregated" -> executionPeriod.aggregated.asJson,
-        "version" -> executionPeriod.version.asJson
-      )
-      val finalFields = executionPeriod match {
-        case JobExecution(_, status, _, _) =>
-          ("status" -> status.asJson) :: coreFields
-        case AggregatedJobExecution(_, completion, error, _, _) =>
-          ("completion" -> completion.asJson) :: ("error" -> error.asJson) :: coreFields
-      }
-      Json.obj(finalFields: _*)
-    }
-  }
-
-  private implicit val jobTimelineEncoder = new Encoder[JobTimeline] {
-    override def apply(jobTimeline: JobTimeline) = jobTimeline.executions.asJson
-  }
-
-  case class ExecutionDetails(jobExecutions: Seq[ExecutionLog], parentExecutions: Seq[ExecutionLog])
-
-  private implicit val executionDetailsEncoder: Encoder[ExecutionDetails] =
-    Encoder.forProduct2("jobExecutions", "parentExecutions")(
-      e => (e.jobExecutions, e.parentExecutions)
-    )
 
   private[timeseries] def getFocusView(watchedState: WatchedState,
                                        q: CalendarFocusQuery,
