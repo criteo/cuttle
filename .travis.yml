@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial
 language: scala
 script: sbt +test
 jdk:
