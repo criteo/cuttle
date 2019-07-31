@@ -195,7 +195,8 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
         job <- EitherT.fromOption[IO](workload.all.find(_.id == jobId), throw new Exception(s"Unknown job $jobId"))
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
         executionList <- EitherT.right[Throwable](
-          buildExecutionsList(executor, job, minStartDateForExecutions, maxStartDateForExecutions, limit))
+          buildExecutionsList(executor, job, minStartDateForExecutions, maxStartDateForExecutions, limit)
+        )
       } yield job -> executionList
 
       jobAndExecutionListOrError.value.map {

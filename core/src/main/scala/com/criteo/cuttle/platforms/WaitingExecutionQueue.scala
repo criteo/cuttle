@@ -40,7 +40,9 @@ trait WaitingExecutionQueue {
     SortedSet.empty[(Execution[_ <: Scheduling], DelayedResult[_])](
       Ordering.by[(Execution[_ <: Scheduling], DelayedResult[_]), (Execution[_], Int)]({
         case (execution, delayedResult) => execution -> delayedResult.hashCode
-      })))
+      })
+    )
+  )
 
   def waiting: Set[Execution[_]] = _waiting.single().map(_._1)
   def running: Set[Execution[_]] = _running.single().map(_._1)
