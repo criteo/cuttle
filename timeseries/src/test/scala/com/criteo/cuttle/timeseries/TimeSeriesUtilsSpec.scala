@@ -8,8 +8,6 @@ import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
 import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
 import com.criteo.cuttle.{Job, TestScheduling}
 
-import IntervalMap._
-
 class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
   private val scheduling: TimeSeries = hourly(date"2017-03-25T02:00:00Z")
   private val jobA = Job("job_a", scheduling)(completed)
