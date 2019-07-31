@@ -25,7 +25,9 @@ const MenuHeader = ({
   projectVersion
 }: Props) => (
   <Link className={classNames(classes.main, className)} href="/">
-    <span title={projectName} className={classes.projectName}>{projectName}</span>
+    <span title={projectName} className={classes.projectName}>
+      {projectName}
+    </span>
     {projectVersion && (
       <span className={classes.projectVersion}>{projectVersion}</span>
     )}

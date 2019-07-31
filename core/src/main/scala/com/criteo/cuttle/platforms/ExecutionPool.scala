@@ -27,6 +27,7 @@ case class ExecutionPool(concurrencyLimit: Int) extends WaitingExecutionQueue {
             "concurrencyLimit" -> concurrencyLimit.asJson,
             "running" -> running.size.asJson,
             "waiting" -> waiting.size.asJson
-          ))
+          )
+        )
     }: PartialService).orElse(super.routes(urlPrefix))
 }

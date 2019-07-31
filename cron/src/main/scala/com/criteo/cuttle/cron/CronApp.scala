@@ -18,7 +18,8 @@ import com.criteo.cuttle._
 import com.criteo.cuttle.utils.getJVMUptime
 
 private[cron] case class CronApp(project: CronProject, executor: Executor[CronScheduling])(
-  implicit val transactor: XA) {
+  implicit val transactor: XA
+) {
   private val scheduler = project.scheduler
   private val workload = project.workload
 
@@ -41,7 +42,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
           "project" -> project.name.asJson,
           "version" -> Option(project.version).filterNot(_.isEmpty).asJson,
           "status" -> status.asJson
-      )
+        )
       executor.healthCheck() match {
         case Success(_) => Ok(projectJson("ok"))
         case _          => InternalServerError(projectJson("ko"))

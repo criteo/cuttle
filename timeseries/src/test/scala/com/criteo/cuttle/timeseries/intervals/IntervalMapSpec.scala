@@ -12,7 +12,7 @@ class IntervalMapSpec extends FunSuite {
   test("intervals") {
     assert(
       IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12) ==
-      IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12)
+        IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12)
     )
   }
 
@@ -32,7 +32,7 @@ class IntervalMapSpec extends FunSuite {
     val intervals = IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12)
     assert(
       intervals.map(_ => 1) ==
-      IntervalMap(Interval(0, 5) -> 1)
+        IntervalMap(Interval(0, 5) -> 1)
     )
   }
 
@@ -40,6 +40,7 @@ class IntervalMapSpec extends FunSuite {
     assert(
       IntervalMap(Interval(0, 3) -> 42)
         .whenIsUndef(IntervalMap(Interval(1, 2) -> "foo", Interval(2, 3) -> "bar")) ==
-        IntervalMap(Interval(0, 1) -> 42))
+        IntervalMap(Interval(0, 1) -> 42)
+    )
   }
 }

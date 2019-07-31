@@ -130,7 +130,7 @@ private[timeseries] object IntervalMap {
     }
 
     override def equals(other: Any) = other match {
-      case otherImpl: Impl[_,_] =>
+      case otherImpl: Impl[_, _] =>
         this.toList == otherImpl.toList
       case _ =>
         false
@@ -147,7 +147,7 @@ private[timeseries] object IntervalMap {
         val elems = impl.tree.toList.map {
           case (itvl, v) => itvl -> f(v)
         }
-        elems.foldLeft(IntervalMap.empty[K,B]) {
+        elems.foldLeft(IntervalMap.empty[K, B]) {
           case (imap, (interval, value)) =>
             imap.update(interval, value)
         }

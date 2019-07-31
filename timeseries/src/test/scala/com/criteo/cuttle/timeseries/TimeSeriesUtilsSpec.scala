@@ -15,20 +15,24 @@ class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
 
   test("clean overlapping state intervals") {
     val state: State = Map(
-      jobA -> new IntervalMap.Impl(FingerTree(
-        Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z") -> Done("v1"),
-        Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
-        Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T06:00:00Z") -> Todo(None),
-        // Interval overlapping with previously defined interval
-        Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z") -> Todo(None)
-      )),
-      jobB -> new IntervalMap.Impl(FingerTree(
-        Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z") -> Todo(None),
-        Interval(date"2017-03-25T03:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
-        Interval(date"2017-03-25T04:30:00Z", date"2017-03-25T05:00:00Z") -> Todo(None),
-        // Interval contiguous to the previous Done interval for jobB
-        Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T04:30:00Z") -> Done("v2")
-      ))
+      jobA -> new IntervalMap.Impl(
+        FingerTree(
+          Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z") -> Done("v1"),
+          Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
+          Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T06:00:00Z") -> Todo(None),
+          // Interval overlapping with previously defined interval
+          Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z") -> Todo(None)
+        )
+      ),
+      jobB -> new IntervalMap.Impl(
+        FingerTree(
+          Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z") -> Todo(None),
+          Interval(date"2017-03-25T03:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
+          Interval(date"2017-03-25T04:30:00Z", date"2017-03-25T05:00:00Z") -> Todo(None),
+          // Interval contiguous to the previous Done interval for jobB
+          Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T04:30:00Z") -> Done("v2")
+        )
+      )
     )
 
     TimeSeriesUtils.cleanTimeseriesState(state).foreach {
@@ -36,18 +40,24 @@ class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
         job.id match {
           case jobA.id =>
             assert(
-              intervalMap.toList.toSet.equals(Set(
-                (Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z"), Done("v1")),
-                (Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T04:00:00Z"), Done("v2")),
-                (Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T06:00:00Z"), Todo(None))
-              )))
+              intervalMap.toList.toSet.equals(
+                Set(
+                  (Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z"), Done("v1")),
+                  (Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T04:00:00Z"), Done("v2")),
+                  (Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T06:00:00Z"), Todo(None))
+                )
+              )
+            )
           case jobB.id =>
             assert(
-              intervalMap.toList.toSet.equals(Set(
-                (Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z"), Todo(None)),
-                (Interval(date"2017-03-25T03:00:00Z", date"2017-03-25T04:30:00Z"), Done("v2")),
-                (Interval(date"2017-03-25T04:30:00Z", date"2017-03-25T05:00:00Z"), Todo(None))
-              )))
+              intervalMap.toList.toSet.equals(
+                Set(
+                  (Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z"), Todo(None)),
+                  (Interval(date"2017-03-25T03:00:00Z", date"2017-03-25T04:30:00Z"), Done("v2")),
+                  (Interval(date"2017-03-25T04:30:00Z", date"2017-03-25T05:00:00Z"), Todo(None))
+                )
+              )
+            )
         }
     }
   }

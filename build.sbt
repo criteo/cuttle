@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.9.8"
+val VERSION = "0.9.11"
 
 lazy val catsCore = "1.5.0"
 lazy val circe = "0.10.1"
@@ -191,7 +191,7 @@ lazy val cuttle =
         "org.scala-stm" %% "scala-stm" % "0.8",
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.typelevel" %% "cats-core" % catsCore,
-        "codes.reactive" %% "scala-time" % "0.4.1",
+        "codes.reactive" %% "scala-time" % "0.4.2",
         "com.zaxxer" % "nuprocess" % "1.1.0",
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
@@ -212,7 +212,8 @@ lazy val timeseries =
     .settings(
       libraryDependencies ++= Seq(
         "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
-      ))
+      )
+    )
     .settings(
       // Webpack
       resourceGenerators in Compile += Def.task {
@@ -225,9 +226,11 @@ lazy val timeseries =
         } else {
           def listFiles(dir: File): Seq[File] =
             IO.listFiles(dir)
-              .flatMap(f =>
-                if (f.isDirectory) listFiles(f)
-                else Seq(f))
+              .flatMap(
+                f =>
+                  if (f.isDirectory) listFiles(f)
+                  else Seq(f)
+              )
           val logger = new ProcessLogger {
             override def err(s: => String): Unit = streams0.log.info(s"ERR, $s")
             override def buffer[T](f: => T): T = f
@@ -270,24 +273,27 @@ lazy val examples =
     .settings(
       libraryDependencies ++= Seq(
         "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
-      ))
+      )
+    )
     .settings(
       publishArtifact := false,
       fork in Test := true,
       connectInput in Test := true,
-      javaOptions ++= Seq("-Xmx256m", "-XX:+HeapDumpOnOutOfMemoryError"),
+      javaOptions ++= Seq("-Xmx256m", "-XX:+HeapDumpOnOutOfMemoryError")
     )
     .settings(
       Option(System.getProperty("generateExamples"))
-        .map(_ =>
-          Seq(
-            autoCompilerPlugins := true,
-            addCompilerPlugin("com.criteo.socco" %% "socco-plugin" % "0.1.7"),
-            scalacOptions := Seq(
-              "-P:socco:out:examples/target/html",
-              "-P:socco:package_com.criteo.cuttle:https://criteo.github.io/cuttle/api/"
+        .map(
+          _ =>
+            Seq(
+              autoCompilerPlugins := true,
+              addCompilerPlugin("com.criteo.socco" %% "socco-plugin" % "0.1.7"),
+              scalacOptions := Seq(
+                "-P:socco:out:examples/target/html",
+                "-P:socco:package_com.criteo.cuttle:https://criteo.github.io/cuttle/api/"
+              )
             )
-        ))
+        )
         .getOrElse(Nil): _*
     )
     .dependsOn(cuttle, timeseries, cron, localdb)

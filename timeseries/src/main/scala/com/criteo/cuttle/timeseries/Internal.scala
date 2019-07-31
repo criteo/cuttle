@@ -1,15 +1,15 @@
 package com.criteo.cuttle.timeseries
 
-import com.criteo.cuttle._
-
-import io.circe._
-import io.circe.generic.semiauto._
-
-import cats.syntax.either._
-
 import java.time.Instant
 
+import cats.syntax.either._
+import io.circe._
 import io.circe.generic.semiauto.deriveDecoder
+import io.circe.java8.time._
+import io.circe.syntax._
+
+import com.criteo.cuttle._
+import com.criteo.cuttle.timeseries.intervals.Interval
 
 private[timeseries] object Internal {
 
@@ -31,7 +31,6 @@ private[timeseries] object Internal {
 }
 
 private[timeseries] object BackfillCreate {
-  import Internal._
 
   implicit val decodeBackfillCreate: Decoder[BackfillCreate] = deriveDecoder[BackfillCreate]
 }
@@ -39,7 +38,7 @@ private[timeseries] object BackfillCreate {
 private[timeseries] case class BackfillCreate(
   name: String,
   description: String,
-  jobs: String,
+  jobs: List[String],
   startDate: Instant,
   endDate: Instant,
   priority: Int
@@ -77,4 +76,37 @@ private[timeseries] case class CalendarFocusQuery(
   end: String
 ) {
   def jobIds(allIds: Set[String]) = if (jobs.isEmpty) allIds else jobs
+}
+
+private[timeseries] case class ExecutionDetails(jobExecutions: Seq[ExecutionLog], parentExecutions: Seq[ExecutionLog])
+
+private[timeseries] object ExecutionDetails {
+  implicit val executionDetailsEncoder: Encoder[ExecutionDetails] =
+    Encoder.forProduct2("jobExecutions", "parentExecutions")(
+      e => (e.jobExecutions, e.parentExecutions)
+    )
+}
+
+private[timeseries] trait ExecutionPeriod {
+  val period: Interval[Instant]
+  val backfill: Boolean
+  val aggregated: Boolean
+  val version: String
+}
+
+private[timeseries] case class JobExecution(period: Interval[Instant],
+                                            status: String,
+                                            backfill: Boolean,
+                                            version: String)
+    extends ExecutionPeriod {
+  override val aggregated: Boolean = false
+}
+
+private[timeseries] case class AggregatedJobExecution(period: Interval[Instant],
+                                                      completion: Double,
+                                                      error: Boolean,
+                                                      backfill: Boolean,
+                                                      version: String = "")
+    extends ExecutionPeriod {
+  override val aggregated: Boolean = true
 }

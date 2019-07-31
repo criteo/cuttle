@@ -26,7 +26,8 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
       result ==
         (2 to 4).map { i =>
           (job(1), TimeSeriesContext(ts(i), ts(i + 1), projectVersion = "test_version"))
-        })
+        }
+    )
   }
 
   test("it should validate empty workflow") {
@@ -134,13 +135,15 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
           (Interval(date"2117-03-25T01:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done("test_version")),
           (Interval(date"2117-03-25T04:00:00Z", date"2117-03-25T05:00:00Z"), JobState.Todo(None)),
           (Interval(date"2117-03-25T05:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done("test_version"))
-        ): _*),
+        ): _*
+      ),
       job2 -> IntervalMap[Instant, JobState](
         List(
           (Interval(date"2117-03-25T02:00:00Z", date"2117-03-25T04:00:00Z"), JobState.Done("test_version")),
           (Interval(date"2117-03-25T04:00:00Z", date"2117-03-25T06:00:00Z"), JobState.Todo(None)),
           (Interval(date"2117-03-25T06:00:00Z", date"2117-03-25T07:00:00Z"), JobState.Done("test_version"))
-        ): _*)
+        ): _*
+      )
     )
 
     val backfills = scheduler
@@ -164,15 +167,18 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     assert(
       firstBackfill.equals(
         (date"2117-03-25T02:00:00Z", date"2117-03-25T04:00:00Z", Set(job1, job2))
-      ))
+      )
+    )
     assert(
       secondBackfill.equals(
         (date"2117-03-25T05:00:00Z", date"2117-03-25T06:00:00Z", Set(job1))
-      ))
+      )
+    )
     assert(
       thirdBackfill.equals(
         (date"2117-03-25T06:00:00Z", date"2117-03-25T07:00:00Z", Set(job1, job2))
-      ))
+      )
+    )
   }
 
   test("should parse JobState.Done without projectVersion") {

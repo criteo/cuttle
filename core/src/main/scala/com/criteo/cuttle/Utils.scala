@@ -130,8 +130,8 @@ package object utils {
 
   private[cuttle] def getJVMUptime = ManagementFactory.getRuntimeMXBean.getUptime / 1000
 
-  private[cuttle] def sse[A](thunk: IO[Option[A]], encode: A => IO[Json])(
-    implicit eqInstance: Eq[A]): lol.http.Response = {
+  private[cuttle] def sse[A](thunk: IO[Option[A]],
+                             encode: A => IO[Json])(implicit eqInstance: Eq[A]): lol.http.Response = {
     import scala.concurrent.duration._
     import io.circe._
     import lol.json._
