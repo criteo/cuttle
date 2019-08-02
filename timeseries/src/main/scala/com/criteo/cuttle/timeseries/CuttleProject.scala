@@ -34,7 +34,7 @@ class CuttleProject private[cuttle] (val name: String,
     */
   def start(
     platforms: Seq[ExecutionPlatform] = CuttleProject.defaultPlatforms,
-    httpPort: Int = 8888,
+    httpPort: Int = 8889,
     databaseConfig: DatabaseConfig = DatabaseConfig.fromEnv,
     retryStrategy: RetryStrategy = RetryStrategy.ExponentialBackoffRetryStrategy,
     paused: Boolean = false,
