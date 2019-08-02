@@ -11,8 +11,8 @@ lazy val lolhttp = "0.12.0"
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
-  scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.11.11", "2.12.3"),
+  scalaVersion := "2.11.12",
+  crossScalaVersions := Seq("2.11.12", "2.12.3"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
