@@ -12,7 +12,6 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.math.Ordering.Implicits._
-
 import cats._
 import cats.effect.IO
 import cats.implicits._
@@ -23,13 +22,13 @@ import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 import codes.reactive.scalatime._
-
 import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
 import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.Internal._
 import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Monthly, NHourly, Weekly}
+import com.criteo.cuttle.timeseries.TimeSeriesUtils.TimeSeriesJob
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
 import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 
@@ -43,7 +42,7 @@ sealed trait TimeSeriesCalendar {
     if (truncated == t) t
     else next(t)
   }
-  private[timeseries] def inInterval(interval: Interval[Instant], maxPeriods: Int) = {
+  private[timeseries] def inInterval(interval: Interval[Instant], batching: TimeSeriesBatching) = {
     def go(lo: Instant, hi: Instant, acc: List[(Instant, Instant)]): List[(Instant, Instant)] = {
       val nextLo = next(lo)
       if (nextLo.isAfter(hi)) acc
@@ -51,7 +50,7 @@ sealed trait TimeSeriesCalendar {
     }
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
-        go(ceil(lo), hi, List.empty).reverse.grouped(maxPeriods).map(xs => (xs.head._1, xs.last._2))
+        go(ceil(lo), hi, List.empty).reverse.grouped(batching.size).map(xs => (xs.head._1, xs.last._2))
       case _ =>
         sys.error("panic")
     }
@@ -427,7 +426,7 @@ case class TimeSeriesScheduler(logger: Logger,
 
   private val _pausedJobs = Ref(Set.empty[PausedJob])
 
-  private val debouncedJobs = Ref(Map.empty[TimeSeriesJob, Instant])
+  private val debouncedJobs = collection.mutable.Map.empty[TimeSeriesJob, Instant]
 
   def pausedJobs(): Set[PausedJob] = atomic { implicit txn =>
     _pausedJobs()
@@ -763,7 +762,31 @@ case class TimeSeriesScheduler(logger: Logger,
       (stateSnapshot, completedBackfills, toRun)
     }
 
-    val newExecutions = executor.runAll(toRun)
+    val finalExecutables = toRun.foldLeft(Seq.empty[(TimeSeriesJob, TimeSeriesContext)]) {
+      case (acc, job2Contexts @ (job, _)) =>
+        if (job.scheduling.batching.size > 1) {
+          val now = Instant.now()
+          debouncedJobs.contains(job) match {
+            case true if now.isAfter(debouncedJobs(job)) =>
+              logger.debug(s"scheduling batches for ${job.name}")
+              debouncedJobs(job) = now.plus(job.scheduling.batching.delay)
+              acc :+ job2Contexts
+            case true =>
+              logger.debug(s"job ${job.name} is waiting for intervals to batch until ${debouncedJobs(job)}")
+              acc
+            case _ =>
+              val debouncePeriodEnd = now.plus(job.scheduling.batching.delay)
+              logger.debug(s"job ${job.name} will wait for intervals to batch until $debouncePeriodEnd")
+              debouncedJobs(job) = debouncePeriodEnd
+              acc
+          }
+        } else {
+          logger.debug(s"batching is not active for ${job.name}")
+          acc :+ job2Contexts
+        }
+    }
+
+    val newExecutions = executor.runAll(finalExecutables)
 
     atomic { implicit txn =>
       _state() = newExecutions.foldLeft(_state()) {
@@ -773,7 +796,7 @@ case class TimeSeriesScheduler(logger: Logger,
       }
     }
 
-    if (completed.nonEmpty || toRun.nonEmpty) {
+    if (completed.nonEmpty || finalExecutables.nonEmpty) {
       maxVersionsHistory.foreach { maxVersions =>
         atomic { implicit txn =>
           _state() = compressState(_state(), maxVersions)
@@ -988,46 +1011,14 @@ case class TimeSeriesScheduler(logger: Logger,
         .whenIsDef(dependenciesSatisfied)
         .whenIsDef(noChildrenRunning)
 
-      val job2Contexts = for {
+      for {
         (interval, maybeBackfill) <- toRun.toList
-        (lo, hi) <- job.scheduling.calendar.inInterval(interval, job.scheduling.batching.size)
+        (lo, hi) <- job.scheduling.calendar.inInterval(interval, job.scheduling.batching)
       } yield {
         logger.debug(s"creating a context for ${job.name} for interval $lo, $hi")
         (job, TimeSeriesContext(lo, hi, maybeBackfill, projectVersion))
       }
 
-      if (job2Contexts.isEmpty) {
-        logger.debug(s"nothing to run for ${job.name}")
-        atomic { implicit txn =>
-          debouncedJobs() = debouncedJobs() - job
-        }
-        List.empty
-      } else {
-        if (job.scheduling.batching.size > 1) {
-          val now = Instant.now()
-          debouncedJobs.single().contains(job) match {
-            case true if now.isAfter(debouncedJobs.single()(job)) =>
-              logger.debug(s"scheduling batches for ${job.name}")
-              atomic { implicit txn =>
-                debouncedJobs() = debouncedJobs() + (job -> now.plus(job.scheduling.batching.delay))
-              }
-              job2Contexts
-            case true =>
-              logger.debug(s"job ${job.name} is waiting for intervals to batch until ${debouncedJobs.single()(job)}")
-              List.empty
-            case _ =>
-              val debouncePeriodEnd = now.plus(job.scheduling.batching.delay)
-              logger.debug(s"job ${job.name} will wait for intervals to batch until $debouncePeriodEnd")
-              atomic { implicit txn =>
-                debouncedJobs() = debouncedJobs() + (job -> debouncePeriodEnd)
-              }
-              List.empty
-          }
-        } else {
-          logger.debug(s"batching is not active for ${job.name}")
-          job2Contexts
-        }
-      }
     }
   }
 
