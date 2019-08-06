@@ -28,7 +28,6 @@ import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.Internal._
 import com.criteo.cuttle.timeseries.TimeSeriesCalendar.{Daily, Monthly, NHourly, Weekly}
-import com.criteo.cuttle.timeseries.TimeSeriesUtils.TimeSeriesJob
 import com.criteo.cuttle.timeseries.intervals.Bound.{Bottom, Finite, Top}
 import com.criteo.cuttle.timeseries.intervals.{Interval, IntervalMap}
 
