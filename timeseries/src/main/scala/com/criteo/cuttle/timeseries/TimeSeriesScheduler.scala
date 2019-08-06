@@ -750,43 +750,40 @@ case class TimeSeriesScheduler(logger: Logger,
       case (_, _, effect) => effect.isCompleted
     }
 
-    val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
+    val (stateSnapshot, completedBackfills, toRun, debounced, commitInstant) = atomic { implicit txn =>
+      val now = Instant.now
       val (stateSnapshot, newBackfills, completedBackfills) =
         collectCompletedJobs(_state(), _backfills(), completed)
 
-      val toRun = jobsToRun(workflow, stateSnapshot, Instant.now, executor.projectVersion)
+      val (toRun, debounced) = jobsToRun(workflow, stateSnapshot, now, executor.projectVersion)
 
       _state() = stateSnapshot
       _backfills() = newBackfills
 
-      (stateSnapshot, completedBackfills, toRun)
+      (stateSnapshot, completedBackfills, toRun, debounced, now)
     }
 
-    val finalExecutables = toRun.foldLeft(Seq.empty[(TimeSeriesJob, TimeSeriesContext)]) {
-      case (acc, job2Contexts @ (job, _)) =>
+    toRun.groupBy(_._1).foreach {
+      case (job, _) =>
         if (job.scheduling.batching.size > 1) {
-          val now = Instant.now()
-          debouncedJobs.contains(job) match {
-            case true if now.isAfter(debouncedJobs(job)) =>
-              logger.debug(s"scheduling batches for ${job.name}")
-              debouncedJobs(job) = now.plus(job.scheduling.batching.delay)
-              acc :+ job2Contexts
-            case true =>
-              logger.debug(s"job ${job.name} is waiting for intervals to batch until ${debouncedJobs(job)}")
-              acc
-            case _ =>
-              val debouncePeriodEnd = now.plus(job.scheduling.batching.delay)
-              logger.debug(s"job ${job.name} will wait for intervals to batch until $debouncePeriodEnd")
-              debouncedJobs(job) = debouncePeriodEnd
-              acc
-          }
-        } else {
-          logger.debug(s"batching is not active for ${job.name}")
-          acc :+ job2Contexts
+          logger.debug(s"scheduling batches for ${job.name}")
+          debouncedJobs -= job
         }
     }
 
-    val newExecutions = executor.runAll(finalExecutables)
+    debounced.groupBy(_._1).foreach {
+      case (job, _) =>
+        debouncedJobs.contains(job) match {
+          case true =>
+            logger.debug(s"job ${job.name} is waiting for intervals to batch until ${debouncedJobs(job)}")
+          case false =>
+            val debouncePeriodEnd = commitInstant.plus(job.scheduling.batching.delay)
+            debouncedJobs(job) = debouncePeriodEnd
+            logger.debug(s"job ${job.name} will wait for intervals to batch until $debouncePeriodEnd")
+        }
+    }
+
+    val newExecutions = executor.runAll(toRun)
 
     atomic { implicit txn =>
       _state() = newExecutions.foldLeft(_state()) {
@@ -796,7 +793,7 @@ case class TimeSeriesScheduler(logger: Logger,
       }
     }
 
-    if (completed.nonEmpty || finalExecutables.nonEmpty) {
+    if (completed.nonEmpty || toRun.nonEmpty) {
       maxVersionsHistory.foreach { maxVersions =>
         atomic { implicit txn =>
           _state() = compressState(_state(), maxVersions)
@@ -952,7 +949,7 @@ case class TimeSeriesScheduler(logger: Logger,
   private[timeseries] def jobsToRun(workflow: Workflow,
                                     state0: State,
                                     now: Instant,
-                                    projectVersion: String): List[Executable] = {
+                                    projectVersion: String): (List[Executable], List[Executable]) = {
 
     val timerInterval = Interval(Bottom, Finite(now))
     val state = state0.mapValues(_.intersect(timerInterval))
@@ -976,7 +973,7 @@ case class TimeSeriesScheduler(logger: Logger,
         .toList
         .map { case (interval, _) => interval }
 
-    workflow.vertices.filter(job => !pausedJobIds.contains(job.id)).toList.flatMap { job =>
+    val job2Contexts = workflow.vertices.filter(job => !pausedJobIds.contains(job.id)).toList.flatMap { job =>
       val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> (()))
       val dependenciesSatisfied = parentsMap
         .getOrElse(job, Set.empty)
@@ -1019,6 +1016,22 @@ case class TimeSeriesScheduler(logger: Logger,
         (job, TimeSeriesContext(lo, hi, maybeBackfill, projectVersion))
       }
 
+    }
+
+    job2Contexts.partition {
+      case (job, _) =>
+        if (job.scheduling.batching.size == 1) {
+          true
+        } else {
+          debouncedJobs.contains(job) match {
+            case true if now.isAfter(debouncedJobs(job)) =>
+              true
+            case true =>
+              false
+            case _ =>
+              false
+          }
+        }
     }
   }
 
