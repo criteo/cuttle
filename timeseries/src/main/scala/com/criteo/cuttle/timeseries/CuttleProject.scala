@@ -76,10 +76,12 @@ class CuttleProject private[cuttle] (val name: String,
     paused: Boolean = false,
     stateRetention: Option[Duration] = None,
     logsRetention: Option[Duration] = None,
-    maxVersionsHistory: Option[Int] = None
+    maxVersionsHistory: Option[Int] = None,
+    streamsBuilder: Option[(String) => ExecutionStreams] = None
   ): (Service, () => Unit) = {
     val xa = CuttleDatabase.connect(databaseConfig)(logger)
-    val executor = new Executor[TimeSeries](platforms, xa, logger, name, version, logsRetention)(retryStrategy)
+    val executor =
+      new Executor[TimeSeries](platforms, xa, logger, name, version, logsRetention, streamsBuilder)(retryStrategy)
     val scheduler = new TimeSeriesScheduler(logger, stateRetention, maxVersionsHistory)
 
     val startScheduler = () => {

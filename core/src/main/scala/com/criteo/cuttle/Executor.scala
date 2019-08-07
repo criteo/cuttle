@@ -413,12 +413,15 @@ object Executor {
 
 /** An [[Executor]] is responsible to actually execute the [[SideEffect]] functions for the
   * given [[Execution Executions]]. */
-class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
-                                xa: XA,
-                                logger: Logger,
-                                val projectName: String,
-                                val projectVersion: String,
-                                logsRetention: Option[ScalaDuration] = None)(implicit retryStrategy: RetryStrategy)
+class Executor[S <: Scheduling](
+  val platforms: Seq[ExecutionPlatform],
+  xa: XA,
+  logger: Logger,
+  val projectName: String,
+  val projectVersion: String,
+  logsRetention: Option[ScalaDuration] = None,
+  streamsBuilder: Option[(String) => ExecutionStreams] = None
+)(implicit retryStrategy: RetryStrategy)
     extends MetricProvider[S] {
 
   import ExecutionStatus._
@@ -783,10 +786,13 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
                 .toLeft {
                   val nextExecutionId = utils.randomUUID
 
-                  val streams = new ExecutionStreams {
-                    def writeln(str: CharSequence) =
-                      ExecutionStreams.writeln(nextExecutionId, str)
-                  }
+                  val streams = streamsBuilder.getOrElse(
+                    (id: String) =>
+                      new ExecutionStreams {
+                        def writeln(str: CharSequence) =
+                          ExecutionStreams.writeln(id, str)
+                      }
+                  )(nextExecutionId)
 
                   // wrap the execution context so that we can register the name of the thread of each
                   // runnable (and thus future) that will be run by the side effect.
