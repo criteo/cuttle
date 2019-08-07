@@ -772,10 +772,10 @@ case class TimeSeriesScheduler(logger: Logger,
 
     debounced.groupBy(_._1).foreach {
       case (job, _) =>
-        debouncedJobs.contains(job) match {
-          case true =>
-            logger.debug(s"job ${job.name} is waiting for intervals to batch until ${debouncedJobs(job)}")
-          case false =>
+        debouncedJobs.get(job) match {
+          case Some(interval) =>
+            logger.debug(s"job ${job.name} is waiting for intervals to batch until $interval")
+          case None =>
             val debouncePeriodEnd = commitInstant.plus(job.scheduling.batching.delay)
             debouncedJobs(job) = debouncePeriodEnd
             logger.debug(s"job ${job.name} will wait for intervals to batch until $debouncePeriodEnd")
@@ -1022,11 +1022,9 @@ case class TimeSeriesScheduler(logger: Logger,
         if (job.scheduling.batching.size == 1) {
           true
         } else {
-          debouncedJobs.contains(job) match {
-            case true if now.isAfter(debouncedJobs(job)) =>
+          debouncedJobs.get(job) match {
+            case Some(interval) if now.isAfter(interval) =>
               true
-            case true =>
-              false
             case _ =>
               false
           }
