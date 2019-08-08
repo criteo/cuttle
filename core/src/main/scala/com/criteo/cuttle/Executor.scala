@@ -784,6 +784,10 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
                   val nextExecutionId = utils.randomUUID
 
                   val streams = new ExecutionStreams {
+                    override def error(str: CharSequence = ""): Unit = {
+                      super.error(str)
+                      logger.warn(s"Execution error: $nextExecutionId > $str")
+                    }
                     def writeln(str: CharSequence) =
                       ExecutionStreams.writeln(nextExecutionId, str)
                   }
