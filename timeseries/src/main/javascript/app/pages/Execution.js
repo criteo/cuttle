@@ -191,7 +191,12 @@ class Execution extends React.Component<Props, State> {
             level,
             message
           });
-        }
+        } else
+          lines.push({
+            timestamp: "",
+            level: "ERROR",
+            message: line
+          });
       });
       const streamsHead = this.shouldOverwriteStreams ? [] : this.state.streams;
       this.shouldOverwriteStreams = false;

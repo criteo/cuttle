@@ -698,8 +698,10 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
           case Failure(e) =>
             val stacktrace = new StringWriter()
             e.printStackTrace(new PrintWriter(stacktrace))
+            val stacktraceString = stacktrace.toString
             execution.streams.error(s"Execution failed:")
-            execution.streams.error(stacktrace.toString)
+            execution.streams.error(stacktraceString)
+            logger.warn(s"Execution ${execution.id} failed: $e\n${stacktraceString}")
             atomic {
               implicit tx =>
                 updateFinishedExecutionCounters(execution, "failure")
@@ -782,6 +784,10 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
                   val nextExecutionId = utils.randomUUID
 
                   val streams = new ExecutionStreams {
+                    override def error(str: CharSequence = ""): Unit = {
+                      super.error(str)
+                      logger.warn(s"Execution error: $nextExecutionId > $str")
+                    }
                     def writeln(str: CharSequence) =
                       ExecutionStreams.writeln(nextExecutionId, str)
                   }

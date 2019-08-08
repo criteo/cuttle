@@ -6,7 +6,6 @@ import cats.syntax.either._
 import io.circe._
 import io.circe.generic.semiauto.deriveDecoder
 import io.circe.java8.time._
-import io.circe.syntax._
 
 import com.criteo.cuttle._
 import com.criteo.cuttle.timeseries.intervals.Interval
