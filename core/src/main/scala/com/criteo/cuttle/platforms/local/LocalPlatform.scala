@@ -62,8 +62,10 @@ class LocalProcess(command: String) {
             val bytes = Array.ofDim[Byte](buffer.remaining)
             buffer.get(bytes)
             val str = new String(bytes)
-            streams.error(str)
-            errLogger(str)
+            if (str.nonEmpty) {
+              streams.error(str)
+              errLogger(str)
+            }
           }
           override def onExit(statusCode: Int) =
             statusCode match {
