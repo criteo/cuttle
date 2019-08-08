@@ -168,7 +168,7 @@ lazy val localdb = {
     .settings(
       publishArtifact := false,
       libraryDependencies ++= Seq(
-        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0"
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0"
       )
     )
 }
@@ -188,11 +188,11 @@ lazy val cuttle =
         .map(module => "io.circe" %% s"circe-$module" % circe),
       libraryDependencies ++= Seq(
         "de.sciss" %% "fingertree" % "1.5.2",
-        "org.scala-stm" %% "scala-stm" % "0.8",
+        "org.scala-stm" %% "scala-stm" % "0.9.1",
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.typelevel" %% "cats-core" % catsCore,
         "codes.reactive" %% "scala-time" % "0.4.2",
-        "com.zaxxer" % "nuprocess" % "1.1.0",
+        "com.zaxxer" % "nuprocess" % "1.1.3",
         "mysql" % "mysql-connector-java" % "6.0.6"
       ),
       libraryDependencies ++= Seq(
@@ -200,7 +200,7 @@ lazy val cuttle =
         "org.tpolecat" %% "doobie-hikari"
       ).map(_ % doobie),
       libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "3.0.1",
+        "org.scalatest" %% "scalatest" % "3.0.8",
         "org.mockito" % "mockito-all" % "1.10.19",
         "org.tpolecat" %% "doobie-scalatest" % doobie
       ).map(_ % "it,test")
@@ -211,7 +211,7 @@ lazy val timeseries =
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
-        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % "test"
       )
     )
     .settings(
@@ -272,7 +272,7 @@ lazy val examples =
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
-        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.3.0" % "test"
+        "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % "test"
       )
     )
     .settings(
