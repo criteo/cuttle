@@ -4,8 +4,8 @@ val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 val VERSION = "0.9.12"
 
 lazy val catsCore = "1.5.0"
-lazy val circe = "0.11.1"
-lazy val doobie = "0.7.0"
+lazy val circe = "0.10.1"
+lazy val doobie = "0.6.0"
 lazy val lolhttp = "0.12.0"
 
 lazy val commonSettings = Seq(
@@ -260,7 +260,7 @@ lazy val cron =
     .settings(commonSettings: _*)
     .settings(Defaults.itSettings: _*)
     .settings(
-      libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.5.0"
+      libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5"
     )
     .settings(
       fork in Test := true
