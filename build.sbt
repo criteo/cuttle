@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.9.11"
+val VERSION = "0.9.12"
 
 lazy val catsCore = "1.5.0"
 lazy val circe = "0.10.1"
@@ -11,8 +11,8 @@ lazy val lolhttp = "0.12.0"
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
-  scalaVersion := "2.11.11",
-  crossScalaVersions := Seq("2.11.11", "2.12.3"),
+  scalaVersion := "2.11.12",
+  crossScalaVersions := Seq("2.11.12", "2.12.3"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
