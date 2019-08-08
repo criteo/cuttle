@@ -67,7 +67,8 @@ case class HttpPlatform(maxConcurrentRequests: Int, rateLimits: Seq[(String, Htt
                     "waiting" -> rateLimiter.waiting.size.asJson
                   )
               }: _*
-            ))
+            )
+          )
       }
       rateLimiters.zipWithIndex.foldLeft(index) {
         case (routes, ((_, rateLimiter), i)) =>
@@ -92,7 +93,8 @@ object HttpPlatform {
     * @param thunk The function handling the HTTP resposne once received.
     */
   def request[A, S <: Scheduling](request: Request, timeout: FiniteDuration = FiniteDuration(30, "seconds"))(
-    thunk: Response => Future[A])(implicit execution: Execution[S]): Future[A] = {
+    thunk: Response => Future[A]
+  )(implicit execution: Execution[S]): Future[A] = {
     val streams = execution.streams
     streams.debug(s"HTTP request: ${request}")
 

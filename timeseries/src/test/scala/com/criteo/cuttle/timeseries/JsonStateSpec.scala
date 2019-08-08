@@ -40,8 +40,7 @@ class JsonStateSpec extends FunSuite with TestScheduling {
 
   implicit val backfills = List(backfill)
 
-  val legacyState = parse(
-    """[
+  val legacyState = parse("""[
       |  [
       |    "world",
       |    [
@@ -305,7 +304,7 @@ class JsonStateSpec extends FunSuite with TestScheduling {
       assert(jobState.asInstanceOf[JobState.Todo].maybeBackfill.isEmpty)
     }
 
-    val  hello1Intervals = state(hello1).toList
+    val hello1Intervals = state(hello1).toList
     assert(hello1Intervals.size == 3)
 
     {
@@ -322,7 +321,7 @@ class JsonStateSpec extends FunSuite with TestScheduling {
       assert(jobState.asInstanceOf[JobState.Done].projectVersion == "123")
     }
 
-      {
+    {
       val (interval, jobState) = hello1Intervals(2)
       assert(interval == Interval(Finite(date"2019-02-22T12:00:00Z"), Top))
       assert(jobState.isInstanceOf[JobState.Todo])
@@ -345,7 +344,7 @@ class JsonStateSpec extends FunSuite with TestScheduling {
 
     assert(
       newEncodedState.toString ==
-      """[
+        """[
         |  [
         |    "world",
         |    [

@@ -173,7 +173,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
 
   test("discard old versions in state") {
     val state: State = Map(
-      testJob -> IntervalMap(
+      testJob -> IntervalMap[Instant, JobState](
         Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T00:00:00Z") -> Done("000"),
         Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
         Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
@@ -186,7 +186,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
     assert(
       scheduler.compressState(state, 20) ==
         Map(
-          testJob -> IntervalMap(
+          testJob -> IntervalMap[Instant, JobState](
             Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T00:00:00Z") -> Done("000"),
             Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
             Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
@@ -200,7 +200,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
     assert(
       scheduler.compressState(state, 3) ==
         Map(
-          testJob -> IntervalMap(
+          testJob -> IntervalMap[Instant, JobState](
             Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T00:00:00Z") -> Done("old"),
             Interval(date"2017-03-25T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("123"),
             Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
@@ -214,7 +214,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
     assert(
       scheduler.compressState(state, 2) ==
         Map(
-          testJob -> IntervalMap(
+          testJob -> IntervalMap[Instant, JobState](
             Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("old"),
             Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
             Interval(date"2017-03-25T14:00:00Z", date"2017-03-27T00:00:00Z") -> Done("456"),
@@ -227,7 +227,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
     assert(
       scheduler.compressState(state, 1) ==
         Map(
-          testJob -> IntervalMap(
+          testJob -> IntervalMap[Instant, JobState](
             Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("old"),
             Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
             Interval(date"2017-03-25T14:00:00Z", date"2017-03-27T00:00:00Z") -> Done("old"),
@@ -240,7 +240,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
     assert(
       scheduler.compressState(state, 0) ==
         Map(
-          testJob -> IntervalMap(
+          testJob -> IntervalMap[Instant, JobState](
             Interval(date"2017-03-20T00:00:00Z", date"2017-03-25T12:00:00Z") -> Done("old"),
             Interval(date"2017-03-25T12:00:00Z", date"2017-03-25T14:00:00Z") -> Todo(None),
             Interval(date"2017-03-25T14:00:00Z", date"2017-03-28T00:00:00Z") -> Done("old"),

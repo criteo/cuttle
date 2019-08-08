@@ -91,6 +91,19 @@ object ExecutionStatus {
   case object ExecutionThrottled extends ExecutionStatus
   case object ExecutionWaiting extends ExecutionStatus
   case object ExecutionTodo extends ExecutionStatus
+
+  implicit lazy val executionStatEncoder: Encoder[ExecutionStatus] = new Encoder[ExecutionStatus] {
+    override def apply(stat: ExecutionStatus): Json =
+      (stat match {
+        case ExecutionSuccessful => "successful"
+        case ExecutionFailed     => "failed"
+        case ExecutionRunning    => "running"
+        case ExecutionWaiting    => "waiting"
+        case ExecutionPaused     => "paused"
+        case ExecutionThrottled  => "throttled"
+        case ExecutionTodo       => "todo"
+      }).asJson
+  }
 }
 
 private[cuttle] case class FailingJob(failedExecutions: List[ExecutionLog], nextRetry: Option[Instant]) {
@@ -117,6 +130,20 @@ private[cuttle] class ExecutionStat(
   val status: ExecutionStatus
 )
 
+private[cuttle] object ExecutionStat {
+  implicit val executionStatEncoder: Encoder[ExecutionStat] =
+    new Encoder[ExecutionStat] {
+      override def apply(execution: ExecutionStat): Json =
+        Json.obj(
+          "startTime" -> execution.startTime.asJson,
+          "endTime" -> execution.endTime.asJson,
+          "durationSeconds" -> execution.durationSeconds.asJson,
+          "waitingSeconds" -> execution.waitingSeconds.asJson,
+          "status" -> execution.status.asJson
+        )
+    }
+}
+
 private[cuttle] object ExecutionLog {
   implicit val execLogEq: Eq[ExecutionLog] = Eq.fromUniversalEquals[ExecutionLog]
 
@@ -127,15 +154,7 @@ private[cuttle] object ExecutionLog {
       "startTime" -> execution.startTime.asJson,
       "endTime" -> execution.endTime.asJson,
       "context" -> execution.context,
-      "status" -> (execution.status match {
-        case ExecutionSuccessful => "successful"
-        case ExecutionFailed     => "failed"
-        case ExecutionRunning    => "running"
-        case ExecutionWaiting    => "waiting"
-        case ExecutionPaused     => "paused"
-        case ExecutionThrottled  => "throttled"
-        case ExecutionTodo       => "todo"
-      }).asJson,
+      "status" -> execution.status.asJson,
       "failing" -> execution.failing.map {
         case FailingJob(failedExecutions, nextRetry) =>
           Json.obj(
@@ -394,13 +413,12 @@ object Executor {
 
 /** An [[Executor]] is responsible to actually execute the [[SideEffect]] functions for the
   * given [[Execution Executions]]. */
-class Executor[S <: Scheduling] (
-  val platforms: Seq[ExecutionPlatform],
-  xa: XA,
-  logger: Logger,
-  val projectName: String,
-  val projectVersion: String,
-  logsRetention: Option[ScalaDuration] = None)(implicit retryStrategy: RetryStrategy)
+class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
+                                xa: XA,
+                                logger: Logger,
+                                val projectName: String,
+                                val projectVersion: String,
+                                logsRetention: Option[ScalaDuration] = None)(implicit retryStrategy: RetryStrategy)
     extends MetricProvider[S] {
 
   import ExecutionStatus._
@@ -422,7 +440,8 @@ class Executor[S <: Scheduling] (
     Counter[Long](
       "cuttle_executions_total",
       help = "The number of finished executions that we have in concrete states by job and by tag"
-    ))
+    )
+  )
 
   // executions that failed recently and are now running
   private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] =
@@ -501,10 +520,10 @@ class Executor[S <: Scheduling] (
     (statuses.count(_ == ExecutionRunning), statuses.count(_ == ExecutionWaiting))
   }
   def runningExecutions(filteredJobs: Set[String],
-                                        sort: String,
-                                        asc: Boolean,
-                                        offset: Int,
-                                        limit: Int): Seq[ExecutionLog] =
+                        sort: String,
+                        asc: Boolean,
+                        offset: Int,
+                        limit: Int): Seq[ExecutionLog] =
     Seq(runningState.single.snapshot.keys.toSeq.filter(e => filteredJobs.contains(e.job.id)))
       .map(flagWaitingExecutions)
       .map { executions =>
@@ -537,15 +556,15 @@ class Executor[S <: Scheduling] (
       retryingExecutionsSize(filteredJobs)
 
   def failingExecutions(filteredJobs: Set[String],
-                                        sort: String,
-                                        asc: Boolean,
-                                        offset: Int,
-                                        limit: Int): Seq[ExecutionLog] =
+                        sort: String,
+                        asc: Boolean,
+                        offset: Int,
+                        limit: Int): Seq[ExecutionLog] =
     Seq(
       throttledState.single.toSeq
         .filter(x => filteredJobs.contains(x._1.job.id))
-        .map(x => (x._1, x._2._2, ExecutionThrottled)) ++ retryingExecutions(filteredJobs))
-      .map {
+        .map(x => (x._1, x._2._2, ExecutionThrottled)) ++ retryingExecutions(filteredJobs)
+    ).map {
         sort match {
           case "job" =>
             _.sortBy({ case (execution, _, _) => (execution.job.id, execution) })
@@ -574,11 +593,11 @@ class Executor[S <: Scheduling] (
     queries.getExecutionLogSize(jobs).transact(xa)
 
   def archivedExecutions(queryContexts: Fragment,
-                                         jobs: Set[String],
-                                         sort: String,
-                                         asc: Boolean,
-                                         offset: Int,
-                                         limit: Int): IO[Seq[ExecutionLog]] =
+                         jobs: Set[String],
+                         sort: String,
+                         asc: Boolean,
+                         offset: Int,
+                         limit: Int): IO[Seq[ExecutionLog]] =
     queries.getExecutionLog(queryContexts, jobs, sort, asc, offset, limit).transact(xa)
 
   /**
@@ -679,16 +698,18 @@ class Executor[S <: Scheduling] (
           case Failure(e) =>
             val stacktrace = new StringWriter()
             e.printStackTrace(new PrintWriter(stacktrace))
+            val stacktraceString = stacktrace.toString
             execution.streams.error(s"Execution failed:")
-            execution.streams.error(stacktrace.toString)
+            execution.streams.error(stacktraceString)
+            logger.warn(s"Execution ${execution.id} failed: $e\n${stacktraceString}")
             atomic {
               implicit tx =>
                 updateFinishedExecutionCounters(execution, "failure")
                 // retain jobs in recent failures if last failure happened in [now - retryStrategy.retryWindow, now]
                 recentFailures.retain {
                   case (_, (retryExecution, failingJob)) =>
-                    retryExecution.isDefined || failingJob.isLastFailureAfter(
-                      Instant.now.minus(retryStrategy.retryWindow))
+                    retryExecution.isDefined || failingJob
+                      .isLastFailureAfter(Instant.now.minus(retryStrategy.retryWindow))
                 }
                 val failureKey = (execution.job, execution.context)
                 val failingJob = recentFailures.get(failureKey).map(_._2).getOrElse(FailingJob(Nil, None))
@@ -718,7 +739,8 @@ class Executor[S <: Scheduling] (
                 .transact(xa)
                 .unsafeRunSync
             }
-        })
+        }
+    )
 
   private[cuttle] def updateFinishedExecutionCounters(execution: Execution[S], status: String): Unit =
     atomic { implicit txn =>
@@ -762,29 +784,35 @@ class Executor[S <: Scheduling] (
                   val nextExecutionId = utils.randomUUID
 
                   val streams = new ExecutionStreams {
+                    override def error(str: CharSequence = ""): Unit = {
+                      super.error(str)
+                      logger.warn(s"Execution error: $nextExecutionId > $str")
+                    }
                     def writeln(str: CharSequence) =
                       ExecutionStreams.writeln(nextExecutionId, str)
                   }
 
                   // wrap the execution context so that we can register the name of the thread of each
                   // runnable (and thus future) that will be run by the side effect.
-                  val sideEffectExecutionContext = SideEffectThreadPool.wrap(runnable =>
-                    new Runnable {
-                      override def run(): Unit = {
-                        val tName = Thread.currentThread().getName
-                        Executor.threadNamesToStreams.put(tName, streams)
-                        try {
-                          runnable.run()
-                        } finally {
-                          Executor.threadNamesToStreams.remove(tName)
+                  val sideEffectExecutionContext = SideEffectThreadPool.wrap(
+                    runnable =>
+                      new Runnable {
+                        override def run(): Unit = {
+                          val tName = Thread.currentThread().getName
+                          Executor.threadNamesToStreams.put(tName, streams)
+                          try {
+                            runnable.run()
+                          } finally {
+                            Executor.threadNamesToStreams.remove(tName)
+                          }
                         }
                       }
-                  })(Implicits.sideEffectThreadPool)
+                  )(Implicits.sideEffectThreadPool)
 
                   val previousFailures = recentFailures
-                    .get(job -> context).map(rf =>
-                      rf._2.failedExecutions
-                    ).getOrElse(List.empty)
+                    .get(job -> context)
+                    .map(rf => rf._2.failedExecutions)
+                    .getOrElse(List.empty)
 
                   val execution = Execution(
                     id = nextExecutionId,
@@ -863,7 +891,8 @@ class Executor[S <: Scheduling] (
             }
             (execution, promise.future)
         }
-      ))
+      )
+    )
   }
 
   /** Run the [[SideEffect]] function of the provided [[Job]] for the given [[SchedulingContext]].
@@ -902,7 +931,8 @@ class Executor[S <: Scheduling] (
           "paused" -> 0,
           "failing" -> failing,
           "finished" -> finished
-        ).asJson)
+        ).asJson
+    )
   }
 
   private[cuttle] def healthCheck(): Try[Boolean] =
@@ -955,11 +985,11 @@ class Executor[S <: Scheduling] (
             for {
               job <- jobs.toSeq
               outcome <- Seq("success", "failure")
-            } yield
-              Set(("job_id", job.id), ("type", outcome)) ++ (if (job.tags.nonEmpty)
-                                                               Set("tags" -> job.tags.map(_.name).mkString(","))
-                                                             else Nil)
-          }))
+            } yield Set(("job_id", job.id), ("type", outcome)) ++ (if (job.tags.nonEmpty)
+                                                                     Set("tags" -> job.tags.map(_.name).mkString(","))
+                                                                   else Nil)
+          })
+      )
   }
 
   /**

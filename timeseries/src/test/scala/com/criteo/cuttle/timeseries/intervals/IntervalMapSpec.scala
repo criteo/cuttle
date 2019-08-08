@@ -1,14 +1,18 @@
-package com.criteo.cuttle.timeseries.intervals
+package com.criteo.cuttle.timeseries
+package intervals
 
 import cats.implicits._
 
 import org.scalatest.FunSuite
 
 class IntervalMapSpec extends FunSuite {
+
+  implicit def measureBuilder[A: Ordering, B]: MeasureKey[Interval[A], B] = measure
+
   test("intervals") {
     assert(
       IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12) ==
-      IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12)
+        IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12)
     )
   }
 
@@ -28,7 +32,7 @@ class IntervalMapSpec extends FunSuite {
     val intervals = IntervalMap(Interval(0, 3) -> 42, Interval(3, 5) -> 12)
     assert(
       intervals.map(_ => 1) ==
-      IntervalMap(Interval(0, 5) -> 1)
+        IntervalMap(Interval(0, 5) -> 1)
     )
   }
 
@@ -36,6 +40,7 @@ class IntervalMapSpec extends FunSuite {
     assert(
       IntervalMap(Interval(0, 3) -> 42)
         .whenIsUndef(IntervalMap(Interval(1, 2) -> "foo", Interval(2, 3) -> "bar")) ==
-        IntervalMap(Interval(0, 1) -> 42))
+        IntervalMap(Interval(0, 1) -> 42)
+    )
   }
 }

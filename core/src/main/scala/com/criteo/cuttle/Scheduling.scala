@@ -56,6 +56,9 @@ trait SchedulingContext {
   /** Compare to another context. In the current design only context of the same types will be
     * compared to each other because a workflow/project is defined for a single [[Scheduling]] type. */
   def compareTo(other: SchedulingContext): Int
+
+  /** An id to identify a context after a reboot of the application */
+  def longRunningId(): String
 }
 
 /** Utilities for [[SchedulingContext]] */
