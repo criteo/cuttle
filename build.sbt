@@ -193,7 +193,7 @@ lazy val cuttle =
         "org.typelevel" %% "cats-core" % catsCore,
         "codes.reactive" %% "scala-time" % "0.4.2",
         "com.zaxxer" % "nuprocess" % "1.2.4",
-        "mysql" % "mysql-connector-java" % "6.0.6"
+        "mysql" % "mysql-connector-java" % "8.0.17"
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
