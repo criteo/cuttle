@@ -66,7 +66,7 @@ For a project example, you can also follow these hands-on introductions:
 - [A basic project using the built-in timeseries scheduler](https://criteo.github.io/cuttle/examples/examples0/HelloTimeSeries.scala.html).
 - [A minimal custom scheduling](https://criteo.github.io/cuttle/examples/examples0/HelloCustomScheduling.scala.html)
 
-To run the example application, checkout the repository, launch the [sbt](http://www.scala-sbt.org/) console in the project (_you will need [yarn](https://yarnpkg.com/en/) as well to compile the UI part_), and run the `example HelloWorld` command.
+To run the example application, checkout the repository, launch the [sbt](http://www.scala-sbt.org/) console in the project (_you will need [yarn](https://yarnpkg.com/en/) as well to compile the UI part_), and run the `example HelloTimeSeries` command.
 
 # Usage
 
