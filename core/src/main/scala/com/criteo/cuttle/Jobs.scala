@@ -53,6 +53,7 @@ case class Job[S <: Scheduling](id: String,
     * @return A future indicating the execution result (Failed future means failed execution).
     */
   private[cuttle] def run(execution: Execution[S]): Future[Completed] = effect(execution)
+
 }
 
 /** Companion object for [[Job]]. */
