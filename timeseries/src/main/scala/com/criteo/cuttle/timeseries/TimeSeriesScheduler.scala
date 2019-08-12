@@ -12,7 +12,6 @@ import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import scala.math.Ordering.Implicits._
-
 import cats._
 import cats.effect.IO
 import cats.implicits._
@@ -22,7 +21,7 @@ import doobie.implicits._
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
-
+import codes.reactive.scalatime._
 import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
 import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.Metrics._
@@ -42,7 +41,7 @@ sealed trait TimeSeriesCalendar {
     if (truncated == t) t
     else next(t)
   }
-  private[timeseries] def inInterval(interval: Interval[Instant], maxPeriods: Int) = {
+  private[timeseries] def inInterval(interval: Interval[Instant], batching: TimeSeriesBatching) = {
     def go(lo: Instant, hi: Instant, acc: List[(Instant, Instant)]): List[(Instant, Instant)] = {
       val nextLo = next(lo)
       if (nextLo.isAfter(hi)) acc
@@ -50,7 +49,7 @@ sealed trait TimeSeriesCalendar {
     }
     interval match {
       case Interval(Finite(lo), Finite(hi)) =>
-        go(ceil(lo), hi, List.empty).reverse.grouped(maxPeriods).map(xs => (xs.head._1, xs.last._2))
+        go(ceil(lo), hi, List.empty).reverse.grouped(batching.size).map(xs => (xs.head._1, xs.last._2))
       case _ =>
         sys.error("panic")
     }
@@ -294,15 +293,40 @@ object TimeSeriesContext {
   */
 case class TimeSeriesDependency(offsetLow: Duration, offsetHigh: Duration)
 
+/**
+  * The maximum number of partitions the job can handle at once and a delay the scheduler will wait for partition to arrive. If the size is defined
+  * to a value more than `1`, the scheduler will wait for delay trigger [[com.criteo.cuttle.Execution Execution]]
+  * with a scheduling context extended to by the @size.
+  *
+  * @param size the maximum number of joint intervals which are going to be run within single execution.
+  * @param delay the delay for which the scheduler will wait for the new executions to arrive for current batch.
+  *
+  */
+case class TimeSeriesBatching(size: Int, delay: Duration) {
+  require(size >= 1)
+
+  def asJson: Json =
+    Json.obj(
+      "size" -> size.asJson,
+      "delay" -> delay.toMillis.asJson
+    )
+}
+
+object TimeSeriesBatching {
+  val default = TimeSeriesBatching(1, 0.seconds)
+}
+
 /** Configure a [[com.criteo.cuttle.Job Job]] as a [[TimeSeries]] job,
   *
   * @param calendar The calendar partitions configuration for this job (for example hourly or daily).
   * @param start The start instant at which this job must start being executed.
-  * @param maxPeriods The maximum number of partitions the job can handle at once. If this is defined
-  *                   to a value more than `1` and if possible, the scheduler can trigger [[com.criteo.cuttle.Execution Executions]]
-  *                   for more than 1 partition at once.
+  * @param batching The batching parameters [[com.criteo.cuttle.timeseries.TimeSeriesBatching]].
+  *
   */
-case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[Instant] = None, maxPeriods: Int = 1)
+case class TimeSeries(calendar: TimeSeriesCalendar,
+                      start: Instant,
+                      end: Option[Instant] = None,
+                      batching: TimeSeriesBatching = TimeSeriesBatching.default)
     extends Scheduling {
   type Context = TimeSeriesContext
   override def asJson: Json =
@@ -310,7 +334,7 @@ case class TimeSeries(calendar: TimeSeriesCalendar, start: Instant, end: Option[
       "kind" -> "timeseries".asJson,
       "start" -> start.asJson,
       "end" -> end.asJson,
-      "maxPeriods" -> maxPeriods.asJson,
+      "batching" -> batching.asJson,
       "calendar" -> calendar.asJson
     )
 }
@@ -400,6 +424,8 @@ case class TimeSeriesScheduler(logger: Logger,
   private val _backfills = Ref(Set.empty[Backfill])
 
   private val _pausedJobs = Ref(Set.empty[PausedJob])
+
+  private val debouncedJobs = collection.mutable.Map.empty[TimeSeriesJob, Instant]
 
   def pausedJobs(): Set[PausedJob] = atomic { implicit txn =>
     _pausedJobs()
@@ -723,16 +749,37 @@ case class TimeSeriesScheduler(logger: Logger,
       case (_, _, effect) => effect.isCompleted
     }
 
-    val (stateSnapshot, completedBackfills, toRun) = atomic { implicit txn =>
+    val (stateSnapshot, completedBackfills, toRun, debounced, commitInstant) = atomic { implicit txn =>
+      val now = Instant.now
       val (stateSnapshot, newBackfills, completedBackfills) =
         collectCompletedJobs(_state(), _backfills(), completed)
 
-      val toRun = jobsToRun(workflow, stateSnapshot, Instant.now, executor.projectVersion)
+      val (toRun, debounced) = jobsToRun(workflow, stateSnapshot, now, executor.projectVersion)
 
       _state() = stateSnapshot
       _backfills() = newBackfills
 
-      (stateSnapshot, completedBackfills, toRun)
+      (stateSnapshot, completedBackfills, toRun, debounced, now)
+    }
+
+    toRun.groupBy(_._1).foreach {
+      case (job, _) =>
+        if (job.scheduling.batching.size > 1) {
+          logger.debug(s"scheduling batches for ${job.name}")
+          debouncedJobs -= job
+        }
+    }
+
+    debounced.groupBy(_._1).foreach {
+      case (job, _) =>
+        debouncedJobs.get(job) match {
+          case Some(interval) =>
+            logger.debug(s"job ${job.name} is waiting for intervals to batch until $interval")
+          case None =>
+            val debouncePeriodEnd = commitInstant.plus(job.scheduling.batching.delay)
+            debouncedJobs(job) = debouncePeriodEnd
+            logger.debug(s"job ${job.name} will wait for intervals to batch until $debouncePeriodEnd")
+        }
     }
 
     val newExecutions = executor.runAll(toRun)
@@ -901,7 +948,7 @@ case class TimeSeriesScheduler(logger: Logger,
   private[timeseries] def jobsToRun(workflow: Workflow,
                                     state0: State,
                                     now: Instant,
-                                    projectVersion: String): List[Executable] = {
+                                    projectVersion: String): (List[Executable], List[Executable]) = {
 
     val timerInterval = Interval(Bottom, Finite(now))
     val state = state0.mapValues(_.intersect(timerInterval))
@@ -925,7 +972,7 @@ case class TimeSeriesScheduler(logger: Logger,
         .toList
         .map { case (interval, _) => interval }
 
-    workflow.vertices.filter(job => !pausedJobIds.contains(job.id)).toList.flatMap { job =>
+    val job2Contexts = workflow.vertices.filter(job => !pausedJobIds.contains(job.id)).toList.flatMap { job =>
       val full = IntervalMap[Instant, Unit](Interval[Instant](Bottom, Top) -> (()))
       val dependenciesSatisfied = parentsMap
         .getOrElse(job, Set.empty)
@@ -962,10 +1009,26 @@ case class TimeSeriesScheduler(logger: Logger,
 
       for {
         (interval, maybeBackfill) <- toRun.toList
-        (lo, hi) <- job.scheduling.calendar.inInterval(interval, job.scheduling.maxPeriods)
+        (lo, hi) <- job.scheduling.calendar.inInterval(interval, job.scheduling.batching)
       } yield {
+        logger.debug(s"creating a context for ${job.name} for interval $lo, $hi")
         (job, TimeSeriesContext(lo, hi, maybeBackfill, projectVersion))
       }
+
+    }
+
+    job2Contexts.partition {
+      case (job, _) =>
+        if (job.scheduling.batching.size == 1) {
+          true
+        } else {
+          debouncedJobs.get(job) match {
+            case Some(interval) if now.isAfter(interval) =>
+              true
+            case _ =>
+              false
+          }
+        }
     }
   }
 

@@ -73,7 +73,8 @@ package object timeseries {
     * @param start The instant this calendar will start.
     * @param end The optional instant this calendar will end.
     */
-  def hourly(start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = NHourly(1), start, end)
+  def hourly(start: Instant, end: Option[Instant] = None, batching: TimeSeriesBatching = TimeSeriesBatching.default) =
+    TimeSeries(calendar = NHourly(1), start, end, batching)
 
   /** Defines a N-hourly calendar starting at the specified instant.
     *
@@ -85,10 +86,13 @@ package object timeseries {
     * @param start The instant this calendar will start.
     * @param end The optional instant this calendar will end.
     */
-  def nhourly(hours: Int, start: Instant, end: Option[Instant] = None): TimeSeries =
-    if (hours <= 0 || hours >= 24 || 24 % hours != 0)
+  def nhourly(hours: Int,
+              start: Instant,
+              end: Option[Instant] = None,
+              batching: TimeSeriesBatching = TimeSeriesBatching.default): TimeSeries =
+    if (hours <= 0 || hours >= 24 || 24 % hours != 0) {
       throw new IllegalArgumentException("hours should be a strictly positive divider of 24 different than 24")
-    else TimeSeries(calendar = NHourly(hours), start, end)
+    } else TimeSeries(calendar = NHourly(hours), start, end, batching)
 
   /** Defines an daily calendar starting at the specified instant, and using the specified time zone.
     * Days are defined as complete calendar days starting a midnight and during 24 hours. If the specified
@@ -104,7 +108,11 @@ package object timeseries {
     * @param end The optional instant this calendar will end.
     * @param tz The time zone for which these _days_ are defined.
     */
-  def daily(tz: ZoneId, start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Daily(tz), start, end)
+  def daily(tz: ZoneId,
+            start: Instant,
+            end: Option[Instant] = None,
+            batching: TimeSeriesBatching = TimeSeriesBatching.default) =
+    TimeSeries(calendar = Daily(tz), start, end, batching)
 
   /** Defines a weekly calendar. Weeks are defined as complete calendar weeks starting on a specific
     * day of the week at midnight and lasting 7 days. The specified time zone is used to define the exact
@@ -122,8 +130,11 @@ package object timeseries {
     * @param end The optional instant this calendar will end.
     * @param tz The time zone for which these _weeks_ are defined.
     */
-  def weekly(tz: ZoneId, start: Instant, end: Option[Instant] = None) =
-    TimeSeries(calendar = Weekly(tz, start.atZone(tz).getDayOfWeek), start, end)
+  def weekly(tz: ZoneId,
+             start: Instant,
+             end: Option[Instant] = None,
+             batching: TimeSeriesBatching = TimeSeriesBatching.default) =
+    TimeSeries(calendar = Weekly(tz, start.atZone(tz).getDayOfWeek), start, end, batching)
 
   /** Defines a monthly calendar. Months are defined as complete calendar months starting on the 1st day and
     * during 28,29,30 or 31 days. The specified time zone is used to define the exact month start instant.
@@ -138,7 +149,11 @@ package object timeseries {
     * @param end The optional instant this calendar will end.
     * @param tz The time zone for which these months are defined.
     */
-  def monthly(tz: ZoneId, start: Instant, end: Option[Instant] = None) = TimeSeries(calendar = Monthly(tz), start, end)
+  def monthly(tz: ZoneId,
+              start: Instant,
+              end: Option[Instant] = None,
+              batching: TimeSeriesBatching = TimeSeriesBatching.default) =
+    TimeSeries(calendar = Monthly(tz), start, end, batching)
 
   def measure[A, B]: MeasureKey[Interval[A], B] = new MeasureKey[Interval[A], B]
 

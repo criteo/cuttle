@@ -5,6 +5,7 @@ import java.time.{Duration, Instant}
 import scala.concurrent.Future
 
 import org.scalatest.FunSuite
+import codes.reactive.scalatime._
 
 import com.criteo.cuttle.Auth
 import com.criteo.cuttle.{Completed, Job, TestScheduling}
@@ -73,6 +74,8 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
   }
 
   test("identify jobs to do") {
+    val batchingJob = Job("batching_job", scheduling.copy(batching = TimeSeriesBatching(2, 2.seconds)))(completed)
+
     val state: State = Map(
       parentTestJob -> IntervalMap(
         Interval(date"2017-03-25T01:00:00Z", date"2017-03-25T02:00:00Z") -> Done("v1"),
@@ -83,17 +86,25 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
         Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z") -> Todo(None),
         Interval(date"2017-03-25T03:00:00Z", date"2017-03-25T04:00:00Z") -> Done("v2"),
         Interval(date"2017-03-25T04:00:00Z", date"2017-03-25T05:00:00Z") -> Todo(None)
+      ),
+      batchingJob -> IntervalMap(
+        Interval(date"2017-03-25T02:00:00Z", date"2017-03-25T05:00:00Z") -> Todo(None)
       )
+    )
+    val batchedIntervals = Set(
+      (batchingJob, TimeSeriesContext(date"2017-03-25T02:00:00Z", date"2017-03-25T04:00:00Z", None, "last_version"))
     )
 
     val jobsToRun = scheduler.jobsToRun(
-      (testJob dependsOn parentTestJob)(TimeSeriesDependency(Duration.ofHours(-1), Duration.ofHours(0))),
+      ((testJob and batchingJob) dependsOn parentTestJob)(
+        TimeSeriesDependency(Duration.ofHours(-1), Duration.ofHours(0))
+      ),
       state,
       date"2017-03-25T05:00:00Z",
       "last_version"
     )
     assert(
-      jobsToRun.toSet.equals(
+      jobsToRun._1.toSet.equals(
         Set(
           (testJob, TimeSeriesContext(date"2017-03-25T02:00:00Z", date"2017-03-25T03:00:00Z", None, "last_version")),
           (parentTestJob,
@@ -101,6 +112,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
         )
       )
     )
+    assert(jobsToRun._2.toSet.equals(batchedIntervals))
   }
 
   val oneDayInterval = Interval(Instant.parse("2019-01-01T00:00:00Z"), Instant.parse("2019-01-02T00:00:00Z"))
@@ -109,7 +121,7 @@ class TimeSeriesSchedulerSpec extends FunSuite with TestScheduling {
   test("Generate right n-hours periods") {
 
     def checkPeriod(period: Int) = {
-      val allIntervals = nhourly(period, start).calendar.inInterval(oneDayInterval, 1).toList
+      val allIntervals = nhourly(period, start).calendar.inInterval(oneDayInterval, TimeSeriesBatching.default).toList
 
       assert(allIntervals.size.equals(24 / period))
 
