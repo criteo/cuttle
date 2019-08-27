@@ -2933,6 +2933,16 @@ d3@4.7.4:
     d3-voronoi "1.1.2"
     d3-zoom "1.1.4"
 
+d3plus-common@0.6.45:
+  version "0.6.45"
+  resolved "https://registry.yarnpkg.com/d3plus-common/-/d3plus-common-0.6.45.tgz#027741523387c2af9920000104fd2058c5517607"
+  integrity sha512-8SoX0Y51CYiE7i/KjKsQascyz28BO5VTO9uZalw/xgmOW4vXqxyI8nvb/MaqM40HpZscRua3M6zm5k7RVajU9w==
+  dependencies:
+    d3-array "^1.2.4"
+    d3-collection "^1.0.7"
+    d3-selection "^1.4.0"
+    d3-transition "^1.2.0"
+
 d3plus-common@^0.6.31:
   version "0.6.57"
   resolved "https://registry.yarnpkg.com/d3plus-common/-/d3plus-common-0.6.57.tgz#bbed9dceb6968ae45f80070fd8b6b86f474d6931"
@@ -4046,11 +4056,11 @@ flush-write-stream@^1.0.0:
     readable-stream "^2.3.6"
 
 follow-redirects@^1.0.0:
-  version "1.7.0"
-  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.7.0.tgz#489ebc198dc0e7f64167bd23b03c4c19b5784c76"
-  integrity sha512-m/pZQy4Gj287eNy94nivy5wchN3Kp+Q5WgUPNy5lJSZ3sgkVKSYV/ZChMAQVIgx1SqfZ2zBZtPA2YlXIWxxJOQ==
+  version "1.8.0"
+  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.8.0.tgz#dcf34930bcfdb6c1eb22b8eb7c457ec95a3dcf40"
+  integrity sha512-eYyazyi+vwXZ6LfSQicvqFwaNEF5xTvnB/rpzRLuqwK45u7WbBEnQ/dDic66KD/A8IzTXFlj2ROAcaP0f2v4lg==
   dependencies:
-    debug "^3.2.6"
+    debug "^4.1.1"
 
 for-in@^1.0.1, for-in@^1.0.2:
   version "1.0.2"
