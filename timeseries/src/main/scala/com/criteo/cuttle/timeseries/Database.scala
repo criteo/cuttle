@@ -86,7 +86,8 @@ private[timeseries] object Database {
       CREATE INDEX timeseries_backfills_by_status ON timeseries_backfills (status);
     """.update.run,
     contextIdMigration,
-    NoUpdate // We removed this migration, so we reserve this slot
+    NoUpdate, // We removed this migration, so we reserve this slot
+    sql"DROP INDEX IF EXISTS `PRIMARY` ON timeseries_state".update.run
   )
 
   val doSchemaUpdates: ConnectionIO[Unit] = utils.updateSchema("timeseries", schema)
