@@ -104,7 +104,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
               <form method="POST" action="/api/jobs/@cronJob.id/resume_redirect"/>
               <input type="submit" value="Resume">
               </form>
-            </td
+            </td>
           </tr>
         """
     }
@@ -124,6 +124,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             @th("State")
             @th("Executions")
             @th("Pause")
+            @th("Run Now")
           </tr>
         </thead>
         @foldHtml(activeJobs.toList) {
@@ -139,8 +140,13 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
                 <form method="POST" action="/api/jobs/@cronJob.id/pause_redirect"/>
                   <input type="submit" value="Pause">
                 </form>
-              </td
-            </tr>
+              </td>
+            <td>
+              <form method="POST" action="/api/jobs/@cronJob.id/runnow_redirect"/>
+                <input type="submit" value="Run Now">
+              </form>
+            </td>
+          </tr>
         }
         @pausedJobs
       </table>

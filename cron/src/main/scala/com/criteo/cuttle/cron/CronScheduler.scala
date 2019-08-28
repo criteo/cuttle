@@ -1,13 +1,20 @@
 package com.criteo.cuttle.cron
 
+import java.time.Instant
+import java.util.concurrent.TimeUnit
+
 import scala.concurrent.stm.Txn.ExternalDecider
 import scala.concurrent.stm._
 import cats.effect.IO
+import cats.effect.concurrent.Deferred
 import cats.implicits._
 import doobie.implicits._
 import io.circe.Json
 import com.criteo.cuttle._
-import com.criteo.cuttle.utils.Timeout
+import com.criteo.cuttle.utils._
+import com.criteo.cuttle.cron.Implicits._
+
+import scala.concurrent.duration.FiniteDuration
 
 /** A [[CronScheduler]] executes the set of Jobs at the time instants defined by Cron expressions.
   * Each [[com.criteo.cuttle.Job Job]] has it's own expression and executed separately from others.
@@ -37,9 +44,10 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     * We associate a commit of new STM state with a DB commit.
     * It means that STM state commit only happens whether we commit to DB successfully.
     * That allows us to keep STM and DB in sync.
+    *
     * @param dbConnection doobie DB connection
-    * @param transactor  doobie transactor
-    * @param txn current STM transaction context
+    * @param transactor   doobie transactor
+    * @param txn          current STM transaction context
     */
   private def setExernalDecider[A](dbConnection: doobie.ConnectionIO[A])(implicit transactor: XA, txn: InTxnEnd): Unit =
     Txn.setExternalDecider(new ExternalDecider {
@@ -103,8 +111,21 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     unsafeRunAsync(programs)
   }
 
+  private[cron] def runJobsNow(jobsToRun: Set[CronJob], executor: Executor[CronScheduling])(implicit transactor: XA,
+                                                                                            user: Auth.User): Unit = {
+    logger.info(s"Request by ${user.userId} to run on demand jobs ${jobsToRun.map(_.id).mkString}")
+    val runNowHandlers = state.getRunNowHandlers(jobsToRun.map(_.id))
+    if (runNowHandlers.size == 0) {
+      logger.info("No job in waiting state.")
+    }
+    for ((job, d) <- runNowHandlers) {
+      logger.info(s"Running ${job.id} on demand.")
+      d.complete(ScheduledAt(Instant.now, FiniteDuration(0, TimeUnit.SECONDS)) -> user).unsafeRunSync()
+    }
+  }
+
   private def run(job: CronJob, executor: Executor[CronScheduling]): IO[Completed] = {
-    def runAndRetry(job: Job[CronScheduling], scheduledAt: ScheduledAt, retryNum: Int): IO[Completed] =
+    def runAndRetry(job: Job[CronScheduling], scheduledAt: ScheduledAt, retryNum: Int, runNowUser: Option[Auth.User]): IO[Completed] =
       // don't run anything when job is paused
       if (state.isPaused(job)) {
         IO.pure(Completed)
@@ -115,6 +136,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
             val cronContext = CronContext(scheduledAt.instant)(retryNum)
             executor.run(job, cronContext)
           }
+          _ <- IO(runNowUser.fold(())(user => runInfo._1.streams.info(s"Run now request from ${user.userId}")))
           _ <- IO(state.addNextExecutionToState(job, runInfo._1))
           _ <- logState
           completed <- IO.fromFuture(IO(runInfo._2))
@@ -125,7 +147,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
             if (retryNum < job.scheduling.maxRetry) {
               val nextRetry = retryNum + 1
               logger.debug(s"Job ${job.id} has failed it's going to be retried. Retry number: $nextRetry")
-              runAndRetry(job, scheduledAt, nextRetry)
+              runAndRetry(job, scheduledAt, nextRetry, runNowUser)
             } else {
               logger.debug(s"Job ${job.id} has reached the maximum number of retries")
               IO.pure(Completed)
@@ -150,8 +172,16 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
             for {
               _ <- IO(state.addNextEventToState(job, scheduledAt.instant))
               _ <- logState
-              _ <- Timeout.applyF(scheduledAt.delay)
-              _ <- runAndRetry(job, scheduledAt, 0)
+              runNowHandler <- Deferred[IO, (ScheduledAt, Auth.User)]
+              _ <- IO(state.addRunNowHandler(job, runNowHandler))
+              scheduledAtWinner <- IO.race(IO.sleep(scheduledAt.delay), runNowHandler.get)
+              _ <- IO(state.removeRunNowHandler(job))
+              _ <- scheduledAtWinner match {
+                //Normal sleep wakeup
+                case (Left(_)) => runAndRetry(job, scheduledAt, 0, None)
+                //RunNow request by user
+                case (Right(Tuple2(userScheduledAt, user))) => runAndRetry(job, userScheduledAt, 0, Some(user))
+              }
               completed <- run(job, executor)
             } yield completed
         }
