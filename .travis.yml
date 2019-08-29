@@ -10,7 +10,7 @@ before_install:
   - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
   - echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
   - sudo apt-get -qq update
-  - sudo apt-get install -y yarn
+  - sudo apt-get install -y yarn=1.13.0-1
 before_deploy:
 - openssl aes-256-cbc -K $encrypted_fb9a491fd14b_key -iv $encrypted_fb9a491fd14b_iv
   -in .travis/keys.tar.enc -out .travis/keys.tar -d
