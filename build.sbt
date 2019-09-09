@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.9.14"
+val VERSION = "0.9.15"
 
 lazy val catsCore = "1.6.1"
 lazy val circe = "0.11.1"
@@ -192,7 +192,7 @@ lazy val cuttle =
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.typelevel" %% "cats-core" % catsCore,
         "codes.reactive" %% "scala-time" % "0.4.2",
-        "com.zaxxer" % "nuprocess" % "1.2.4",
+        "com.zaxxer" % "nuprocess" % "1.1.3",
         "mysql" % "mysql-connector-java" % "8.0.17"
       ),
       libraryDependencies ++= Seq(
