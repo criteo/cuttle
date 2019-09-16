@@ -7,7 +7,7 @@ import java.time.Instant
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import cats.effect.{IO, Resource}
+import cats.effect.{IO, Resource, Timer}
 import cats.Eq
 import cats.implicits._
 import doobie._
@@ -68,6 +68,11 @@ package object utils {
     */
   object Timeout {
     private val scheduler = ThreadPools.newScheduledThreadPool(1, poolName = Some("Timeout"))
+
+    /**
+      * @return timer object for IO.sleep
+      */
+    implicit val timer: Timer[IO] = IO.timer(ExecutionContext.fromExecutor(scheduler))
 
     /** Creates a  [[scala.concurrent.Future]] that resolve automatically
       * after the given duration.

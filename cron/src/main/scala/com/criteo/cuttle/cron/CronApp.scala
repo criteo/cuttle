@@ -124,6 +124,20 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
       }
     }
 
+    case POST at url"/api/jobs/$id/runnow" => { implicit user =>
+      workload.all.find(_.id == id).fold(NotFound) { job =>
+        scheduler.runJobsNow(Set(job), executor)
+        Ok
+      }
+    }
+
+    case POST at url"/api/jobs/$id/runnow_redirect" => { implicit user =>
+      workload.all.find(_.id == id).fold(NotFound) { job =>
+        scheduler.runJobsNow(Set(job), executor)
+        Redirect("/", 302)
+      }
+    }
+
     case POST at url"/api/jobs/$id/resume" => { implicit user =>
       workload.all.find(_.id == id).fold(NotFound) { job =>
         scheduler.resumeJobs(Set(job), executor)
@@ -144,7 +158,6 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
         Redirect("/", 302)
       }
     }
-
   }
 
   private val api = publicApi orElse project.authenticator(privateApi)

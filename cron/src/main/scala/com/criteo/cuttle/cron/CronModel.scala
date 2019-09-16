@@ -3,17 +3,20 @@ package com.criteo.cuttle.cron
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneOffset}
 
+import cats.effect.concurrent.Deferred
+import cats.effect.IO
+
 import scala.concurrent.duration._
 import scala.concurrent.stm.{Ref, _}
-
 import cron4s.{Cron, _}
 import cron4s.lib.javatime._
 import io.circe._
 import io.circe.syntax._
 import io.circe.java8.time._
-
 import com.criteo.cuttle.Auth.User
 import com.criteo.cuttle.{ExecutionStatus, Logger, PausedJob, Scheduling, SchedulingContext, Workload}
+
+import scala.reflect.ClassTag
 
 private[cron] case class ScheduledAt(instant: Instant, delay: FiniteDuration)
 
@@ -23,6 +26,8 @@ private[cron] case class ScheduledAt(instant: Instant, delay: FiniteDuration)
 private[cron] case class CronState(logger: Logger) {
   private val executions = Ref(Map.empty[CronJob, Either[Instant, CronExecution]])
   private val paused = Ref(Map.empty[CronJob, PausedJob])
+  private val runNowHandlers: Ref[Map[CronJob, Deferred[IO, (ScheduledAt, User)]]] =
+    Ref(Map.empty[CronJob, Deferred[IO, (ScheduledAt, User)]])(implicitly[ClassTag[Map[CronJob, Deferred[IO, (ScheduledAt, User)]]]])
 
   private[cron] def init(availableJobs: Set[CronJob], pausedJobs: Seq[PausedJob]) = {
     logger.debug("Cron Scheduler States initialization")
@@ -70,6 +75,20 @@ private[cron] case class CronState(logger: Logger) {
 
   private[cron] def resumeJobs(jobs: Set[CronJob]): Unit = atomic { implicit txn =>
     paused() = paused() -- jobs
+  }
+
+  private[cron] def addRunNowHandler(job: CronJob, runNowHandler: Deferred[IO, (ScheduledAt, User)]) =
+    atomic { implicit txn =>
+      runNowHandlers() = runNowHandlers() + (job -> runNowHandler)
+    }
+
+  private[cron] def removeRunNowHandler(job: CronJob) =
+    atomic { implicit txn =>
+      runNowHandlers() = runNowHandlers() - job
+    }
+
+  private[cron] def getRunNowHandlers(jobIds: Set[String]) = atomic { implicit txn =>
+    runNowHandlers().filter(cronJob => jobIds.contains(cronJob._1.id))
   }
 
   private[cron] def snapshotAsJson(jobIds: Set[String]) = atomic { implicit txn =>
