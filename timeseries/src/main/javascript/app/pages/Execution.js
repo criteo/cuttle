@@ -284,23 +284,22 @@ class Execution extends React.Component<Props, State> {
                 ? [
                     <dt key="duration">Duration:</dt>,
                     <dd key="duration_">
-                      {data.endTime ? (
-                        [
-                          moment
-                            .utc(
-                              moment(data.endTime).diff(moment(data.startTime))
-                            )
-                            .format("HH:mm:ss"),
-                          <ProgressBar
+                      {data.endTime ?  (
+                        (() => {
+                          const duration = moment(data.endTime).diff(moment(data.startTime))
+                          const timePart = moment
+                            .utc(duration)
+                            .format("HH:mm:ss")
+                          const dayPart = moment.duration(duration).days()
+                          const durationMsg = (dayPart === 0) ? timePart : `${dayPart} days ${timePart}`
+                          const progressBar = <ProgressBar
                             key="progressBar"
-                            totalTimeSeconds={
-                              moment(data.endTime).diff(
-                                moment(data.startTime)
-                              ) / 1000
-                            }
+                            totalTimeSeconds = {duration / 1000}
                             waitingTimeSeconds={data.waitingSeconds}
                           />
-                        ]
+                          return [durationMsg, progressBar]
+                        }
+                        )()
                       ) : (
                         <Clock time={data.startTime} humanize={false} />
                       )}
