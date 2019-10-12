@@ -1,4 +1,4 @@
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.0.4")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.0.7")
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10")
 addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.4.2")
 addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "2.5")
