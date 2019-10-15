@@ -610,7 +610,7 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
                                             limit: Int): IO[Seq[ExecutionLog]] =
     queries.getRawExecutionLog(jobs, sort, asc, offset, limit).transact(xa)
 
-  private[cuttle] def cancelExecution(executionId: String)(implicit user: User): Unit = {
+  def cancelExecution(executionId: String)(implicit user: User): Unit = {
     val toCancel = atomic { implicit tx =>
       (runningState.keys ++ throttledState.keys)
         .find(_.id == executionId)
