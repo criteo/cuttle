@@ -3,6 +3,8 @@ package com.criteo.cuttle.timeseries.intervals
 import java.time.Duration
 
 import com.criteo.cuttle.timeseries._
+import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
+import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
 import com.criteo.cuttle.{Job, TestScheduling}
 import de.sciss.fingertree.FingerTree
 import org.scalatest.FunSuite
