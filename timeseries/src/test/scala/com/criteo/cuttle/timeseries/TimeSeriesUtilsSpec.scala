@@ -1,12 +1,11 @@
 package com.criteo.cuttle.timeseries.intervals
 
-import org.scalatest.FunSuite
-import de.sciss.fingertree.FingerTree
+import java.time.Duration
 
 import com.criteo.cuttle.timeseries._
-import com.criteo.cuttle.timeseries.JobState.{Done, Todo}
-import com.criteo.cuttle.timeseries.TimeSeriesUtils.State
 import com.criteo.cuttle.{Job, TestScheduling}
+import de.sciss.fingertree.FingerTree
+import org.scalatest.FunSuite
 
 class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
   private val scheduling: TimeSeries = hourly(date"2017-03-25T02:00:00Z")
@@ -60,5 +59,15 @@ class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
             )
         }
     }
+  }
+
+  test("validate workflow") {
+    val j1 = jobAsWorkflow(Job("j1", hourly(date"2019-10-10T01:00:00Z"))(completed))
+    val j2 = jobAsWorkflow(Job("j2", hourly(date"2019-10-10T02:00:00Z"))(completed))
+    println(TimeSeriesUtils.validate(j2.dependsOn(j1)))
+    assert(TimeSeriesUtils.validate(j2.dependsOn(j1)).isRight)
+    assert(TimeSeriesUtils.validate(j1.dependsOn(j2)).isLeft)
+    val timeOffset = TimeSeriesDependency(Duration.ofHours(1), Duration.ofHours(1))
+    assert(TimeSeriesUtils.validate(j1.dependsOn((j2, timeOffset))).isRight)
   }
 }

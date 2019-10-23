@@ -1168,8 +1168,8 @@ object TimeSeriesUtils {
     val errors = collection.mutable.ListBuffer(Workflow.validate(workflow): _*)
 
     workflow.edges.map {
-      case (childJob, parentJob, _) =>
-        if (childJob.scheduling.start.isBefore(parentJob.scheduling.start)) {
+      case (childJob, parentJob, timeSeriesDependency) =>
+        if (childJob.scheduling.start.isBefore(parentJob.scheduling.start.minus(timeSeriesDependency.offsetLow))) {
           errors += s"Job [${childJob.id}] starts at [${childJob.scheduling.start.toString}] " +
             s"before his parent [${parentJob.id}] at [${parentJob.scheduling.start.toString}]"
         }
