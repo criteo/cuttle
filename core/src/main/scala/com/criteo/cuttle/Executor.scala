@@ -635,7 +635,7 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
   def openStreams(executionId: String): fs2.Stream[IO, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
-  private[cuttle] def relaunch(jobs: Set[String])(implicit user: User): Unit = {
+  def relaunch(jobs: Set[String])(implicit user: User): Unit = {
     val execution2Promise = atomic { implicit txn =>
       throttledState.collect {
         case (execution, (promise, _)) if jobs.contains(execution.job.id) =>
