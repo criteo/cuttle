@@ -62,14 +62,4 @@ class TimeSeriesUtilsSpec extends FunSuite with TestScheduling {
         }
     }
   }
-
-  test("validate workflow") {
-    val j1 = jobAsWorkflow(Job("j1", hourly(date"2019-10-10T01:00:00Z"))(completed))
-    val j2 = jobAsWorkflow(Job("j2", hourly(date"2019-10-10T02:00:00Z"))(completed))
-    println(TimeSeriesUtils.validate(j2.dependsOn(j1)))
-    assert(TimeSeriesUtils.validate(j2.dependsOn(j1)).isRight)
-    assert(TimeSeriesUtils.validate(j1.dependsOn(j2)).isLeft)
-    val timeOffset = TimeSeriesDependency(Duration.ofHours(1), Duration.ofHours(1))
-    assert(TimeSeriesUtils.validate(j1.dependsOn((j2, timeOffset))).isRight)
-  }
 }
