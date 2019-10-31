@@ -2,17 +2,15 @@ package com.criteo.cuttle.timeseries
 
 import com.criteo.cuttle._
 import Internal._
-
 import java.time._
-import scala.concurrent.duration.Duration
 
+import scala.concurrent.duration.Duration
 import cats.Applicative
 import cats.data.{NonEmptyList, OptionT}
 import cats.implicits._
-
+import com.criteo.cuttle.timeseries.JobState.Todo
 import io.circe._
 import io.circe.syntax._
-
 import doobie._
 import doobie.implicits._
 
@@ -139,7 +137,7 @@ private[timeseries] object Database {
           case (_, jobState) =>
             jobState match {
               case JobState.Done(_) => true
-              case JobState.Todo(_) => true
+              case JobState.Todo(_, _) => true
               case _                => false
             }
         })
@@ -161,7 +159,10 @@ private[timeseries] object Database {
       else
         now.minusSeconds(duration.toSeconds)
     }
-    val stateJson = dbStateEncoder(state)
+    val stateJson = dbStateEncoder(state.mapValues(_.map{
+      case Todo(backfill, _) => Todo(backfill, None)
+      case other => other
+    }))
 
     for {
       // Apply state retention if needed
