@@ -439,7 +439,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
     def getStatusLabelFromState(jobState: JobState, job: Job[TimeSeries]): String =
       jobState match {
-        case Running(executionId) =>
+        case Todo(_, Some(executionId)) =>
           if (allFailingExecutionIds.contains(executionId))
             "failed"
           else if (allWaitingExecutionIds.contains(executionId))
@@ -447,7 +447,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           else if (pausedJobs.contains(job.id))
             "paused"
           else "running"
-        case Todo(_) => if (pausedJobs.contains(job.id)) "paused" else "todo"
+        case Todo(_, _) => if (pausedJobs.contains(job.id)) "paused" else "todo"
         case Done(_) => "successful"
       }
     val jobTimelines =
@@ -558,7 +558,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                     case _       => 0
                   },
                   hasErrors = jobState match {
-                    case Running(executionId) =>
+                    case Todo(_, Some(executionId)) =>
                       allFailingExecutionIds.contains(executionId)
                     case _ => false
                   }
@@ -633,7 +633,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               .intersect(requestedInterval)
               .toList
               .collect {
-                case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill)
+                case (itvl, Todo(maybeBackfill, None)) => (itvl, maybeBackfill)
               }
             (lo, hi) <- calendar.split(interval)
           } yield {
@@ -702,7 +702,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
               .intersect(requestedInterval)
               .toList
               .collect {
-                case (itvl, Todo(maybeBackfill)) => (itvl, maybeBackfill)
+                case (itvl, Todo(maybeBackfill, _)) => (itvl, maybeBackfill)
               }
             (lo, hi) <- calendar.split(interval)
           } yield {
@@ -796,7 +796,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             case _       => false
           },
           jobState match {
-            case Running(exec) => failingExecutionIds.contains(exec)
+            case Todo(_, Some(exec)) => failingExecutionIds.contains(exec)
             case _             => false
           }
         )
