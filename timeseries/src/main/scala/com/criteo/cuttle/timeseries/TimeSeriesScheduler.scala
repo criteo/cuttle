@@ -345,8 +345,7 @@ object TimeSeries
 private[timeseries] sealed trait JobState
 private[timeseries] object JobState {
   case class Done(projectVersion: String) extends JobState
-  case class Todo(maybeBackfill: Option[Backfill]) extends JobState
-  case class Running(executionId: String) extends JobState
+  case class Todo(maybeBackfill: Option[Backfill], maybeExecutionId: Option[String] = None) extends JobState
 
   import TimeSeriesUtils._
 
@@ -412,7 +411,7 @@ case class TimeSeriesScheduler(logger: Logger,
                                stateRetention: Option[ScalaDuration] = None,
                                maxVersionsHistory: Option[Int] = None)
     extends Scheduler[TimeSeries] {
-  import JobState.{Done, Running, Todo}
+  import JobState.{Done, Todo}
   import TimeSeriesUtils._
 
   override val name = "timeseries"
@@ -788,7 +787,12 @@ case class TimeSeriesScheduler(logger: Logger,
       _state() = newExecutions.foldLeft(_state()) {
         case (st, (execution, _)) =>
           st + (execution.job ->
-            st(execution.job).update(execution.context.toInterval, Running(execution.id)))
+            st(execution.job).update(execution.context.toInterval, {
+              val bf = execution.context match {
+                case TimeSeriesContext(_, _, backfill, _) => backfill
+              }
+              Todo(bf, Some(execution.id))
+            }))
       }
     }
 
@@ -922,7 +926,7 @@ case class TimeSeriesScheduler(logger: Logger,
       case (acc, (job, context, future)) =>
         val jobState =
           if (future.value.get.isSuccess || isDone(state, job, context)) Done(context.projectVersion)
-          else Todo(context.backfill)
+          else Todo(context.backfill, None)
         acc + (job -> acc(job).update(context.toInterval, jobState))
     }
 
@@ -991,7 +995,7 @@ case class TimeSeriesScheduler(logger: Logger,
         .getOrElse(job, Set.empty)
         .map {
           case (child, _, lbl) =>
-            val runningPeriods: IntervalMap[Instant, Unit] = state(child).collect { case Running(_) => () }
+            val runningPeriods: IntervalMap[Instant, Unit] = state(child).collect { case Todo(_, Some(_)) => () }
             val intervals = joinIntervals(runningPeriods.toList.map { case (interval, _) => interval })
             val newIntervals = intervals.collect(applyDep(lbl))
             val intervalMapWithCompletedChildren =
@@ -1001,7 +1005,7 @@ case class TimeSeriesScheduler(logger: Logger,
         .fold(full)(_ whenIsUndef _)
 
       val todoPeriods: IntervalMap[Instant, Option[Backfill]] = state(job).collect {
-        case Todo(maybeBackfill) => maybeBackfill
+        case Todo(maybeBackfill, None) => maybeBackfill
       }
       val toRun = todoPeriods
         .whenIsDef(dependenciesSatisfied)
@@ -1064,8 +1068,8 @@ case class TimeSeriesScheduler(logger: Logger,
         case (job, intervals) if jobs.contains(job.id) =>
           val intervalList = intervals.toList
           val lastValidInterval = intervalList.takeWhile {
-            case (_, Running(_)) => false
-            case (_, Todo(None)) => false
+            case (_, Todo(_, Some(_))) => false
+            case (_, Todo(None, _)) => false
             case _               => true
           }.lastOption
 
