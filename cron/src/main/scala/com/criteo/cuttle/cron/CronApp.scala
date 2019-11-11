@@ -21,7 +21,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
   implicit val transactor: XA
 ) {
   private val scheduler = project.scheduler
-  private val workload = project.workload
+  private val workload: CronWorkload = project.workload
 
   private val allJobIds = workload.all.map(_.id)
 
@@ -80,12 +80,15 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
     // we only show 20 recent executions by default but it could be modified via query parameter
     case GET at url"/api/cron/executions?job=$job&start=$start&end=$end&limit=$limit" =>
       val jsonOrError: EitherT[IO, Throwable, Json] = for {
-        job <- EitherT.fromOption[IO](workload.all.find(_.id == job), throw new Exception(s"Unknow job $job"))
+        job <- EitherT.fromOption[IO](workload.cronJobs.find(_.id == job), throw new Exception(s"Unknown job $job"))
+        jobPartIds <- EitherT.rightT[IO, Throwable](job.pipeline.vertices.map(_.id))
         startDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(start)).getOrElse(minStartDateForExecutions))
         endDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(end)).getOrElse(maxStartDateForExecutions))
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
-        executionList <- EitherT.right[Throwable](buildExecutionsList(executor, job, startDate, endDate, limit))
-      } yield executionList.asJson
+        executions <- EitherT.right[Throwable](buildExecutionsList(executor, jobPartIds, startDate, endDate, limit))
+        executionListFlat <- EitherT.rightT[IO, Throwable](executions.values.toSet.flatten)
+        json <- EitherT.rightT[IO, Throwable](Json.fromValues(executionListFlat.map(ExecutionLog.executionLogEncoder.apply(_))))
+      } yield json
 
       jsonOrError.value.map {
         case Right(json) => Ok(json)

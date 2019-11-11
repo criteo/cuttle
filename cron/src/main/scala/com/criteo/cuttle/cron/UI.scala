@@ -4,7 +4,6 @@ import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatter
 
 import scala.util.Try
-
 import cats.Foldable
 import cats.data.EitherT
 import cats.effect.IO
@@ -13,7 +12,6 @@ import lol.http._
 import lol.html._
 import lol.json._
 import io.circe.Json
-
 import com.criteo.cuttle.{ExecutionLog, ExecutionStatus, Executor, PausedJob, XA}
 
 private[cron] case class UI(project: CronProject, executor: Executor[CronScheduling])(implicit val transactor: XA) {
@@ -51,10 +49,10 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
       </th>
      """
 
-  private implicit val stateToHtml = ToHtml { state: Either[Instant, CronExecution] =>
+  private implicit val stateToHtml = ToHtml { state: Either[Instant, Set[CronExecution]] =>
     state.fold(
       instant => tmpl"Scheduled at @timeFormat(instant)",
-      execution => tmpl"Running @execution.id, retry: @execution.context.retry"
+      executions => executions.map(e => tmpl"Running @e.id, retry: @e.context.retry")
     )
   }
 
@@ -99,7 +97,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             <td>@cronJob.scheduling.cronExpression</td>
             <td>@cronJob.scheduling.maxRetry</td>
             <td>Paused by @pausedJob.user.userId at @timeFormat(pausedJob.date) </td>
-            <td><a href="/job/@cronJob.id/executions?limit=20">Executions</a></td>
+            <td><a href="/job/@cronJob.id/runs?limit=20">Runs</a></td>
             <td>
               <form method="POST" action="/api/jobs/@cronJob.id/resume_redirect"/>
               <input type="submit" value="Resume">
@@ -110,7 +108,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     }
   }
 
-  def home(activeAndPausedJobs: (Map[CronJob, Either[Instant, CronExecution]], Map[CronJob, PausedJob])) = {
+  def home(activeAndPausedJobs: (Map[CronJob, Either[Instant, Set[CronExecution]]], Map[CronJob, PausedJob])) = {
     val (activeJobs, pausedJobs) = activeAndPausedJobs
     Layout(
       tmpl"""
@@ -122,7 +120,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             @th("Cron Expression")
             @th("Max Retry")
             @th("State")
-            @th("Executions")
+            @th("Runs")
             @th("Pause")
             @th("Run Now")
           </tr>
@@ -135,7 +133,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
               <td>@cronJob.scheduling.cronExpression</td>
               <td>@cronJob.scheduling.maxRetry</td>
               <td>@state</td>
-              <td><a href="/job/@cronJob.id/executions?limit=20">Executions</a></td>
+              <td><a href="/job/@cronJob.id/runs?limit=20">Runs</a></td>
               <td>
                 <form method="POST" action="/api/jobs/@cronJob.id/pause_redirect"/>
                   <input type="submit" value="Pause">
@@ -165,49 +163,55 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     case _                                   => tmpl"""<td style="background: @GRAY">Unknown</td>"""
   }
 
-  def executions(job: CronJob, executionLogs: Seq[ExecutionLog]) = {
+  def runs(job: CronJob, runs: Map[Instant, Seq[ExecutionLog]]) = {
     val jobName = if (!job.name.isEmpty) job.name else job.id
     Layout(tmpl"""
       <h3>@jobName</h3>
       <table border="1" width="100%">
         <thead>
           <tr>
-            @th("ID")
+            @th("Run")
+            @th("Job Part Id")
             @th("Start Date")
             @th("End Date")
             @th("Status")
             @th("Logs")
           </tr>
         </thead>
-        @foldHtml(executionLogs.toList) {
-          el =>
-            <tr>
-              <td>@el.id</td>
-              <td>@el.startTime.fold("-")(d => timeFormat(d))</td>
-              <td>@el.endTime.fold("-")(d => timeFormat(d))</td>
-              @el.status
-              <td><a href="/execution/@el.id/streams">Streams</a></td>
-            </tr>
+        @foldHtml(runs.toSeq.toList.sortBy(_._1.toEpochMilli).reverse){
+          case (instant, logs) =>
+              @foldHtml(logs.toList) {
+                el =>
+                 <tr>
+                 <td>@{instant.toString}</td>
+                 <td>@el.job</td>
+                 <td>@el.startTime.fold("-")(d => timeFormat(d))</td>
+                 <td>@el.endTime.fold("-")(d => timeFormat(d))</td>
+                 @el.status
+                 <td><a href="/execution/@el.id/streams">Streams</a></td>
+                 </tr>
+              }
         }
       </table>
-      <a href="/job/@job.id/executions">Show all executions, it could take some to render	☺</a>
+      <a href="/job/@job.id/runs">Show all runs, it could take some to render	☺</a>
     """)
   }
 
   def routes(): PartialService = {
     // we show all executions by default but it could be modified via query parameter and it usually set to 20.
-    case GET at url"/job/$jobId/executions?limit=$limit" =>
-      val jobAndExecutionListOrError = for {
-        job <- EitherT.fromOption[IO](workload.all.find(_.id == jobId), throw new Exception(s"Unknown job $jobId"))
+    case GET at url"/job/$jobId/runs?limit=$limit" =>
+      val executionList = for {
+        job <- EitherT.fromOption[IO](workload.cronJobs.find(_.id == jobId), throw new Exception(s"Unknown job $jobId"))
+        jobPartIds <- EitherT.rightT[IO, Throwable](job.pipeline.vertices.map(_.id))
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
         executionList <- EitherT.right[Throwable](
-          buildExecutionsList(executor, job, minStartDateForExecutions, maxStartDateForExecutions, limit)
+          buildExecutionsList(executor, jobPartIds, minStartDateForExecutions, maxStartDateForExecutions, limit)
         )
-      } yield job -> executionList
+      } yield (job, executionList)
 
-      jobAndExecutionListOrError.value.map {
-        case Right((job, executionLogs)) => Ok(executions(job, executionLogs))
-        case Left(e)                     => BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
+      executionList.value.map {
+        case Right((job, executionList)) => Ok(runs(job, executionList))
+        case Left(e)                   => BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
       }
 
     case GET at url"/execution/$executionId/streams" =>

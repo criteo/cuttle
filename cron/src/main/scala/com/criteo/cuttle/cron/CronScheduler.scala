@@ -92,7 +92,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     }
   }
 
-  private[cron] def resumeJobs(jobs: Set[Job[CronScheduling]],
+  private[cron] def resumeJobs(jobs: Set[CronJob],
                                executor: Executor[CronScheduling])(implicit transactor: XA, user: Auth.User): Unit = {
     logger.debug(s"Resuming jobs $jobs")
     val jobIdsToResume = jobs.map(_.id)
@@ -100,7 +100,6 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
     atomic { implicit tx =>
       setExernalDecider(resumeQuery)
-      state.resumeJobs(jobs)
     }
     val programs = jobs.map { job =>
       logger.debug(s"Activating job $job")
@@ -125,38 +124,56 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
   }
 
   private def run(job: CronJob, executor: Executor[CronScheduling]): IO[Completed] = {
-    def runAndRetry(job: Job[CronScheduling],
+    def runNextPart(job: CronJob,
                     scheduledAt: ScheduledAt,
-                    retryNum: Int,
                     runNowUser: Option[Auth.User]): IO[Completed] =
       // don't run anything when job is paused
       if (state.isPaused(job)) {
         IO.pure(Completed)
       } else {
-        val runIO = for {
-          runInfo <- IO {
-            logger.debug(s"Sending job ${job.id} to executor")
-            val cronContext = CronContext(scheduledAt.instant)(retryNum)
-            executor.run(job, cronContext)
-          }
-          _ <- IO(runNowUser.fold(())(user => runInfo._1.streams.info(s"Run now request from ${user.userId}")))
-          _ <- IO(state.addNextExecutionToState(job, runInfo._1))
-          _ <- logState
-          completed <- IO.fromFuture(IO(runInfo._2))
-        } yield completed
-
-        runIO.recoverWith {
-          case e: Throwable =>
-            if (retryNum < job.scheduling.maxRetry) {
-              val nextRetry = retryNum + 1
-              logger.debug(s"Job ${job.id} has failed it's going to be retried. Retry number: $nextRetry")
-              runAndRetry(job, scheduledAt, nextRetry, runNowUser)
-            } else {
-              logger.debug(s"Job ${job.id} has reached the maximum number of retries")
-              IO.pure(Completed)
-            }
-        }
+        state.getNextParts(job).map{node: CronJobPart =>
+            for {
+               _ <- runAndRetry(job,
+                         node,
+                         scheduledAt,
+                         node.maxRetry,
+                         runNowUser)
+               _ <- IO(state.cronJobPartFinished(job, node))
+               result <- runNextPart(job, scheduledAt, runNowUser)
+           } yield result
+        }.toList.sequence_.map(_ => Completed)
       }
+
+
+    def runAndRetry(job: CronJob,
+                  jobPart: CronJobPart,
+                  scheduledAt: ScheduledAt,
+                  retryNum: Int,
+                  runNowUser: Option[Auth.User]): IO[Completed] = {
+      val runIO = for {
+        runInfo <- IO {
+          logger.debug(s"Sending job part ${jobPart.id} to executor")
+          val cronContext = CronContext(scheduledAt.instant, retryNum, job.id)
+          executor.run(cronJobPartToJob(jobPart, job.scheduling), cronContext)
+        }
+        _ <- IO(runNowUser.fold(())(user => runInfo._1.streams.info(s"Run now request from ${user.userId}")))
+        _ <- IO(state.addNextExecutionToState(job, jobPart, runInfo._1))
+        _ <- logState
+        completed <- IO.fromFuture(IO(runInfo._2))
+      } yield completed
+
+      runIO.recoverWith {
+        case e: Throwable =>
+          if (retryNum < job.scheduling.maxRetry) {
+            val nextRetry = retryNum + 1
+            logger.debug(s"Job ${job.id} has failed it's going to be retried. Retry number: $nextRetry")
+            runAndRetry(job, jobPart, scheduledAt, nextRetry, runNowUser)
+          } else {
+            logger.debug(s"Job ${job.id} has reached the maximum number of retries")
+            IO.raiseError(e)
+          }
+      }
+    }
 
     // don't run anything when job is paused
     if (state.isPaused(job)) {
@@ -181,10 +198,11 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
               _ <- IO(state.removeRunNowHandler(job))
               _ <- scheduledAtWinner match {
                 //Normal sleep wakeup
-                case (Left(_)) => runAndRetry(job, scheduledAt, 0, None)
+                case (Left(_)) => runNextPart(job, scheduledAt, None)
                 //RunNow request by user
-                case (Right(Tuple2(userScheduledAt, user))) => runAndRetry(job, userScheduledAt, 0, Some(user))
+                case (Right(Tuple2(userScheduledAt, user))) => runNextPart(job, userScheduledAt, Some(user))
               }
+              _ <- IO(state.resetCronJobParts(job))
               completed <- run(job, executor)
             } yield completed
         }
