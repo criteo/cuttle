@@ -28,7 +28,7 @@ object CronJob {
     * @return
     */
   implicit def jobToCronJob(job: Job[CronScheduling]): CronJob = {
-    CronJob(job.id, job.name, job.scheduling, new CronJobPart(id = job.id, 0, name = job.name, description = job.description, job.tags) (job.effect), job.description, job.tags)
+    CronJob(job.id, job.name, job.scheduling, new CronJobPart(id = job.id, job.scheduling.maxRetry, name = job.name, description = job.description, job.tags) (job.effect), job.description, job.tags)
   }
 
   /**

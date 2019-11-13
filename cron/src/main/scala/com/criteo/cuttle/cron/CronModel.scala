@@ -230,7 +230,7 @@ case object CronContext {
   * @param maxRetry The maximum number of retries authorized.
   * @param tz The time zone in which the cron expression is evaluated.
   */
-case class CronScheduling(cronExpression: String, maxRetry: Int, tz: ZoneId = ZoneOffset.UTC) extends Scheduling {
+case class CronScheduling(cronExpression: String, maxRetry: Int = 0, tz: ZoneId = ZoneOffSet.UTC) extends Scheduling {
   override type Context = CronContext
   // https://www.baeldung.com/cron-expressions
   // https://www.freeformatter.com/cron-expression-generator-quartz.html
