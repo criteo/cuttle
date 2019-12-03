@@ -3,9 +3,9 @@ package com.criteo.cuttle
 import java.io._
 import java.nio.file.Files
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 import cats.effect.IO
-
 import doobie.implicits._
 
 import scala.concurrent.duration._
@@ -155,11 +155,7 @@ private[cuttle] object ExecutionStreams {
       _ <- queries
         .archiveStreams(id, streamsAsString(id).getOrElse(sys.error(s"Cannot archive streams for execution $id")))
         .transact(xa)
-      _ <- logsRetention
-        .map { retention =>
-          queries.applyLogsRetention(retention).transact(xa)
-        }
-        .getOrElse(IO.unit)
+      _ <- queries.applyLogsRetention(logsRetention.getOrElse(Duration(30, TimeUnit.DAYS))).transact(xa)
     } yield ()).unsafeRunSync()
     discard(id)
   }
