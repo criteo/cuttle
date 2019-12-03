@@ -797,10 +797,9 @@ case class TimeSeriesScheduler(logger: Logger,
     }
 
     if (completed.nonEmpty || toRun.nonEmpty) {
-      maxVersionsHistory.foreach { maxVersions =>
-        atomic { implicit txn =>
-          _state() = compressState(_state(), maxVersions)
-        }
+      val maxVersions = maxVersionsHistory.getOrElse(10)
+      atomic { implicit txn =>
+        _state() = compressState(_state(), maxVersions)
       }
       runOrLogAndDie(Database.serializeState(stateSnapshot, stateRetention).transact(xa),
                      "TimeseriesScheduler, cannot serialize state, shutting down").unsafeRunSync()
