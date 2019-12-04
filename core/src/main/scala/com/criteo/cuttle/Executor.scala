@@ -635,10 +635,10 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
   def openStreams(executionId: String): fs2.Stream[IO, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
-  def relaunch(jobs: Set[String])(implicit user: User): Unit = {
+  private def relaunchExecutions(cond: Execution[S] => Boolean)(implicit user: User): Unit = {
     val execution2Promise = atomic { implicit txn =>
       throttledState.collect {
-        case (execution, (promise, _)) if jobs.contains(execution.job.id) =>
+        case (execution, (promise, _)) if cond(execution) =>
           throttledState -= execution
           addExecution2RunningState(execution, promise)
           execution -> promise
@@ -651,6 +651,12 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
         unsafeDoRun(execution, promise)
     }
   }
+
+  def relaunchExecs(execs: Set[String])(implicit user: User): Unit =
+    relaunchExecutions(e => execs.contains(e.id))
+
+  def relaunch(jobs: Set[String])(implicit user: User): Unit =
+    relaunchExecutions(e => jobs.contains(e.job.id))
 
   private[cuttle] def gracefulShutdown(timeout: scala.concurrent.duration.Duration)(implicit user: User): Unit = {
 
