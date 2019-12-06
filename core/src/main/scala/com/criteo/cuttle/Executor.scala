@@ -452,6 +452,7 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
       def run =
         logsRetention
           .foreach { retention =>
+            logger.info("Applying log retention...")
             queries.applyLogsRetention(retention).transact(xa).unsafeRunSync()
           }
     },
