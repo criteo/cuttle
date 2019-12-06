@@ -59,20 +59,20 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
   private[cron] def getPausedJobs = state.getPausedJobs()
 
-  private[cron] def snapshot(jobIds: Set[String]) = state.snapshot(jobIds)
+  private[cron] def snapshot(dagIds: Set[String]) = state.snapshot(dagIds)
 
-  private[cron] def pauseJobs(jobs: Set[CronJob], executor: Executor[CronScheduling])(implicit transactor: XA,
+  private[cron] def pauseDags(dags: Set[CronDag], executor: Executor[CronScheduling])(implicit transactor: XA,
                                                                                       user: Auth.User): Unit = {
-    logger.debug(s"Pausing jobs $jobs")
+    logger.debug(s"Pausing job dags $dags")
     val cancelableExecutions = atomic { implicit tx =>
-      val jobsToPause = state.pauseJobs(jobs)
+      val dagsToPause = state.pauseDags(dags)
 
-      if (jobsToPause.isEmpty) Left(Seq.empty)
+      if (dagsToPause.isEmpty) Left(Seq.empty)
       else {
-        val pauseQuery = jobsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
+        val pauseQuery = dagsToPause.map(queries.pauseJob).reduceLeft(_ *> _)
         setExernalDecider(pauseQuery)
 
-        Right(jobsToPause.flatMap { toPause =>
+        Right(dagsToPause.flatMap { toPause =>
           logger.debug(s"Retrieve executions to pause for $toPause")
           executor.runningState.filterKeys(_.job.id == toPause.id).keys ++ executor.throttledState
             .filterKeys(_.job.id == toPause.id)
@@ -92,25 +92,26 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     }
   }
 
-  private[cron] def resumeJobs(jobs: Set[CronJob],
+  private[cron] def resumeDags(dags: Set[CronDag],
                                executor: Executor[CronScheduling])(implicit transactor: XA, user: Auth.User): Unit = {
-    logger.debug(s"Resuming jobs $jobs")
-    val jobIdsToResume = jobs.map(_.id)
-    val resumeQuery = jobIdsToResume.map(queries.resumeJob).reduceLeft(_ *> _)
+    logger.debug(s"Resuming job dags $dags")
+    val dagIdsToExecute = dags.map(_.id)
+    val resumeQuery = dagIdsToExecute.map(queries.resumeJob).reduceLeft(_ *> _)
 
     atomic { implicit tx =>
       setExernalDecider(resumeQuery)
+      state.resumeDags(dags)
     }
-    val programs = jobs.map { job =>
-      logger.debug(s"Activating job $job")
-      run(job, executor)
+    val programs = dags.map { dag =>
+      logger.debug(s"Activating job dags $dag")
+      run(dag, executor)
     }
 
-    logger.info(s"Relaunching jobs $jobs")
+    logger.info(s"Relaunching job dags $dags")
     unsafeRunAsync(programs)
   }
 
-  private[cron] def runJobsNow(jobsToRun: Set[CronJob], executor: Executor[CronScheduling])(implicit transactor: XA,
+  private[cron] def runJobsNow(jobsToRun: Set[CronDag], executor: Executor[CronScheduling])(implicit transactor: XA,
                                                                                             user: Auth.User): Unit = {
     logger.info(s"Request by ${user.userId} to run on demand jobs ${jobsToRun.map(_.id).mkString}")
     val runNowHandlers = state.getRunNowHandlers(jobsToRun.map(_.id))
@@ -123,41 +124,41 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     }
   }
 
-  private def run(job: CronJob, executor: Executor[CronScheduling]): IO[Completed] = {
-    def runNextPart(job: CronJob,
+  private def run(dag: CronDag, executor: Executor[CronScheduling]): IO[Completed] = {
+    def runNextPart(dag: CronDag,
                     scheduledAt: ScheduledAt,
                     runNowUser: Option[Auth.User]): IO[Completed] =
       // don't run anything when job is paused
-      if (state.isPaused(job)) {
+      if (state.isPaused(dag)) {
         IO.pure(Completed)
       } else {
-        state.getNextParts(job).map{node: CronJobPart =>
+        state.getNextJobsInDag(dag).map{node: CronJob =>
             for {
-               _ <- runAndRetry(job,
+               _ <- runAndRetry(dag,
                          node,
                          scheduledAt,
-                         node.maxRetry,
+                         node.scheduling.maxRetry,
                          runNowUser)
-               _ <- IO(state.cronJobPartFinished(job, node))
-               result <- runNextPart(job, scheduledAt, runNowUser)
+               _ <- IO(state.cronJobFinished(dag, node))
+               result <- runNextPart(dag, scheduledAt, runNowUser)
            } yield result
-        }.toList.sequence_.map(_ => Completed)
+        }.toList.parSequence.map(_ => Completed)
       }
 
 
-    def runAndRetry(job: CronJob,
-                  jobPart: CronJobPart,
-                  scheduledAt: ScheduledAt,
-                  retryNum: Int,
-                  runNowUser: Option[Auth.User]): IO[Completed] = {
+    def runAndRetry(dag: CronDag,
+                    job: CronJob,
+                    scheduledAt: ScheduledAt,
+                    retryNum: Int,
+                    runNowUser: Option[Auth.User]): IO[Completed] = {
       val runIO = for {
         runInfo <- IO {
-          logger.debug(s"Sending job part ${jobPart.id} to executor")
+          logger.debug(s"Sending job ${job.id} to executor")
           val cronContext = CronContext(scheduledAt.instant, retryNum, job.id)
-          executor.run(cronJobPartToJob(jobPart, job.scheduling), cronContext)
+          executor.run(job, cronContext)
         }
         _ <- IO(runNowUser.fold(())(user => runInfo._1.streams.info(s"Run now request from ${user.userId}")))
-        _ <- IO(state.addNextExecutionToState(job, jobPart, runInfo._1))
+        _ <- IO(state.addNextExecutionToState(dag, job, runInfo._1))
         _ <- logState
         completed <- IO.fromFuture(IO(runInfo._2))
       } yield completed
@@ -167,7 +168,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
           if (retryNum < job.scheduling.maxRetry) {
             val nextRetry = retryNum + 1
             logger.debug(s"Job ${job.id} has failed it's going to be retried. Retry number: $nextRetry")
-            runAndRetry(job, jobPart, scheduledAt, nextRetry, runNowUser)
+            runAndRetry(dag, job, scheduledAt, nextRetry, runNowUser)
           } else {
             logger.debug(s"Job ${job.id} has reached the maximum number of retries")
             IO.raiseError(e)
@@ -176,41 +177,41 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     }
 
     // don't run anything when job is paused
-    if (state.isPaused(job)) {
+    if (state.isPaused(dag)) {
       IO.pure(Completed)
     } else {
       val runIO = for {
-        maybeScheduledAt <- IO.pure(job.scheduling.nextEvent())
+        maybeScheduledAt <- IO.pure(dag.cronExpression.nextEvent())
         completed <- maybeScheduledAt match {
           // we couldn't get next event from cron4s and it didn't fail so it means we've finished for this job
           case None =>
-            logger.info(s"Job ${job.id} has finished. We will not submit executions anymore")
+            logger.info(s"Job dag ${dag.id} has finished. We will not submit executions anymore")
             IO.pure(Completed)
           // we got next event: update state with it, wait for it and run it or retry until max retry
           case Some(scheduledAt) =>
-            logger.debug(s"Run job ${job.id} at ${scheduledAt.instant} with a delay of ${scheduledAt.delay}")
+            logger.debug(s"Run job dag ${dag.id} at ${scheduledAt.instant} with a delay of ${scheduledAt.delay}")
             for {
-              _ <- IO(state.addNextEventToState(job, scheduledAt.instant))
+              _ <- IO(state.addNextEventToState(dag, scheduledAt.instant))
               _ <- logState
               runNowHandler <- Deferred[IO, (ScheduledAt, Auth.User)]
-              _ <- IO(state.addRunNowHandler(job, runNowHandler))
+              _ <- IO(state.addRunNowHandler(dag, runNowHandler))
               scheduledAtWinner <- IO.race(IO.sleep(scheduledAt.delay), runNowHandler.get)
-              _ <- IO(state.removeRunNowHandler(job))
+              _ <- IO(state.removeRunNowHandler(dag))
               _ <- scheduledAtWinner match {
                 //Normal sleep wakeup
-                case (Left(_)) => runNextPart(job, scheduledAt, None)
+                case (Left(_)) => runNextPart(dag, scheduledAt, None)
                 //RunNow request by user
-                case (Right(Tuple2(userScheduledAt, user))) => runNextPart(job, userScheduledAt, Some(user))
+                case (Right(Tuple2(userScheduledAt, user))) => runNextPart(dag, userScheduledAt, Some(user))
               }
-              _ <- IO(state.resetCronJobParts(job))
-              completed <- run(job, executor)
+              _ <- IO(state.resetCronJobs(dag))
+              completed <- run(dag, executor)
             } yield completed
         }
       } yield completed
 
       runIO.recover {
         case e =>
-          val message = s"Fatal error Cron loop for job ${job.id} will be stopped"
+          val message = s"Fatal error Cron loop for job dag ${dag.id} will be stopped"
           logger.error(message)
           logger.error(e.getMessage)
           throw new Exception(message)
@@ -233,11 +234,11 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     val pausedJob = queries.getPausedJobs.transact(xa).unsafeRunSync()
 
     val programs = workload match {
-      case CronWorkload(jobs) =>
+      case CronWorkload(dags) =>
         logger.info("Init Cron State")
-        state.init(jobs, pausedJob)
-        logger.info(s"Building IOs for Cron Workload with ${jobs.size} job(s)")
-        jobs.map(job => run(job, executor))
+        state.init(dags, pausedJob)
+        logger.info(s"Building IOs for Cron Workload with ${dags.size} job dag(s)")
+        dags.map(dag => run(dag, executor))
     }
 
     // running all jobs asynchronously

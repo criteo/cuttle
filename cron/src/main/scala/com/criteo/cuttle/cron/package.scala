@@ -9,6 +9,7 @@ import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.ThreadPools.ThreadPoolSystemProperties._
 
 package object cron {
+  type CronJob = Job[CronScheduling]
   type CronExecution = Execution[CronScheduling]
 
   object Implicits {
@@ -59,13 +60,5 @@ package object cron {
       }
     )
 
-
-
-
-  /**
-    * In the end, we need to convert a CronJobPart executable to a CronJob executable.
-    */
-  private[cron] def cronJobPartToJob(job: CronJobPart, scheduling: CronScheduling): Job[CronScheduling] =
-    Job(job.id, scheduling, job.name, job.description, job.tags)(job.effect)
-
 }
+

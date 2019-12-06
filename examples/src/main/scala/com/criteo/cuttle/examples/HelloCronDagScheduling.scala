@@ -1,8 +1,9 @@
 package com.criteo.cuttle.examples
 import java.io.{File, PrintWriter}
 
-import com.criteo.cuttle.Completed
+import com.criteo.cuttle.{Completed, Job}
 import com.criteo.cuttle.cron._
+import com.criteo.cuttle.cron.CronPipeline._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,45 +19,41 @@ object HelloCronDagScheduling {
     val fileNamea2 = "number2.log"
     val rand = Random
 
-    val cronJobP1 = CronJobPart(id = "jobpart1", name = "Job Part 1", description = "This is job part 1") { implicit e =>
+    val cronJobP1 = Job(id = "job1", name = "Job 1", description = "This is job 1", scheduling = new CronScheduling(1)) { implicit e =>
     Future {
       val value = rand.nextInt(100)
       writeIntToFile(value, fileNamea1)
-      System.out.println(s"Job part 1 wrote $value.")
-      e.streams.info(s"Job part 1 wrote $value.")
+      e.streams.info(s"Job 1 wrote $value.")
       Completed
     }}
 
-    val cronJobP2 = CronJobPart(id = "jobpart2", name = "Job Part 2", description = "This is job part 2") { implicit e =>
+    val cronJobP2 = Job(id = "job2", name = "Job 2", description = "This is job 2", scheduling = new CronScheduling(2)) { implicit e =>
       Future {
         val value = rand.nextInt(100)
         writeIntToFile(value, fileNamea2)
-        System.out.println(s"Job part 2 wrote $value.")
-        e.streams.info(s"Job part 2 wrote $value.")
+        e.streams.info(s"Job 2 wrote $value.")
         Completed
       }}
 
-    val cronJobP3 = CronJobPart(id = "jobpart3", name = "job part 3", description = "This is job part 3") { implicit e =>
+    val cronJobP3 = Job(id = "job3", name = "job 3", description = "This is job 3", scheduling = new CronScheduling(3)) { implicit e =>
       Future {
         val x = readIntFromFile(fileNamea1)
         val y = readIntFromFile(fileNamea2)
         val value = x + y
-        System.out.println(s"$x + $y = $value.")
         e.streams.info(s"$x + $y = $value.")
         Completed
       }}
 
-    val cronJobP4 = CronJobPart(id = "jobpart4", name = "job part 4", description = "This is job part 4") { implicit e =>
+    val cronJobP4 = Job(id = "job4", name = "job 4", description = "This is job 4", scheduling = new CronScheduling(4)) { implicit e =>
       Future {
         val x = readIntFromFile(fileNamea1)
         val y = readIntFromFile(fileNamea2)
         val value = x * y
-        System.out.println(s"$x * $y = $value.")
         e.streams.info(s"$x * $y = $value.")
         Completed
       }}
 
-    val cronJobP5 = CronJobPart(id = "jobpart5", name = "job part 5", description = "This is job part 5") { implicit e =>
+    val cronJobP5 = Job(id = "job5", name = "job 5", description = "This is job 5", scheduling = new CronScheduling(5)) { implicit e =>
       Future {
         new File(fileNamea1).delete()
         new File(fileNamea2).delete()
@@ -65,37 +62,35 @@ object HelloCronDagScheduling {
 
 
     val fileNameb = "letter.log"
-    val cronJobP6 = CronJobPart(id = "jobpart6", name = "Job Part 6", description = "This is job part 6") { implicit e =>
+    val cronJobP6 = Job(id = "job6", name = "Job 6", description = "This is job 6", scheduling = new CronScheduling(6)) { implicit e =>
       Future {
         val value = rand.nextString(5)
         writeStringToFile(value, fileNameb)
-        System.out.println(s"Job part 6 wrote $value.")
-        e.streams.info(s"Job part 6 wrote $value.")
+        e.streams.info(s"Job 6 wrote $value.")
         Completed
       }}
 
 
-    val cronJobP7 = CronJobPart(id = "jobpart7", name = "job part 7", description = "This is job part 7") { implicit e =>
+    val cronJobP7 = Job(id = "job7", name = "job 7", description = "This is job 7", scheduling = new CronScheduling(7)) { implicit e =>
       Future {
         val value = readStringFromFile(fileNameb)
-        System.out.println(s"Job Part 7 read $value.")
-        e.streams.info(s"Job Part 7 read $value.")
+        e.streams.info(s"Job 7 read $value.")
         Completed
       }}
 
-    val cronJobP8 = CronJobPart(id = "jobpart8", name = "job part 8", description = "This is job part 8") { implicit e =>
+    val cronJobP8 = Job(id = "job8", name = "job 8", description = "This is job 8", scheduling = new CronScheduling(8)) { implicit e =>
       Future {
         new File(fileNameb).delete()
         Completed
       }}
 
-    val workload = CronWorkload(
-      Set(CronJob(id="cronjoba", name="Cron Job A",
-          CronScheduling("0-59/10 * * ? * *", 1),
-          cronJobP5 dependsOn (cronJobP3 and cronJobP4) dependsOn (cronJobP1 and cronJobP2)),
-        CronJob("cronjobb", "Cron Job 2 B", CronScheduling("0-59/15 * * ? * *"),
-          cronJobP8 dependsOn cronJobP7 dependsOn cronJobP6)))
+    val dag1 = ( cronJobP5 dependsOn (cronJobP3 and cronJobP4) dependsOn (cronJobP1 and cronJobP2)).
+      toCronDag("0-59/10 * * ? * *", "dag1")
 
+    val dag2 = (cronJobP8 dependsOn cronJobP7 dependsOn cronJobP6).toCronDag("0-59/15 * * ? * *", "dag2")
+
+
+    val workload = CronWorkload(Set(dag1, dag2))
 
     implicit val scheduler = CronScheduler(logger)
 

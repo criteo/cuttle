@@ -18,7 +18,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
   private val scheduler = project.scheduler
   private val workload = project.workload
 
-  private val allJobIds = workload.all.map(_.id)
+  private val allDagIds = workload.dags.map(_.id)
 
   private val timeFormat =
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC'").withZone(ZoneId.of("UTC")).format _
@@ -48,6 +48,17 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
         @text
       </th>
      """
+
+  private implicit val executionStatusToHtml = ToHtml[ExecutionStatus] {
+    case ExecutionStatus.ExecutionSuccessful => tmpl"""<td style="background: @GREEN">Successful</td>"""
+    case ExecutionStatus.ExecutionFailed     => tmpl"""<td style="background: @RED">Failed</td>"""
+    case ExecutionStatus.ExecutionRunning    => tmpl"""<td style="background: @BLUE">Running</td>"""
+    case ExecutionStatus.ExecutionTodo       => tmpl"""<td style="background: @GRAY">TODO</td>"""
+    case ExecutionStatus.ExecutionWaiting    => tmpl"""<td style="background: @YELLOW">Waiting</td>"""
+    case ExecutionStatus.ExecutionThrottled  => tmpl"""<td style="background: @YELLOW">Throttled</td>"""
+    case ExecutionStatus.ExecutionPaused     => tmpl"""<td style="background: @ROSE">Paused</td>"""
+    case _                                   => tmpl"""<td style="background: @GRAY">Unknown</td>"""
+  }
 
   private implicit val stateToHtml = ToHtml { state: Either[Instant, Set[CronExecution]] =>
     state.fold(
@@ -87,19 +98,18 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     }
   }
 
-  private implicit val pausedToHtml = ToHtml { pausedJobs: Map[CronJob, PausedJob] =>
-    foldHtml(pausedJobs.toList) {
-      case (cronJob, pausedJob) =>
+  private implicit val pausedToHtml = ToHtml { pausedDags: Map[CronDag, PausedJob] =>
+    foldHtml(pausedDags.toList) {
+      case (cronDag, pausedJob) =>
         tmpl"""
           <tr style="background: @ROSE">
-            <td>@cronJob.id</td>
-            <td>@cronJob.name</td>
-            <td>@cronJob.scheduling.cronExpression</td>
-            <td>@cronJob.scheduling.maxRetry</td>
+            <td>@cronDag.id</td>
+            <td>@cronDag.name</td>
+            <td>@cronDag.cronExpression.cronExpression</td>
             <td>Paused by @pausedJob.user.userId at @timeFormat(pausedJob.date) </td>
-            <td><a href="/job/@cronJob.id/runs?limit=20">Runs</a></td>
+            <td><a href="/dags/@cronDag.id/runs?limit=20">Runs</a></td>
             <td>
-              <form method="POST" action="/api/jobs/@cronJob.id/resume_redirect"/>
+              <form method="POST" action="/api/dags/@cronDag.id/resume_redirect"/>
               <input type="submit" value="Resume">
               </form>
             </td>
@@ -108,8 +118,35 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     }
   }
 
-  def home(activeAndPausedJobs: (Map[CronJob, Either[Instant, Set[CronExecution]]], Map[CronJob, PausedJob])) = {
-    val (activeJobs, pausedJobs) = activeAndPausedJobs
+  case class JobRun(timestamp: Instant, log: ExecutionLog, index: Integer, jobsInDag: Integer)
+
+  private implicit def jobRunToHtml = ToHtml { jobRun: JobRun => {
+    if (jobRun.index == 0) {
+      tmpl"""
+            <tr>
+            <th rowspan=@{Html(String.valueOf(jobRun.jobsInDag))}>@{jobRun.timestamp.toString}</th>
+            <td>@jobRun.log.job</td>
+            <td>@jobRun.log.startTime.fold("-")(d => timeFormat(d))</td>
+            <td>@jobRun.log.endTime.fold("-")(d => timeFormat(d))</td>
+            @jobRun.log.status
+            <td><a href="/execution/@jobRun.log.id/streams">Streams</a></td>
+            </tr>
+             """
+    } else {
+      tmpl"""
+            <tr>
+            <td>@jobRun.log.job</td>
+            <td>@jobRun.log.startTime.fold("-")(d => timeFormat(d))</td>
+            <td>@jobRun.log.endTime.fold("-")(d => timeFormat(d))</td>
+            @jobRun.log.status
+            <td><a href="/execution/@jobRun.log.id/streams">Streams</a></td>
+            </tr>
+             """
+    }
+  }}
+
+  def home(activeAndPausedJobs: (Map[CronDag, Either[Instant, Set[CronExecution]]], Map[CronDag, PausedJob])) = {
+    val (activeDags, pausedJobs) = activeAndPausedJobs
     Layout(
       tmpl"""
         <table border="1" width="100%">
@@ -118,29 +155,25 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             @th("ID")
             @th("Name")
             @th("Cron Expression")
-            @th("Max Retry")
-            @th("State")
             @th("Runs")
             @th("Pause")
             @th("Run Now")
           </tr>
         </thead>
-        @foldHtml(activeJobs.toList) {
-          case (cronJob, state) =>
+        @foldHtml(activeDags.toList) {
+          case (cronDag, _) =>
             <tr>
-              <td>@cronJob.id</td>
-              <td>@cronJob.name</td>
-              <td>@cronJob.scheduling.cronExpression</td>
-              <td>@cronJob.scheduling.maxRetry</td>
-              <td>@state</td>
-              <td><a href="/job/@cronJob.id/runs?limit=20">Runs</a></td>
+              <td>@cronDag.id</td>
+              <td>@cronDag.name</td>
+              <td>@cronDag.cronExpression.cronExpression</td>
+              <td><a href="/dags/@cronDag.id/runs?limit=20">Runs</a></td>
               <td>
-                <form method="POST" action="/api/jobs/@cronJob.id/pause_redirect"/>
+                <form method="POST" action="/api/dags/@cronDag.id/pause_redirect"/>
                   <input type="submit" value="Pause">
                 </form>
               </td>
             <td>
-              <form method="POST" action="/api/jobs/@cronJob.id/runnow_redirect"/>
+              <form method="POST" action="/api/dags/@cronDag.id/runnow_redirect"/>
                 <input type="submit" value="Run Now">
               </form>
             </td>
@@ -152,26 +185,16 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     )
   }
 
-  private implicit val executionStatusToHtml = ToHtml[ExecutionStatus] {
-    case ExecutionStatus.ExecutionSuccessful => tmpl"""<td style="background: @GREEN">Successful</td>"""
-    case ExecutionStatus.ExecutionFailed     => tmpl"""<td style="background: @RED">Failed</td>"""
-    case ExecutionStatus.ExecutionRunning    => tmpl"""<td style="background: @BLUE">Running</td>"""
-    case ExecutionStatus.ExecutionTodo       => tmpl"""<td style="background: @GRAY">TODO</td>"""
-    case ExecutionStatus.ExecutionWaiting    => tmpl"""<td style="background: @YELLOW">Waiting</td>"""
-    case ExecutionStatus.ExecutionThrottled  => tmpl"""<td style="background: @YELLOW">Throttled</td>"""
-    case ExecutionStatus.ExecutionPaused     => tmpl"""<td style="background: @ROSE">Paused</td>"""
-    case _                                   => tmpl"""<td style="background: @GRAY">Unknown</td>"""
-  }
+  def runs(dag: CronDag, runs: Map[Instant, Seq[ExecutionLog]]) = {
 
-  def runs(job: CronJob, runs: Map[Instant, Seq[ExecutionLog]]) = {
-    val jobName = if (!job.name.isEmpty) job.name else job.id
+    val dagName = if (!dag.name.isEmpty) dag.name else dag.id
     Layout(tmpl"""
-      <h3>@jobName</h3>
+      <h3>@dagName</h3>
       <table border="1" width="100%">
         <thead>
           <tr>
             @th("Run")
-            @th("Job Part Id")
+            @th("Job Id")
             @th("Start Date")
             @th("End Date")
             @th("Status")
@@ -180,37 +203,29 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
         </thead>
         @foldHtml(runs.toSeq.toList.sortBy(_._1.toEpochMilli).reverse){
           case (instant, logs) =>
-              @foldHtml(logs.toList) {
-                el =>
-                 <tr>
-                 <td>@{instant.toString}</td>
-                 <td>@el.job</td>
-                 <td>@el.startTime.fold("-")(d => timeFormat(d))</td>
-                 <td>@el.endTime.fold("-")(d => timeFormat(d))</td>
-                 @el.status
-                 <td><a href="/execution/@el.id/streams">Streams</a></td>
-                 </tr>
+              @foldHtml(logs.zipWithIndex.map(r => JobRun(instant, r._1, r._2, logs.length)).toList) {
+                case (jobRun) => @jobRun
               }
         }
       </table>
-      <a href="/job/@job.id/runs">Show all runs, it could take some to render	☺</a>
+      <a href="/dags/@dag.id/runs">Show all runs, it could take some to render	☺</a>
     """)
   }
 
   def routes(): PartialService = {
     // we show all executions by default but it could be modified via query parameter and it usually set to 20.
-    case GET at url"/job/$jobId/runs?limit=$limit" =>
+    case GET at url"/dags/$dagId/runs?limit=$limit" =>
       val executionList = for {
-        job <- EitherT.fromOption[IO](workload.cronJobs.find(_.id == jobId), throw new Exception(s"Unknown job $jobId"))
-        jobPartIds <- EitherT.rightT[IO, Throwable](job.pipeline.vertices.map(_.id))
+        dag <- EitherT.fromOption[IO](workload.dags.find(_.id == dagId), throw new Exception(s"Unknown dag $dagId"))
+        jobIds <- EitherT.rightT[IO, Throwable](dag.cronPipeline.vertices.map(_.id))
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
         executionList <- EitherT.right[Throwable](
-          buildExecutionsList(executor, jobPartIds, minStartDateForExecutions, maxStartDateForExecutions, limit)
+          buildExecutionsList(executor, jobIds, minStartDateForExecutions, maxStartDateForExecutions, limit)
         )
-      } yield (job, executionList)
+      } yield (dag, executionList)
 
       executionList.value.map {
-        case Right((job, executionList)) => Ok(runs(job, executionList))
+        case Right((dag, executionList)) => Ok(runs(dag, executionList))
         case Left(e)                   => BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
       }
 
@@ -219,7 +234,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
 
     case GET at "/" =>
       Ok(
-        home(scheduler.snapshot(allJobIds))
+        home(scheduler.snapshot(allDagIds))
       )
   }
 }

@@ -7,6 +7,7 @@ package com.criteo.cuttle.examples
 // a cuttle project.
 import com.criteo.cuttle._
 import com.criteo.cuttle.cron.{CronProject, CronScheduler, CronScheduling, CronWorkload}
+import com.criteo.cuttle.cron.CronPipeline._
 
 import scala.io.Source
 
@@ -33,7 +34,7 @@ object HelloCronScheduling {
       // We define out schedule by a simple Cron expression, that is parsed with cron4s library.
       // For more documentation see https://github.com/alonsodomin/cron4s.
       // 1 corresponds to the maximum number of retries that we allow for this job
-      scheduling = CronScheduling("0-59/10 * * ? * *", 1),
+      scheduling = CronScheduling(1),
       name = "Ticker Job",
       description = "Get ticker for Bitcoin price from CoinMarketCap"
     ) {
@@ -44,11 +45,10 @@ object HelloCronScheduling {
       implicit e =>
         // We can read execution parameters from the context.
         val timestamp = e.context.instant
-        val retryNum = e.context.retry
 
         // We can output the information in execution streams that are persisted
         // is a state DB.
-        e.streams.info(s"Launching the job ${e.job.id} at $timestamp with a retry number: $retryNum ")
+        e.streams.info(s"Launching the job ${e.job.id} at $timestamp")
 
         // Now do some real work in BASH by calling CoinMarketCap API and processing the result with Python.
         exec"""
@@ -58,7 +58,7 @@ object HelloCronScheduling {
 
     // __Let's compute the average of 3 last Bitcoin prices, if we have less than 3 entries this job will fail
     val avgJob = Job(id = "avg_job",
-                     scheduling = CronScheduling("0-59/10 * * ? * *", 10),
+                     scheduling = CronScheduling(10),
                      description = "Average Bitcoin price for last 3 value") { implicit e =>
       Future {
         // We use plain old Scala APi to interact with file system.
@@ -80,7 +80,8 @@ object HelloCronScheduling {
     }
 
     // Jobs are grouped in workload.
-    val workload = CronWorkload(Set(tickerJob, avgJob))
+    val workload = CronWorkload(Set(tickerJob.toCronDag("0-59/10 * * ? * *", "ticker_dag"),
+    avgJob.toCronDag("0-59/10 * * ? * *", "avg_dag")))
 
     // Instantiate Cron scheduler with a default stdout logger which will be passed implicitly to Cron project.
     implicit val scheduler = CronScheduler(logger)
