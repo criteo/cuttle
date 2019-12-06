@@ -27,7 +27,9 @@ private[cron] case class CronState(logger: Logger) {
   private val executions = Ref(Map.empty[CronJob, Either[Instant, CronExecution]])
   private val paused = Ref(Map.empty[CronJob, PausedJob])
   private val runNowHandlers: Ref[Map[CronJob, Deferred[IO, (ScheduledAt, User)]]] =
-    Ref(Map.empty[CronJob, Deferred[IO, (ScheduledAt, User)]])(implicitly[ClassTag[Map[CronJob, Deferred[IO, (ScheduledAt, User)]]]])
+    Ref(Map.empty[CronJob, Deferred[IO, (ScheduledAt, User)]])(
+      implicitly[ClassTag[Map[CronJob, Deferred[IO, (ScheduledAt, User)]]]]
+    )
 
   private[cron] def init(availableJobs: Set[CronJob], pausedJobs: Seq[PausedJob]) = {
     logger.debug("Cron Scheduler States initialization")

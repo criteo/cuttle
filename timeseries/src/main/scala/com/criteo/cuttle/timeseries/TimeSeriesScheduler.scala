@@ -1069,8 +1069,8 @@ case class TimeSeriesScheduler(logger: Logger,
           val intervalList = intervals.toList
           val lastValidInterval = intervalList.takeWhile {
             case (_, Todo(_, Some(_))) => false
-            case (_, Todo(None, _)) => false
-            case _               => true
+            case (_, Todo(None, _))    => false
+            case _                     => true
           }.lastOption
 
           lastValidInterval.map {
