@@ -136,9 +136,9 @@ private[timeseries] object Database {
         (job.id, im.toList.filter {
           case (_, jobState) =>
             jobState match {
-              case JobState.Done(_) => true
+              case JobState.Done(_)    => true
               case JobState.Todo(_, _) => true
-              case _                => false
+              case _                   => false
             }
         })
     }.asJson
@@ -159,9 +159,9 @@ private[timeseries] object Database {
       else
         now.minusSeconds(duration.toSeconds)
     }
-    val stateJson = dbStateEncoder(state.mapValues(_.map{
+    val stateJson = dbStateEncoder(state.mapValues(_.map {
       case Todo(backfill, _) => Todo(backfill, None)
-      case other => other
+      case other             => other
     }))
 
     for {

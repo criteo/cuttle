@@ -150,17 +150,11 @@ private[cuttle] object ExecutionStreams {
     logFile(id).delete()
   }
 
-  def archive(id: ExecutionId, queries: Queries, logsRetention: Option[Duration], xa: XA): Unit = {
-    (for {
-      _ <- queries
-        .archiveStreams(id, streamsAsString(id).getOrElse(sys.error(s"Cannot archive streams for execution $id")))
-        .transact(xa)
-      _ <- logsRetention
-        .map { retention =>
-          queries.applyLogsRetention(retention).transact(xa)
-        }
-        .getOrElse(IO.unit)
-    } yield ()).unsafeRunSync()
+  def archive(id: ExecutionId, queries: Queries, xa: XA): Unit = {
+    queries
+      .archiveStreams(id, streamsAsString(id).getOrElse(sys.error(s"Cannot archive streams for execution $id")))
+      .transact(xa)
+      .unsafeRunSync()
     discard(id)
   }
 }

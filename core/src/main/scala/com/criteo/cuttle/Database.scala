@@ -360,7 +360,7 @@ private[cuttle] case class Queries(logger: Logger) {
         FROM executions_streams es
         JOIN executions e
           ON es.id = e.id
-       WHERE end_time < ${Instant.now.minusSeconds(logsRetention.toSeconds)}
+       WHERE start_time < ${Instant.now.minusSeconds(logsRetention.toSeconds)}
     """.update.run
 
   def archivedStreams(id: String): ConnectionIO[Option[String]] =

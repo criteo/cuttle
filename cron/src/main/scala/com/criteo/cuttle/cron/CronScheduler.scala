@@ -125,7 +125,10 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
   }
 
   private def run(job: CronJob, executor: Executor[CronScheduling]): IO[Completed] = {
-    def runAndRetry(job: Job[CronScheduling], scheduledAt: ScheduledAt, retryNum: Int, runNowUser: Option[Auth.User]): IO[Completed] =
+    def runAndRetry(job: Job[CronScheduling],
+                    scheduledAt: ScheduledAt,
+                    retryNum: Int,
+                    runNowUser: Option[Auth.User]): IO[Completed] =
       // don't run anything when job is paused
       if (state.isPaused(job)) {
         IO.pure(Completed)

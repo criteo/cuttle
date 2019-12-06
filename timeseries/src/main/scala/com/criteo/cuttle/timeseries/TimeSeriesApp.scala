@@ -448,7 +448,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             "paused"
           else "running"
         case Todo(_, _) => if (pausedJobs.contains(job.id)) "paused" else "todo"
-        case Done(_) => "successful"
+        case Done(_)    => "successful"
       }
     val jobTimelines =
       (for { job <- project.jobs.all if filteredJobs.contains(job.id) } yield {
@@ -797,7 +797,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           },
           jobState match {
             case Todo(_, Some(exec)) => failingExecutionIds.contains(exec)
-            case _             => false
+            case _                   => false
           }
         )
 

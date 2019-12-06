@@ -34,8 +34,9 @@ private[timeseries] object IntervalMap {
   def empty[A: Ordering, B](implicit m: MeasureKey[Interval[A], B]): IntervalMap[A, B] =
     new Impl(FingerTree.empty)
 
-  private[intervals] class Impl[A: Ordering, B](val tree: FingerTree[Option[Interval[A]], Elem[A, B]])
-                                               (implicit val m: MeasureKey[Interval[A], B]) extends IntervalMap[A, B] {
+  private[intervals] class Impl[A: Ordering, B](val tree: FingerTree[Option[Interval[A]], Elem[A, B]])(
+    implicit val m: MeasureKey[Interval[A], B]
+  ) extends IntervalMap[A, B] {
     def toList = tree.toList
 
     def lower(interval: Interval[A]): (Option[Interval[A]] => Boolean) = {
@@ -166,9 +167,11 @@ private[timeseries] object IntervalMap {
         }
     }
 
-    def collect[B](f: PartialFunction[A, B])(implicit m: MeasureKey[Interval[K], B]): IntervalMap[K, B] = mapFilter(f.lift)
+    def collect[B](f: PartialFunction[A, B])(implicit m: MeasureKey[Interval[K], B]): IntervalMap[K, B] =
+      mapFilter(f.lift)
 
-    def filter(f: A => Boolean)(implicit m: MeasureKey[Interval[K], A]): IntervalMap[K, A] = mapFilter(a => Some(a).filter(f))
+    def filter(f: A => Boolean)(implicit m: MeasureKey[Interval[K], A]): IntervalMap[K, A] =
+      mapFilter(a => Some(a).filter(f))
   }
 
 }
