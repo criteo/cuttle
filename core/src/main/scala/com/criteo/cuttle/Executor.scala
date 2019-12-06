@@ -3,6 +3,7 @@ package com.criteo.cuttle
 import java.io.{PrintWriter, StringWriter}
 import java.time.{Duration, Instant, ZoneId}
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Timer, TimerTask}
 
@@ -443,6 +444,23 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
     )
   )
 
+  // Logs retention
+  private val logsRetentionExecutorService = ThreadPools
+    .newScheduledThreadPool(1, poolName = Some("LogsRetention"))
+  logsRetentionExecutorService.scheduleAtFixedRate(
+    new Runnable {
+      def run =
+        logsRetention
+          .foreach { retention =>
+            logger.info("Applying log retention...")
+            queries.applyLogsRetention(retention).transact(xa).unsafeRunSync()
+          }
+    },
+    0,
+    1,
+    TimeUnit.HOURS
+  )
+
   // executions that failed recently and are now running
   private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] =
     atomic { implicit txn =>
@@ -673,6 +691,8 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
       runningState.map({ case (_, v) => v })
     }
 
+    logsRetentionExecutorService.shutdown()
+
     Future
       .firstCompletedOf(List(Timeout(timeout), Future.sequence(runningFutures)))
       .andThen {
@@ -729,7 +749,7 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
         .andThen {
           case result =>
             try {
-              ExecutionStreams.archive(execution.id, queries, logsRetention, xa)
+              ExecutionStreams.archive(execution.id, queries, xa)
             } catch {
               case e: Throwable =>
                 e.printStackTrace()
