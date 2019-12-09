@@ -1,7 +1,7 @@
 package com.criteo.cuttle.cron
 
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, Instant, ZoneOffset}
+import java.time.{Duration, Instant, ZoneId, ZoneOffset}
 
 import cats.effect.concurrent.Deferred
 import cats.effect.IO
@@ -174,15 +174,16 @@ case object CronContext {
   * @param cronExpression Cron expression to be parsed by https://github.com/alonsodomin/cron4s.
   *                       See the link above for more details.
   * @param maxRetry The maximum number of retries authorized.
+  * @param tz The time zone in which the cron expression is evaluated.
   */
-case class CronScheduling(cronExpression: String, maxRetry: Int) extends Scheduling {
+case class CronScheduling(cronExpression: String, maxRetry: Int, tz: ZoneId = ZoneOffset.UTC) extends Scheduling {
   override type Context = CronContext
   // https://www.baeldung.com/cron-expressions
   // https://www.freeformatter.com/cron-expression-generator-quartz.html
   private val cronExpr = Cron.unsafeParse(cronExpression)
 
   private def toZonedDateTime(instant: Instant) =
-    instant.atZone(ZoneOffset.UTC)
+    instant.atZone(tz)
 
   def nextEvent(): Option[ScheduledAt] = {
     val instant = Instant.now()
