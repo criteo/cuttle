@@ -449,12 +449,9 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
     .newScheduledThreadPool(1, poolName = Some("LogsRetention"))
   logsRetentionExecutorService.scheduleAtFixedRate(
     new Runnable {
-      def run =
-        logsRetention
-          .foreach { retention =>
-            logger.info("Applying log retention...")
-            queries.applyLogsRetention(retention).transact(xa).unsafeRunSync()
-          }
+      val retention = logsRetention.getOrElse(ScalaDuration(30L, TimeUnit.DAYS))
+      logger.info(s"Applying log retention: $retention")
+      def run(): Unit = queries.applyLogsRetention(retention).transact(xa).unsafeRunSync()
     },
     0,
     1,
