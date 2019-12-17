@@ -776,15 +776,11 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
         Set("type" -> status, "job_id" -> execution.job.id) ++ tagsLabel
       )
     }
-  private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
+  private def run0(all: Seq[(Job[S], S#Context)], index: Map[(Job[S], S#Context), (Execution[S], Future[Completed])]): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
-    val index: Map[(Job[S], S#Context), (Execution[S], Future[Completed])] = runningState.single.map {
-      case (execution, future) =>
-        ((execution.job, execution.context), (execution, future))
-    }.toMap
     val existingOrNew
       : Seq[Either[(Execution[S], Future[Completed]), (Job[S], Execution[S], Promise[Completed], NewExecution)]] =
       atomic { implicit txn =>
@@ -923,15 +919,24 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
     * @param job The [[Job]] to run (actually its [[SideEffect]] function)
     * @param context The [[SchedulingContext]] (input of the [[SideEffect]] function)
     * @return The created [[Execution]] along with the `Future` tracking the execution status. */
-  def run(job: Job[S], context: S#Context): (Execution[S], Future[Completed]) =
-    run0(Seq(job -> context)).head
+  def run(job: Job[S], context: S#Context): (Execution[S], Future[Completed]) = {
+    val index = runningState.single.collect {
+      case (execution, future) if execution.job === job && execution.context == context =>
+        ((execution.job, execution.context), (execution, future))
+    }.toMap
+    run0(Seq(job -> context), index).head
+  }
 
   /** Run the [[SideEffect]] function of the provided ([[Job Jobs]], [[SchedulingContext SchedulingContexts]]).
     *
     * @param all The [[Job Jobs]] and [[SchedulingContext SchedulingContexts]] to run.
     * @return The created [[Execution Executions]] along with their `Future` tracking the execution status. */
-  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] =
-    run0(all.sortBy(_._2))
+  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
+    val index = runningState.single.map {
+      case (execution, future) => ((execution.job, execution.context), (execution, future))
+    }.toMap
+    run0(all.sortBy(_._2), index)
+  }
 
   /**
     * Atomically get executor stats.
