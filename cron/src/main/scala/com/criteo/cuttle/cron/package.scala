@@ -30,6 +30,7 @@ package object cron {
     }
 
     implicit val cronContextShift = IO.contextShift(cronThreadPool.underlying)
+
   }
 
   // Fair assumptions about start and end date within which we operate by default if user doesn't specify his interval.
@@ -40,16 +41,24 @@ package object cron {
   // This function was implemented because executor.archivedExecutions returns duplicates when passing the same table
   // into the context query.
   private[cron] def buildExecutionsList(executor: Executor[CronScheduling],
-                                        job: CronJob,
+                                        jobPartIds: Set[String],
                                         startDate: Instant,
                                         endDate: Instant,
-                                        limit: Int) =
+                                        limit: Int): IO[Map[Instant, Seq[ExecutionLog]]] =
     for {
-      archived <- executor.rawArchivedExecutions(Set(job.id), "", asc = false, 0, limit)
+      archived <- executor.rawArchivedExecutions(jobPartIds, "", asc = false, 0, limit)
       running <- IO(executor.runningExecutions.collect {
-        case (e, status)
-            if e.job.id == job.id && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(endDate) =>
-          e.toExecutionLog(status)
+      case (e, status)
+          if jobPartIds.contains(e.job.id) && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(
+            endDate) =>
+        e.toExecutionLog(status)
       })
-    } yield (running ++ archived)
+    } yield (running ++ archived).groupBy(f =>
+      CronContext.decoder.decodeJson(f.context) match {
+        case Left(_) => Instant.now()
+        case Right(b) => b.instant
+      }
+    )
+
 }
+

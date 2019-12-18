@@ -19,7 +19,7 @@ class CronProject private[cuttle] (val name: String,
                                    val version: String,
                                    val description: String,
                                    val env: (String, Boolean),
-                                   val workload: Workload[CronScheduling],
+                                   val workload: CronWorkload,
                                    val scheduler: CronScheduler,
                                    val authenticator: Authenticator,
                                    val logger: Logger) {
@@ -90,7 +90,7 @@ object CronProject {
     description: String = "",
     env: (String, Boolean) = ("", false),
     authenticator: Auth.Authenticator = Auth.GuestAuth
-  )(jobs: Workload[CronScheduling])(implicit scheduler: CronScheduler, logger: Logger): CronProject =
+  )(jobs: CronWorkload)(implicit scheduler: CronScheduler, logger: Logger): CronProject =
     new CronProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 
   private[CronProject] val defaultPlatforms: Seq[ExecutionPlatform] = {
