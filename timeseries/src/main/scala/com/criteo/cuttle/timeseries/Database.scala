@@ -3,6 +3,7 @@ package com.criteo.cuttle.timeseries
 import com.criteo.cuttle._
 import Internal._
 import java.time._
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.Duration
 import cats.Applicative
@@ -158,7 +159,8 @@ private[timeseries] object Database {
         sys.error(s"State retention is badly configured: ${duration}")
       else
         now.minusSeconds(duration.toSeconds)
-    }
+    }.getOrElse(now.minusSeconds(Duration(1, TimeUnit.DAYS).toSeconds))
+
     val stateJson = dbStateEncoder(state.mapValues(_.map {
       case Todo(backfill, _) => Todo(backfill, None)
       case other             => other
@@ -166,11 +168,7 @@ private[timeseries] object Database {
 
     for {
       // Apply state retention if needed
-      _ <- cleanStateBefore
-        .map { t =>
-          sql"DELETE FROM timeseries_state where date < ${t}".update.run
-        }
-        .getOrElse(NoUpdate)
+      _ <- sql"DELETE FROM timeseries_state where date < ${cleanStateBefore}".update.run
       // Insert the latest state
       x <- sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
     } yield x
