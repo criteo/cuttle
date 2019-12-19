@@ -19,7 +19,7 @@ object HelloCronDagScheduling {
     val fileNamea2 = "number2.log"
     val rand = Random
 
-    val cronJobP1 = Job(id = "job1", name = "Job 1", description = "This is job 1", scheduling = new CronScheduling(1)) { implicit e =>
+    val cronJobP1 = Job(id = "job1", name = "Job 1", description = "This is job 1", scheduling = CronScheduling(1)) { implicit e =>
     Future {
       val value = rand.nextInt(100)
       writeIntToFile(value, fileNamea1)
@@ -27,7 +27,7 @@ object HelloCronDagScheduling {
       Completed
     }}
 
-    val cronJobP2 = Job(id = "job2", name = "Job 2", description = "This is job 2", scheduling = new CronScheduling(2)) { implicit e =>
+    val cronJobP2 = Job(id = "job2", name = "Job 2", description = "This is job 2", scheduling = CronScheduling(2)) { implicit e =>
       Future {
         val value = rand.nextInt(100)
         writeIntToFile(value, fileNamea2)
@@ -35,7 +35,7 @@ object HelloCronDagScheduling {
         Completed
       }}
 
-    val cronJobP3 = Job(id = "job3", name = "job 3", description = "This is job 3", scheduling = new CronScheduling(3)) { implicit e =>
+    val cronJobP3 = Job(id = "job3", name = "job 3", description = "This is job 3", scheduling = CronScheduling(3)) { implicit e =>
       Future {
         val x = readIntFromFile(fileNamea1)
         val y = readIntFromFile(fileNamea2)
@@ -44,7 +44,7 @@ object HelloCronDagScheduling {
         Completed
       }}
 
-    val cronJobP4 = Job(id = "job4", name = "job 4", description = "This is job 4", scheduling = new CronScheduling(4)) { implicit e =>
+    val cronJobP4 = Job(id = "job4", name = "job 4", description = "This is job 4", scheduling = CronScheduling(4)) { implicit e =>
       Future {
         val x = readIntFromFile(fileNamea1)
         val y = readIntFromFile(fileNamea2)
@@ -53,7 +53,7 @@ object HelloCronDagScheduling {
         Completed
       }}
 
-    val cronJobP5 = Job(id = "job5", name = "job 5", description = "This is job 5", scheduling = new CronScheduling(5)) { implicit e =>
+    val cronJobP5 = Job(id = "job5", name = "job 5", description = "This is job 5", scheduling = CronScheduling(5)) { implicit e =>
       Future {
         new File(fileNamea1).delete()
         new File(fileNamea2).delete()
@@ -62,7 +62,7 @@ object HelloCronDagScheduling {
 
 
     val fileNameb = "letter.log"
-    val cronJobP6 = Job(id = "job6", name = "Job 6", description = "This is job 6", scheduling = new CronScheduling(6)) { implicit e =>
+    val cronJobP6 = Job(id = "job6", name = "Job 6", description = "This is job 6", scheduling = CronScheduling(6)) { implicit e =>
       Future {
         val value = rand.nextString(5)
         writeStringToFile(value, fileNameb)
@@ -71,14 +71,14 @@ object HelloCronDagScheduling {
       }}
 
 
-    val cronJobP7 = Job(id = "job7", name = "job 7", description = "This is job 7", scheduling = new CronScheduling(7)) { implicit e =>
+    val cronJobP7 = Job(id = "job7", name = "job 7", description = "This is job 7", scheduling = CronScheduling(7)) { implicit e =>
       Future {
         val value = readStringFromFile(fileNameb)
         e.streams.info(s"Job 7 read $value.")
         Completed
       }}
 
-    val cronJobP8 = Job(id = "job8", name = "job 8", description = "This is job 8", scheduling = new CronScheduling(8)) { implicit e =>
+    val cronJobP8 = Job(id = "job8", name = "job 8", description = "This is job 8", scheduling = CronScheduling(8)) { implicit e =>
       Future {
         new File(fileNameb).delete()
         Completed
