@@ -6,8 +6,8 @@ package com.criteo.cuttle.examples
 // The main package contains everything needed to create
 // a cuttle project.
 import com.criteo.cuttle._
+import com.criteo.cuttle.cron.Implicits._
 import com.criteo.cuttle.cron.{CronProject, CronScheduler, CronScheduling, CronWorkload}
-import com.criteo.cuttle.cron.CronPipeline._
 
 import scala.io.Source
 
@@ -80,8 +80,8 @@ object HelloCronScheduling {
     }
 
     // Jobs are grouped in workload.
-    val workload = CronWorkload(Set(tickerJob.toCronDag("0-59/10 * * ? * *", "ticker_dag"),
-    avgJob.toCronDag("0-59/10 * * ? * *", "avg_dag")))
+    val workload = CronWorkload(Set(tickerJob.every("0-59/10 * * ? * *"),
+    avgJob.every("0-59/10 * * ? * *")))
 
     // Instantiate Cron scheduler with a default stdout logger which will be passed implicitly to Cron project.
     implicit val scheduler = CronScheduler(logger)
