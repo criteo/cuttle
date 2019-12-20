@@ -554,8 +554,13 @@ case class TimeSeriesScheduler(logger: Logger,
         }
       }
 
-      if (backfillErrors.isEmpty) Right(validBackfills)
-      else Left(backfillErrors.toList)
+      if (backfillErrors.nonEmpty) {
+        Left(backfillErrors.toList)
+      } else if (validBackfills.isEmpty) {
+        Left(List("Nothing to backfill, make sure there are some done executions for the jobs / interval you chose"))
+      } else {
+        Right(validBackfills)
+      }
     }
 
     result match {
