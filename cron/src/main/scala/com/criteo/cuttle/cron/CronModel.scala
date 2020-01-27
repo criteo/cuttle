@@ -27,7 +27,7 @@ private[cron] case class CronState(logger: Logger) {
     Ref(Map.empty[CronDag, Deferred[IO, (ScheduledAt, User)]])(
       implicitly[ClassTag[Map[CronDag, Deferred[IO, (ScheduledAt, User)]]]]
     )
-  private val jobDagState = Ref(Map.empty[CronDag, Set[(CronJob, CronJobState)]])
+  private val jobDagState = Ref(Map.empty[CronDag, Map[CronJob, CronJobState]])
 
   private[cron] def init(availableJobDags: Set[CronDag], pausedJobs: Seq[PausedJob]) = {
     logger.debug("Cron Scheduler States initialization")
@@ -45,52 +45,32 @@ private[cron] case class CronState(logger: Logger) {
   }
 
   private[cron] def getNextJobsInDag(dag: CronDag) = atomic { implicit txn =>
+    val dagState = jobDagState().getOrElse(dag, Map.empty)
+    val successfulJobs = dagState.collect { case (job, Successful) => job }.toSet
     val dependenciesSatisfied = dag.cronPipeline.parentsMap.filter {
       case (_, deps) =>
         deps.forall { p =>
-          getFinishedJobs(dag).contains(p.parent)
+          successfulJobs.contains(p.parent)
         }
     }.keySet
     val candidates = dependenciesSatisfied ++ dag.cronPipeline.roots
-    val results = candidates.filter { p =>
-      !getRunningJobs(dag).contains(p) && !getFinishedJobs(dag).contains(p)
-    }
+    val results = candidates -- dagState.keys
 
     //update atomically the fact that the jobs are now running (to prevent another thread scheduling them)
-    val jobs = jobDagState().get(dag)
-    val newState: Set[(CronJob, CronJobState)] = results.map((_, Running))
-    val newSet: Set[(CronJob, CronJobState)] = jobs match {
-      case Some(s) => s ++ newState
-      case _       => newState
-    }
-    jobDagState() = jobDagState() - dag
-    jobDagState() = jobDagState() + (dag -> newSet)
+    val newState = dagState ++ results.map((_, Running))
+    jobDagState() = jobDagState() + (dag -> newState)
     results
   }
 
-  private[cron] def cronJobFinished(dag: CronDag, job: CronJob): Unit = atomic { implicit txn =>
-    {
-      val jobs = jobDagState().get(dag)
-      if (!jobs.contains(job)) {
-        val newSet: Set[(CronJob, CronJobState)] = jobs match {
-          case Some(s) => s ++ Set((job, Finished))
-          case _       => Set((job, Finished))
-        }
-        jobDagState() = jobDagState() - dag
-        jobDagState() = jobDagState() + (dag -> newSet)
-      }
-    }
+  private[cron] def cronJobFinished(dag: CronDag, job: CronJob, success: Boolean): Unit = atomic { implicit txn =>
+    val status = if (success) Successful else Failure
+    val jobs = jobDagState().getOrElse(dag, Map.empty)
+    val newState = jobs + (job -> status)
+    jobDagState() = jobDagState() + (dag -> newState)
   }
 
-  private[cron] def getRunningJobs(dag: CronDag)(implicit txn: InTxn): Set[CronJob] =
-    jobDagState().get(dag).getOrElse(Set()).filter { case (_, state) => state.equals(Running) }.map { _._1 }
-
-  private[cron] def getFinishedJobs(dag: CronDag)(implicit txn: InTxn): Set[CronJob] =
-    jobDagState().get(dag).getOrElse(Set()).filter { case (_, state) => state.equals(Finished) }.map { _._1 }
-
   private[cron] def resetCronJobs(dag: CronDag) = atomic { implicit txn =>
-    jobDagState() = jobDagState() - dag
-    jobDagState() = jobDagState() + (dag -> Set())
+    jobDagState() = jobDagState() + (dag -> Map.empty)
   }
 
   private[cron] def getPausedJobs(): Set[PausedJob] = paused.single.get.values.toSet
@@ -100,15 +80,20 @@ private[cron] case class CronState(logger: Logger) {
     executions() = executions() + (dag -> Left(instant))
   }
 
-  private[cron] def addNextExecutionToState(dag: CronDag, job: CronJob, execution: CronExecution): Unit = atomic {
-    implicit txn =>
-      val jobParts = executions().get(dag)
-      val newSet: Set[CronExecution] = jobParts match {
-        case Some(Right(s)) => s ++ Set(execution)
-        case _              => Set(execution)
-      }
-      executions() = executions() - dag
-      executions() = executions() + (dag -> Right(newSet))
+  private[cron] def addNextExecutionToState(dag: CronDag, execution: CronExecution): Unit = atomic { implicit txn =>
+    val newSet: Set[CronExecution] = executions().get(dag) match {
+      case Some(Right(s)) => s ++ Set(execution)
+      case _              => Set(execution)
+    }
+    executions() = executions() + (dag -> Right(newSet))
+  }
+
+  private[cron] def removeExecutionFromState(dag: CronDag, execution: CronExecution): Unit = atomic { implicit txn =>
+    executions().get(dag) match {
+      case Some(Right(s)) =>
+        executions() = executions() + (dag -> Right(s - execution))
+      case _ =>
+    }
   }
 
   private[cron] def removeDagFromState(dag: CronDag): Unit = atomic { implicit txn =>
@@ -231,7 +216,6 @@ case object CronContext {
 /** Configure a [[com.criteo.cuttle.Job job]] as a [[CronScheduling]] job.
   *
   * @param maxRetry The maximum number of retries authorized.
-  * @param tz The time zone in which the cron expression is evaluated.
   */
 case class CronScheduling(maxRetry: Int = 0) extends Scheduling {
   override type Context = CronContext
@@ -268,4 +252,5 @@ object CronDag {
 
 sealed trait CronJobState
 case object Running extends CronJobState
-case object Finished extends CronJobState
+case object Successful extends CronJobState
+case object Failure extends CronJobState

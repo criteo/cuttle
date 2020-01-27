@@ -134,8 +134,8 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
           .getNextJobsInDag(dag)
           .map { node: CronJob =>
             for {
-              _ <- runAndRetry(dag, node, scheduledAt, node.scheduling.maxRetry, runNowUser)
-              _ <- IO(state.cronJobFinished(dag, node))
+              runResult <- runAndRetry(dag, node, scheduledAt, runNowUser)
+              _ <- IO(state.cronJobFinished(dag, node, success = runResult.isRight))
               result <- runNextPart(dag, scheduledAt, runNowUser)
             } yield result
           }
@@ -147,8 +147,8 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     def runAndRetry(dag: CronDag,
                     job: CronJob,
                     scheduledAt: ScheduledAt,
-                    retryNum: Int,
-                    runNowUser: Option[Auth.User]): IO[Completed] = {
+                    runNowUser: Option[Auth.User],
+                    retryNum: Int = 0): IO[Either[Throwable, Completed]] = {
       val runIO = for {
         runInfo <- IO {
           logger.debug(s"Sending job ${job.id} to executor")
@@ -156,21 +156,24 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
           executor.run(job, cronContext)
         }
         _ <- IO(runNowUser.fold(())(user => runInfo._1.streams.info(s"Run now request from ${user.userId}")))
-        _ <- IO(state.addNextExecutionToState(dag, job, runInfo._1))
+        _ <- IO(state.addNextExecutionToState(dag, runInfo._1))
         _ <- logState
-        completed <- IO.fromFuture(IO(runInfo._2))
+        completed <- IO.fromFuture(IO(runInfo._2)).attempt
+        _ <- IO(state.removeExecutionFromState(dag, runInfo._1))
+        _ <- logState
       } yield completed
 
-      runIO.recoverWith {
-        case e: Throwable =>
+      runIO.flatMap {
+        case Left(e) =>
           if (retryNum < job.scheduling.maxRetry) {
             val nextRetry = retryNum + 1
             logger.debug(s"Job ${job.id} has failed it's going to be retried. Retry number: $nextRetry")
-            runAndRetry(dag, job, scheduledAt, nextRetry, runNowUser)
+            runAndRetry(dag, job, scheduledAt, runNowUser, retryNum = nextRetry)
           } else {
             logger.debug(s"Job ${job.id} has reached the maximum number of retries")
-            IO.raiseError(e)
+            IO.pure(Left(e))
           }
+        case right => IO.pure(right)
       }
     }
 
