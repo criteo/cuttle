@@ -38,6 +38,6 @@ case class CronExpression(cronExpression: String, tz: ZoneId = ZoneOffset.UTC) {
 object CronExpression {
   implicit val encodeUser: Encoder[CronExpression] = new Encoder[CronExpression] {
     override def apply(cronExpression: CronExpression) =
-      Json.obj("expression" -> cronExpression.cronExpression.asJson)
+      Json.obj("expression" -> cronExpression.cronExpression.asJson, "tz" -> cronExpression.tz.getId.asJson)
   }
 }

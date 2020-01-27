@@ -63,7 +63,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
   private implicit val stateToHtml = ToHtml { state: Either[Instant, Set[CronExecution]] =>
     state.fold(
       instant => tmpl"Scheduled at @timeFormat(instant)",
-      executions => executions.map(e => tmpl"Running @e.id, retry: @e.context.retry")
+      executions => foldHtml(executions.toList)(e => tmpl"<p>Running @e.job.id, retry: @e.context.retry</p>")
     )
   }
 
@@ -99,13 +99,13 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
   }
 
   private implicit val pausedToHtml = ToHtml { pausedDags: Map[CronDag, PausedJob] =>
-    foldHtml(pausedDags.toList) {
+    foldHtml(pausedDags.toList.sortBy(_._1.id)) {
       case (cronDag, pausedJob) =>
         tmpl"""
           <tr style="background: @ROSE">
             <td>@cronDag.id</td>
             <td>@cronDag.name</td>
-            <td>@cronDag.cronExpression.cronExpression</td>
+            <td>@cronDag.cronExpression.tz.getId @cronDag.cronExpression.cronExpression</td>
             <td>Paused by @pausedJob.user.userId at @timeFormat(pausedJob.date) </td>
             <td><a href="/dags/@cronDag.id/runs?limit=20">Runs</a></td>
             <td>
@@ -113,6 +113,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
               <input type="submit" value="Resume">
               </form>
             </td>
+            <td></td>
           </tr>
         """
     }
@@ -157,17 +158,19 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             @th("ID")
             @th("Name")
             @th("Cron Expression")
+            @th("State")
             @th("Runs")
             @th("Pause")
             @th("Run Now")
           </tr>
         </thead>
-        @foldHtml(activeDags.toList) {
-          case (cronDag, _) =>
+        @foldHtml(activeDags.toList.sortBy(_._1.id)) {
+          case (cronDag, state) =>
             <tr>
               <td>@cronDag.id</td>
               <td>@cronDag.name</td>
-              <td>@cronDag.cronExpression.cronExpression</td>
+              <td>@cronDag.cronExpression.tz.getId @cronDag.cronExpression.cronExpression</td>
+              <td>@state</td>
               <td><a href="/dags/@cronDag.id/runs?limit=20">Runs</a></td>
               <td>
                 <form method="POST" action="/api/dags/@cronDag.id/pause_redirect"/>
@@ -210,7 +213,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
               }
         }
       </table>
-      <a href="/dags/@dag.id/runs">Show all runs, it could take some to render	☺</a>
+      <a href="/dags/@dag.id/runs">Show all runs, it could take some time to render	☺</a>
     """)
   }
 
