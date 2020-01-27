@@ -59,17 +59,17 @@ package object cron {
     for {
       archived <- executor.rawArchivedExecutions(jobPartIds, "", asc = false, 0, limit)
       running <- IO(executor.runningExecutions.collect {
-      case (e, status)
-          if jobPartIds.contains(e.job.id) && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(
-            endDate) =>
-        e.toExecutionLog(status)
+        case (e, status)
+            if jobPartIds.contains(e.job.id) && e.context.instant.isAfter(startDate) && e.context.instant
+              .isBefore(endDate) =>
+          e.toExecutionLog(status)
       })
-    } yield (running ++ archived).groupBy(f =>
-      CronContext.decoder.decodeJson(f.context) match {
-        case Left(_) => Instant.now()
-        case Right(b) => b.instant
-      }
+    } yield (running ++ archived).groupBy(
+      f =>
+        CronContext.decoder.decodeJson(f.context) match {
+          case Left(_)  => Instant.now()
+          case Right(b) => b.instant
+        }
     )
 
 }
-

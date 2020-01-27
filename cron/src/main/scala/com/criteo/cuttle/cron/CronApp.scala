@@ -87,7 +87,9 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
         executions <- EitherT.right[Throwable](buildExecutionsList(executor, jobIds, startDate, endDate, limit))
         executionListFlat <- EitherT.rightT[IO, Throwable](executions.values.toSet.flatten)
-        json <- EitherT.rightT[IO, Throwable](Json.fromValues(executionListFlat.map(ExecutionLog.executionLogEncoder.apply(_))))
+        json <- EitherT.rightT[IO, Throwable](
+          Json.fromValues(executionListFlat.map(ExecutionLog.executionLogEncoder.apply(_)))
+        )
       } yield json
 
       jsonOrError.value.map {

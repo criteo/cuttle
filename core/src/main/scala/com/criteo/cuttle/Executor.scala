@@ -776,7 +776,10 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
         Set("type" -> status, "job_id" -> execution.job.id) ++ tagsLabel
       )
     }
-  private def run0(all: Seq[(Job[S], S#Context)], index: Map[(Job[S], S#Context), (Execution[S], Future[Completed])]): Seq[(Execution[S], Future[Completed])] = {
+  private def run0(
+    all: Seq[(Job[S], S#Context)],
+    index: Map[(Job[S], S#Context), (Execution[S], Future[Completed])]
+  ): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution

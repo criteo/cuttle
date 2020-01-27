@@ -57,31 +57,30 @@ object HelloCronScheduling {
     }
 
     // __Let's compute the average of 3 last Bitcoin prices, if we have less than 3 entries this job will fail
-    val avgJob = Job(id = "avg_job",
-                     scheduling = CronScheduling(10),
-                     description = "Average Bitcoin price for last 3 value") { implicit e =>
-      Future {
-        // We use plain old Scala APi to interact with file system.
-        val lines = Source.fromFile(fileName).getLines.toList
-        val last3Lines = lines.drop(lines.length - 3)
-        if (last3Lines.length < 3)
-          // Just throw an exception if you want to fail.
-          throw new UnsupportedOperationException("We have less than 3 values to compute the average!")
-        else {
-          // We compute the average, it can fail in some locales.
-          val avgPrice = last3Lines.map(_.toDouble).sum / 3
-          // We output some ASCII art just to make our message visible in the logs :)
-          e.streams.debug("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
-          e.streams.info(s"The average of last 3 Bitcoin prices is $avgPrice")
-          e.streams.debug("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
-          Completed
-        }
+    val avgJob =
+      Job(id = "avg_job", scheduling = CronScheduling(10), description = "Average Bitcoin price for last 3 value") {
+        implicit e =>
+          Future {
+            // We use plain old Scala APi to interact with file system.
+            val lines = Source.fromFile(fileName).getLines.toList
+            val last3Lines = lines.drop(lines.length - 3)
+            if (last3Lines.length < 3)
+              // Just throw an exception if you want to fail.
+              throw new UnsupportedOperationException("We have less than 3 values to compute the average!")
+            else {
+              // We compute the average, it can fail in some locales.
+              val avgPrice = last3Lines.map(_.toDouble).sum / 3
+              // We output some ASCII art just to make our message visible in the logs :)
+              e.streams.debug("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+              e.streams.info(s"The average of last 3 Bitcoin prices is $avgPrice")
+              e.streams.debug("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+              Completed
+            }
+          }
       }
-    }
 
     // Jobs are grouped in workload.
-    val workload = CronWorkload(Set(tickerJob.every("0-59/10 * * ? * *"),
-    avgJob.every("0-59/10 * * ? * *")))
+    val workload = CronWorkload(Set(tickerJob.every("0-59/10 * * ? * *"), avgJob.every("0-59/10 * * ? * *")))
 
     // Instantiate Cron scheduler with a default stdout logger which will be passed implicitly to Cron project.
     implicit val scheduler = CronScheduler(logger)
