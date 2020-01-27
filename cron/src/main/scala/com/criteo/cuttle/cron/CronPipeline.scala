@@ -52,23 +52,24 @@ case class CronPipeline(vertices: Set[CronJob], edges: Set[Dependency]) {
     * @param cronExpression Cron expression to be parsed by https://github.com/alonsodomin/cron4s.
     *                       See the link above for more details.
     */
-  def toCronDag(cronExpression: String, id: String, name: String = "", description: String = "", tags: Set[Tag] = Set.empty[Tag]) =
+  def toCronDag(cronExpression: String,
+                id: String,
+                name: String = "",
+                description: String = "",
+                tags: Set[Tag] = Set.empty[Tag]) =
     CronDag(id, this, CronExpression(cronExpression), name, description, tags)
 }
 
 //Convention is that child depends on parents
 case class Dependency(child: CronJob, parent: CronJob)
 
-
-
-
 object Dependency {
   implicit val encodeUser: Encoder[Dependency] = new Encoder[Dependency] {
     override def apply(dependency: Dependency) =
-    Json.obj {
-      "child" -> dependency.child.asJson
-      "parent" -> dependency.parent.asJson
-    }
+      Json.obj {
+        "child" -> dependency.child.asJson
+        "parent" -> dependency.parent.asJson
+      }
   }
 }
 
@@ -77,9 +78,9 @@ object CronPipeline {
 
   implicit val encodeUser: Encoder[CronPipeline] = new Encoder[CronPipeline] {
     override def apply(pipeline: CronPipeline) =
-    Json.obj(
-      "vertices" -> Json.arr(pipeline.vertices.map(_.asJson).toSeq: _*),
-      "edges" -> Json.arr(pipeline.edges.map(_.asJson).toSeq: _*)
-    )
+      Json.obj(
+        "vertices" -> Json.arr(pipeline.vertices.map(_.asJson).toSeq: _*),
+        "edges" -> Json.arr(pipeline.edges.map(_.asJson).toSeq: _*)
+      )
   }
 }

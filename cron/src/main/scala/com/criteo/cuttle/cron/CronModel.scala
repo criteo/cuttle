@@ -25,7 +25,7 @@ private[cron] case class CronState(logger: Logger) {
   private val paused = Ref(Map.empty[CronDag, PausedJob])
   private val runNowHandlers: Ref[Map[CronDag, Deferred[IO, (ScheduledAt, User)]]] =
     Ref(Map.empty[CronDag, Deferred[IO, (ScheduledAt, User)]])(
-         implicitly[ClassTag[Map[CronDag, Deferred[IO, (ScheduledAt, User)]]]]
+      implicitly[ClassTag[Map[CronDag, Deferred[IO, (ScheduledAt, User)]]]]
     )
   private val jobDagState = Ref(Map.empty[CronDag, Set[(CronJob, CronJobState)]])
 
@@ -46,10 +46,15 @@ private[cron] case class CronState(logger: Logger) {
 
   private[cron] def getNextJobsInDag(dag: CronDag) = atomic { implicit txn =>
     val dependenciesSatisfied = dag.cronPipeline.parentsMap.filter {
-      case (_, deps) => deps.forall { p => getFinishedJobs(dag).contains(p.parent)}
+      case (_, deps) =>
+        deps.forall { p =>
+          getFinishedJobs(dag).contains(p.parent)
+        }
     }.keySet
     val candidates = dependenciesSatisfied ++ dag.cronPipeline.roots
-    val results = candidates.filter{p => !getRunningJobs(dag).contains(p) && !getFinishedJobs(dag).contains(p)}
+    val results = candidates.filter { p =>
+      !getRunningJobs(dag).contains(p) && !getFinishedJobs(dag).contains(p)
+    }
 
     //update atomically the fact that the jobs are now running (to prevent another thread scheduling them)
     val jobs = jobDagState().get(dag)
@@ -78,10 +83,10 @@ private[cron] case class CronState(logger: Logger) {
   }
 
   private[cron] def getRunningJobs(dag: CronDag)(implicit txn: InTxn): Set[CronJob] =
-    jobDagState().get(dag).getOrElse(Set()).filter{case (_,state) => state.equals(Running)}.map{_._1}
+    jobDagState().get(dag).getOrElse(Set()).filter { case (_, state) => state.equals(Running) }.map { _._1 }
 
   private[cron] def getFinishedJobs(dag: CronDag)(implicit txn: InTxn): Set[CronJob] =
-    jobDagState().get(dag).getOrElse(Set()).filter{case (_,state) => state.equals(Finished)}.map{_._1}
+    jobDagState().get(dag).getOrElse(Set()).filter { case (_, state) => state.equals(Finished) }.map { _._1 }
 
   private[cron] def resetCronJobs(dag: CronDag) = atomic { implicit txn =>
     jobDagState() = jobDagState() - dag
@@ -95,16 +100,16 @@ private[cron] case class CronState(logger: Logger) {
     executions() = executions() + (dag -> Left(instant))
   }
 
-  private[cron] def addNextExecutionToState(dag: CronDag, job: CronJob, execution: CronExecution): Unit = atomic { implicit txn =>
-    val jobParts = executions().get(dag)
-    val newSet: Set[CronExecution] = jobParts match {
-      case Some(Right(s)) => s ++ Set(execution)
-      case _              => Set(execution)
-    }
-    executions() = executions() - dag
-    executions() = executions() + (dag -> Right(newSet))
+  private[cron] def addNextExecutionToState(dag: CronDag, job: CronJob, execution: CronExecution): Unit = atomic {
+    implicit txn =>
+      val jobParts = executions().get(dag)
+      val newSet: Set[CronExecution] = jobParts match {
+        case Some(Right(s)) => s ++ Set(execution)
+        case _              => Set(execution)
+      }
+      executions() = executions() - dag
+      executions() = executions() + (dag -> Right(newSet))
   }
-
 
   private[cron] def removeDagFromState(dag: CronDag): Unit = atomic { implicit txn =>
     executions() = executions() - dag
@@ -151,7 +156,11 @@ private[cron] case class CronState(logger: Logger) {
             Json.obj(
               state.fold(
                 "nextInstant" -> _.asJson,
-                ((a: Set[CronExecution]) => ("currentExecutions" -> Json.arr(a.map(_.toExecutionLog(ExecutionStatus.ExecutionRunning).asJson).toArray:_*)))
+                (
+                  (a: Set[CronExecution]) =>
+                    ("currentExecutions" -> Json
+                      .arr(a.map(_.toExecutionLog(ExecutionStatus.ExecutionRunning).asJson).toArray: _*))
+                  )
               )
             )
           )
@@ -211,7 +220,8 @@ case class CronContext(instant: Instant, retry: Int, parentDag: String) extends 
 }
 
 case object CronContext {
-  implicit val encoder: Encoder[CronContext] = Encoder.forProduct3("interval", "retry", "parentJob")(cc => (cc.instant, cc.retry, cc.parentDag))
+  implicit val encoder: Encoder[CronContext] =
+    Encoder.forProduct3("interval", "retry", "parentJob")(cc => (cc.instant, cc.retry, cc.parentDag))
   implicit def decoder: Decoder[CronContext] =
     Decoder.forProduct3[CronContext, Instant, Int, String]("interval", "retry", "parentJob")(
       (instant: Instant, retry: Int, parentJob: String) => CronContext(instant, retry, parentJob)
@@ -235,20 +245,25 @@ case class CronWorkload(dags: Set[CronDag]) extends Workload[CronScheduling] {
   override def all: Set[Job[CronScheduling]] = dags.flatMap(_.cronPipeline.vertices)
 }
 
-case class CronDag(id: String, cronPipeline: CronPipeline, cronExpression: CronExpression, name: String = "", description: String = "", tags: Set[Tag] = Set.empty[Tag])
+case class CronDag(id: String,
+                   cronPipeline: CronPipeline,
+                   cronExpression: CronExpression,
+                   name: String = "",
+                   description: String = "",
+                   tags: Set[Tag] = Set.empty[Tag])
 
 object CronDag {
-    implicit val encodeUser: Encoder[CronDag] = new Encoder[CronDag] {
-      override def apply(cronDag: CronDag) =
-        Json.obj(
-            "id" -> cronDag.id.asJson,
-            "name" -> Option(cronDag.name).filterNot(_.isEmpty).asJson,
-            "description" -> Option(cronDag.description).filterNot(_.isEmpty).asJson,
-            "expression" -> cronDag.cronExpression.asJson,
-            "tags" -> cronDag.tags.map(_.name).asJson,
-            "pipeline" -> cronDag.cronPipeline.asJson
-          )
-    }
+  implicit val encodeUser: Encoder[CronDag] = new Encoder[CronDag] {
+    override def apply(cronDag: CronDag) =
+      Json.obj(
+        "id" -> cronDag.id.asJson,
+        "name" -> Option(cronDag.name).filterNot(_.isEmpty).asJson,
+        "description" -> Option(cronDag.description).filterNot(_.isEmpty).asJson,
+        "expression" -> cronDag.cronExpression.asJson,
+        "tags" -> cronDag.tags.map(_.name).asJson,
+        "pipeline" -> cronDag.cronPipeline.asJson
+      )
+  }
 }
 
 sealed trait CronJobState

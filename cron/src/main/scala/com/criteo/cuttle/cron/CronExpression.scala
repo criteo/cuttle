@@ -11,7 +11,6 @@ import io.circe.syntax._
 import java.time.ZoneOffset
 import scala.concurrent.duration._
 
-
 /**
   * Configure a cron expression
   * @param cronExpression Cron expression to be parsed by https://github.com/alonsodomin/cron4s.

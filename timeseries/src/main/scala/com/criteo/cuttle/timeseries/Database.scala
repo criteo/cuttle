@@ -154,12 +154,14 @@ private[timeseries] object Database {
   def serializeState(state: State, retention: Option[Duration]): ConnectionIO[Int] = {
 
     val now = Instant.now()
-    val cleanStateBefore = retention.map { duration =>
-      if (duration.toSeconds <= 0)
-        sys.error(s"State retention is badly configured: ${duration}")
-      else
-        now.minusSeconds(duration.toSeconds)
-    }.getOrElse(now.minusSeconds(Duration(1, TimeUnit.DAYS).toSeconds))
+    val cleanStateBefore = retention
+      .map { duration =>
+        if (duration.toSeconds <= 0)
+          sys.error(s"State retention is badly configured: ${duration}")
+        else
+          now.minusSeconds(duration.toSeconds)
+      }
+      .getOrElse(now.minusSeconds(Duration(1, TimeUnit.DAYS).toSeconds))
 
     val stateJson = dbStateEncoder(state.mapValues(_.map {
       case Todo(backfill, _) => Todo(backfill, None)

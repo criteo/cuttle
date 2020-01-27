@@ -92,8 +92,8 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     }
   }
 
-  private[cron] def resumeDags(dags: Set[CronDag],
-                               executor: Executor[CronScheduling])(implicit transactor: XA, user: Auth.User): Unit = {
+  private[cron] def resumeDags(dags: Set[CronDag], executor: Executor[CronScheduling])(implicit transactor: XA,
+                                                                                       user: Auth.User): Unit = {
     logger.debug(s"Resuming job dags $dags")
     val dagIdsToExecute = dags.map(_.id)
     val resumeQuery = dagIdsToExecute.map(queries.resumeJob).reduceLeft(_ *> _)
@@ -125,26 +125,24 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
   }
 
   private def run(dag: CronDag, executor: Executor[CronScheduling]): IO[Completed] = {
-    def runNextPart(dag: CronDag,
-                    scheduledAt: ScheduledAt,
-                    runNowUser: Option[Auth.User]): IO[Completed] =
+    def runNextPart(dag: CronDag, scheduledAt: ScheduledAt, runNowUser: Option[Auth.User]): IO[Completed] =
       // don't run anything when job is paused
       if (state.isPaused(dag)) {
         IO.pure(Completed)
       } else {
-        state.getNextJobsInDag(dag).map{node: CronJob =>
+        state
+          .getNextJobsInDag(dag)
+          .map { node: CronJob =>
             for {
-               _ <- runAndRetry(dag,
-                         node,
-                         scheduledAt,
-                         node.scheduling.maxRetry,
-                         runNowUser)
-               _ <- IO(state.cronJobFinished(dag, node))
-               result <- runNextPart(dag, scheduledAt, runNowUser)
-           } yield result
-        }.toList.parSequence.map(_ => Completed)
+              _ <- runAndRetry(dag, node, scheduledAt, node.scheduling.maxRetry, runNowUser)
+              _ <- IO(state.cronJobFinished(dag, node))
+              result <- runNextPart(dag, scheduledAt, runNowUser)
+            } yield result
+          }
+          .toList
+          .parSequence
+          .map(_ => Completed)
       }
-
 
     def runAndRetry(dag: CronDag,
                     job: CronJob,

@@ -120,9 +120,10 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
 
   case class JobRun(timestamp: Instant, log: ExecutionLog, index: Integer, jobsInDag: Integer)
 
-  private implicit def jobRunToHtml = ToHtml { jobRun: JobRun => {
-    if (jobRun.index == 0) {
-      tmpl"""
+  private implicit def jobRunToHtml = ToHtml { jobRun: JobRun =>
+    {
+      if (jobRun.index == 0) {
+        tmpl"""
             <tr>
             <th rowspan=@{Html(String.valueOf(jobRun.jobsInDag))}>@{jobRun.timestamp.toString}</th>
             <td>@jobRun.log.job</td>
@@ -132,8 +133,8 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             <td><a href="/execution/@jobRun.log.id/streams">Streams</a></td>
             </tr>
              """
-    } else {
-      tmpl"""
+      } else {
+        tmpl"""
             <tr>
             <td>@jobRun.log.job</td>
             <td>@jobRun.log.startTime.fold("-")(d => timeFormat(d))</td>
@@ -142,8 +143,9 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             <td><a href="/execution/@jobRun.log.id/streams">Streams</a></td>
             </tr>
              """
+      }
     }
-  }}
+  }
 
   def home(activeAndPausedJobs: (Map[CronDag, Either[Instant, Set[CronExecution]]], Map[CronDag, PausedJob])) = {
     val (activeDags, pausedJobs) = activeAndPausedJobs
@@ -226,7 +228,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
 
       executionList.value.map {
         case Right((dag, executionList)) => Ok(runs(dag, executionList))
-        case Left(e)                   => BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
+        case Left(e)                     => BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
       }
 
     case GET at url"/execution/$executionId/streams" =>
