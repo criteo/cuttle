@@ -372,7 +372,8 @@ const styles = {
   },
   data: {
     display: "flex",
-    flex: "1"
+    flex: "1",
+    minWidth: "800px"
   },
   noData: {
     flex: "1",
