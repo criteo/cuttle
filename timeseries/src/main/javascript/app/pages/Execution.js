@@ -284,22 +284,28 @@ class Execution extends React.Component<Props, State> {
                 ? [
                     <dt key="duration">Duration:</dt>,
                     <dd key="duration_">
-                      {data.endTime ?  (
+                      {data.endTime ? (
                         (() => {
-                          const duration = moment(data.endTime).diff(moment(data.startTime))
+                          const duration = moment(data.endTime).diff(
+                            moment(data.startTime)
+                          );
                           const timePart = moment
                             .utc(duration)
-                            .format("HH:mm:ss")
-                          const dayPart = moment.duration(duration).days()
-                          const durationMsg = (dayPart === 0) ? timePart : `${dayPart} days ${timePart}`
-                          const progressBar = <ProgressBar
-                            key="progressBar"
-                            totalTimeSeconds = {duration / 1000}
-                            waitingTimeSeconds={data.waitingSeconds}
-                          />
-                          return [durationMsg, progressBar]
-                        }
-                        )()
+                            .format("HH:mm:ss");
+                          const dayPart = moment.duration(duration).days();
+                          const durationMsg =
+                            dayPart === 0
+                              ? timePart
+                              : `${dayPart} days ${timePart}`;
+                          const progressBar = (
+                            <ProgressBar
+                              key="progressBar"
+                              totalTimeSeconds={duration / 1000}
+                              waitingTimeSeconds={data.waitingSeconds}
+                            />
+                          );
+                          return [durationMsg, progressBar];
+                        })()
                       ) : (
                         <Clock time={data.startTime} humanize={false} />
                       )}
