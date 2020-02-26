@@ -45,7 +45,7 @@ class CuttleProject private[cuttle] (val name: String,
     jobsToBePausedOnStartup: Set[Job[TimeSeries]] = Set.empty
   ): Unit = {
     val (routes, startScheduler) =
-      build(platforms, databaseConfig, retryStrategy, paused, stateRetention, logsRetention, maxVersionsHistory)
+      build(platforms, databaseConfig, retryStrategy, paused, stateRetention, logsRetention, maxVersionsHistory, jobsToBePausedOnStartup)
 
     startScheduler()
 
