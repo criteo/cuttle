@@ -86,10 +86,8 @@ lazy val commonSettings = Seq(
       </developer>
       <developer>
         <name>Justin Coffey</name>
-        <email>j.coffey@criteo.com</email>
+        <email>jqcoffey@gmail.com</email>
         <url>https://github.com/jqcoffey</url>
-        <organization>Criteo</organization>
-        <organizationUrl>http://www.criteo.com</organizationUrl>
       </developer>
       <developer>
         <name>Vincent Guerci</name>
@@ -142,6 +140,14 @@ lazy val commonSettings = Seq(
   // Run an example in another JVM, and quit on key press
   commands += Command.single("example") { (state, arg) =>
     s"examples/test:runMain com.criteo.cuttle.examples.TestExample $arg" :: state
+  },
+  // Fixes flakey assembly merge for MariaDB4J
+  // ref: https://github.com/sbt/sbt-assembly#merge-strategy
+  assemblyMergeStrategy in assembly := {
+    case PathList("CONTRIBUTORS.md", xs @ _*) => MergeStrategy.discard
+    case x =>
+      val oldStrategy = (assemblyMergeStrategy in assembly).value
+      oldStrategy(x)
   }
 )
 
