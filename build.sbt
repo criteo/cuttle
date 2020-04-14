@@ -27,7 +27,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused-import",
     "-Ypartial-unification"
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) => Seq("-Ywarn-unused:-params")
+    case Some((2, 12)) => Seq("-Ywarn-unused:-explicits,-implicits")
     case _             => Nil
   }),
   devMode := Option(System.getProperty("devMode")).isDefined,
