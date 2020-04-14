@@ -267,9 +267,14 @@ case class Execution[S <: Scheduling](
     * if it handles cancellation properly. Note that the provided [[ExecutionPlatform ExecutionPlatforms]] handle cancellation properly, so
     * for [[SideEffect]] that use the provided platforms they support cancellation out of the box.
     *
-    * @param user The user who asked for the cancellation (either from the UI or the private API).
+    * @return true if the execution was cancelled.
     */
-  def cancel()(implicit user: User): Boolean = {
+  def cancel(): Boolean = doCancel(None)
+
+  private[cuttle] def userCancel()(implicit user: User): Boolean =
+    doCancel(Some(s"Execution has been cancelled by user ${user.userId}."))
+
+  private[this] def doCancel(logOnCancel: => Option[String]): Boolean = {
     val (hasBeenCancelled, listeners) = atomic { implicit txn =>
       if (cancelled()) {
         (false, Nil)
@@ -281,7 +286,7 @@ case class Execution[S <: Scheduling](
       }
     }
     if (hasBeenCancelled) {
-      streams.debug(s"Execution has been cancelled by user ${user.userId}.")
+      logOnCancel.foreach(streams.debug)
       listeners.foreach(listener => Try(listener.thunk()))
     }
     hasBeenCancelled
@@ -630,7 +635,7 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
       (runningState.keys ++ throttledState.keys)
         .find(_.id == executionId)
     }
-    toCancel.foreach(_.cancel())
+    toCancel.foreach(_.userCancel())
   }
 
   private[cuttle] def getExecution(queryContexts: Fragment, executionId: String): IO[Option[ExecutionLog]] =
@@ -682,7 +687,7 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
       isShuttingDown() = true
       runningState.keys ++ throttledState.keys
     }
-    toCancel.foreach(_.cancel())
+    toCancel.foreach(_.userCancel())
 
     val runningFutures = atomic { implicit tx =>
       runningState.map({ case (_, v) => v })

@@ -87,7 +87,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
         logger.debug(s"Canceling ${executions.size} executions")
         executions.foreach { execution =>
           execution.streams.debug(s"Job has been paused by user ${user.userId}")
-          execution.cancel()
+          execution.userCancel()
         }
     }
   }

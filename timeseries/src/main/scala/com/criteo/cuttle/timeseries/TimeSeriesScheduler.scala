@@ -695,7 +695,7 @@ case class TimeSeriesScheduler(logger: Logger,
     logger.debug(s"we will cancel ${executionsToCancel.size} executions")
     executionsToCancel.toList.sortBy(_.context).reverse.foreach { execution =>
       execution.streams.debug(s"Job has been paused by user ${user.userId}")
-      execution.cancel()
+      execution.userCancel()
     }
   }
 

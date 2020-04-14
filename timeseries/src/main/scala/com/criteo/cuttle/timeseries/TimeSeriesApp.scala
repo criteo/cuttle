@@ -1070,7 +1070,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         }
         val failingExecutions = executor.allFailingExecutions.filter(filterOp)
         val executions = runningExecutions ++ failingExecutions
-        executions.foreach(_.cancel())
+        executions.foreach(_.userCancel())
         (
           executions.length,
           JobSuccessForced(Instant.now(), user, jobId, startDate, endDate)
