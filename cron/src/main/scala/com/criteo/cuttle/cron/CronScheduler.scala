@@ -151,7 +151,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
       val runIO = for {
         runInfo <- IO {
           logger.debug(s"Sending job ${job.id} to executor")
-          val cronContext = CronContext(scheduledAt.instant, retryNum, job.id)
+          val cronContext = CronContext(scheduledAt.instant, runNowUser.map(_.userId))
           executor.run(job, cronContext)
         }
         _ <- IO(runNowUser.fold(())(user => runInfo._1.streams.info(s"Run now request from ${user.userId}")))

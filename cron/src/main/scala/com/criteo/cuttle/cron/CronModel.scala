@@ -6,7 +6,9 @@ import cats.effect.IO
 import cats.effect.concurrent.Deferred
 import com.criteo.cuttle.Auth.User
 import com.criteo.cuttle.{Job, Logger, Scheduling, SchedulingContext, Tag, Workload}
+import doobie.ConnectionIO
 import io.circe._
+import io.circe.generic.semiauto._
 import io.circe.java8.time._
 import io.circe.syntax._
 
@@ -180,25 +182,23 @@ private[cron] case class CronState(logger: Logger) {
 /** A [[CronContext]] is passed to [[com.criteo.cuttle.Execution executions]] initiated by
   * the [[CronScheduler]].
   */
-case class CronContext(instant: Instant, retry: Int, parentDag: String) extends SchedulingContext {
+case class CronContext(instant: Instant, runNowUser: Option[String] = None) extends SchedulingContext {
 
   def compareTo(other: SchedulingContext): Int = other match {
-    case CronContext(otherInstant, _, _) =>
+    case CronContext(otherInstant, _) =>
       instant.compareTo(otherInstant)
   }
 
+  override def logIntoDatabase: ConnectionIO[String] = Database.serializeContext(this)
+
   override def asJson: Json = CronContext.encoder(this)
 
-  override def longRunningId(): String = toString
+  override def longRunningId(): String = s"$instant|${runNowUser.getOrElse("")}"
 }
 
 case object CronContext {
-  implicit val encoder: Encoder[CronContext] =
-    Encoder.forProduct3("interval", "retry", "parentJob")(cc => (cc.instant, cc.retry, cc.parentDag))
-  implicit def decoder: Decoder[CronContext] =
-    Decoder.forProduct3[CronContext, Instant, Int, String]("interval", "retry", "parentJob")(
-      (instant: Instant, retry: Int, parentJob: String) => CronContext(instant, retry, parentJob)
-    )
+  implicit val encoder: Encoder[CronContext] = deriveEncoder
+  implicit def decoder: Decoder[CronContext] = deriveDecoder
 }
 
 /** Configure a [[com.criteo.cuttle.Job job]] as a [[CronScheduling]] job.

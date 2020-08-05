@@ -51,24 +51,25 @@ package object cron {
 
   }
 
-  // Fair assumptions about start and end date within which we operate by default if user doesn't specify his interval.
-  // We choose these dates over Instant.MIN and Instant.MAX because MySQL works within this range.
-  private[cron] val minStartDateForExecutions = Instant.parse("1000-01-01T00:00:00Z")
-  private[cron] val maxStartDateForExecutions = Instant.parse("9999-12-31T23:59:59Z")
-
-  // This function was implemented because executor.archivedExecutions returns duplicates when passing the same table
-  // into the context query.
   private[cron] def buildExecutionsList(executor: Executor[CronScheduling],
-                                        jobPartIds: Set[String],
-                                        startDate: Instant,
-                                        endDate: Instant,
+                                        jobIds: Set[String],
+                                        startDate: Option[Instant],
+                                        endDate: Option[Instant],
                                         limit: Int): IO[Map[Instant, Seq[ExecutionLog]]] =
     for {
-      archived <- executor.rawArchivedExecutions(jobPartIds, "", asc = false, 0, limit)
+      archived <- executor.archivedExecutions(
+        queryContexts = Database.sqlGetContextsBetween(startDate, endDate),
+        jobs = jobIds,
+        sort = "",
+        asc = false,
+        offset = 0,
+        limit = limit
+      )
       running <- IO(executor.runningExecutions.collect {
         case (e, status)
-            if jobPartIds.contains(e.job.id) && e.context.instant.isAfter(startDate) && e.context.instant
-              .isBefore(endDate) =>
+            if jobIds.contains(e.job.id)
+              && startDate.forall(e.context.instant.isAfter)
+              && endDate.forall(e.context.instant.isBefore) =>
           e.toExecutionLog(status)
       })
     } yield (running ++ archived).groupBy(

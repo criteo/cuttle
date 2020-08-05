@@ -64,7 +64,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
   private implicit val stateToHtml = ToHtml { state: Either[Instant, Set[CronExecution]] =>
     state.fold(
       instant => tmpl"Scheduled at @timeFormat(instant)",
-      executions => foldHtml(executions.toList)(e => tmpl"<p>Running @e.job.id, retry: @e.context.retry</p>")
+      executions => foldHtml(executions.toList)(e => tmpl"<p>Running @e.job.id</p>")
     )
   }
 
@@ -226,7 +226,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
         jobIds <- EitherT.rightT[IO, Throwable](dag.cronPipeline.vertices.map(_.id))
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
         executionList <- EitherT.right[Throwable](
-          buildExecutionsList(executor, jobIds, minStartDateForExecutions, maxStartDateForExecutions, limit)
+          buildExecutionsList(executor, jobIds, None, None, limit)
         )
       } yield (dag, executionList)
 

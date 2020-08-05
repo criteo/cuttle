@@ -4,6 +4,7 @@ import com.criteo.cuttle.Auth.Authenticator
 import com.criteo.cuttle.ThreadPools.Implicits.serverThreadPool
 import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle._
+import doobie.implicits._
 import io.circe.syntax._
 import io.circe.{Encoder, Json}
 import lol.http._
@@ -42,6 +43,10 @@ class CronProject private[cuttle] (val name: String,
   ): Unit = {
     logger.info("Connecting to database")
     implicit val transactor = com.criteo.cuttle.Database.connect(databaseConfig)(logger)
+
+    logger.info("Applying migrations to database")
+    Database.doSchemaUpdates.transact(transactor).unsafeRunSync
+    logger.info("Database up-to-date")
 
     logger.info("Creating Executor")
     val executor =

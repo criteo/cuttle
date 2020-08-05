@@ -78,8 +78,8 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
       val jsonOrError: EitherT[IO, Throwable, Json] = for {
         dag <- EitherT.fromOption[IO](workload.dags.find(_.id == dag), throw new Exception(s"Unknown job DAG $dag"))
         jobIds <- EitherT.rightT[IO, Throwable](dag.cronPipeline.vertices.map(_.id))
-        startDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(start)).getOrElse(minStartDateForExecutions))
-        endDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(end)).getOrElse(maxStartDateForExecutions))
+        startDate <- EitherT.rightT[IO, Throwable](Try(Some(Instant.parse(start))).getOrElse(None))
+        endDate <- EitherT.rightT[IO, Throwable](Try(Some(Instant.parse(end))).getOrElse(None))
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
         executions <- EitherT.right[Throwable](buildExecutionsList(executor, jobIds, startDate, endDate, limit))
         executionListFlat <- EitherT.rightT[IO, Throwable](executions.values.toSet.flatten)
