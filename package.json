@@ -30,7 +30,7 @@
     "webpack-cli": "3.3.1",
     "webpack-dev-server": "3.3.1",
     "webpack-merge": "4.2.1",
-    "yargs": "^15.4.1"
+    "yargs": "14.2.3"
   },
   "dependencies": {
     "autolinker": "^1.4.3",
@@ -78,9 +78,9 @@
   },
   "scripts": {
     "start": "loop",
-    "format": "prettier-eslint \"frontend/**/*.js\" --write --bracket-spacing true",
+    "format": "prettier-eslint \"**/src/**/*.js\" --write --bracket-spacing true",
     "format-diff": "prettier-eslint $(git diff-index HEAD --name-only --diff-filter=d -- '*.js') --write --bracket-spacing true",
-    "eslint": "eslint \"frontend/**/*.js\"",
+    "eslint": "eslint \"**/src/**/*.js\"",
     "eslint-check": "eslint --print-config .eslintrc | eslint-config-prettier-check",
     "serve": "NODE_ENV=development webpack-dev-server --output-public-path='/' --hot",
     "build": "NODE_ENV=production webpack"
