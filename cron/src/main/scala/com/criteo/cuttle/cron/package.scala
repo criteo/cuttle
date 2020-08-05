@@ -1,11 +1,12 @@
 package com.criteo.cuttle
 
-import cats.effect.IO
-import com.criteo.cuttle.ThreadPools._
-import com.criteo.cuttle.ThreadPools.ThreadPoolSystemProperties._
-
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
+
+import cats.effect.IO
+import com.criteo.cuttle.Auth.User
+import com.criteo.cuttle.ThreadPools.ThreadPoolSystemProperties._
+import com.criteo.cuttle.ThreadPools._
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
@@ -13,6 +14,12 @@ import scala.language.implicitConversions
 package object cron {
   type CronJob = Job[CronScheduling]
   type CronExecution = Execution[CronScheduling]
+
+  // In the Cron scheduler, we do not pause jobs, we pause entire DAGs
+  type PausedDag = PausedJob
+  object PausedDag {
+    def apply(id: String, user: User, date: Instant): PausedDag = PausedJob(id, user, date)
+  }
 
   object Implicits {
 

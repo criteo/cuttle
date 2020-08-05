@@ -1,17 +1,17 @@
 package com.criteo.cuttle.cron
 
 import java.time.Instant
-import cats.effect.concurrent.Deferred
+
 import cats.effect.IO
+import cats.effect.concurrent.Deferred
+import com.criteo.cuttle.Auth.User
+import com.criteo.cuttle.{Job, Logger, Scheduling, SchedulingContext, Tag, Workload}
+import io.circe._
+import io.circe.java8.time._
+import io.circe.syntax._
 
 import scala.concurrent.duration._
-import scala.concurrent.stm.{Ref, _}
-import io.circe._
-import io.circe.syntax._
-import io.circe.java8.time._
-import com.criteo.cuttle.Auth.User
-import com.criteo.cuttle.{ExecutionStatus, Job, Logger, PausedJob, Scheduling, SchedulingContext, Tag, Workload}
-
+import scala.concurrent.stm.{atomic, Ref}
 import scala.reflect.ClassTag
 
 private[cron] case class ScheduledAt(instant: Instant, delay: FiniteDuration)
@@ -22,25 +22,25 @@ private[cron] case class ScheduledAt(instant: Instant, delay: FiniteDuration)
 private[cron] case class CronState(logger: Logger) {
 
   private val executions = Ref(Map.empty[CronDag, Either[Instant, Set[CronExecution]]])
-  private val paused = Ref(Map.empty[CronDag, PausedJob])
+  private val paused = Ref(Map.empty[CronDag, PausedDag])
   private val runNowHandlers: Ref[Map[CronDag, Deferred[IO, (ScheduledAt, User)]]] =
     Ref(Map.empty[CronDag, Deferred[IO, (ScheduledAt, User)]])(
       implicitly[ClassTag[Map[CronDag, Deferred[IO, (ScheduledAt, User)]]]]
     )
   private val jobDagState = Ref(Map.empty[CronDag, Map[CronJob, CronJobState]])
 
-  private[cron] def init(availableJobDags: Set[CronDag], pausedJobs: Seq[PausedJob]) = {
+  private[cron] def init(availableJobDags: Set[CronDag], pausedDags: Seq[PausedDag]) = {
     logger.debug("Cron Scheduler States initialization")
 
     val available = availableJobDags.map(dag => dag.id -> dag).toMap
-    val initialPausedJobs = pausedJobs.collect {
-      case pausedJob if available.contains(pausedJob.id) =>
-        logger.debug(s"Job ${pausedJob.id} is paused")
-        available(pausedJob.id) -> pausedJob
+    val initialPausedDags = pausedDags.collect {
+      case pausedDag if available.contains(pausedDag.id) =>
+        logger.debug(s"DAG ${pausedDag.id} is paused")
+        available(pausedDag.id) -> pausedDag
     }.toMap
 
     atomic { implicit txn =>
-      paused() = initialPausedJobs
+      paused() = initialPausedDags
     }
   }
 
@@ -73,7 +73,7 @@ private[cron] case class CronState(logger: Logger) {
     jobDagState() = jobDagState() + (dag -> Map.empty)
   }
 
-  private[cron] def getPausedJobs(): Set[PausedJob] = paused.single.get.values.toSet
+  private[cron] def getPausedDags(): Set[PausedDag] = paused.single.get.values.toSet
   private[cron] def isPaused(dag: CronDag): Boolean = paused.single.get.contains(dag)
 
   private[cron] def addNextEventToState(dag: CronDag, instant: Instant): Unit = atomic { implicit txn =>
@@ -100,7 +100,7 @@ private[cron] case class CronState(logger: Logger) {
     executions() = executions() - dag
   }
 
-  private[cron] def pauseDags(dags: Set[CronDag])(implicit user: User): Set[PausedJob] = {
+  private[cron] def pauseDags(dags: Set[CronDag])(implicit user: User): Set[PausedDag] = {
     val pauseDate = Instant.now()
     atomic { implicit txn =>
       val dagsToPause = dags
@@ -108,10 +108,10 @@ private[cron] case class CronState(logger: Logger) {
         .toSeq
 
       dagsToPause.foreach(removeDagFromState)
-      val justPausedJobs = dagsToPause.map(job => PausedJob(job.id, user, pauseDate))
-      paused() = paused() ++ dagsToPause.zip(justPausedJobs)
+      val justPausedDags = dagsToPause.map(dag => PausedDag(dag.id, user, pauseDate))
+      paused() = paused() ++ dagsToPause.zip(justPausedDags)
 
-      justPausedJobs.toSet
+      justPausedDags.toSet
     }
   }
 
@@ -129,57 +129,45 @@ private[cron] case class CronState(logger: Logger) {
       runNowHandlers() = runNowHandlers() - dag
     }
 
-  private[cron] def getRunNowHandlers(jobIds: Set[String]) = atomic { implicit txn =>
-    runNowHandlers().filter(cronJob => jobIds.contains(cronJob._1.id))
+  private[cron] def getRunNowHandlers(dagIds: Set[String]) = atomic { implicit txn =>
+    runNowHandlers().filter(cronJob => dagIds.contains(cronJob._1.id))
   }
 
-  private[cron] def snapshotAsJson(jobIds: Set[String]) = atomic { implicit txn =>
-    val activeJobsSnapshot = executions().collect {
-      case (cronDag: CronDag, state) if jobIds.contains(cronDag.id) =>
-        cronDag.asJson
-          .deepMerge(
-            Json.obj(
-              state.fold(
-                "nextInstant" -> _.asJson,
-                (
-                  (a: Set[CronExecution]) =>
-                    ("currentExecutions" -> Json
-                      .arr(a.map(_.toExecutionLog(ExecutionStatus.ExecutionRunning).asJson).toArray: _*))
-                  )
-              )
-            )
-          )
-          .deepMerge(
-            Json.obj(
-              "status" -> "active".asJson
-            )
-          )
+  private[cron] def snapshotAsJson(dagIds: Set[String]) = atomic { implicit txn =>
+    val activeDagsSnapshot = executions().collect {
+      case (cronDag: CronDag, Left(nextInstant)) if dagIds.contains(cronDag.id) =>
+        Json.obj(
+          "id" -> cronDag.id.asJson,
+          "status" -> "waiting".asJson,
+          "nextInstant" -> nextInstant.asJson
+        )
+      case (cronDag: CronDag, Right(_)) if dagIds.contains(cronDag.id) =>
+        Json.obj(
+          "id" -> cronDag.id.asJson,
+          "status" -> "running".asJson
+        )
     }
-    val pausedJobsSnapshot = paused().collect {
-      case (cronJob, pausedJob) if jobIds.contains(cronJob.id) => pausedJob.asJson
-    }
-    val acc = (activeJobsSnapshot ++ pausedJobsSnapshot).toSeq
     Json.arr(
-      acc: _*
+      activeDagsSnapshot.toSeq: _*
     )
   }
 
   private[cron] def snapshot(dagIds: Set[String]) = atomic { implicit txn =>
     val activeJobsSnapshot = executions().filterKeys(cronDag => dagIds.contains(cronDag.id))
-    val pausedJobsSnapshot = paused().filterKeys(cronDag => dagIds.contains(cronDag.id))
+    val pausedDagsSnapshot = paused().filterKeys(cronDag => dagIds.contains(cronDag.id))
 
-    activeJobsSnapshot -> pausedJobsSnapshot
+    activeJobsSnapshot -> pausedDagsSnapshot
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     val builder = new StringBuilder()
     val state = executions.single.get
     builder.append("\n======State======\n")
     state.foreach {
-      case (job, jobState) =>
+      case (dag, dagState) =>
         val messages = Seq(
-          job.id,
-          jobState.fold(_ toString, _.map(_.id).mkString(","))
+          dag.id,
+          dagState.fold(_.toString, _.map(_.id).mkString(","))
         )
         builder.append(messages mkString " :: ")
         builder.append("\n")

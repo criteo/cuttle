@@ -3,19 +3,18 @@ package com.criteo.cuttle.cron
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import scala.util.{Success, Try}
-
 import cats.data.EitherT
 import cats.effect.IO
+import com.criteo.cuttle.Auth._
+import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
+import com.criteo.cuttle._
+import com.criteo.cuttle.utils.getJVMUptime
 import io.circe._
 import io.circe.syntax._
 import lol.http._
 import lol.json._
 
-import com.criteo.cuttle.Auth._
-import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
-import com.criteo.cuttle._
-import com.criteo.cuttle.utils.getJVMUptime
+import scala.util.{Success, Try}
 
 private[cron] case class CronApp(project: CronProject, executor: Executor[CronScheduling])(
   implicit val transactor: XA
@@ -71,16 +70,13 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
           Ok(bodyFromStream)
       }
 
-    case GET at "/api/dashboard" =>
-      Ok(scheduler.getStats(allJobIds))
-
-    case GET at "/api/jobs/paused" =>
-      Ok(scheduler.getPausedJobs.asJson)
+    case GET at "/api/dags/paused" =>
+      Ok(scheduler.getPausedDags.asJson)
 
     // we only show 20 recent executions by default but it could be modified via query parameter
     case GET at url"/api/cron/executions?dag=$dag&start=$start&end=$end&limit=$limit" =>
       val jsonOrError: EitherT[IO, Throwable, Json] = for {
-        dag <- EitherT.fromOption[IO](workload.dags.find(_.id == dag), throw new Exception(s"Unknown job dag $dag"))
+        dag <- EitherT.fromOption[IO](workload.dags.find(_.id == dag), throw new Exception(s"Unknown job DAG $dag"))
         jobIds <- EitherT.rightT[IO, Throwable](dag.cronPipeline.vertices.map(_.id))
         startDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(start)).getOrElse(minStartDateForExecutions))
         endDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(end)).getOrElse(maxStartDateForExecutions))

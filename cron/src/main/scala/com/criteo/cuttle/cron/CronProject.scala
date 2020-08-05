@@ -1,15 +1,14 @@
 package com.criteo.cuttle.cron
 
-import scala.concurrent.duration._
-
-import lol.http._
-import io.circe.{Encoder, Json}
-import io.circe.syntax._
-
-import com.criteo.cuttle._
-import com.criteo.cuttle.ThreadPools._
-import com.criteo.cuttle.ThreadPools.Implicits.serverThreadPool
 import com.criteo.cuttle.Auth.Authenticator
+import com.criteo.cuttle.ThreadPools.Implicits.serverThreadPool
+import com.criteo.cuttle.ThreadPools._
+import com.criteo.cuttle._
+import io.circe.syntax._
+import io.circe.{Encoder, Json}
+import lol.http._
+
+import scala.concurrent.duration._
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.

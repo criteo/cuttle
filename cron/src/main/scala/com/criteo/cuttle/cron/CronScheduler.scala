@@ -3,18 +3,17 @@ package com.criteo.cuttle.cron
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.stm.Txn.ExternalDecider
-import scala.concurrent.stm._
 import cats.effect.IO
 import cats.effect.concurrent.Deferred
 import cats.implicits._
+import com.criteo.cuttle._
+import com.criteo.cuttle.cron.Implicits._
+import com.criteo.cuttle.utils._
 import doobie.implicits._
 import io.circe.Json
-import com.criteo.cuttle._
-import com.criteo.cuttle.utils._
-import com.criteo.cuttle.cron.Implicits._
 
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.stm.{atomic, InTxnEnd, Txn}
 
 /** A [[CronScheduler]] executes the set of Jobs at the time instants defined by Cron expressions.
   * Each [[com.criteo.cuttle.Job Job]] has it's own expression and executed separately from others.
@@ -50,20 +49,20 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     * @param txn          current STM transaction context
     */
   private def setExernalDecider[A](dbConnection: doobie.ConnectionIO[A])(implicit transactor: XA, txn: InTxnEnd): Unit =
-    Txn.setExternalDecider(new ExternalDecider {
+    Txn.setExternalDecider(new Txn.ExternalDecider {
       def shouldCommit(implicit txn: InTxnEnd): Boolean = {
         dbConnection.transact(transactor).unsafeRunSync
         true
       }
     })
 
-  private[cron] def getPausedJobs = state.getPausedJobs()
+  private[cron] def getPausedDags = state.getPausedDags()
 
   private[cron] def snapshot(dagIds: Set[String]) = state.snapshot(dagIds)
 
   private[cron] def pauseDags(dags: Set[CronDag], executor: Executor[CronScheduling])(implicit transactor: XA,
                                                                                       user: Auth.User): Unit = {
-    logger.debug(s"Pausing job dags $dags")
+    logger.debug(s"Pausing job DAGs $dags")
     val cancelableExecutions = atomic { implicit tx =>
       val dagsToPause = state.pauseDags(dags)
 
@@ -94,7 +93,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
   private[cron] def resumeDags(dags: Set[CronDag], executor: Executor[CronScheduling])(implicit transactor: XA,
                                                                                        user: Auth.User): Unit = {
-    logger.debug(s"Resuming job dags $dags")
+    logger.debug(s"Resuming job DAGs $dags")
     val dagIdsToExecute = dags.map(_.id)
     val resumeQuery = dagIdsToExecute.map(queries.resumeJob).reduceLeft(_ *> _)
 
@@ -103,19 +102,19 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
       state.resumeDags(dags)
     }
     val programs = dags.map { dag =>
-      logger.debug(s"Activating job dags $dag")
+      logger.debug(s"Activating job DAGs $dag")
       run(dag, executor)
     }
 
-    logger.info(s"Relaunching job dags $dags")
+    logger.info(s"Relaunching job DAGs $dags")
     unsafeRunAsync(programs)
   }
 
-  private[cron] def runJobsNow(jobsToRun: Set[CronDag], executor: Executor[CronScheduling])(implicit transactor: XA,
+  private[cron] def runJobsNow(dagsToRun: Set[CronDag], executor: Executor[CronScheduling])(implicit transactor: XA,
                                                                                             user: Auth.User): Unit = {
-    logger.info(s"Request by ${user.userId} to run on demand jobs ${jobsToRun.map(_.id).mkString}")
-    val runNowHandlers = state.getRunNowHandlers(jobsToRun.map(_.id))
-    if (runNowHandlers.size == 0) {
+    logger.info(s"Request by ${user.userId} to run on demand DAGs ${dagsToRun.map(_.id).mkString}")
+    val runNowHandlers = state.getRunNowHandlers(dagsToRun.map(_.id))
+    if (runNowHandlers.isEmpty) {
       logger.info("No job in waiting state.")
     }
     for ((job, d) <- runNowHandlers) {
@@ -132,10 +131,10 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
       } else {
         state
           .getNextJobsInDag(dag)
-          .map { node: CronJob =>
+          .map { job: CronJob =>
             for {
-              runResult <- runAndRetry(dag, node, scheduledAt, runNowUser)
-              _ <- IO(state.cronJobFinished(dag, node, success = runResult.isRight))
+              runResult <- runAndRetry(dag, job, scheduledAt, runNowUser)
+              _ <- IO(state.cronJobFinished(dag, job, success = runResult.isRight))
               result <- runNextPart(dag, scheduledAt, runNowUser)
             } yield result
           }
@@ -177,7 +176,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
       }
     }
 
-    // don't run anything when job is paused
+    // don't run anything when dag is paused
     if (state.isPaused(dag)) {
       IO.pure(Completed)
     } else {
@@ -186,11 +185,11 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
         completed <- maybeScheduledAt match {
           // we couldn't get next event from cron4s and it didn't fail so it means we've finished for this job
           case None =>
-            logger.info(s"Job dag ${dag.id} has finished. We will not submit executions anymore")
+            logger.info(s"Job DAG ${dag.id} has finished. We will not submit executions anymore")
             IO.pure(Completed)
           // we got next event: update state with it, wait for it and run it or retry until max retry
           case Some(scheduledAt) =>
-            logger.debug(s"Run job dag ${dag.id} at ${scheduledAt.instant} with a delay of ${scheduledAt.delay}")
+            logger.debug(s"Run job DAG ${dag.id} at ${scheduledAt.instant} with a delay of ${scheduledAt.delay}")
             for {
               _ <- IO(state.addNextEventToState(dag, scheduledAt.instant))
               _ <- logState
@@ -212,7 +211,7 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
       runIO.recover {
         case e =>
-          val message = s"Fatal error Cron loop for job dag ${dag.id} will be stopped"
+          val message = s"Fatal error Cron loop for job DAG ${dag.id} will be stopped"
           logger.error(message)
           logger.error(e.getMessage)
           throw new Exception(message)
@@ -225,20 +224,20 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
     programs.toList.parSequence.unsafeRunAsyncAndForget()
   }
 
-  override def getStats(jobIds: Set[String]): Json = state.snapshotAsJson(jobIds)
+  override def getStats(dagIds: Set[String]): Json = state.snapshotAsJson(dagIds)
 
   override def start(workload: Workload[CronScheduling],
                      executor: Executor[CronScheduling],
                      xa: XA,
                      logger: Logger = logger): Unit = {
-    logger.info("Getting paused jobs")
-    val pausedJob = queries.getPausedJobs.transact(xa).unsafeRunSync()
+    logger.info("Getting paused DAGs")
+    val pausedDag = queries.getPausedJobs.transact(xa).unsafeRunSync()
 
     val programs = workload match {
       case CronWorkload(dags) =>
         logger.info("Init Cron State")
-        state.init(dags, pausedJob)
-        logger.info(s"Building IOs for Cron Workload with ${dags.size} job dag(s)")
+        state.init(dags, pausedDag)
+        logger.info(s"Building IOs for Cron Workload with ${dags.size} job DAG(s)")
         dags.map(dag => run(dag, executor))
     }
 

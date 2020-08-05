@@ -1,18 +1,19 @@
 package com.criteo.cuttle.cron
 
-import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatter
+import java.time.{Instant, ZoneId}
 
-import scala.util.Try
 import cats.Foldable
 import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits._
-import lol.http._
-import lol.html._
-import lol.json._
+import com.criteo.cuttle.{ExecutionLog, ExecutionStatus, Executor, XA}
 import io.circe.Json
-import com.criteo.cuttle.{ExecutionLog, ExecutionStatus, Executor, PausedJob, XA}
+import lol.html._
+import lol.http._
+import lol.json._
+
+import scala.util.Try
 
 private[cron] case class UI(project: CronProject, executor: Executor[CronScheduling])(implicit val transactor: XA) {
   private val scheduler = project.scheduler
@@ -98,15 +99,15 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     }
   }
 
-  private implicit val pausedToHtml = ToHtml { pausedDags: Map[CronDag, PausedJob] =>
+  private implicit val pausedToHtml = ToHtml { pausedDags: Map[CronDag, PausedDag] =>
     foldHtml(pausedDags.toList.sortBy(_._1.id)) {
-      case (cronDag, pausedJob) =>
+      case (cronDag, pausedDag) =>
         tmpl"""
           <tr style="background: @ROSE">
             <td>@cronDag.id</td>
             <td>@cronDag.name</td>
             <td>@cronDag.cronExpression.tz.getId @cronDag.cronExpression.cronExpression</td>
-            <td>Paused by @pausedJob.user.userId at @timeFormat(pausedJob.date) </td>
+            <td>Paused by @pausedDag.user.userId at @timeFormat(pausedDag.date) </td>
             <td><a href="/dags/@cronDag.id/runs?limit=20">Runs</a></td>
             <td>
               <form method="POST" action="/api/dags/@cronDag.id/resume_redirect"/>
@@ -148,8 +149,8 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
     }
   }
 
-  def home(activeAndPausedJobs: (Map[CronDag, Either[Instant, Set[CronExecution]]], Map[CronDag, PausedJob])) = {
-    val (activeDags, pausedJobs) = activeAndPausedJobs
+  def home(activeAndPausedDags: (Map[CronDag, Either[Instant, Set[CronExecution]]], Map[CronDag, PausedDag])) = {
+    val (activeDags, pausedDags) = activeAndPausedDags
     Layout(
       tmpl"""
         <table border="1" width="100%">
@@ -184,7 +185,7 @@ private[cron] case class UI(project: CronProject, executor: Executor[CronSchedul
             </td>
           </tr>
         }
-        @pausedJobs
+        @pausedDags
       </table>
     """
     )
