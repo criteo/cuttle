@@ -1,7 +1,7 @@
 // @flow
 
 import React from "react";
-import { Badge } from "../components/Badge";
+import { Badge } from "../../common/components/Badge";
 
 type Props = {
   status: string

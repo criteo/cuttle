@@ -1,7 +1,8 @@
 // @flow
 
 import type { Action } from "./actions";
-import type { Project, Workflow, Statistics } from "./datamodel";
+import type { Project } from "../common/datamodel";
+import type { Workflow, Statistics } from "./datamodel";
 
 import { prepareWorkflow } from "./datamodel";
 

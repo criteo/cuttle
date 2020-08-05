@@ -4,14 +4,14 @@ import injectSheet from "react-jss";
 import classNames from "classnames";
 import React from "react";
 
-import type { JobsPage } from "../../ApplicationState";
-import MenuEntry from "./MenuEntry";
-import MenuSubEntry from "./MenuSubEntry";
+import type { JobsPage } from "./ApplicationState";
+import MenuEntry from "../common/menu/MenuEntry";
+import MenuSubEntry from "../common/menu/MenuSubEntry";
 import LogIcon from "react-icons/lib/md/playlist-play";
 import WorkflowIcon from "react-icons/lib/go/git-merge";
 import CalendarIcon from "react-icons/lib/md/date-range";
 import ListIcon from "react-icons/lib/md/format-list-bulleted";
-import type { Statistics } from "../../datamodel";
+import type { Statistics } from "./datamodel";
 
 type Props = {
   active: JobsPage,

@@ -18,12 +18,12 @@ import ZoomOut from "react-icons/lib/md/zoom-out";
 import ArrowNext from "react-icons/lib/md/arrow-forward";
 import ArrowPrevious from "react-icons/lib/md/arrow-back";
 
-import Link from "../components/Link";
-import Spinner from "../components/Spinner";
+import Link from "../../common/components/Link";
+import Spinner from "../../common/components/Spinner";
 
-import type { Workflow } from "../../datamodel";
+import type { Workflow } from "../datamodel";
 
-import { PostEventSource } from "../../Utils";
+import { PostEventSource } from "../../common/Utils";
 
 type Props = {
   classes: any,

@@ -3,7 +3,7 @@
 import React from "react";
 import moment from "moment";
 
-import Link from "./Link";
+import Link from "../../common/components/Link";
 import CalendarIcon from "react-icons/lib/md/date-range";
 import BreakIcon from "react-icons/lib/md/keyboard-control";
 

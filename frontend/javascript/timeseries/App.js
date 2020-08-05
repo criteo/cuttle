@@ -7,24 +7,24 @@ import injectSheet from "react-jss";
 import _ from "lodash";
 import FilterIcon from "react-icons/lib/md/search";
 
-import MenuHeader from "./app/menu/MenuHeader";
-import Spinner from "./app/components/Spinner";
-import Menu from "./app/menu/Menu";
-import JobSelector from "./app/components/JobSelector";
+import MenuHeader from "../common/menu/MenuHeader";
+import Spinner from "../common/components/Spinner";
+import Menu from "./Menu";
+import JobSelector from "./components/JobSelector";
 import type { Page } from "./ApplicationState";
 import * as Actions from "./actions";
-import Calendar from "./app/pages/Calendar";
-import CalendarFocus from "./app/pages/CalendarFocus";
-import Workflow from "./app/pages/Workflow";
-import { Started, Stuck, Finished } from "./app/pages/ExecutionLogs";
-import Execution from "./app/pages/Execution";
-import TimeSeriesExecutions from "./app/pages/TimeSeriesExecutions";
-import Backfill from "./app/pages/Backfill";
-import Backfills from "./app/pages/Backfills";
-import BackfillCreate from "./app/pages/BackfillCreate";
-import Favicon from "./app/components/Favicon";
+import Calendar from "./pages/Calendar";
+import CalendarFocus from "./pages/CalendarFocus";
+import Workflow from "./pages/Workflow";
+import { Started, Stuck, Finished } from "./pages/ExecutionLogs";
+import Execution from "./pages/Execution";
+import TimeSeriesExecutions from "./pages/TimeSeriesExecutions";
+import Backfill from "./pages/Backfill";
+import Backfills from "./pages/Backfills";
+import BackfillCreate from "./pages/BackfillCreate";
+import Favicon from "./components/Favicon";
 import type { Statistics } from "./datamodel";
-import { Jobs } from "./app/pages/Jobs";
+import { Jobs } from "./pages/Jobs";
 
 type Props = {
   page: Page,

@@ -2,7 +2,7 @@
 
 import React from "react";
 import roundedRectangle from "canvas-rounded-rectangle";
-import type { Statistics } from "../../datamodel";
+import type { Statistics } from "../datamodel";
 
 type Props = {
   statistics: Statistics

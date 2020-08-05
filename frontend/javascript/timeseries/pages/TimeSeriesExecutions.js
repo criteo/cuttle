@@ -9,16 +9,16 @@ import OpenIcon from "react-icons/lib/md/zoom-in";
 import moment from "moment";
 import _ from "lodash";
 
-import Window from "../components/Window";
-import Table from "../components/Table";
-import FancyTable from "../components/FancyTable";
-import Spinner from "../components/Spinner";
-import Link from "../components/Link";
-import Clock from "../components/Clock";
-import Status from "../components/Status";
-import { Badge } from "../components/Badge";
-import { listenEvents } from "../../Utils";
-import type { ExecutionLog, Job } from "../../datamodel";
+import Window from "../../common/components/Window";
+import Table from "../../common/components/Table";
+import FancyTable from "../../common/components/FancyTable";
+import Spinner from "../../common/components/Spinner";
+import Link from "../../common/components/Link";
+import Clock from "../../common/components/Clock";
+import Status from "../../common/components/Status";
+import { Badge } from "../../common/components/Badge";
+import { listenEvents } from "../../common/Utils";
+import type { ExecutionLog, Job } from "../datamodel";
 
 type Props = {
   classes: any,

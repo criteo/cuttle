@@ -15,8 +15,8 @@ import mean from "lodash/mean";
 import reduce from "lodash/reduce";
 import some from "lodash/some";
 
-import type { Edge, Node } from "../../graph/dagger/dataAPI/genericGraph";
-import type { Dependency, Job, Workflow } from "../../datamodel";
+import type { Edge, Node } from "../../common/graph/dagger/dataAPI/genericGraph";
+import type { Dependency, Job, Workflow } from "../datamodel";
 
 import Select from "react-select";
 import { navigate } from "redux-url";
@@ -25,15 +25,15 @@ import { markdown } from "markdown";
 
 import TagIcon from "react-icons/lib/md/label";
 import MdList from "react-icons/lib/md/list";
-import Dagger from "../../graph/Dagger";
-import Window from "../components/Window";
-import FancyTable from "../components/FancyTable";
-import Spinner from "../components/Spinner";
-import Link from "../components/Link";
+import Dagger from "../../common/graph/Dagger";
+import Window from "../../common/components/Window";
+import FancyTable from "../../common/components/FancyTable";
+import Spinner from "../../common/components/Spinner";
+import Link from "../../common/components/Link";
 
 import moment from "moment";
-import PopoverMenu from "../components/PopoverMenu";
-import Status from "../components/Status";
+import PopoverMenu from "../../common/components/PopoverMenu";
+import Status from "../../common/components/Status";
 
 type Props = {
   classes: any,
