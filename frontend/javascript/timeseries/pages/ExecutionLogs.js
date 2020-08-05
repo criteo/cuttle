@@ -14,19 +14,20 @@ import PrevIcon from "react-icons/lib/md/navigate-before";
 import NextIcon from "react-icons/lib/md/navigate-next";
 import BreakIcon from "react-icons/lib/md/keyboard-control";
 import OpenIcon from "react-icons/lib/md/zoom-in";
-import PopoverMenu from "../components/PopoverMenu";
+import PopoverMenu from "../../common/components/PopoverMenu";
 
-import { Badge } from "../components/Badge";
-import Spinner from "../components/Spinner";
-import Clock from "../components/Clock";
-import Table from "../components/Table";
-import { ROW_HEIGHT } from "../components/Table";
-import Link from "../components/Link";
-import TimeRangeLink from "../components/TimeRangeLink";
-import { PostEventSource } from "../../Utils";
-import type { Paginated, ExecutionLog, Workflow } from "../../datamodel";
-import { urlFormat } from "../utils/Date";
-import Status from "../components/Status";
+import { Badge } from "../../common/components/Badge";
+import Spinner from "../../common/components/Spinner";
+import Clock from "../../common/components/Clock";
+import Table from "../../common/components/Table";
+import { ROW_HEIGHT } from "../../common/components/Table";
+import Link from "../../common/components/Link";
+import TimeRangeLink from "../../common/components/TimeRangeLink";
+import { PostEventSource } from "../../common/Utils";
+import type { Paginated } from "../../common/datamodel";
+import type { ExecutionLog, Workflow } from "../datamodel";
+import { urlFormat } from "../../common/utils/Date";
+import Status from "../../common/components/Status";
 
 type Props = {
   classes: any,

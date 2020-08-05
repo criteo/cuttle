@@ -11,7 +11,7 @@ import GraphIcon from "react-icons/lib/go/repo-forked";
 import TagIcon from "react-icons/lib/md/label";
 
 import Select from "react-select";
-import type { Workflow } from "../../datamodel.js";
+import type { Workflow } from "../datamodel";
 
 type Props = {
   classes: any,

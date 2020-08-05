@@ -11,13 +11,13 @@ import ReduxThunk from "redux-thunk";
 import { reducer as formReducer } from "redux-form";
 import isEqual from "lodash/isEqual";
 
-import "../style/index.less";
+import "../../style/index.less";
 
 import App from "./App";
 import { appReducer } from "./ApplicationState";
 import * as Actions from "./actions";
 import type { State } from "./ApplicationState";
-import { PostEventSource } from "./Utils";
+import { PostEventSource } from "../common/Utils";
 
 import { openPage } from "./actions";
 

@@ -3,15 +3,15 @@
 import React from "react";
 import { connect } from "react-redux";
 import injectSheet from "react-jss";
-import FancyTable from "../components/FancyTable";
+import FancyTable from "../../common/components/FancyTable";
 
-import Window from "../components/Window";
-import type { Backfill, ExecutionLog, Workflow } from "../../datamodel";
-import { listenEvents } from "../../Utils";
+import Window from "../../common/components/Window";
+import type { Backfill, ExecutionLog, Workflow } from "../datamodel";
+import { listenEvents } from "../../common/Utils";
 import Context from "../components/Context";
-import Status from "../components/Status";
+import Status from "../../common/components/Status";
 import { markdown } from "markdown";
-import Link from "../components/Link";
+import Link from "../../common/components/Link";
 
 import { BackfillsExecutions } from "./ExecutionLogs";
 

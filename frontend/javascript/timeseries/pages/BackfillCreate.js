@@ -9,14 +9,14 @@ import { Field, reduxForm, SubmissionError } from "redux-form";
 import moment from "moment";
 import ArrowIcon from "react-icons/lib/fa/long-arrow-right";
 
-import Window from "../components/Window";
-import FancyTable from "../components/FancyTable";
+import Window from "../../common/components/Window";
+import FancyTable from "../../common/components/FancyTable";
 import JobSelector from "../components/JobSelector";
-import type { Backfill, ExecutionLog, Workflow } from "../../datamodel";
+import type { Backfill, ExecutionLog, Workflow } from "../datamodel";
 import MaskedInput from "react-maskedinput";
-import StreamView from "../components/StreamView";
-import TextWithDashedLine from "../components/TextWithDashedLine";
-import Error from "../components/Error";
+import StreamView from "../../common/components/StreamView";
+import TextWithDashedLine from "../../common/components/TextWithDashedLine";
+import Error from "../../common/components/Error";
 import ReactTooltip from "react-tooltip";
 import InfoIcon from "react-icons/lib/md/info";
 

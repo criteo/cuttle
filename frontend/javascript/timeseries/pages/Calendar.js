@@ -10,9 +10,9 @@ import moment from "moment";
 import isEqual from "lodash/isEqual";
 
 import { Calendar as MiniCalendar } from "react-calendar";
-import Spinner from "../components/Spinner";
+import Spinner from "../../common/components/Spinner";
 
-import { PostEventSource } from "../../Utils";
+import { PostEventSource } from "../../common/Utils";
 
 type Props = {
   classes: any,

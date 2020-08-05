@@ -3,22 +3,22 @@
 import React from "react";
 import injectSheet from "react-jss";
 import ReactTooltip from "react-tooltip";
-import PopoverMenu from "../components/PopoverMenu";
+import PopoverMenu from "../../common/components/PopoverMenu";
 import moment from "moment";
 
 import Context from "../components/Context";
-import Window from "../components/Window";
-import FancyTable from "../components/FancyTable";
-import Error from "../components/Error";
-import Spinner from "../components/Spinner";
-import Clock from "../components/Clock";
-import Link from "../components/Link";
-import Status from "../components/Status";
-import { Badge } from "../components/Badge";
-import { listenEvents } from "../../Utils";
-import type { ExecutionLog } from "../../datamodel";
-import StreamView from "../components/StreamView";
-import TextWithDashedLine from "../components/TextWithDashedLine";
+import Window from "../../common/components/Window";
+import FancyTable from "../../common/components/FancyTable";
+import Error from "../../common/components/Error";
+import Spinner from "../../common/components/Spinner";
+import Clock from "../../common/components/Clock";
+import Link from "../../common/components/Link";
+import Status from "../../common/components/Status";
+import { Badge } from "../../common/components/Badge";
+import { listenEvents } from "../../common/Utils";
+import type { ExecutionLog } from "../datamodel";
+import StreamView from "../../common/components/StreamView";
+import TextWithDashedLine from "../../common/components/TextWithDashedLine";
 
 type Level = "DEBUG" | "INFO" | "ERROR";
 type Line = {

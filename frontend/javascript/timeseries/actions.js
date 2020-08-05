@@ -1,6 +1,7 @@
 // @flow
 import type { Page } from "./ApplicationState";
-import type { Project, Workflow, Statistics } from "./datamodel";
+import type { Project } from "../common/datamodel";
+import type { Workflow, Statistics } from "./datamodel";
 
 type StatusSuccess = "success";
 type StatusWaiting = "pending" | "error";

@@ -2,17 +2,7 @@
 import _ from "lodash";
 import moment, { Moment } from "moment";
 
-export type Project = {
-  name: string,
-  version: ?string,
-  description: ?string,
-  env: {
-    name: ?string,
-    critical: boolean
-  }
-};
-
-export type ExecutionStatus = "running" | "throttled";
+import type { ExecutionStatus, NodeKind, Tag } from "../common/datamodel";
 
 export type ExecutionLog = {
   id: string,
@@ -28,12 +18,6 @@ export type ExecutionLog = {
   waitingSeconds: number
 };
 
-export type Paginated<A> = {
-  total: number,
-  data: Array<A>,
-  completion?: number
-};
-
 export type Statistics = {
   running: number,
   waiting: number,
@@ -44,12 +28,6 @@ export type Statistics = {
 };
 
 export type Dependency = { from: string, to: string };
-
-export type Tag = { name: string, description: string };
-
-export type Tags = { [string]: string };
-
-export type NodeKind = "root" | "leaf" | "common";
 
 export type Calendar =
   | {

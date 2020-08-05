@@ -9,16 +9,16 @@ import { navigate } from "redux-url";
 import OpenIcon from "react-icons/lib/md/zoom-in";
 
 import BackfillStatus from "../components/BackfillStatus";
-import Clock from "../components/Clock";
-import Link from "../components/Link";
-import TimeRangeLink from "../components/TimeRangeLink";
-import PopoverMenu from "../components/PopoverMenu";
-import Spinner from "../components/Spinner";
-import Table from "../components/Table";
-import { urlFormat } from "../utils/Date";
+import Clock from "../../common/components/Clock";
+import Link from "../../common/components/Link";
+import TimeRangeLink from "../../common/components/TimeRangeLink";
+import PopoverMenu from "../../common/components/PopoverMenu";
+import Spinner from "../../common/components/Spinner";
+import Table from "../../common/components/Table";
+import { urlFormat } from "../../common/utils/Date";
 
-import type { Backfill, Statistics } from "../../datamodel";
-import { backfillFromJSON } from "../../datamodel";
+import type { Backfill, Statistics } from "../datamodel";
+import { backfillFromJSON } from "../datamodel";
 
 type Sort = {
   column: string,
