@@ -50,7 +50,7 @@ private[cron] case class CronState(logger: Logger) {
     val dependenciesSatisfied = dag.cronPipeline.parentsMap.filter {
       case (_, deps) =>
         deps.forall { p =>
-          successfulJobs.contains(p.parent)
+          successfulJobs.contains(p.from)
         }
     }.keySet
     val candidates = dependenciesSatisfied ++ dag.cronPipeline.roots
