@@ -1,14 +1,13 @@
 package com.criteo.cuttle.cron
 
-import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import cats.data.EitherT
 import cats.effect.IO
+import cats.syntax.either._
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
 import com.criteo.cuttle._
-import com.criteo.cuttle.utils.getJVMUptime
+import com.criteo.cuttle.utils.{getJVMUptime, sse}
 import io.circe._
 import io.circe.syntax._
 import lol.http._
@@ -23,6 +22,25 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
   private val workload: CronWorkload = project.workload
 
   private val allJobIds = workload.all.map(_.id)
+  private val allDagIds = workload.dags.map(_.id)
+
+  private def getDagsOrNotFound(json: Json): Either[Response, Set[CronDag]] =
+    json.hcursor.downField("dags").as[Set[String]] match {
+      case Left(_) => Left(BadRequest(s"Error: Cannot parse request body: $json"))
+      case Right(dagIds) =>
+        if (dagIds.isEmpty) Right(workload.dags)
+        else {
+          val filterDags = workload.dags.filter(v => dagIds.contains(v.id))
+          if (filterDags.isEmpty) Left(NotFound)
+          else Right(filterDags)
+        }
+    }
+
+  private def getDagIdsFromJobIds(jobIds: Set[String]): Set[String] =
+    for {
+      dag <- workload.dags
+      if dag.cronPipeline.vertices.exists(job => jobIds.contains(job.id))
+    } yield dag.id
 
   val publicApi: PartialService = {
     case GET at "/version" => Ok(project.version)
@@ -73,24 +91,147 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
     case GET at "/api/dags/paused" =>
       Ok(scheduler.getPausedDags.asJson)
 
-    // we only show 20 recent executions by default but it could be modified via query parameter
-    case GET at url"/api/cron/executions?dag=$dag&start=$start&end=$end&limit=$limit" =>
-      val jsonOrError: EitherT[IO, Throwable, Json] = for {
-        dag <- EitherT.fromOption[IO](workload.dags.find(_.id == dag), throw new Exception(s"Unknown job DAG $dag"))
-        jobIds <- EitherT.rightT[IO, Throwable](dag.cronPipeline.vertices.map(_.id))
-        startDate <- EitherT.rightT[IO, Throwable](Try(Some(Instant.parse(start))).getOrElse(None))
-        endDate <- EitherT.rightT[IO, Throwable](Try(Some(Instant.parse(end))).getOrElse(None))
-        limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
-        executions <- EitherT.right[Throwable](buildExecutionsList(executor, jobIds, startDate, endDate, limit))
-        executionListFlat <- EitherT.rightT[IO, Throwable](executions.values.toSet.flatten)
-        json <- EitherT.rightT[IO, Throwable](
-          Json.fromValues(executionListFlat.map(ExecutionLog.executionLogEncoder.apply(_)))
-        )
-      } yield json
+    case request @ POST at url"/api/dags/states" =>
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json.hcursor
+            .downField("dags")
+            .as[Set[String]]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              dagIds => {
+                val ids = if (dagIds.isEmpty) allDagIds else dagIds
+                Ok(scheduler.getStats(ids))
+              }
+            )
+        }
 
-      jsonOrError.value.map {
-        case Right(json) => Ok(json)
-        case Left(e)     => BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
+    case request @ POST at url"/api/statistics" => {
+      def getStats(jobIds: Set[String]): IO[Option[(Json, Json)]] =
+        executor
+          .getStats(jobIds)
+          .map(stats => Try(stats -> scheduler.getStats(getDagIdsFromJobIds(jobIds))).toOption)
+
+      def asJson(x: (Json, Json)) = x match {
+        case (executorStats, schedulerStats) =>
+          executorStats.deepMerge(Json.obj("scheduler" -> schedulerStats))
+      }
+
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json.hcursor
+            .downField("jobs")
+            .as[Set[String]]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              jobIds => {
+                val ids = if (jobIds.isEmpty) allJobIds else jobIds
+                getStats(ids).map(
+                  _.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
+                )
+              }
+            )
+        }
+    }
+
+    case request @ POST at url"/api/executions/status/$kind" => {
+      def getExecutions(
+        q: ExecutionsQuery
+      ): IO[Option[(Int, List[ExecutionLog])]] = kind match {
+        case "started" =>
+          IO(
+            Some(
+              executor.runningExecutionsSizeTotal(q.jobIds(allJobIds)) -> executor
+                .runningExecutions(
+                  q.jobIds(allJobIds),
+                  q.sort.column,
+                  q.sort.asc,
+                  q.offset,
+                  q.limit
+                )
+                .toList
+            )
+          )
+        case "retrying" =>
+          IO(
+            Some(
+              executor.failingExecutionsSize(q.jobIds(allJobIds)) -> executor
+                .failingExecutions(
+                  q.jobIds(allJobIds),
+                  q.sort.column,
+                  q.sort.asc,
+                  q.offset,
+                  q.limit
+                )
+                .toList
+            )
+          )
+        case "finished" =>
+          executor
+            .archivedExecutionsSize(q.jobIds(allJobIds))
+            .map(ids => Some(ids -> executor.allRunning.toList))
+        case _ =>
+          IO.pure(None)
+      }
+
+      def asJson(q: ExecutionsQuery, x: (Int, Seq[ExecutionLog])): IO[Json] =
+        x match {
+          case (total, executions) =>
+            (kind match {
+              case "finished" =>
+                executor
+                  .archivedExecutions(
+                    scheduler.allContexts,
+                    q.jobIds(allJobIds),
+                    q.sort.column,
+                    q.sort.asc,
+                    q.offset,
+                    q.limit
+                  )
+                  .map(execs => execs.asJson)
+              case _ =>
+                IO(executions.asJson)
+            }).map(
+              data =>
+                Json.obj(
+                  "total" -> total.asJson,
+                  "offset" -> q.offset.asJson,
+                  "limit" -> q.limit.asJson,
+                  "sort" -> q.sort.asJson,
+                  "data" -> data
+                )
+            )
+        }
+
+      request
+        .readAs[Json]
+        .flatMap { json =>
+          json
+            .as[ExecutionsQuery]
+            .fold(
+              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              query => {
+                getExecutions(query)
+                  .flatMap(
+                    _.map(e => asJson(query, e).map(json => Ok(json)))
+                      .getOrElse(NotFound)
+                  )
+              }
+            )
+        }
+    }
+
+    case GET at url"/api/executions/$id?events=$events" =>
+      def getExecution =
+        IO.suspend(executor.getExecution(scheduler.allContexts, id))
+
+      events match {
+        case "true" | "yes" =>
+          sse(getExecution, (e: ExecutionLog) => IO(e.asJson))
+        case _ =>
+          getExecution.map(_.map(e => Ok(e.asJson)).getOrElse(NotFound))
       }
   }
 
@@ -117,61 +258,83 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
           }
       }
     }
-
-    case POST at url"/api/dags/$id/pause" => { implicit user =>
-      workload.dags.find(_.id == id).fold(NotFound) { dag =>
-        scheduler.pauseDags(Set(dag), executor)
-        Ok
-      }
+    case request @ POST at url"/api/executions/relaunch" => { implicit user =>
+      request
+        .readAs[Json]
+        .map { json =>
+          json.hcursor
+            .downField("jobs")
+            .as[Set[String]]
+            .fold(
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
+              jobIds => {
+                val ids = if (jobIds.isEmpty) allJobIds else jobIds
+                executor.relaunch(ids)
+                Ok
+              }
+            )
+        }
     }
 
-    case POST at url"/api/dags/$id/runnow" => { implicit user =>
-      workload.dags.find(_.id == id).fold(NotFound) { dag =>
-        scheduler.runJobsNow(Set(dag), executor)
-        Ok
-      }
+    case request @ POST at url"/api/dags/pause" => { implicit user =>
+      request
+        .readAs[Json]
+        .map { json =>
+          getDagsOrNotFound(json) match {
+            case Left(a) => a
+            case Right(dagIds) =>
+              scheduler.pauseDags(dagIds, executor)
+              Ok
+          }
+        }
     }
 
-    case POST at url"/api/dags/$id/runnow_redirect" => { implicit user =>
-      workload.dags.find(_.id == id).fold(NotFound) { dag =>
-        scheduler.runJobsNow(Set(dag), executor)
-        Redirect("/", 302)
-      }
+    case request @ POST at url"/api/dags/resume" => { implicit user =>
+      request
+        .readAs[Json]
+        .map { json =>
+          getDagsOrNotFound(json) match {
+            case Left(a) => a
+            case Right(dagIds) =>
+              scheduler.resumeDags(dagIds, executor)
+              Ok
+          }
+        }
     }
 
-    case POST at url"/api/dags/$id/resume" => { implicit user =>
-      workload.dags.find(_.id == id).fold(NotFound) { dag =>
-        scheduler.resumeDags(Set(dag), executor)
-        Ok
-      }
-    }
-
-    case POST at url"/api/dags/$id/pause_redirect" => { implicit user =>
-      workload.dags.find(_.id == id).fold(NotFound) { dag =>
-        scheduler.pauseDags(Set(dag), executor)
-        Redirect("/", 302)
-      }
-    }
-
-    case POST at url"/api/dags/$id/resume_redirect" => { implicit user =>
-      workload.dags.find(_.id == id).fold(NotFound) { dag =>
-        scheduler.resumeDags(Set(dag), executor)
-        Redirect("/", 302)
-      }
+    case request @ POST at url"/api/dags/runnow" => { implicit user =>
+      request
+        .readAs[Json]
+        .map { json =>
+          getDagsOrNotFound(json) match {
+            case Left(a) => a
+            case Right(dagIds) =>
+              scheduler.resumeDags(dagIds, executor)
+              Ok
+          }
+        }
     }
   }
 
   private val api = publicApi orElse project.authenticator(privateApi)
-  private val uiRoutes = UI(project, executor).routes()
+
+  private val publicAssets: PartialService = {
+    case GET at url"/public/cron/$file" =>
+      ClasspathResource(s"/public/cron/$file").fold(NotFound)(r => Ok(r))
+  }
+
+  private val index: AuthenticatedService = {
+    case req if req.url.startsWith("/api/") =>
+      _ => NotFound
+    case _ =>
+      _ => Ok(ClasspathResource(s"/public/cron/index.html"))
+  }
 
   val routes: PartialService = api
-    .orElse(uiRoutes)
     .orElse {
       executor.platforms.foldLeft(PartialFunction.empty: PartialService) {
         case (s, p) => s.orElse(p.publicRoutes).orElse(project.authenticator(p.privateRoutes))
       }
     }
-    .orElse {
-      case _ => NotFound
-    }
+    .orElse(publicAssets orElse project.authenticator(index))
 }

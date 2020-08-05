@@ -15,7 +15,10 @@ import mean from "lodash/mean";
 import reduce from "lodash/reduce";
 import some from "lodash/some";
 
-import type { Edge, Node } from "../../common/graph/dagger/dataAPI/genericGraph";
+import type {
+  Edge,
+  Node
+} from "../../common/graph/dagger/dataAPI/genericGraph";
 import type { Dependency, Job, Workflow } from "../datamodel";
 
 import Select from "react-select";

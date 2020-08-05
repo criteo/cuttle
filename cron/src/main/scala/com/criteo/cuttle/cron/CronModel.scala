@@ -136,22 +136,30 @@ private[cron] case class CronState(logger: Logger) {
   }
 
   private[cron] def snapshotAsJson(dagIds: Set[String]) = atomic { implicit txn =>
-    val activeDagsSnapshot = executions().collect {
-      case (cronDag: CronDag, Left(nextInstant)) if dagIds.contains(cronDag.id) =>
+    val (activeDags, pausedDags) = snapshot(dagIds)
+    val activeDagsJson = activeDags.map {
+      case (dag, Left(nextInstant)) =>
         Json.obj(
-          "id" -> cronDag.id.asJson,
+          "id" -> dag.id.asJson,
           "status" -> "waiting".asJson,
           "nextInstant" -> nextInstant.asJson
         )
-      case (cronDag: CronDag, Right(_)) if dagIds.contains(cronDag.id) =>
+      case (dag, Right(_)) =>
         Json.obj(
-          "id" -> cronDag.id.asJson,
+          "id" -> dag.id.asJson,
           "status" -> "running".asJson
         )
     }
-    Json.arr(
-      activeDagsSnapshot.toSeq: _*
-    )
+    val pausedDagsJson = pausedDags.map {
+      case (dag, pausedDag) =>
+        Json.obj(
+          "id" -> dag.id.asJson,
+          "status" -> "paused".asJson,
+          "pausedUser" -> pausedDag.user.userId.asJson,
+          "pausedDate" -> pausedDag.date.asJson
+        )
+    }
+    Json.arr((activeDagsJson ++ pausedDagsJson).toSeq: _*)
   }
 
   private[cron] def snapshot(dagIds: Set[String]) = atomic { implicit txn =>
@@ -215,6 +223,15 @@ case class CronScheduling(maxRetry: Int = 0) extends Scheduling {
   */
 case class CronWorkload(dags: Set[CronDag]) extends Workload[CronScheduling] {
   override def all: Set[Job[CronScheduling]] = dags.flatMap(_.cronPipeline.vertices)
+
+  override def asJson: Json = Json.obj(
+    "dags" -> dags.map(_.asJson).asJson,
+    "jobs" -> all.map(_.asJson).asJson,
+    "dependencies" -> dags.flatMap { dag =>
+      dag.cronPipeline.edges.map(_.asJson)
+    }.asJson,
+    "tags" -> (dags.flatMap(_.tags) ++ all.flatMap(_.tags)).asJson
+  )
 }
 
 case class CronDag(id: String,
@@ -225,11 +242,11 @@ case class CronDag(id: String,
                    tags: Set[Tag] = Set.empty[Tag])
 
 object CronDag {
-  implicit val encodeUser: Encoder[CronDag] = new Encoder[CronDag] {
+  implicit val encodeDag: Encoder[CronDag] = new Encoder[CronDag] {
     override def apply(cronDag: CronDag) =
       Json.obj(
         "id" -> cronDag.id.asJson,
-        "name" -> Option(cronDag.name).filterNot(_.isEmpty).asJson,
+        "name" -> Option(cronDag.name).filterNot(_.isEmpty).getOrElse(cronDag.id).asJson,
         "description" -> Option(cronDag.description).filterNot(_.isEmpty).asJson,
         "expression" -> cronDag.cronExpression.asJson,
         "tags" -> cronDag.tags.map(_.name).asJson,

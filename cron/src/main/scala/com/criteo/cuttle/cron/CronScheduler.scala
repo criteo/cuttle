@@ -33,6 +33,8 @@ case class CronScheduler(logger: Logger) extends Scheduler[CronScheduling] {
 
   override val name = "cron"
 
+  override val allContexts = Database.sqlGetContextsBetween(None, None)
+
   private val queries = Queries(logger)
 
   private val state = CronState(logger)
