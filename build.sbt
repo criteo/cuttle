@@ -1,5 +1,6 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
+val yarnInstall = taskKey[Unit]("Install yarn dependencies")
 
 val VERSION = "0.11.5"
 
@@ -190,7 +191,7 @@ def webpackSettings(project: String) = List(
       )
       listFiles(webpackOutputDir)
     }
-  }.dependsOn(yarnInstallTask).taskValue
+  }.dependsOn(cuttle / yarnInstall).taskValue
 )
 
 lazy val localdb = {
@@ -236,28 +237,30 @@ lazy val cuttle =
         "org.tpolecat" %% "doobie-scalatest" % doobie
       ).map(_ % "it,test")
     )
-
-lazy val yarnInstallTask = Def.task {
-  import scala.sys.process._
-  val streams0 = streams.value
-  if (devMode.value) {
-    streams0.log.warn(s"Skipping yarn install.")
-  } else {
-    val logger = new ProcessLogger {
-      override def err(s: => String): Unit = streams0.log.info(s"ERR, $s")
-      override def buffer[T](f: => T): T = f
-      override def out(s: => String): Unit = streams0.log.info(s)
-    }
-    val operatingSystem = System.getProperty("os.name").toLowerCase
-    logger.out("Running yarn install")
-    if (operatingSystem.indexOf("win") >= 0) {
-      val yarnJsPath = ("where yarn.js" !!).trim()
-      assert(s"""node "$yarnJsPath" install""" ! logger == 0, "yarn failed")
-    } else {
-      assert("yarn install" ! logger == 0, "yarn failed")
-    }
-  }
-}
+    .settings(
+      yarnInstall := {
+        import scala.sys.process._
+        val streams0 = streams.value
+        if (devMode.value) {
+          streams0.log.warn(s"Skipping yarn install.")
+        } else {
+          val logger = new ProcessLogger {
+            override def err(s: => String): Unit = streams0.log.info(s"ERR, $s")
+            override def buffer[T](f: => T): T = f
+            override def out(s: => String): Unit = streams0.log.info(s)
+          }
+          val operatingSystem = System.getProperty("os.name").toLowerCase
+          logger.out("Running yarn install")
+          if (operatingSystem.indexOf("win") >= 0) {
+            val yarnJsPath = ("where yarn.js" !!).trim()
+            assert(s"""node "$yarnJsPath" install""" ! logger == 0, "yarn failed")
+          } else {
+            assert("yarn install" ! logger == 0, "yarn failed")
+          }
+        }
+      },
+      cleanFiles += (file(".") / "node_modules")
+    )
 
 lazy val timeseries =
   (project in file("timeseries"))
