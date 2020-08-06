@@ -73,7 +73,7 @@ const Menu = ({ classes, className, active, statistics }: Props) => (
     />
     <MenuEntry
       active={active.id === "dags"}
-      label="Dags"
+      label="Job DAGs"
       link="/dags/all"
       icon={<ListIcon style={{ transform: "translateY(-3px)" }} />}
       subEntries={[

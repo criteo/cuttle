@@ -3,7 +3,6 @@ package com.criteo.cuttle.cron
 import java.util.concurrent.TimeUnit
 
 import cats.effect.IO
-import cats.syntax.either._
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
 import com.criteo.cuttle._
@@ -309,7 +308,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
           getDagsOrNotFound(json) match {
             case Left(a) => a
             case Right(dagIds) =>
-              scheduler.resumeDags(dagIds, executor)
+              scheduler.runJobsNow(dagIds, executor)
               Ok
           }
         }

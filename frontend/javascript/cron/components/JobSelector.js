@@ -101,14 +101,14 @@ class JobSelector extends React.Component<Props, State> {
       .concat(
         _.flatMap(_.sortBy(workflow.dags, dag => dag.name), dag => {
           const dagJobs = dag.pipeline.vertices;
-          if (dagJobs.length == 1 && dagJobs[0].id == dag.id) {
+          if (dagJobs.length == 1 && dagJobs[0] == dag.id) {
             return [];
           } else {
             return [
               {
                 value: `_${dag.name}-DAG`,
                 others: dagJobs,
-                label: `Jobs for dag '${dag.name}'`,
+                label: `Jobs for DAG '${dag.name}'`,
                 kind: "dag"
               }
             ];

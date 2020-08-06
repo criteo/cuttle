@@ -78,9 +78,9 @@
   },
   "scripts": {
     "start": "loop",
-    "format": "prettier-eslint \"**/src/**/*.js\" --write --bracket-spacing true",
+    "format": "prettier-eslint \"frontend/**/*.js\" --write --bracket-spacing true",
     "format-diff": "prettier-eslint $(git diff-index HEAD --name-only --diff-filter=d -- '*.js') --write --bracket-spacing true",
-    "eslint": "eslint \"**/src/**/*.js\"",
+    "eslint": "eslint \"frontend/**/*.js\"",
     "eslint-check": "eslint --print-config .eslintrc | eslint-config-prettier-check",
     "serve": "NODE_ENV=development webpack-dev-server --output-public-path='/' --hot",
     "build": "NODE_ENV=production webpack"

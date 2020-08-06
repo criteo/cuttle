@@ -139,6 +139,14 @@ const sortFunction: Sort => DagsOrder = (sort: Sort) => (
     a.status.localeCompare(b.status);
   const userOrder = (a: DisplayedDag, b: DisplayedDag) =>
     a.pausedUser.localeCompare(b.pausedUser);
+  const nextInstantOrder = (a: DisplayedDag, b: DisplayedDag) =>
+    new Date(a.nextInstant)
+      .toISOString()
+      .localeCompare(new Date(b.nextInstant).toISOString());
+  const pausedDateOrder = (a: DisplayedDag, b: DisplayedDag) =>
+    new Date(a.pausedDate)
+      .toISOString()
+      .localeCompare(new Date(b.pausedDate).toISOString());
   const sortFn = (sort: Sort) => {
     switch (sort.column) {
       case "id":
@@ -149,6 +157,10 @@ const sortFunction: Sort => DagsOrder = (sort: Sort) => (
         return statusOrder;
       case "user":
         return userOrder;
+      case "nextInstant":
+        return nextInstantOrder;
+      case "pausedDate":
+        return pausedDateOrder;
       default:
         return idOrder;
     }
@@ -180,6 +192,7 @@ const fetchDagStates = (
 const dagAction = (
   action: string,
   dags: string[],
+  selectedDags: string[],
   persist: ({ dagStates: DagState[] }) => void
 ) => {
   return () => {
@@ -187,7 +200,7 @@ const dagAction = (
       method: "POST",
       credentials: "include",
       body: JSON.stringify({ dags: dags })
-    }).then(() => fetchDagStates(persist, dags));
+    }).then(() => fetchDagStates(persist, selectedDags));
   };
 };
 
@@ -293,7 +306,12 @@ class DagsComp extends React.Component<Props, State> {
                 case "pauseAction":
                   return row.status === "paused" ? (
                     <a
-                      onClick={dagAction("resume", [row.id], persist)}
+                      onClick={dagAction(
+                        "resume",
+                        [row.id],
+                        selectedDags,
+                        persist
+                      )}
                       className={classNames(classes.link, classes.actionIcon)}
                       title="Resume"
                     >
@@ -301,7 +319,12 @@ class DagsComp extends React.Component<Props, State> {
                     </a>
                   ) : (
                     <a
-                      onClick={dagAction("pause", [row.id], persist)}
+                      onClick={dagAction(
+                        "pause",
+                        [row.id],
+                        selectedDags,
+                        persist
+                      )}
                       className={classNames(classes.link, classes.actionIcon)}
                       title="Pause"
                     >
@@ -315,7 +338,14 @@ class DagsComp extends React.Component<Props, State> {
                     <PopoverMenu
                       className={classes.menu}
                       items={[
-                        <span onClick={dagAction("runnow", [row.id], persist)}>
+                        <span
+                          onClick={dagAction(
+                            "runnow",
+                            [row.id],
+                            selectedDags,
+                            persist
+                          )}
+                        >
                           {`Run '${row.name}' Now`}
                         </span>
                       ]}
@@ -347,8 +377,8 @@ class DagsComp extends React.Component<Props, State> {
     };
 
     const persist = this.setState.bind(this);
-    const pause = dagAction("pause", selectedDags, persist);
-    const resume = dagAction("resume", selectedDags, persist);
+    const pause = dagAction("pause", selectedDags, selectedDags, persist);
+    const resume = dagAction("resume", selectedDags, selectedDags, persist);
     const isFilterApplied = selectedDags.length > 0;
     const menuItems = [];
     if (isFilterApplied) {
@@ -365,7 +395,7 @@ class DagsComp extends React.Component<Props, State> {
 
     return (
       <div className={classes.container}>
-        <h1 className={classes.title}>Dags</h1>
+        <h1 className={classes.title}>Job DAGs</h1>
         <PopoverMenu className={classes.menu} items={menuItems} />
         <div className={classes.grid}>
           <div className={classes.data}>
