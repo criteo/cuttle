@@ -7,15 +7,15 @@ import cats.effect.IO
 import doobie.util.transactor.Transactor
 import org.mockito.Matchers._
 import org.mockito.Mockito._
-import org.scalatest.FunSuite
 import com.criteo.cuttle.ThreadPools.Implicits.sideEffectThreadPool
 import com.criteo.cuttle.ThreadPools.Implicits.sideEffectContextShift
 import com.criteo.cuttle.ThreadPools._
 import com.criteo.cuttle.Utils.logger
 
 import com.criteo.cuttle.Metrics.Prometheus
+import org.scalatest.funsuite.AnyFunSuite
 
-class ExecutorSpec extends FunSuite with TestScheduling {
+class ExecutorSpec extends AnyFunSuite with TestScheduling {
 
   test("Executor should return metrics aggregated by job and tag") {
     val connection: Connection = {

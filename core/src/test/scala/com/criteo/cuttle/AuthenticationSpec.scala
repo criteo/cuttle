@@ -1,10 +1,10 @@
 package com.criteo.cuttle
 
-import org.scalatest.FunSuite
 import lol.http._
 import Auth._
+import org.scalatest.funsuite.AnyFunSuite
 
-class AuthenticationSpec extends FunSuite {
+class AuthenticationSpec extends AnyFunSuite {
 
   import SuiteUtils._
 
