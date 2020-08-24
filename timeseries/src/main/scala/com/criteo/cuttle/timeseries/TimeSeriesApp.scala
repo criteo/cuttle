@@ -19,7 +19,7 @@ import io.circe.syntax._
 import org.http4s._
 import org.http4s.dsl.io._
 import org.http4s.circe._
-import org.http4s.headers.{Accept, `Content-Type`}
+import org.http4s.headers.{`Content-Type`, Accept}
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
@@ -270,7 +270,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         }
     }
 
-    case request @ GET -> Root / "api" / "executions"/ id =>
+    case request @ GET -> Root / "api" / "executions" / id =>
       val events = request.multiParams.getOrElse("events", "")
       def getExecution =
         IO.suspend(executor.getExecution(scheduler.allContexts, id))
@@ -344,7 +344,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       }
     case request @ POST -> Root / "api" / "executions" / "relaunch" as user =>
       val jobs: String = request.req.params.getOrElse("jobs", "")
-    
+
 
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
@@ -1132,16 +1132,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       StaticFile.fromResource[IO](s"/public/timeseries/index.html", ThreadPools.blockingExecutionContext).getOrElseF(NotFound())
   }
 
-  val privatePlatformApis: AuthedRoutes[User, IO] = executor
-    .platforms
-    .toList
+  val privatePlatformApis: AuthedRoutes[User, IO] = executor.platforms.toList
     .foldMapK(_.privateRoutes)
 
   /** List of */
   val routes: HttpRoutes[IO] =
     publicApi <+>
-    publicRoutes() <+>
-    executor.platforms.toList.foldMapK(_.publicRoutes) <+>
-    publicAssets <+>
-    project.authenticator(privateApi <+> privateRoutes() <+> privatePlatformApis <+> index)
+      publicRoutes() <+>
+      executor.platforms.toList.foldMapK(_.publicRoutes) <+>
+      publicAssets <+>
+      project.authenticator(privateApi <+> privateRoutes() <+> privatePlatformApis <+> index)
 }

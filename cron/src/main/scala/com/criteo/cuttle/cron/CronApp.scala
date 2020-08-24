@@ -62,7 +62,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
 
       Ok(Prometheus.serialize(metrics))
 
-    case GET -> Root / "api" / "status"  =>
+    case GET -> Root / "api" / "status" =>
       val projectJson = (status: String) =>
         Json.obj(
           "project" -> project.name.asJson,
@@ -74,9 +74,9 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
         case _          => InternalServerError(projectJson("ko"))
       }
 
-    case GET -> Root / "api" / "project_definition"  => Ok(project.asJson)
+    case GET -> Root / "api" / "project_definition" => Ok(project.asJson)
 
-    case GET -> Root / "api" / "jobs_definition"  => Ok(workload.asJson)
+    case GET -> Root / "api" / "jobs_definition" => Ok(workload.asJson)
 
     case req @ GET -> Root / "api" / "executions" / id / "streams" =>
       lazy val streams = executor.openStreams(id)
@@ -347,8 +347,8 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
   }
 
   val routes: HttpRoutes[IO] = publicApi <+>
-      executor.platforms.toList.foldMapK(_.publicRoutes) <+>
-      publicAssets <+>
-      project.authenticator(privateApi <+> executor.platforms.toList.foldMapK(_.privateRoutes) <+> index)
+    executor.platforms.toList.foldMapK(_.publicRoutes) <+>
+    publicAssets <+>
+    project.authenticator(privateApi <+> executor.platforms.toList.foldMapK(_.privateRoutes) <+> index)
 
 }

@@ -25,8 +25,8 @@ object Auth {
     implicit val decoder: Decoder[User] = deriveDecoder
   }
 
-  val GuestAuth: AuthMiddleware[IO, User] = AuthMiddleware(Kleisli {
-    _ => OptionT.some(User("guest"))
+  val GuestAuth: AuthMiddleware[IO, User] = AuthMiddleware(Kleisli { _ =>
+    OptionT.some(User("guest"))
   })
- 
+
 }

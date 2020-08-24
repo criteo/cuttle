@@ -76,7 +76,9 @@ class CronProject private[cuttle] (val name: String,
     BlazeServerBuilder[IO](ThreadPools.Implicits.serverThreadPool)
       .bindHttp(port, "localhost")
       .withHttpApp(Router("/" -> cronApp.routes).orNotFound)
-      .serve.compile.drain
+      .serve
+      .compile
+      .drain
 
     logger.info(s"Listening on http://localhost:$port")
   }

@@ -69,7 +69,10 @@ class CuttleProject private[cuttle] (val name: String,
     BlazeServerBuilder[IO](ThreadPools.Implicits.serverThreadPool)
       .bindHttp(httpPort, "0.0.0.0")
       .withHttpApp(Router("/" -> routes).orNotFound)
-      .serve.compile.drain.unsafeRunSync()
+      .serve
+      .compile
+      .drain
+      .unsafeRunSync()
 
     logger.info(s"Listening on http://localhost:$httpPort")
   }
