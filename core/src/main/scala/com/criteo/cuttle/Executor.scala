@@ -28,6 +28,7 @@ import com.criteo.cuttle.ThreadPools.{SideEffectThreadPool, _}
 import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle.platforms.ExecutionPool
 import doobie.util.Meta
+import org.http4s.HttpRoutes
 
 /** The strategy to use to retry stuck executions.
   *
@@ -387,7 +388,7 @@ private[cuttle] object Execution {
 trait ExecutionPlatform {
 
   /** Expose a public `lolhttp` service for the platform internal statistics (for the UI and API). */
-  def publicRoutes: PartialService = PartialFunction.empty
+  def publicRoutes: HttpRoutes[IO] = HttpRoutes.empty[IO]
 
   /** Expose a private `lolhttp` service for the platform operations (for the UI and API). */
   def privateRoutes: AuthenticatedService = PartialFunction.empty

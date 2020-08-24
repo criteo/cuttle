@@ -4,14 +4,19 @@ import scala.concurrent.stm._
 import scala.concurrent.duration._
 import java.time._
 
-import lol.http._
-import lol.json._
 import io.circe._
 import io.circe.syntax._
 import io.circe.java8.time._
+
+import cats.implicits._
+
 import cats.effect.IO
 
 import com.criteo.cuttle.utils.timer
+
+import org.http4s._
+import org.http4s._, org.http4s.dsl.io._, org.http4s.implicits._
+import org.http4s.circe._
 
 /**
   * An rate limiter pool backed by a priority queue. It rate limits the executions
@@ -46,8 +51,8 @@ class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueu
   def doRunNext()(implicit txn: InTxn) = _tokens() = _tokens() - 1
 
   override def routes(urlPrefix: String) =
-    ({
-      case req if req.url == urlPrefix =>
+    HttpRoutes.of[IO]({
+      case req if req.uri.toString == urlPrefix =>
         Ok(
           Json.obj(
             "max_tokens" -> tokens.asJson,
@@ -56,6 +61,6 @@ class RateLimiter(tokens: Int, refillRateInMs: Int) extends WaitingExecutionQueu
             "last_refill" -> _lastRefill.single.get.asJson
           )
         )
-    }: PartialService).orElse(super.routes(urlPrefix))
+    }) <+> super.routes(urlPrefix)
 
 }

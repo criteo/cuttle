@@ -5,7 +5,12 @@ import java.nio.ByteBuffer
 import com.criteo.cuttle._
 import com.criteo.cuttle.platforms.ExecutionPool
 import com.zaxxer.nuprocess._
-import lol.http.PartialService
+
+import cats.effect._
+
+import org.http4s._
+import org.http4s._, org.http4s.dsl.io._, org.http4s.implicits._
+import org.http4s.circe._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
@@ -25,7 +30,7 @@ case class LocalPlatform(maxForkedProcesses: Int) extends ExecutionPlatform {
   override def waiting: Set[Execution[_]] =
     pool.waiting
 
-  override lazy val publicRoutes: PartialService =
+  override lazy val publicRoutes: HttpRoutes[IO] =
     pool.routes("/api/platforms/local/pool")
 }
 

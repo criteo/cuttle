@@ -8,12 +8,13 @@ lazy val catsCore = "1.6.1"
 lazy val circe = "0.11.1"
 lazy val doobie = "0.7.0"
 lazy val lolhttp = "0.13.0"
+lazy val http4sVersion = "0.20.23"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
-  scalaVersion := "2.11.12",
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  scalaVersion := "2.12.10",
+  crossScalaVersions := Seq("2.11.12", "2.12.10"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
@@ -214,7 +215,7 @@ lazy val cuttle =
       libraryDependencies ++= Seq(
         "com.criteo.lolhttp" %% "lolhttp",
         "com.criteo.lolhttp" %% "loljson",
-        "com.criteo.lolhttp" %% "lolhtml"
+        "com.criteo.lolhttp" %% "lolhtml",
       ).map(_ % lolhttp),
       libraryDependencies ++= Seq("core", "generic", "parser", "java8")
         .map(module => "io.circe" %% s"circe-$module" % circe),
@@ -226,6 +227,12 @@ lazy val cuttle =
         "codes.reactive" %% "scala-time" % "0.4.2",
         "com.zaxxer" % "nuprocess" % "1.1.3",
         "org.mariadb.jdbc" % "mariadb-java-client" % "2.7.0"
+      ),
+      libraryDependencies ++= Seq(
+        "org.http4s" %% "http4s-dsl" % http4sVersion,
+        "org.http4s" %% "http4s-blaze-server" % http4sVersion,
+        "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+        "org.http4s" %% "http4s-circe" % http4sVersion
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",

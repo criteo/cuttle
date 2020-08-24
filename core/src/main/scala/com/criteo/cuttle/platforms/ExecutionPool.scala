@@ -2,11 +2,15 @@ package com.criteo.cuttle.platforms
 
 import scala.concurrent.stm._
 
-import lol.http._
-import lol.json._
+import cats.implicits._
+import cats.effect._
 
 import io.circe._
 import io.circe.syntax._
+
+import org.http4s._
+import org.http4s._, org.http4s.dsl.io._, org.http4s.implicits._
+import org.http4s.circe._
 
 /**
   * An execution pool backed by a priority queue. It limits the concurrent executions
@@ -20,8 +24,8 @@ case class ExecutionPool(concurrencyLimit: Int) extends WaitingExecutionQueue {
   def doRunNext()(implicit txn: InTxn): Unit = ()
 
   override def routes(urlPrefix: String) =
-    ({
-      case req if req.url == urlPrefix =>
+    HttpRoutes.of[IO]({
+      case req if req.uri.toString == urlPrefix =>
         Ok(
           Json.obj(
             "concurrencyLimit" -> concurrencyLimit.asJson,
@@ -29,5 +33,5 @@ case class ExecutionPool(concurrencyLimit: Int) extends WaitingExecutionQueue {
             "waiting" -> waiting.size.asJson
           )
         )
-    }: PartialService).orElse(super.routes(urlPrefix))
+    }) <+> super.routes(urlPrefix)
 }
