@@ -21,7 +21,6 @@ import doobie.util.fragment.Fragment
 import io.circe._
 import io.circe.java8.time._
 import io.circe.syntax._
-import lol.http.PartialService
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.ThreadPools.{SideEffectThreadPool, _}
@@ -29,6 +28,7 @@ import com.criteo.cuttle.Metrics._
 import com.criteo.cuttle.platforms.ExecutionPool
 import doobie.util.Meta
 import org.http4s.HttpRoutes
+import org.http4s.AuthedRoutes
 
 /** The strategy to use to retry stuck executions.
   *
@@ -391,7 +391,7 @@ trait ExecutionPlatform {
   def publicRoutes: HttpRoutes[IO] = HttpRoutes.empty[IO]
 
   /** Expose a private `lolhttp` service for the platform operations (for the UI and API). */
-  def privateRoutes: AuthenticatedService = PartialFunction.empty
+  def privateRoutes: AuthedRoutes[User, IO] = AuthedRoutes.empty
 
   /** @return the list of [[Execution]] waiting for resources on this platform.
     * These executions will be seen as __WAITING__ in the UI and the API. */

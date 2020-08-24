@@ -14,8 +14,8 @@ import doobie._
 import doobie.hikari.HikariTransactor
 import doobie.implicits._
 import io.circe.Json
-import lol.http.{PartialService, ServerSentEvents, Service}
-import lol.http._
+import org.http4s._
+import org.http4s.dsl.io._
 
 /** A set of basic utilities useful to write workflows. */
 package object utils {
@@ -119,27 +119,12 @@ package object utils {
 
   private[cuttle] def randomUUID(): String = UUID.randomUUID().toString
 
-  /**
-    * Allows chaining of method orFinally
-    * from a PartialService that returns a
-    * non-further-chainable Service.
-    */
-  implicit private[cuttle] class PartialServiceConverter(val service: PartialService) extends AnyVal {
-    def orFinally(finalService: Service): Service =
-      service.orElse(toPartial(finalService))
-
-    private def toPartial(service: Service): PartialService = {
-      case e => service(e)
-    }
-  }
-
   private[cuttle] def getJVMUptime = ManagementFactory.getRuntimeMXBean.getUptime / 1000
 
   private[cuttle] def sse[A](thunk: IO[Option[A]],
-                             encode: A => IO[Json])(implicit eqInstance: Eq[A]): lol.http.Response = {
+                             encode: A => IO[Json])(implicit eqInstance: Eq[A]): IO[Response[IO]] = {
     import scala.concurrent.duration._
     import io.circe._
-    import lol.json._
     import fs2.Stream
     import com.criteo.cuttle.ThreadPools.Implicits.serverContextShift
 
@@ -151,7 +136,7 @@ package object utils {
       })
       .changes
       .evalMap[IO, Json](r => encode(r))
-      .map(ServerSentEvents.Event(_))
+      .map(k => ServerSentEvent(k.noSpaces))
 
     Ok(stream)
   }

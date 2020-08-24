@@ -1,18 +1,28 @@
 package com.criteo.cuttle.cron
 
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import cats.effect.IO
-import com.criteo.cuttle.Auth._
+import scala.util.{Success, Try}
+
+import cats._
+import cats.implicits._
+import cats.data.EitherT
+import cats.effect._
+
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
 import com.criteo.cuttle._
 import com.criteo.cuttle.utils.{getJVMUptime, sse}
 import io.circe._
 import io.circe.syntax._
-import lol.http._
-import lol.json._
-
-import scala.util.{Success, Try}
+import org.http4s._
+import org.http4s.dsl.io._
+import org.http4s.circe._
+import org.http4s.headers.`Content-Type`
+import com.criteo.cuttle.Auth._
+import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
+import com.criteo.cuttle._
+import com.criteo.cuttle.utils.getJVMUptime
 
 private[cron] case class CronApp(project: CronProject, executor: Executor[CronScheduling])(
   implicit val transactor: XA
@@ -23,14 +33,14 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
   private val allJobIds = workload.all.map(_.id)
   private val allDagIds = workload.dags.map(_.id)
 
-  private def getDagsOrNotFound(json: Json): Either[Response, Set[CronDag]] =
+  private def getDagsOrNotFound(json: Json): Either[IO[Response[IO]], Set[CronDag]] =
     json.hcursor.downField("dags").as[Set[String]] match {
       case Left(_) => Left(BadRequest(s"Error: Cannot parse request body: $json"))
       case Right(dagIds) =>
         if (dagIds.isEmpty) Right(workload.dags)
         else {
           val filterDags = workload.dags.filter(v => dagIds.contains(v.id))
-          if (filterDags.isEmpty) Left(NotFound)
+          if (filterDags.isEmpty) Left(NotFound())
           else Right(filterDags)
         }
     }
@@ -41,10 +51,10 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
       if dag.cronPipeline.vertices.exists(job => jobIds.contains(job.id))
     } yield dag.id
 
-  val publicApi: PartialService = {
-    case GET at "/version" => Ok(project.version)
+  val publicApi: HttpRoutes[IO] = HttpRoutes.of[IO] {
+    case GET -> Root / "version" => Ok(project.version)
 
-    case GET at "/metrics" =>
+    case GET -> Root / "metrics" =>
       val metrics =
         executor.getMetrics(allJobIds, workload) ++
           scheduler.getMetrics(allJobIds, workload) :+
@@ -52,7 +62,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
 
       Ok(Prometheus.serialize(metrics))
 
-    case GET at "/api/status" =>
+    case GET -> Root / "api" / "status"  =>
       val projectJson = (status: String) =>
         Json.obj(
           "project" -> project.name.asJson,
@@ -64,41 +74,37 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
         case _          => InternalServerError(projectJson("ko"))
       }
 
-    case GET at "/api/project_definition" => Ok(project.asJson)
+    case GET -> Root / "api" / "project_definition"  => Ok(project.asJson)
 
-    case GET at "/api/jobs_definition" => Ok(workload.asJson)
+    case GET -> Root / "api" / "jobs_definition"  => Ok(workload.asJson)
 
-    case req @ GET at url"/api/executions/$id/streams" =>
+    case req @ GET -> Root / "api" / "executions" / id / "streams" =>
       lazy val streams = executor.openStreams(id)
-      req.headers.get(h"Accept").contains(h"text/event-stream") match {
+      // TODO fix
+      req.headers.get(org.http4s.headers.Accept).contains(MediaType.`text/event-stream`) match {
         case true =>
-          val stream = fs2.Stream(ServerSentEvents.Event("BOS".asJson)) ++ streams
+          val stream = fs2.Stream(ServerSentEvent("BOS")) ++ streams
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
             .chunks
-            .map(chunk => ServerSentEvents.Event(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)))) ++
-            fs2.Stream(ServerSentEvents.Event("EOS".asJson))
+            .map(chunk => ServerSentEvent(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)).noSpaces)) ++
+            fs2.Stream(ServerSentEvent("EOS"))
           Ok(stream)
         case false =>
-          val bodyFromStream = Content(
-            stream = streams,
-            headers = Map(h"Content-Type" -> h"text/plain")
-          )
-          Ok(bodyFromStream)
+          Ok(streams, `Content-Type`(MediaType.text.plain))
       }
-
-    case GET at "/api/dags/paused" =>
+    case GET -> Root / "api" / "jobs" / "paused" =>
       Ok(scheduler.getPausedDags.asJson)
 
-    case request @ POST at url"/api/dags/states" =>
+    case request @ POST -> Root / "api" / "dags" / "states" =>
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json.hcursor
             .downField("dags")
             .as[Set[String]]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               dagIds => {
                 val ids = if (dagIds.isEmpty) allDagIds else dagIds
                 Ok(scheduler.getStats(ids))
@@ -106,7 +112,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
             )
         }
 
-    case request @ POST at url"/api/statistics" => {
+    case request @ POST -> Root / "api" / "statistics" => {
       def getStats(jobIds: Set[String]): IO[Option[(Json, Json)]] =
         executor
           .getStats(jobIds)
@@ -118,24 +124,24 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
       }
 
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json.hcursor
             .downField("jobs")
             .as[Set[String]]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               jobIds => {
                 val ids = if (jobIds.isEmpty) allJobIds else jobIds
-                getStats(ids).map(
-                  _.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
+                getStats(ids).flatMap(
+                  _.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError())
                 )
               }
             )
         }
     }
 
-    case request @ POST at url"/api/executions/status/$kind" => {
+    case request @ POST -> Root / "api" / "executions" / "status" / kind => {
       def getExecutions(
         q: ExecutionsQuery
       ): IO[Option[(Int, List[ExecutionLog])]] = kind match {
@@ -205,24 +211,25 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
         }
 
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json
             .as[ExecutionsQuery]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               query => {
                 getExecutions(query)
                   .flatMap(
-                    _.map(e => asJson(query, e).map(json => Ok(json)))
-                      .getOrElse(NotFound)
+                    _.map(e => asJson(query, e).flatMap(json => Ok(json)))
+                      .getOrElse(NotFound())
                   )
               }
             )
         }
     }
 
-    case GET at url"/api/executions/$id?events=$events" =>
+    case request @ GET -> Root / "api" / "executions" / id =>
+      val events = request.multiParams.getOrElse("events", "")
       def getExecution =
         IO.suspend(executor.getExecution(scheduler.allContexts, id))
 
@@ -230,37 +237,40 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
         case "true" | "yes" =>
           sse(getExecution, (e: ExecutionLog) => IO(e.asJson))
         case _ =>
-          getExecution.map(_.map(e => Ok(e.asJson)).getOrElse(NotFound))
+          getExecution.flatMap(_.map(e => Ok(e.asJson)).getOrElse(NotFound()))
       }
   }
 
-  val privateApi: AuthenticatedService = {
-    case req @ GET at url"/api/shutdown" => { implicit user =>
+  def Redirect(path: String): IO[Response[IO]] =
+    Found().map(_.withHeaders(org.http4s.headers.Location(Uri.fromString(path).toOption.get)))
+
+  val privateApi: AuthedRoutes[User, IO] = AuthedRoutes.of {
+    case req @ GET -> Root / "api" / "shutdown" as user =>
       import scala.concurrent.duration._
 
-      req.queryStringParameters.get("gracePeriodSeconds") match {
+      req.req.params.get("gracePeriodSeconds") match {
         case Some(s) =>
           Try(s.toLong) match {
             case Success(s) if s > 0 =>
-              executor.gracefulShutdown(Duration(s, TimeUnit.SECONDS))
-              Ok
+              executor.gracefulShutdown(Duration(s, TimeUnit.SECONDS))(user)
+              Ok()
             case _ =>
               BadRequest("gracePeriodSeconds should be a positive integer")
           }
         case None =>
-          req.queryStringParameters.get("hard") match {
+          req.req.params.get("hard") match {
             case Some(_) =>
               executor.hardShutdown()
-              Ok
+              Ok()
             case None =>
               BadRequest("Either gracePeriodSeconds or hard should be specified as query parameter")
           }
       }
-    }
-    case request @ POST at url"/api/executions/relaunch" => { implicit user =>
+    case request @ POST -> Root / "api" / "executions" / "relaunch" as user => {
       request
-        .readAs[Json]
-        .map { json =>
+        .req
+        .as[Json]
+        .flatMap { json =>
           json.hcursor
             .downField("jobs")
             .as[Set[String]]
@@ -268,72 +278,77 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
               df => BadRequest(s"Error: Cannot parse request body: $df"),
               jobIds => {
                 val ids = if (jobIds.isEmpty) allJobIds else jobIds
-                executor.relaunch(ids)
-                Ok
+                executor.relaunch(ids)(user)
+                Ok()
               }
             )
         }
-    }
-
-    case request @ POST at url"/api/dags/pause" => { implicit user =>
-      request
-        .readAs[Json]
-        .map { json =>
-          getDagsOrNotFound(json) match {
-            case Left(a) => a
-            case Right(dagIds) =>
-              scheduler.pauseDags(dagIds, executor)
-              Ok
-          }
-        }
-    }
-
-    case request @ POST at url"/api/dags/resume" => { implicit user =>
-      request
-        .readAs[Json]
-        .map { json =>
-          getDagsOrNotFound(json) match {
-            case Left(a) => a
-            case Right(dagIds) =>
-              scheduler.resumeDags(dagIds, executor)
-              Ok
-          }
-        }
-    }
-
-    case request @ POST at url"/api/dags/runnow" => { implicit user =>
-      request
-        .readAs[Json]
-        .map { json =>
-          getDagsOrNotFound(json) match {
-            case Left(a) => a
-            case Right(dagIds) =>
-              scheduler.runJobsNow(dagIds, executor)
-              Ok
-          }
-        }
-    }
-  }
-
-  private val api = publicApi orElse project.authenticator(privateApi)
-
-  private val publicAssets: PartialService = {
-    case GET at url"/public/cron/$file" =>
-      ClasspathResource(s"/public/cron/$file").fold(NotFound)(r => Ok(r))
-  }
-
-  private val index: AuthenticatedService = {
-    case req if req.url.startsWith("/api/") =>
-      _ => NotFound
-    case _ =>
-      _ => Ok(ClasspathResource(s"/public/cron/index.html"))
-  }
-
-  val routes: PartialService = api
-    .orElse {
-      executor.platforms.foldLeft(PartialFunction.empty: PartialService) {
-        case (s, p) => s.orElse(p.publicRoutes).orElse(project.authenticator(p.privateRoutes))
       }
+
+    case request @ POST -> Root / "api" / "dags" / "pause" as user => {
+      request
+        .req
+        .as[Json]
+        .flatMap { json =>
+          getDagsOrNotFound(json) match {
+            case Left(a) => a
+            case Right(dagIds) =>
+              scheduler.pauseDags(dagIds, executor)(implicitly, user)
+              Ok()
+          }
+        }
     }
-    .orElse(publicAssets orElse project.authenticator(index))
+
+    case request @ POST -> Root / "api" / "dags" / "resume" as user => {
+      request
+        .req
+        .as[Json]
+        .flatMap { json =>
+          getDagsOrNotFound(json) match {
+            case Left(a) => a
+            case Right(dagIds) =>
+              scheduler.resumeDags(dagIds, executor)(implicitly, user)
+              Ok()
+          }
+        }
+    }
+
+    case request @ POST -> Root  / "api" / "dags" / "runnow" as user => {
+      request
+        .req
+        .as[Json]
+        .flatMap { json =>
+          getDagsOrNotFound(json) match {
+            case Left(a) => a
+            case Right(dagIds) =>
+              scheduler.runJobsNow(dagIds, executor)(implicitly, user)
+              Ok()
+          }
+        }
+      }
+  }
+
+  private val publicAssets = HttpRoutes.of[IO] {
+    case GET -> Root / "public" / file =>
+      import ThreadPools.Implicits.serverContextShift
+
+      StaticFile
+        .fromResource[IO](s"/public/cron/$file", ThreadPools.blockingExecutionContext)
+        .getOrElseF(NotFound())
+  }
+
+  private val index: AuthedRoutes[User, IO] = AuthedRoutes.of {
+    case req if req.req.uri.toString.startsWith("/api/") =>
+      NotFound()
+    case _ =>
+      import ThreadPools.Implicits.serverContextShift
+
+      StaticFile.fromResource[IO](s"/public/cron/index.html", ThreadPools.blockingExecutionContext).getOrElseF(NotFound())
+  }
+
+  val routes: HttpRoutes[IO] = publicApi <+>
+      executor.platforms.toList.foldMapK(_.publicRoutes) <+>
+      publicAssets <+>
+      project.authenticator(privateApi <+> executor.platforms.toList.foldMapK(_.privateRoutes) <+> index)
+
 }

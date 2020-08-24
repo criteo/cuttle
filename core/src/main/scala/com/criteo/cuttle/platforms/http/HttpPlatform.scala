@@ -16,12 +16,8 @@ import com.criteo.cuttle.platforms.{ExecutionPool, RateLimiter}
 
 import org.http4s._
 import org.http4s.dsl.io._
-// import org.http4s.implicits._
 import org.http4s.circe._
 import org.http4s.headers.Host
-
-// import org.http4s.client.blaze._
-// import org.http4s.client._
 
 /** Allow to make HTTP calls in a managed way with rate limiting. Globally the platform limits the number
   * of concurrent requests on the platform. Additionnaly a rate limiter must be defined for each host allowed

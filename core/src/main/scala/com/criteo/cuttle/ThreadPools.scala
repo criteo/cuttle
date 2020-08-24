@@ -134,6 +134,9 @@ object ThreadPools {
     ThreadPools.newCachedThreadPool(poolName = Some("Doobie-Transact"))
   )
 
+  val blockingExecutionContext: ExecutionContext = scala.concurrent.ExecutionContext
+    .fromExecutorService(ThreadPools.newCachedThreadPool(poolName = Some("com.criteo.cuttle.ThreadPools.blockingExecutionContext")))
+
   object Implicits {
     import ThreadPoolSystemProperties._
     implicit val serverThreadPool = new ServerThreadPool {

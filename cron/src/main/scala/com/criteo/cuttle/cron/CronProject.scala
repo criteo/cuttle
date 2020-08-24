@@ -1,15 +1,28 @@
 package com.criteo.cuttle.cron
 
-import com.criteo.cuttle.Auth.Authenticator
-import com.criteo.cuttle.ThreadPools.Implicits.serverThreadPool
-import com.criteo.cuttle.ThreadPools._
+import cats.effect._
+
+import org.http4s._
+import org.http4s.implicits._
+import org.http4s.server.{AuthMiddleware, Router}
+import org.http4s.server.blaze._
+
+import com.criteo.cuttle.Auth.User
+import scala.concurrent.duration._
+
 import com.criteo.cuttle._
-import doobie.implicits._
+
+import com.criteo.cuttle.ThreadPools.Implicits.serverContextShift
+import com.criteo.cuttle.utils.Timeout.timer
+import io.circe.{Encoder, Json}
 import io.circe.syntax._
 import io.circe.{Encoder, Json}
-import lol.http._
+
+import doobie.implicits._
 
 import scala.concurrent.duration._
+import org.http4s.server.blaze.BlazeServerBuilder
+import org.http4s.server.{AuthMiddleware, Router}
 
 /**
   * A cuttle project is a workflow to execute with the appropriate scheduler.
@@ -21,7 +34,7 @@ class CronProject private[cuttle] (val name: String,
                                    val env: (String, Boolean),
                                    val workload: CronWorkload,
                                    val scheduler: CronScheduler,
-                                   val authenticator: Authenticator,
+                                   val authenticator: AuthMiddleware[IO, User],
                                    val logger: Logger) {
 
   /**
@@ -59,11 +72,11 @@ class CronProject private[cuttle] (val name: String,
     val cronApp = CronApp(this, executor)
 
     logger.info("Starting server")
-    Server.listen(port, onError = { e =>
-      logger.error(e.getMessage)
-      e.printStackTrace()
-      InternalServerError(e.getMessage)
-    })(cronApp.routes)
+
+    BlazeServerBuilder[IO](ThreadPools.Implicits.serverThreadPool)
+      .bindHttp(port, "localhost")
+      .withHttpApp(Router("/" -> cronApp.routes).orNotFound)
+      .serve.compile.drain
 
     logger.info(s"Listening on http://localhost:$port")
   }
@@ -93,7 +106,7 @@ object CronProject {
     version: String = "",
     description: String = "",
     env: (String, Boolean) = ("", false),
-    authenticator: Auth.Authenticator = Auth.GuestAuth
+    authenticator: AuthMiddleware[IO, User] = Auth.GuestAuth
   )(jobs: CronWorkload)(implicit scheduler: CronScheduler, logger: Logger): CronProject =
     new CronProject(name, version, description, env, jobs, scheduler, authenticator, logger)
 

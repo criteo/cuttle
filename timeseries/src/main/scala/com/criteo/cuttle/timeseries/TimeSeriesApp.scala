@@ -5,7 +5,6 @@ import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 import scala.util._
-
 import cats.effect.IO
 import cats.implicits._
 import cats.data.EitherT
@@ -17,9 +16,10 @@ import io.circe._
 import io.circe.generic.auto._
 import io.circe.java8.time._
 import io.circe.syntax._
-import lol.http._
-import lol.json._
-
+import org.http4s._
+import org.http4s.dsl.io._
+import org.http4s.circe._
+import org.http4s.headers.{Accept, `Content-Type`}
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
@@ -108,9 +108,9 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       .traverse(jobId => jobLookup.get(jobId).toValid(Set(jobId)))
       .map(_.toSet)
 
-  private def getJobsOrNotFound(request: Request): EitherT[IO, Response, Set[Job[TimeSeries]]] = {
+  private def getJobsOrNotFound(request: Request[IO]): EitherT[IO, Response[IO], Set[Job[TimeSeries]]] = {
     val result = for {
-      jsonPayload <- request.readAs[Json]
+      jsonPayload <- request.as[Json]
       jobListPayload <- jsonPayload.as[JobListPayLoad].liftTo[IO]
       jobs <- jobListPayload.jobs.toNel
         .map(jobIds => {
@@ -123,12 +123,12 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
     EitherT
       .right[Throwable](result.map(_.toSet))
-      .leftMap(error => BadRequest(error.getMessage))
+      .leftSemiflatMap(error => BadRequest(error.getMessage))
   }
 
-  val publicApi: PartialService = {
+  val publicApi: HttpRoutes[IO] = HttpRoutes.of {
 
-    case GET at url"/api/status" => {
+    case GET -> Root / "api" / "status" => {
       val projectJson = (status: String) =>
         Json.obj(
           "project" -> project.name.asJson,
@@ -141,7 +141,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       }
     }
 
-    case request @ POST at url"/api/statistics" => {
+    case request @ POST -> Root / "api" / "statistics" => {
       def getStats(ids: Set[String]): IO[Option[(Json, Json)]] =
         executor
           .getStats(ids)
@@ -152,31 +152,31 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           executorStats.deepMerge(Json.obj("scheduler" -> schedulerStats))
       }
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json.hcursor
             .downField("jobs")
             .as[Set[String]]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               jobIds => {
                 val ids = if (jobIds.isEmpty) allIds else jobIds
-                getStats(ids).map(
-                  _.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError)
+                getStats(ids).flatMap(
+                  _.map(stat => Ok(asJson(stat))).getOrElse(InternalServerError())
                 )
               }
             )
         }
     }
 
-    case GET at url"/api/statistics/$jobName" =>
+    case GET -> Root / "api" / "statistics" / jobName =>
       executor
         .jobStatsForLastThirtyDays(jobName)
-        .map(stats => Ok(stats.asJson))
+        .flatMap(stats => Ok(stats.asJson))
 
-    case GET at url"/version" => Ok(project.version)
+    case GET -> Root / "version" => Ok(project.version)
 
-    case GET at "/metrics" =>
+    case GET -> Root / "metrics" =>
       val metrics =
         executor.getMetrics(allIds, jobs) ++
           scheduler.getMetrics(allIds, jobs) :+
@@ -184,7 +184,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             .labeled(("version", project.version), getJVMUptime)
       Ok(Prometheus.serialize(metrics))
 
-    case request @ POST at url"/api/executions/status/$kind" => {
+    case request @ POST -> Root / "api" / "executions" / "status" / kind => {
       def getExecutions(
         q: ExecutionsQuery
       ): IO[Option[(Int, List[ExecutionLog])]] = kind match {
@@ -254,24 +254,24 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         }
 
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json
             .as[ExecutionsQuery]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               query => {
                 getExecutions(query)
                   .flatMap(
-                    _.map(e => asJson(query, e).map(json => Ok(json)))
-                      .getOrElse(NotFound)
+                    _.map(e => asJson(query, e).flatMap(json => Ok(json))).getOrElse(NotFound())
                   )
               }
             )
         }
     }
 
-    case GET at url"/api/executions/$id?events=$events" =>
+    case request @ GET -> Root / "api" / "executions"/ id =>
+      val events = request.multiParams.getOrElse("events", "")
       def getExecution =
         IO.suspend(executor.getExecution(scheduler.allContexts, id))
 
@@ -279,115 +279,104 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         case "true" | "yes" =>
           sse(getExecution, (e: ExecutionLog) => IO(e.asJson))
         case _ =>
-          getExecution.map(_.map(e => Ok(e.asJson)).getOrElse(NotFound))
+          getExecution.flatMap(_.map(e => Ok(e.asJson)).getOrElse(NotFound()))
       }
 
-    case req @ GET at url"/api/executions/$id/streams" =>
+    case req @ GET -> Root / "api" / "executions" / id / "streams" =>
       lazy val streams = executor.openStreams(id)
-      req.headers.get(h"Accept").contains(h"text/event-stream") match {
+      // TODO: check this
+      req.headers.get(Accept).contains(Accept(MediaType.`text/event-stream`)) match {
         case true =>
           Ok(
-            fs2.Stream(ServerSentEvents.Event("BOS".asJson)) ++
+            fs2.Stream(ServerSentEvent("BOS")) ++
               streams
                 .through(fs2.text.utf8Decode)
                 .through(fs2.text.lines)
                 .chunks
                 .map(
                   chunk =>
-                    ServerSentEvents.Event(
-                      Json.fromValues(chunk.toArray.toIterable.map(_.asJson))
+                    ServerSentEvent(
+                      Json.fromValues(chunk.toArray.toIterable.map(_.asJson)).noSpaces
                     )
                 ) ++
-              fs2.Stream(ServerSentEvents.Event("EOS".asJson))
+              fs2.Stream(ServerSentEvent("EOS"))
           )
         case false =>
-          Ok(
-            Content(
-              stream = streams,
-              headers = Map(h"Content-Type" -> h"text/plain")
-            )
-          )
+          Ok(streams, `Content-Type`(MediaType.text.plain))
       }
 
-    case GET at "/api/jobs/paused" =>
+    case GET -> Root / "api" / "jobs" / "paused" =>
       Ok(scheduler.pausedJobs().asJson)
 
-    case GET at "/api/project_definition" =>
+    case GET -> Root / "api" / "project_definition" =>
       Ok(project.asJson)
 
-    case GET at "/api/jobs_definition" =>
+    case GET -> Root / "api" / "jobs_definition" =>
       Ok(jobs.asJson)
   }
 
-  val privateApi: AuthenticatedService = {
-    case POST at url"/api/executions/$id/cancel" => { implicit user =>
-      executor.cancelExecution(id)
-      Ok
-    }
+  val privateApi: AuthedRoutes[User, IO] = AuthedRoutes.of {
+    case POST -> Root / "api" / "executions" / id / "cancel" as user =>
+      executor.cancelExecution(id)(user)
+      Ok()
 
-    case request @ POST at url"/api/jobs/pause" => { implicit user =>
-      getJobsOrNotFound(request)
-        .map(jobs => {
-          scheduler.pauseJobs(jobs, executor, xa)
-          Ok
+    case request @ POST -> Root / "api" / "jobs" / "pause" as user =>
+      getJobsOrNotFound(request.req)
+        .semiflatMap(jobs => {
+          scheduler.pauseJobs(jobs, executor, xa)(user)
+          Ok()
         })
         .merge
-    }
-
-    case request @ POST at url"/api/jobs/resume" => { implicit user =>
-      getJobsOrNotFound(request)
-        .map(jobs => {
-          scheduler.resumeJobs(jobs, xa)
-          Ok
+    case request @ POST -> Root / "api" / "jobs" / "resume" as user =>
+      getJobsOrNotFound(request.req)
+        .semiflatMap(jobs => {
+          scheduler.resumeJobs(jobs, xa)(user)
+          Ok()
         })
         .merge
-    }
-
-    case POST at url"/api/jobs/all/unpause" => { implicit user =>
-      scheduler.resumeJobs(jobs.all, xa)
-      Ok
-    }
-
-    case POST at url"/api/jobs/$id/unpause" => { implicit user =>
-      jobs.all.find(_.id == id).fold(NotFound) { job =>
-        scheduler.resumeJobs(Set(job), xa)
-        Ok
+    case POST -> Root / "api" / "jobs" / "all" / "unpause" as user =>
+      scheduler.resumeJobs(jobs.all, xa)(user)
+      Ok()
+    case POST -> Root / "api" / "jobs" / id / "unpause" as user =>
+      jobs.all.find(_.id == id).fold(NotFound()) { job =>
+        scheduler.resumeJobs(Set(job), xa)(user)
+        Ok()
       }
-    }
-    case POST at url"/api/executions/relaunch?jobs=$jobs" => { implicit user =>
+    case request @ POST -> Root / "api" / "executions" / "relaunch" as user =>
+      val jobs: String = request.req.params.getOrElse("jobs", "")
+    
+
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
         .getOrElse(allIds)
         .toSet
 
-      executor.relaunch(filteredJobs)
-      IO.pure(Ok)
-    }
+      executor.relaunch(filteredJobs)(user)
+      Ok()
 
-    case req @ GET at url"/api/shutdown" => { implicit user =>
+    case request @ GET -> Root / "api" / "shutdown" as user =>
       import scala.concurrent.duration._
 
-      req.queryStringParameters.get("gracePeriodSeconds") match {
+      request.req.params.get("gracePeriodSeconds") match {
         case Some(s) =>
           Try(s.toLong) match {
             case Success(s) if s > 0 =>
-              executor.gracefulShutdown(Duration(s, TimeUnit.SECONDS))
-              Ok
+              executor.gracefulShutdown(Duration(s, TimeUnit.SECONDS))(user)
+              Ok()
             case _ =>
               BadRequest("gracePeriodSeconds should be a positive integer")
           }
         case None =>
-          req.queryStringParameters.get("hard") match {
+          request.req.params.get("hard") match {
             case Some(_) =>
               executor.hardShutdown()
-              Ok
+              Ok()
             case None =>
               BadRequest(
                 "Either gracePeriodSeconds or hard should be specified as query parameter"
               )
           }
       }
-    }
   }
 
   private val queries = Queries(project.logger)
@@ -613,8 +602,12 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
   private[timeseries] def getFocusView(q: CalendarFocusQuery, jobs: Set[String]): Json =
     getFocusView(snapshotWatchedState(), q, jobs)
 
-  private[timeseries] def publicRoutes(): PartialService = {
-    case request @ GET at url"/api/timeseries/executions?job=$jobId&start=$start&end=$end" =>
+  private[timeseries] def publicRoutes(): HttpRoutes[IO] = HttpRoutes.of[IO] {
+    case request @ GET -> Root / "api" / "timeseries" / "executions" =>
+      val jobId = request.params.getOrElse("job", "")
+      val start = request.params.getOrElse("start", "")
+      val end = request.params.getOrElse("end", "")
+
       def getExecutions(watchedState: WatchedState): IO[Json] = {
         val job = jobs.vertices.find(_.id == jobId).get
         val calendar = job.scheduling.calendar
@@ -744,16 +737,20 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       }
 
       val watchedState = IO(snapshotWatchedState())
-      if (request.headers.get(h"Accept").contains(h"text/event-stream")) {
+      if (request.headers.get(org.http4s.headers.Accept).contains(MediaType.`text/event-stream`)) {
         sse(
           watchedState.map(Some(_)),
           (s: WatchedState) => getExecutions(s)
         )
       } else {
-        watchedState.flatMap(getExecutions).map(Ok(_))
+        watchedState.flatMap(getExecutions).flatMap(Ok(_))
       }
 
-    case GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
+    case request @ GET -> Root / "api" / "timeseries" / "calendar" / "focus" =>
+      val start = request.params.getOrElse("start", "")
+      val end = request.params.getOrElse("end", "")
+      val jobs = request.params.getOrElse("jobs", "")
+
       val filteredJobs = Option(jobs.split(",").toSet.filterNot(_.isEmpty))
         .filterNot(_.isEmpty)
         .getOrElse(allIds)
@@ -761,14 +758,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
       Ok(getFocusView(q, filteredJobs))
 
-    case request @ POST at url"/api/timeseries/calendar/focus" =>
+    case request @ POST -> Root / "api" / "timeseries" / "calendar" / "focus" =>
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json
             .as[CalendarFocusQuery]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               query => {
                 val jobs = Option(query.jobs.filterNot(_.isEmpty))
                   .filterNot(_.isEmpty)
@@ -778,7 +775,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             )
         }
 
-    case request @ POST at url"/api/timeseries/calendar" => {
+    case request @ POST -> Root / "api" / "timeseries" / "calendar" => {
 
       case class JobStateOnPeriod(start: Instant, duration: Long, isDone: Boolean, isStuck: Boolean)
 
@@ -852,13 +849,13 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       }
 
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json.hcursor
             .downField("jobs")
             .as[Set[String]]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               jobIds => {
                 val ids =
                   if (jobIds.isEmpty) project.jobs.all.map(_.id) else jobIds
@@ -868,7 +865,9 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         }
     }
 
-    case GET at url"/api/timeseries/lastruns?job=$jobId" =>
+    case request @ GET -> Root / "api" / "timeseries" / "lastruns" =>
+      val jobId = request.params.getOrElse("job", "")
+
       val (jobStates, _) = scheduler.state
       val successfulIntervalMaps = jobStates
         .filter(s => s._1.id == jobId)
@@ -886,7 +885,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         )
         .toList
 
-      if (successfulIntervalMaps.isEmpty) NotFound
+      if (successfulIntervalMaps.isEmpty) NotFound()
       else {
         (successfulIntervalMaps.head._1.hi, successfulIntervalMaps.last._1.hi) match {
           case (Finite(lastCompleteTime), Finite(lastTime)) =>
@@ -896,11 +895,11 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                 "lastTime" -> lastTime.asJson
               )
             )
-          case _ => BadRequest
+          case _ => BadRequest()
         }
       }
 
-    case GET at url"/api/timeseries/backfills" =>
+    case GET -> Root / "api" / "timeseries" / "backfills" =>
       Database
         .queryBackfills()
         .to[List]
@@ -931,14 +930,16 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
             )
         })
         .transact(xa)
-        .map(backfills => Ok(backfills.asJson))
-    case GET at url"/api/timeseries/backfills/$id?events=$events" =>
+        .flatMap(backfills => Ok(backfills.asJson))
+    case request @ GET -> Root / "api" / "timeseries" / "backfills" / id =>
+      val events = request.params.getOrElse("events", "")
+
       val backfills = Database.getBackfillById(id).transact(xa)
       events match {
         case "true" | "yes" => sse(backfills, (b: Json) => IO.pure(b))
-        case _              => backfills.map(bf => Ok(bf.asJson))
+        case _              => backfills.flatMap(bf => Ok(bf.asJson))
       }
-    case request @ POST at url"/api/timeseries/backfills/$backfillId/executions" => {
+    case request @ POST -> Root / "api" / "timeseries" / "backfills" / backfillId / "executions" => {
       def allExecutions(
         q: ExecutionsQuery
       ): IO[Option[(Int, Double, List[ExecutionLog])]] = {
@@ -989,15 +990,15 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       }
 
       request
-        .readAs[Json]
+        .as[Json]
         .flatMap { json =>
           json
             .as[ExecutionsQuery]
             .fold(
-              df => IO.pure(BadRequest(s"Error: Cannot parse request body: $df")),
+              df => BadRequest(s"Error: Cannot parse request body: $df"),
               q => {
                 allExecutions(q)
-                  .map(_.map {
+                  .flatMap(_.map {
                     case (total, completion, executions) =>
                       Ok(
                         Json.obj(
@@ -1010,25 +1011,25 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                           "completion" -> completion.asJson
                         )
                       )
-                  }.getOrElse(NotFound))
+                  }.getOrElse(NotFound()))
               }
             )
         }
     }
-  }: PartialService
+  }
 
-  private[timeseries] def privateRoutes(): AuthenticatedService = {
-    case req @ POST at url"/api/timeseries/backfill" => { implicit user =>
-      req
-        .readAs[Json]
+  private[timeseries] def privateRoutes(): AuthedRoutes[User, IO] = AuthedRoutes.of {
+    case request @ POST -> Root / "api" / "timeseries" / "backfill" as user => {
+      request.req
+        .as[Json]
         .flatMap(
           _.as[BackfillCreate]
             .fold(
-              df => IO.pure(BadRequest(s"""
+              df => BadRequest(s"""
                          |Error during backfill creation.
                          |Error: Cannot parse request body.
                          |$df
-                         |""".stripMargin)),
+                         |""".stripMargin),
               backfill => {
                 val jobIdsToBackfill = backfill.jobs.toSet
                 jobIdsToBackfill
@@ -1048,8 +1049,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                         backfill.priority,
                         executor.runningState,
                         xa
-                      )
-                      .map {
+                      )(user)
+                      .flatMap {
                         case Right(_)     => Ok("ok".asJson)
                         case Left(errors) => BadRequest(errors)
                       }
@@ -1060,7 +1061,11 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     }
 
     // consider the given period of the job as successful, regardless of it's actual status
-    case req @ GET at url"/api/timeseries/force-success?job=$jobId&start=$start&end=$end" => { implicit user =>
+    case request @ GET -> Root / "api" / "timeseries" / "force-success" as user => {
+      val jobId = request.req.params.getOrElse("job", "")
+      val start = request.req.params.getOrElse("start", "")
+      val end = request.req.params.getOrElse("end", "")
+
       (for {
         startDate <- Try(Instant.parse(start))
         endDate <- Try(Instant.parse(end))
@@ -1085,7 +1090,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         }
         val failingExecutions = executor.allFailingExecutions.filter(filterOp)
         val executions = runningExecutions ++ failingExecutions
-        executions.foreach(_.cancel())
+        executions.foreach(_.cancel()(user))
         (
           executions.length,
           JobSuccessForced(Instant.now(), user, jobId, startDate, endDate)
@@ -1095,7 +1100,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
           queries
             .logEvent(event)
             .transact(xa)
-            .map(
+            .flatMap(
               _ =>
                 Ok(
                   Json.obj(
@@ -1104,37 +1109,39 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
                 )
             )
         case Failure(e) =>
-          IO.pure(
-            BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
-          )
+          BadRequest(Json.obj("error" -> Json.fromString(e.getMessage)))
       }
     }
   }
 
-  val api = publicApi orElse project.authenticator(privateApi)
+  val publicAssets = HttpRoutes.of[IO] {
+    case GET -> Root / "public" / file =>
+      import ThreadPools.Implicits.serverContextShift
 
-  val publicAssets: PartialService = {
-    case GET at url"/public/timeseries/$file" =>
-      ClasspathResource(s"/public/timeseries/$file").fold(NotFound)(r => Ok(r))
+      StaticFile
+        .fromResource[IO](s"/public/timeseries/$file", ThreadPools.blockingExecutionContext)
+        .getOrElseF(NotFound())
   }
 
-  val index: AuthenticatedService = {
-    case req if req.url.startsWith("/api/") =>
-      _ => NotFound
+  val index: AuthedRoutes[User, IO] = AuthedRoutes.of {
+    case req if req.req.uri.toString.startsWith("/api/") =>
+      NotFound()
     case _ =>
-      _ => Ok(ClasspathResource(s"/public/timeseries/index.html"))
+      import ThreadPools.Implicits.serverContextShift
+
+      StaticFile.fromResource[IO](s"/public/timeseries/index.html", ThreadPools.blockingExecutionContext).getOrElseF(NotFound())
   }
+
+  val privatePlatformApis: AuthedRoutes[User, IO] = executor
+    .platforms
+    .toList
+    .foldMapK(_.privateRoutes)
 
   /** List of */
-  val routes: PartialService = api
-    .orElse(publicRoutes())
-    .orElse(project.authenticator(privateRoutes()))
-    .orElse {
-      executor.platforms.foldLeft(PartialFunction.empty: PartialService) {
-        case (s, p) =>
-          s.orElse(p.publicRoutes)
-            .orElse(project.authenticator(p.privateRoutes))
-      }
-    }
-    .orElse(publicAssets orElse project.authenticator(index))
+  val routes: HttpRoutes[IO] =
+    publicApi <+>
+    publicRoutes() <+>
+    executor.platforms.toList.foldMapK(_.publicRoutes) <+>
+    publicAssets <+>
+    project.authenticator(privateApi <+> privateRoutes() <+> privatePlatformApis <+> index)
 }

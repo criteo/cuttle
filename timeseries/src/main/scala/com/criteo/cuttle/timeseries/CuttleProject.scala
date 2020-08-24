@@ -1,10 +1,18 @@
 package com.criteo.cuttle.timeseries
 
-import lol.http._
+import cats.effect._
 
+import org.http4s._
+import org.http4s.implicits._
+import org.http4s.server.{AuthMiddleware, Router}
+import org.http4s.server.blaze._
 import com.criteo.cuttle._
 import com.criteo.cuttle.{Database => CuttleDatabase}
-import com.criteo.cuttle.ThreadPools._, Implicits.serverThreadPool
+import com.criteo.cuttle.ThreadPools._
+import com.criteo.cuttle.ThreadPools.Implicits.serverContextShift
+import com.criteo.cuttle.utils.Timeout.timer
+import com.criteo.cuttle.Auth.User
+
 import scala.concurrent.duration.Duration
 
 /**
@@ -16,7 +24,7 @@ class CuttleProject private[cuttle] (val name: String,
                                      val description: String,
                                      val env: (String, Boolean),
                                      val jobs: Workflow,
-                                     val authenticator: Auth.Authenticator,
+                                     val authenticator: AuthMiddleware[IO, User],
                                      val logger: Logger) {
 
   /**
@@ -56,11 +64,12 @@ class CuttleProject private[cuttle] (val name: String,
 
     startScheduler()
 
-    logger.info("Start server")
-    Server.listen(port = httpPort, onError = { e =>
-      e.printStackTrace()
-      InternalServerError(e.getMessage)
-    })(routes)
+    logger.info(s"Start server on port $httpPort")
+
+    BlazeServerBuilder[IO](ThreadPools.Implicits.serverThreadPool)
+      .bindHttp(httpPort, "0.0.0.0")
+      .withHttpApp(Router("/" -> routes).orNotFound)
+      .serve.compile.drain.unsafeRunSync()
 
     logger.info(s"Listening on http://localhost:$httpPort")
   }
@@ -88,7 +97,7 @@ class CuttleProject private[cuttle] (val name: String,
     logsRetention: Option[Duration] = None,
     maxVersionsHistory: Option[Int] = None,
     jobsToBePausedOnStartup: Set[Job[TimeSeries]] = Set.empty
-  ): (Service, () => Unit) = {
+  ): (HttpRoutes[IO], () => Unit) = {
     val xa = CuttleDatabase.connect(databaseConfig)(logger)
     val executor = new Executor[TimeSeries](platforms, xa, logger, name, version, logsRetention)(retryStrategy)
     val scheduler = new TimeSeriesScheduler(logger, stateRetention, maxVersionsHistory)
@@ -133,7 +142,7 @@ object CuttleProject {
     version: String = "",
     description: String = "",
     env: (String, Boolean) = ("", false),
-    authenticator: Auth.Authenticator = Auth.GuestAuth
+    authenticator: AuthMiddleware[IO, User] = Auth.GuestAuth
   )(jobs: Workflow)(implicit logger: Logger): CuttleProject =
     new CuttleProject(name, version, description, env, jobs, authenticator, logger)
 
