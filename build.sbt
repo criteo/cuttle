@@ -213,8 +213,6 @@ lazy val cuttle =
     .settings(Defaults.itSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
-        "com.criteo.lolhttp" %% "lolhttp",
-        "com.criteo.lolhttp" %% "loljson",
         "com.criteo.lolhttp" %% "lolhtml",
       ).map(_ % lolhttp),
       libraryDependencies ++= Seq("core", "generic", "parser", "java8")
