@@ -212,9 +212,6 @@ lazy val cuttle =
     .settings(commonSettings: _*)
     .settings(Defaults.itSettings: _*)
     .settings(
-      libraryDependencies ++= Seq(
-        "com.criteo.lolhttp" %% "lolhtml",
-      ).map(_ % lolhttp),
       libraryDependencies ++= Seq("core", "generic", "parser", "java8")
         .map(module => "io.circe" %% s"circe-$module" % circe),
       libraryDependencies ++= Seq(
@@ -284,7 +281,10 @@ lazy val cron =
     .settings(commonSettings: _*)
     .settings(Defaults.itSettings: _*)
     .settings(
-      libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5"
+      libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5",
+      libraryDependencies ++= Seq(
+        "com.criteo.lolhttp" %% "lolhtml",
+      ).map(_ % lolhttp)
     )
     .settings(
       fork in Test := true

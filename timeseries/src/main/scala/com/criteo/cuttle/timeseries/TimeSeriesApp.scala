@@ -345,7 +345,6 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     case request @ POST -> Root / "api" / "executions" / "relaunch" as user =>
       val jobs: String = request.req.params.getOrElse("jobs", "")
 
-
       val filteredJobs = Try(jobs.split(",").toSeq.filter(_.nonEmpty)).toOption
         .filter(_.nonEmpty)
         .getOrElse(allIds)
@@ -1129,7 +1128,9 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     case _ =>
       import ThreadPools.Implicits.serverContextShift
 
-      StaticFile.fromResource[IO](s"/public/timeseries/index.html", ThreadPools.blockingExecutionContext).getOrElseF(NotFound())
+      StaticFile
+        .fromResource[IO](s"/public/timeseries/index.html", ThreadPools.blockingExecutionContext)
+        .getOrElseF(NotFound())
   }
 
   val privatePlatformApis: AuthedRoutes[User, IO] = executor.platforms.toList

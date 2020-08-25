@@ -267,8 +267,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
           }
       }
     case request @ POST -> Root / "api" / "executions" / "relaunch" as user => {
-      request
-        .req
+      request.req
         .as[Json]
         .flatMap { json =>
           json.hcursor
@@ -283,11 +282,10 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
               }
             )
         }
-      }
+    }
 
     case request @ POST -> Root / "api" / "dags" / "pause" as user => {
-      request
-        .req
+      request.req
         .as[Json]
         .flatMap { json =>
           getDagsOrNotFound(json) match {
@@ -300,8 +298,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
     }
 
     case request @ POST -> Root / "api" / "dags" / "resume" as user => {
-      request
-        .req
+      request.req
         .as[Json]
         .flatMap { json =>
           getDagsOrNotFound(json) match {
@@ -313,9 +310,8 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
         }
     }
 
-    case request @ POST -> Root  / "api" / "dags" / "runnow" as user => {
-      request
-        .req
+    case request @ POST -> Root / "api" / "dags" / "runnow" as user => {
+      request.req
         .as[Json]
         .flatMap { json =>
           getDagsOrNotFound(json) match {
@@ -325,7 +321,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
               Ok()
           }
         }
-      }
+    }
   }
 
   private val publicAssets = HttpRoutes.of[IO] {
@@ -343,7 +339,9 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
     case _ =>
       import ThreadPools.Implicits.serverContextShift
 
-      StaticFile.fromResource[IO](s"/public/cron/index.html", ThreadPools.blockingExecutionContext).getOrElseF(NotFound())
+      StaticFile
+        .fromResource[IO](s"/public/cron/index.html", ThreadPools.blockingExecutionContext)
+        .getOrElseF(NotFound())
   }
 
   val routes: HttpRoutes[IO] = publicApi <+>
