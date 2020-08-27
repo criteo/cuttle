@@ -1,7 +1,7 @@
 val devMode = settingKey[Boolean]("Some build optimization are applied in devMode.")
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 
-val VERSION = "0.11.3"
+val VERSION = "0.11.5"
 
 lazy val catsCore = "1.6.1"
 lazy val circe = "0.11.1"
@@ -27,7 +27,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-unused-import",
     "-Ypartial-unification"
   ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) => Seq("-Ywarn-unused:-params")
+    case Some((2, 12)) => Seq("-Ywarn-unused:-explicits,-implicits")
     case _             => Nil
   }),
   devMode := Option(System.getProperty("devMode")).isDefined,
