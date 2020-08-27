@@ -1,14 +1,13 @@
 package com.criteo.cuttle.cron
 
+import java.time.temporal.ChronoUnit
+import java.time.{Duration, Instant, ZoneId, ZoneOffset}
+
 import cron4s.Cron
 import cron4s.lib.javatime._
-import java.time.{Duration, Instant, ZoneId, ZoneOffset}
-import java.time.temporal.ChronoUnit
-
-import io.circe.{Encoder, Json}
 import io.circe.syntax._
+import io.circe.{Encoder, Json}
 
-import java.time.ZoneOffset
 import scala.concurrent.duration._
 
 /**
