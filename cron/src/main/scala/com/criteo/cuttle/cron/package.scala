@@ -3,16 +3,34 @@ package com.criteo.cuttle
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.ExecutionContext
 import cats.effect.IO
-import com.criteo.cuttle.ThreadPools._
+import com.criteo.cuttle.Auth.User
 import com.criteo.cuttle.ThreadPools.ThreadPoolSystemProperties._
+import com.criteo.cuttle.ThreadPools._
+
+import scala.concurrent.ExecutionContext
+import scala.language.implicitConversions
 
 package object cron {
   type CronJob = Job[CronScheduling]
   type CronExecution = Execution[CronScheduling]
 
+  // In the Cron scheduler, we do not pause jobs, we pause entire DAGs
+  type PausedDag = PausedJob
+  object PausedDag {
+    def apply(id: String, user: User, date: Instant): PausedDag = PausedJob(id, user, date)
+  }
+
   object Implicits {
+
+    //Backward compat for Job to CronDag
+    implicit class JobToCronDag(job: Job[CronScheduling]) {
+      def every(cronExpression: CronExpression) =
+        CronDag(job.id, CronPipeline(Set(job), Set.empty), cronExpression, job.name, job.description, job.tags)
+    }
+
+    implicit def stringToCronExp(cronExpression: String) = CronExpression(cronExpression)
+
     // Thread pool to run Cron scheduler
     implicit val cronThreadPool = new WrappedThreadPool with Metrics {
       private val _threadPoolSize: AtomicInteger = new AtomicInteger(0)
@@ -30,26 +48,36 @@ package object cron {
     }
 
     implicit val cronContextShift = IO.contextShift(cronThreadPool.underlying)
+
   }
 
-  // Fair assumptions about start and end date within which we operate by default if user doesn't specify his interval.
-  // We choose these dates over Instant.MIN and Instant.MAX because MySQL works within this range.
-  private[cron] val minStartDateForExecutions = Instant.parse("1000-01-01T00:00:00Z")
-  private[cron] val maxStartDateForExecutions = Instant.parse("9999-12-31T23:59:59Z")
-
-  // This function was implemented because executor.archivedExecutions returns duplicates when passing the same table
-  // into the context query.
   private[cron] def buildExecutionsList(executor: Executor[CronScheduling],
-                                        job: CronJob,
-                                        startDate: Instant,
-                                        endDate: Instant,
-                                        limit: Int) =
+                                        jobIds: Set[String],
+                                        startDate: Option[Instant],
+                                        endDate: Option[Instant],
+                                        limit: Int): IO[Map[Instant, Seq[ExecutionLog]]] =
     for {
-      archived <- executor.rawArchivedExecutions(Set(job.id), "", asc = false, 0, limit)
+      archived <- executor.archivedExecutions(
+        queryContexts = Database.sqlGetContextsBetween(startDate, endDate),
+        jobs = jobIds,
+        sort = "",
+        asc = false,
+        offset = 0,
+        limit = limit
+      )
       running <- IO(executor.runningExecutions.collect {
         case (e, status)
-            if e.job.id == job.id && e.context.instant.isAfter(startDate) && e.context.instant.isBefore(endDate) =>
+            if jobIds.contains(e.job.id)
+              && startDate.forall(e.context.instant.isAfter)
+              && endDate.forall(e.context.instant.isBefore) =>
           e.toExecutionLog(status)
       })
-    } yield (running ++ archived)
+    } yield (running ++ archived).groupBy(
+      f =>
+        CronContext.decoder.decodeJson(f.context) match {
+          case Left(_)  => Instant.now()
+          case Right(b) => b.instant
+        }
+    )
+
 }

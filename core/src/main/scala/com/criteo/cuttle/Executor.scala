@@ -3,6 +3,7 @@ package com.criteo.cuttle
 import java.io.{PrintWriter, StringWriter}
 import java.time.{Duration, Instant, ZoneId}
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Timer, TimerTask}
 
@@ -443,6 +444,20 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
     )
   )
 
+  // Logs retention
+  private val logsRetentionExecutorService = ThreadPools
+    .newScheduledThreadPool(1, poolName = Some("LogsRetention"))
+  logsRetentionExecutorService.scheduleAtFixedRate(
+    new Runnable {
+      val retention = logsRetention.getOrElse(ScalaDuration(30L, TimeUnit.DAYS))
+      logger.info(s"Applying log retention: $retention")
+      def run(): Unit = queries.applyLogsRetention(retention).transact(xa).unsafeRunSync()
+    },
+    0,
+    1,
+    TimeUnit.HOURS
+  )
+
   // executions that failed recently and are now running
   private def retryingExecutions(filteredJobs: Set[String]): Seq[(Execution[S], FailingJob, ExecutionStatus)] =
     atomic { implicit txn =>
@@ -635,10 +650,10 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
   def openStreams(executionId: String): fs2.Stream[IO, Byte] =
     ExecutionStreams.getStreams(executionId, queries, xa)
 
-  def relaunch(jobs: Set[String])(implicit user: User): Unit = {
+  private def relaunchExecutions(cond: Execution[S] => Boolean)(implicit user: User): Unit = {
     val execution2Promise = atomic { implicit txn =>
       throttledState.collect {
-        case (execution, (promise, _)) if jobs.contains(execution.job.id) =>
+        case (execution, (promise, _)) if cond(execution) =>
           throttledState -= execution
           addExecution2RunningState(execution, promise)
           execution -> promise
@@ -651,6 +666,12 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
         unsafeDoRun(execution, promise)
     }
   }
+
+  def relaunchExecs(execs: Set[String])(implicit user: User): Unit =
+    relaunchExecutions(e => execs.contains(e.id))
+
+  def relaunch(jobs: Set[String])(implicit user: User): Unit =
+    relaunchExecutions(e => jobs.contains(e.job.id))
 
   private[cuttle] def gracefulShutdown(timeout: scala.concurrent.duration.Duration)(implicit user: User): Unit = {
 
@@ -666,6 +687,8 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
     val runningFutures = atomic { implicit tx =>
       runningState.map({ case (_, v) => v })
     }
+
+    logsRetentionExecutorService.shutdown()
 
     Future
       .firstCompletedOf(List(Timeout(timeout), Future.sequence(runningFutures)))
@@ -723,7 +746,7 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
         .andThen {
           case result =>
             try {
-              ExecutionStreams.archive(execution.id, queries, logsRetention, xa)
+              ExecutionStreams.archive(execution.id, queries, xa)
             } catch {
               case e: Throwable =>
                 e.printStackTrace()
@@ -753,15 +776,14 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
         Set("type" -> status, "job_id" -> execution.job.id) ++ tagsLabel
       )
     }
-  private def run0(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
+  private def run0(
+    all: Seq[(Job[S], S#Context)],
+    index: Map[(Job[S], S#Context), (Execution[S], Future[Completed])]
+  ): Seq[(Execution[S], Future[Completed])] = {
     sealed trait NewExecution
     case object ToRunNow extends NewExecution
     case class Throttled(launchDate: Instant) extends NewExecution
 
-    val index: Map[(Job[S], S#Context), (Execution[S], Future[Completed])] = runningState.single.map {
-      case (execution, future) =>
-        ((execution.job, execution.context), (execution, future))
-    }.toMap
     val existingOrNew
       : Seq[Either[(Execution[S], Future[Completed]), (Job[S], Execution[S], Promise[Completed], NewExecution)]] =
       atomic { implicit txn =>
@@ -900,15 +922,24 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
     * @param job The [[Job]] to run (actually its [[SideEffect]] function)
     * @param context The [[SchedulingContext]] (input of the [[SideEffect]] function)
     * @return The created [[Execution]] along with the `Future` tracking the execution status. */
-  def run(job: Job[S], context: S#Context): (Execution[S], Future[Completed]) =
-    run0(Seq(job -> context)).head
+  def run(job: Job[S], context: S#Context): (Execution[S], Future[Completed]) = {
+    val index = runningState.single.collect {
+      case (execution, future) if execution.job === job && execution.context == context =>
+        ((execution.job, execution.context), (execution, future))
+    }.toMap
+    run0(Seq(job -> context), index).head
+  }
 
   /** Run the [[SideEffect]] function of the provided ([[Job Jobs]], [[SchedulingContext SchedulingContexts]]).
     *
     * @param all The [[Job Jobs]] and [[SchedulingContext SchedulingContexts]] to run.
     * @return The created [[Execution Executions]] along with their `Future` tracking the execution status. */
-  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] =
-    run0(all.sortBy(_._2))
+  def runAll(all: Seq[(Job[S], S#Context)]): Seq[(Execution[S], Future[Completed])] = {
+    val index = runningState.single.map {
+      case (execution, future) => ((execution.job, execution.context), (execution, future))
+    }.toMap
+    run0(all.sortBy(_._2), index)
+  }
 
   /**
     * Atomically get executor stats.

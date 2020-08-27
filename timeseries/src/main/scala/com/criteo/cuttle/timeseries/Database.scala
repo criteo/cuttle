@@ -2,17 +2,16 @@ package com.criteo.cuttle.timeseries
 
 import com.criteo.cuttle._
 import Internal._
-
 import java.time._
-import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
 
+import scala.concurrent.duration.Duration
 import cats.Applicative
 import cats.data.{NonEmptyList, OptionT}
 import cats.implicits._
-
+import com.criteo.cuttle.timeseries.JobState.Todo
 import io.circe._
 import io.circe.syntax._
-
 import doobie._
 import doobie.implicits._
 
@@ -138,9 +137,9 @@ private[timeseries] object Database {
         (job.id, im.toList.filter {
           case (_, jobState) =>
             jobState match {
-              case JobState.Done(_) => true
-              case JobState.Todo(_) => true
-              case _                => false
+              case JobState.Done(_)    => true
+              case JobState.Todo(_, _) => true
+              case _                   => false
             }
         })
     }.asJson
@@ -155,21 +154,23 @@ private[timeseries] object Database {
   def serializeState(state: State, retention: Option[Duration]): ConnectionIO[Int] = {
 
     val now = Instant.now()
-    val cleanStateBefore = retention.map { duration =>
-      if (duration.toSeconds <= 0)
-        sys.error(s"State retention is badly configured: ${duration}")
-      else
-        now.minusSeconds(duration.toSeconds)
-    }
-    val stateJson = dbStateEncoder(state)
+    val cleanStateBefore = retention
+      .map { duration =>
+        if (duration.toSeconds <= 0)
+          sys.error(s"State retention is badly configured: ${duration}")
+        else
+          now.minusSeconds(duration.toSeconds)
+      }
+      .getOrElse(now.minusSeconds(Duration(1, TimeUnit.DAYS).toSeconds))
+
+    val stateJson = dbStateEncoder(state.mapValues(_.map {
+      case Todo(backfill, _) => Todo(backfill, None)
+      case other             => other
+    }))
 
     for {
       // Apply state retention if needed
-      _ <- cleanStateBefore
-        .map { t =>
-          sql"DELETE FROM timeseries_state where date < ${t}".update.run
-        }
-        .getOrElse(NoUpdate)
+      _ <- sql"DELETE FROM timeseries_state where date < ${cleanStateBefore}".update.run
       // Insert the latest state
       x <- sql"INSERT INTO timeseries_state (state, date) VALUES (${stateJson}, ${now})".update.run
     } yield x

@@ -32,7 +32,7 @@ package object utils {
     * @param schemaEvolutions List of schema evolutions (should be append-only)
     */
   def updateSchema(table: String, schemaEvolutions: List[ConnectionIO[_]]) =
-    (for {
+    for {
       _ <- Fragment.const(s"""
         CREATE TABLE IF NOT EXISTS ${table} (
           schema_version  SMALLINT NOT NULL,
@@ -52,7 +52,7 @@ package object utils {
               fr"VALUES(${i + 1}, ${Instant.now()})"
           evolutions *> evolution *> insertEvolutionQuery.update.run
       }
-    } yield ())
+    } yield ()
 
   private[cuttle] implicit val timer: cats.effect.Timer[IO] = {
     val timerThreadPool = ThreadPools.newFixedThreadPool(1, poolName = Some("Timer"))

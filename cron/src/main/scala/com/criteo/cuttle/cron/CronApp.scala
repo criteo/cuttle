@@ -3,25 +3,24 @@ package com.criteo.cuttle.cron
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-import scala.util.{Success, Try}
-
 import cats.data.EitherT
 import cats.effect.IO
+import com.criteo.cuttle.Auth._
+import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
+import com.criteo.cuttle._
+import com.criteo.cuttle.utils.getJVMUptime
 import io.circe._
 import io.circe.syntax._
 import lol.http._
 import lol.json._
 
-import com.criteo.cuttle.Auth._
-import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
-import com.criteo.cuttle._
-import com.criteo.cuttle.utils.getJVMUptime
+import scala.util.{Success, Try}
 
 private[cron] case class CronApp(project: CronProject, executor: Executor[CronScheduling])(
   implicit val transactor: XA
 ) {
   private val scheduler = project.scheduler
-  private val workload = project.workload
+  private val workload: CronWorkload = project.workload
 
   private val allJobIds = workload.all.map(_.id)
 
@@ -71,21 +70,23 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
           Ok(bodyFromStream)
       }
 
-    case GET at "/api/dashboard" =>
-      Ok(scheduler.getStats(allJobIds))
-
-    case GET at "/api/jobs/paused" =>
-      Ok(scheduler.getPausedJobs.asJson)
+    case GET at "/api/dags/paused" =>
+      Ok(scheduler.getPausedDags.asJson)
 
     // we only show 20 recent executions by default but it could be modified via query parameter
-    case GET at url"/api/cron/executions?job=$job&start=$start&end=$end&limit=$limit" =>
+    case GET at url"/api/cron/executions?dag=$dag&start=$start&end=$end&limit=$limit" =>
       val jsonOrError: EitherT[IO, Throwable, Json] = for {
-        job <- EitherT.fromOption[IO](workload.all.find(_.id == job), throw new Exception(s"Unknow job $job"))
-        startDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(start)).getOrElse(minStartDateForExecutions))
-        endDate <- EitherT.rightT[IO, Throwable](Try(Instant.parse(end)).getOrElse(maxStartDateForExecutions))
+        dag <- EitherT.fromOption[IO](workload.dags.find(_.id == dag), throw new Exception(s"Unknown job DAG $dag"))
+        jobIds <- EitherT.rightT[IO, Throwable](dag.cronPipeline.vertices.map(_.id))
+        startDate <- EitherT.rightT[IO, Throwable](Try(Some(Instant.parse(start))).getOrElse(None))
+        endDate <- EitherT.rightT[IO, Throwable](Try(Some(Instant.parse(end))).getOrElse(None))
         limit <- EitherT.rightT[IO, Throwable](Try(limit.toInt).getOrElse(Int.MaxValue))
-        executionList <- EitherT.right[Throwable](buildExecutionsList(executor, job, startDate, endDate, limit))
-      } yield executionList.asJson
+        executions <- EitherT.right[Throwable](buildExecutionsList(executor, jobIds, startDate, endDate, limit))
+        executionListFlat <- EitherT.rightT[IO, Throwable](executions.values.toSet.flatten)
+        json <- EitherT.rightT[IO, Throwable](
+          Json.fromValues(executionListFlat.map(ExecutionLog.executionLogEncoder.apply(_)))
+        )
+      } yield json
 
       jsonOrError.value.map {
         case Right(json) => Ok(json)
@@ -117,44 +118,44 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
       }
     }
 
-    case POST at url"/api/jobs/$id/pause" => { implicit user =>
-      workload.all.find(_.id == id).fold(NotFound) { job =>
-        scheduler.pauseJobs(Set(job), executor)
+    case POST at url"/api/dags/$id/pause" => { implicit user =>
+      workload.dags.find(_.id == id).fold(NotFound) { dag =>
+        scheduler.pauseDags(Set(dag), executor)
         Ok
       }
     }
 
-    case POST at url"/api/jobs/$id/runnow" => { implicit user =>
-      workload.all.find(_.id == id).fold(NotFound) { job =>
-        scheduler.runJobsNow(Set(job), executor)
+    case POST at url"/api/dags/$id/runnow" => { implicit user =>
+      workload.dags.find(_.id == id).fold(NotFound) { dag =>
+        scheduler.runJobsNow(Set(dag), executor)
         Ok
       }
     }
 
-    case POST at url"/api/jobs/$id/runnow_redirect" => { implicit user =>
-      workload.all.find(_.id == id).fold(NotFound) { job =>
-        scheduler.runJobsNow(Set(job), executor)
+    case POST at url"/api/dags/$id/runnow_redirect" => { implicit user =>
+      workload.dags.find(_.id == id).fold(NotFound) { dag =>
+        scheduler.runJobsNow(Set(dag), executor)
         Redirect("/", 302)
       }
     }
 
-    case POST at url"/api/jobs/$id/resume" => { implicit user =>
-      workload.all.find(_.id == id).fold(NotFound) { job =>
-        scheduler.resumeJobs(Set(job), executor)
+    case POST at url"/api/dags/$id/resume" => { implicit user =>
+      workload.dags.find(_.id == id).fold(NotFound) { dag =>
+        scheduler.resumeDags(Set(dag), executor)
         Ok
       }
     }
 
-    case POST at url"/api/jobs/$id/pause_redirect" => { implicit user =>
-      workload.all.find(_.id == id).fold(NotFound) { job =>
-        scheduler.pauseJobs(Set(job), executor)
+    case POST at url"/api/dags/$id/pause_redirect" => { implicit user =>
+      workload.dags.find(_.id == id).fold(NotFound) { dag =>
+        scheduler.pauseDags(Set(dag), executor)
         Redirect("/", 302)
       }
     }
 
-    case POST at url"/api/jobs/$id/resume_redirect" => { implicit user =>
-      workload.all.find(_.id == id).fold(NotFound) { job =>
-        scheduler.resumeJobs(Set(job), executor)
+    case POST at url"/api/dags/$id/resume_redirect" => { implicit user =>
+      workload.dags.find(_.id == id).fold(NotFound) { dag =>
+        scheduler.resumeDags(Set(dag), executor)
         Redirect("/", 302)
       }
     }

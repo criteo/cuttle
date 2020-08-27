@@ -22,7 +22,8 @@ import { PostEventSource } from "./Utils";
 import { openPage } from "./actions";
 
 const routes = {
-  "/": () => openPage({ id: "executions/started" }),
+  "/": (_, { page, sort, order }) =>
+    openPage({ id: "executions/started", page, sort, order }),
   "/executions/started": (_, { page, sort, order }) =>
     openPage({ id: "executions/started", page, sort, order }),
   "/executions/stuck": (_, { page, sort, order }) =>
