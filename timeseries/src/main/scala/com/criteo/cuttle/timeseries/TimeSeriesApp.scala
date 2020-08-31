@@ -728,14 +728,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         runningDependencies ++ failingDependencies ++ remainingDependenciesDeps.toSeq
       }
 
-      val watchedState = snapshotWatchedState()
+      val watchedState = IO(snapshotWatchedState())
       if (request.headers.get(h"Accept").contains(h"text/event-stream")) {
         sse(
-          IO { Some(watchedState) },
+          watchedState.map(Some(_)),
           (s: WatchedState) => getExecutions(s)
         )
       } else {
-        getExecutions(watchedState).map(Ok(_))
+        watchedState.flatMap(getExecutions).map(Ok(_))
       }
 
     case GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
