@@ -284,7 +284,8 @@ lazy val cron =
     .settings(
       fork in Test := true
     )
-    .dependsOn(cuttle % "compile->compile;test->test;it->it")
+    .settings(webpackSettings("cron"))
+    .dependsOn(cuttle % "compile->compile;test->test")
 
 lazy val examples =
   (project in file("examples"))

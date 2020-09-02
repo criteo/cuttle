@@ -51,33 +51,4 @@ package object cron {
 
   }
 
-  private[cron] def buildExecutionsList(executor: Executor[CronScheduling],
-                                        jobIds: Set[String],
-                                        startDate: Option[Instant],
-                                        endDate: Option[Instant],
-                                        limit: Int): IO[Map[Instant, Seq[ExecutionLog]]] =
-    for {
-      archived <- executor.archivedExecutions(
-        queryContexts = Database.sqlGetContextsBetween(startDate, endDate),
-        jobs = jobIds,
-        sort = "",
-        asc = false,
-        offset = 0,
-        limit = limit
-      )
-      running <- IO(executor.runningExecutions.collect {
-        case (e, status)
-            if jobIds.contains(e.job.id)
-              && startDate.forall(e.context.instant.isAfter)
-              && endDate.forall(e.context.instant.isBefore) =>
-          e.toExecutionLog(status)
-      })
-    } yield (running ++ archived).groupBy(
-      f =>
-        CronContext.decoder.decodeJson(f.context) match {
-          case Left(_)  => Instant.now()
-          case Right(b) => b.instant
-        }
-    )
-
 }
