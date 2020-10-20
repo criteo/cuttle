@@ -2,7 +2,7 @@ val devMode = settingKey[Boolean]("Some build optimization are applied in devMod
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 val yarnInstall = taskKey[Unit]("Install yarn dependencies")
 
-val VERSION = "0.11.6"
+val VERSION = "0.11.7"
 
 lazy val catsCore = "1.6.1"
 lazy val circe = "0.11.1"
@@ -225,7 +225,7 @@ lazy val cuttle =
         "org.typelevel" %% "cats-core" % catsCore,
         "codes.reactive" %% "scala-time" % "0.4.2",
         "com.zaxxer" % "nuprocess" % "1.1.3",
-        "mysql" % "mysql-connector-java" % "8.0.17"
+        "org.mariadb.jdbc" % "mariadb-java-client" % "2.7.0"
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
