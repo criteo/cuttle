@@ -1099,15 +1099,15 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
   val api = publicApi orElse project.authenticator(privateApi)
 
   val publicAssets: PartialService = {
-    case GET at url"/public/$file" =>
-      ClasspathResource(s"/public/$file").fold(NotFound)(r => Ok(r))
+    case GET at url"/public/timeseries/$file" =>
+      ClasspathResource(s"/public/timeseries/$file").fold(NotFound)(r => Ok(r))
   }
 
   val index: AuthenticatedService = {
     case req if req.url.startsWith("/api/") =>
       _ => NotFound
     case _ =>
-      _ => Ok(ClasspathResource(s"/public/index.html"))
+      _ => Ok(ClasspathResource(s"/public/timeseries/index.html"))
   }
 
   /** List of */

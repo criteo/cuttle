@@ -1,0 +1,371 @@
+// @flow
+
+import React from "react";
+import injectSheet from "react-jss";
+import ReactTooltip from "react-tooltip";
+import PopoverMenu from "../../common/components/PopoverMenu";
+import moment from "moment";
+
+import Context from "../components/Context";
+import Window from "../../common/components/Window";
+import FancyTable from "../../common/components/FancyTable";
+import Error from "../../common/components/Error";
+import Spinner from "../../common/components/Spinner";
+import Clock from "../../common/components/Clock";
+import Link from "../../common/components/Link";
+import Status from "../../common/components/Status";
+import { Badge } from "../../common/components/Badge";
+import { listenEvents } from "../../common/Utils";
+import type { ExecutionLog } from "../datamodel";
+import StreamView from "../../common/components/StreamView";
+import TextWithDashedLine from "../../common/components/TextWithDashedLine";
+
+type Level = "DEBUG" | "INFO" | "ERROR";
+type Line = {
+  timestamp: string,
+  level: Level,
+  message: string
+};
+
+type Props = {
+  classes: any,
+  execution: string
+};
+
+type State = {
+  query: ?string,
+  data: ?ExecutionLog,
+  streams: Array<Line>,
+  eventSource: ?any,
+  streamsEventSource: ?any,
+  error: ?any
+};
+
+type ProgressBarProps = {
+  classes: any,
+  totalTimeSeconds: number,
+  waitingTimeSeconds: number
+};
+
+const ProgressBarComponent = ({
+  classes,
+  totalTimeSeconds,
+  waitingTimeSeconds
+}: ProgressBarProps) => {
+  const totalWidth = 200;
+  const height = 8;
+  const barWidth =
+    totalTimeSeconds !== 0
+      ? (waitingTimeSeconds / totalTimeSeconds) * totalWidth
+      : 0;
+
+  const tooltip =
+    `Waiting : ${moment.utc(waitingTimeSeconds * 1000).format("HH:mm:ss")} / ` +
+    `Running : ${moment
+      .utc((totalTimeSeconds - waitingTimeSeconds) * 1000)
+      .format("HH:mm:ss")}`;
+
+  return (
+    <span className={classes.main}>
+      <svg width={totalWidth} height={height} className={classes.svg}>
+        <g data-tip={tooltip}>
+          <rect width={totalWidth} height={height} fill="#00BCD4" />
+          <rect width={barWidth} height={height} fill="#ff9800" />
+        </g>
+      </svg>
+      <ReactTooltip className={classes.tooltip} effect="float" html={true} />
+    </span>
+  );
+};
+
+const ProgressBar = injectSheet({
+  main: {
+    "margin-left": "10px"
+  },
+  svg: {
+    lineHeight: "18px",
+    display: "inline-block"
+  }
+})(ProgressBarComponent);
+
+const Menu = ({
+  executionLog,
+  classes
+}: {
+  executionLog: ExecutionLog,
+  classes: Object
+}) => {
+  const isCancellable =
+    executionLog.status === "running" || executionLog.status === "waiting";
+
+  return isCancellable ? (
+    <PopoverMenu
+      keys="menu"
+      className={classes.menu}
+      items={[
+        <span
+          onClick={() => {
+            fetch(`/api/executions/${executionLog.id}/cancel`, {
+              method: "POST",
+              credentials: "include"
+            });
+          }}
+        >
+          Cancel
+        </span>
+      ]}
+    />
+  ) : null;
+};
+
+class Execution extends React.Component<Props, State> {
+  shouldOverwriteStreams: boolean = false;
+
+  constructor(props: Props) {
+    super(props);
+
+    this.state = {
+      query: null,
+      data: null,
+      streams: [],
+      eventSource: null,
+      streamsEventSource: null,
+      error: null
+    };
+  }
+
+  listen() {
+    let { query, eventSource, streamsEventSource } = this.state;
+    let { execution } = this.props;
+    let newQuery = `/api/executions/${execution}?events=true`;
+    if (newQuery != query) {
+      eventSource && eventSource.close();
+      streamsEventSource && streamsEventSource.close();
+      eventSource = listenEvents(
+        newQuery,
+        this.updateData.bind(this),
+        this.notFound.bind(this)
+      );
+      streamsEventSource = listenEvents(
+        `/api/executions/${execution}/streams`,
+        this.streams.bind(this)
+      );
+      this.setState({
+        query: newQuery,
+        data: null,
+        streams: [],
+        eventSource,
+        streamsEventSource
+      });
+    }
+  }
+
+  notFound(error) {
+    this.setState({
+      error
+    });
+  }
+
+  updateData(json: ExecutionLog) {
+    this.setState({
+      ...this.state,
+      data: json
+    });
+  }
+
+  streams(json: any) {
+    let { streamsEventSource } = this.state;
+    if (json == "EOS" && streamsEventSource) {
+      streamsEventSource.close();
+    } else if (json == "BOS" && streamsEventSource) {
+      this.shouldOverwriteStreams = true;
+    } else {
+      let lines: Array<Line> = [];
+      json.map(line => {
+        let groups = /([^ ]+) ([^ ]+)\s+- (.*)/.exec(line);
+        if (groups) {
+          let [_, timestamp, levelAsString, message] = groups;
+          const level: Level = (levelAsString: any);
+          lines.push({
+            timestamp: moment.utc(timestamp).format("YYYY-MM-DD HH:mm:ss"),
+            level,
+            message
+          });
+        } else
+          lines.push({
+            timestamp: "",
+            level: "ERROR",
+            message: line
+          });
+      });
+      const streamsHead = this.shouldOverwriteStreams ? [] : this.state.streams;
+      this.shouldOverwriteStreams = false;
+      const streams = streamsHead.concat(lines);
+      this.setState({
+        streams
+      });
+    }
+  }
+
+  componentDidUpdate() {
+    this.listen();
+  }
+
+  componentWillMount() {
+    this.listen();
+  }
+
+  componentWillUnmount() {
+    let { eventSource, streamsEventSource } = this.state;
+    eventSource && eventSource.close();
+    streamsEventSource && streamsEventSource.close();
+  }
+
+  render() {
+    let { classes, execution } = this.props;
+    let { data, error, streams } = this.state;
+
+    const isExecutionWaiting =
+      !data ||
+      data.status === "waiting" ||
+      data.status === "throttled" ||
+      data.status === "paused";
+
+    return (
+      <Window title="Execution">
+        {data ? (
+          [
+            <Menu key="menu" executionLog={data} classes={classes} />,
+            <FancyTable key="properties">
+              <dt key="id">Id:</dt>
+              <dd key="id_">{data.id}</dd>
+              <dt key="job">Job:</dt>
+              <dd key="job_">
+                <Link href={`/workflow/${data.job}`}>{data.job}</Link>
+              </dd>
+              <dt key="context">Context:</dt>
+              <dd key="context_">
+                <Context context={data.context} />
+              </dd>
+              <dt key="status">Status:</dt>
+              <dd key="status_">
+                <Status status={data.status} />
+                {data.context.backfill ? (
+                  <span style={{ marginLeft: "10px" }}>
+                    <Link
+                      href={`/timeseries/backfills/${data.context.backfill.id}`}
+                    >
+                      <Badge label="BACKFILL" kind="alt" />
+                    </Link>
+                  </span>
+                ) : null}
+              </dd>
+              {data.startTime
+                ? [
+                    <dt key="startTime">Start time:</dt>,
+                    <dd key="startTime_">
+                      {moment(data.startTime)
+                        .utc()
+                        .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
+                    </dd>
+                  ]
+                : null}
+              {data.endTime
+                ? [
+                    <dt key="endTime">End time:</dt>,
+                    <dd key="endTime_">
+                      {moment(data.endTime)
+                        .utc()
+                        .format("dddd, MMMM Do YYYY, HH:mm:ss z")}
+                    </dd>
+                  ]
+                : null}
+              {data.startTime
+                ? [
+                    <dt key="duration">Duration:</dt>,
+                    <dd key="duration_">
+                      {data.endTime ? (
+                        (() => {
+                          const duration = moment(data.endTime).diff(
+                            moment(data.startTime)
+                          );
+                          const timePart = moment
+                            .utc(duration)
+                            .format("HH:mm:ss");
+                          const dayPart = moment.duration(duration).days();
+                          const durationMsg =
+                            dayPart === 0
+                              ? timePart
+                              : `${dayPart} days ${timePart}`;
+                          const progressBar = (
+                            <ProgressBar
+                              key="progressBar"
+                              totalTimeSeconds={duration / 1000}
+                              waitingTimeSeconds={data.waitingSeconds}
+                            />
+                          );
+                          return [durationMsg, progressBar];
+                        })()
+                      ) : (
+                        <Clock time={data.startTime} humanize={false} />
+                      )}
+                    </dd>
+                  ]
+                : null}
+              {data.failing
+                ? [
+                    <dt key="failing">Failing:</dt>,
+                    <dd key="failing_">
+                      {`Failed ${
+                        data.failing.failedExecutions.length
+                      } times and will be retried`}{" "}
+                      <Clock time={data.failing.nextRetry || ""} />
+                      .&nbsp;
+                      <Link
+                        className={classes.failedLink}
+                        href={`/executions/${
+                          (data.failing: any).failedExecutions[
+                            (data.failing: any).failedExecutions.length - 1
+                          ].id
+                        }`}
+                      >
+                        Check latest failed execution.
+                      </Link>
+                    </dd>
+                  ]
+                : null}
+            </FancyTable>,
+            <StreamView
+              key="streams"
+              streams={streams}
+              placeholder={
+                isExecutionWaiting ? (
+                  <li key="waiting">
+                    <TextWithDashedLine text={"Execution is waiting"} />
+                  </li>
+                ) : null
+              }
+            />
+          ]
+        ) : error ? (
+          <Error message={`execution ${execution} not found`} />
+        ) : (
+          <Spinner />
+        )}
+      </Window>
+    );
+  }
+}
+
+const styles = {
+  menu: {
+    position: "absolute",
+    top: "60px",
+    right: "1em"
+  },
+  failedLink: {
+    color: "#e91e63"
+  }
+};
+
+export default injectSheet(styles)(Execution);
