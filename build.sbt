@@ -220,7 +220,7 @@ lazy val cuttle =
         .map(module => "io.circe" %% s"circe-$module" % circe),
       libraryDependencies ++= Seq(
         "de.sciss" %% "fingertree" % "1.5.2",
-        "org.scala-stm" %% "scala-stm" % "0.9.1",
+        "org.scala-stm" %% "scala-stm" % "0.11.0",
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
         "org.typelevel" %% "cats-core" % catsCore,
         "codes.reactive" %% "scala-time" % "0.4.2",
