@@ -3,17 +3,19 @@ const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const FlowStatusWebpackPlugin = require("flow-status-webpack-plugin");
 const merge = require("webpack-merge");
+const args = require("yargs").argv;
+const project = args.project;
 
 const env = process.env.NODE_ENV || "production";
 
 const outputPath = path.resolve(
   __dirname,
-  "timeseries/target/scala-2.11/classes/public"
+  `${project}/target/scala-2.11/classes/public/${project}`
 );
 
 const common = {
   entry: {
-    app: [path.resolve(__dirname, "timeseries/src/main/javascript/index.js")]
+    app: [path.resolve(__dirname, `frontend/javascript/${project}/index.js`)]
   },
 
   devServer: {
@@ -28,7 +30,7 @@ const common = {
   output: {
     filename: "[name].js",
     path: outputPath,
-    publicPath: "/public/"
+    publicPath: `/public/${project}`
   },
 
   devtool: "sourcemap",
@@ -47,8 +49,7 @@ const common = {
             }
           }
         ],
-        include: path.join(__dirname, "timeseries/src"),
-        exclude: [path.resolve(__dirname, "timeseries/node_modules/")]
+        include: path.join(__dirname, "frontend"),
       },
       {
         test: /\.(less|css)/,
@@ -63,7 +64,7 @@ const common = {
 
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve(__dirname, "timeseries/src/main/html/index.html"),
+      template: path.resolve(__dirname, "frontend/html/index.html"),
       inject: "body"
     }),
     new FlowStatusWebpackPlugin({

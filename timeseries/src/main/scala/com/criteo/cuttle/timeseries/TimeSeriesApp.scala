@@ -8,6 +8,10 @@ import scala.util._
 
 import cats.effect.IO
 import cats.implicits._
+import cats.data.EitherT
+import cats.data.NonEmptyList
+import cats.data.Validated
+
 import doobie.implicits._
 import io.circe._
 import io.circe.generic.auto._
@@ -95,20 +99,31 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
   import TimeSeriesCalendar._
 
   private val allIds = jobs.all.map(_.id)
+  private lazy val jobLookup = jobs.all.map(job => job.id -> job).toMap
 
-  private def parseJobIds(jobsQueryString: String): Set[String] =
-    jobsQueryString.split(",").filter(_.trim().nonEmpty).toSet
+  private def getJobsFromJobIds(
+    jobIds: NonEmptyList[String]
+  ): Validated[Set[String], Set[Job[TimeSeries]]] =
+    jobIds.toList
+      .traverse(jobId => jobLookup.get(jobId).toValid(Set(jobId)))
+      .map(_.toSet)
 
-  private def getJobsOrNotFound(
-    jobsQueryString: String
-  ): Either[Response, Set[Job[TimeSeries]]] = {
-    val jobsNames = parseJobIds(jobsQueryString)
-    if (jobsNames.isEmpty) Right(jobs.all)
-    else {
-      val filteredJobs = jobs.all.filter(v => jobsNames.contains(v.id))
-      if (filteredJobs.isEmpty) Left(NotFound)
-      else Right(filteredJobs)
-    }
+  private def getJobsOrNotFound(request: Request): EitherT[IO, Response, Set[Job[TimeSeries]]] = {
+    val result = for {
+      jsonPayload <- request.readAs[Json]
+      jobListPayload <- jsonPayload.as[JobListPayLoad].liftTo[IO]
+      jobs <- jobListPayload.jobs.toNel
+        .map(jobIds => {
+          getJobsFromJobIds(jobIds).toEither
+            .leftMap(jobIds => new Throwable(s"Job ids not found: $jobIds"))
+            .liftTo[IO]
+        })
+        .getOrElse(IO.pure(jobs.all.toList))
+    } yield jobs
+
+    EitherT
+      .right[Throwable](result.map(_.toSet))
+      .leftMap(error => BadRequest(error.getMessage))
   }
 
   val publicApi: PartialService = {
@@ -311,28 +326,28 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     }
 
     case request @ POST at url"/api/jobs/pause" => { implicit user =>
-      request.readAs[Json].flatMap { json =>
-        val jobs = json.hcursor.get[String]("jobs").getOrElse("")
-        getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
+      getJobsOrNotFound(request)
+        .map(jobs => {
           scheduler.pauseJobs(jobs, executor, xa)
           Ok
         })
-      }
+        .merge
     }
 
     case request @ POST at url"/api/jobs/resume" => { implicit user =>
-      request.readAs[Json].flatMap { json =>
-        val jobs = json.hcursor.get[String]("jobs").getOrElse("")
-        getJobsOrNotFound(jobs).fold(IO.pure, jobs => {
+      getJobsOrNotFound(request)
+        .map(jobs => {
           scheduler.resumeJobs(jobs, xa)
           Ok
         })
-      }
+        .merge
     }
+
     case POST at url"/api/jobs/all/unpause" => { implicit user =>
       scheduler.resumeJobs(jobs.all, xa)
       Ok
     }
+
     case POST at url"/api/jobs/$id/unpause" => { implicit user =>
       jobs.all.find(_.id == id).fold(NotFound) { job =>
         scheduler.resumeJobs(Set(job), xa)
@@ -728,14 +743,14 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
         runningDependencies ++ failingDependencies ++ remainingDependenciesDeps.toSeq
       }
 
-      val watchedState = snapshotWatchedState()
+      val watchedState = IO(snapshotWatchedState())
       if (request.headers.get(h"Accept").contains(h"text/event-stream")) {
         sse(
-          IO { Some(watchedState) },
+          watchedState.map(Some(_)),
           (s: WatchedState) => getExecutions(s)
         )
       } else {
-        getExecutions(watchedState).map(Ok(_))
+        watchedState.flatMap(getExecutions).map(Ok(_))
       }
 
     case GET at url"/api/timeseries/calendar/focus?start=$start&end=$end&jobs=$jobs" =>
@@ -1099,15 +1114,15 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
   val api = publicApi orElse project.authenticator(privateApi)
 
   val publicAssets: PartialService = {
-    case GET at url"/public/$file" =>
-      ClasspathResource(s"/public/$file").fold(NotFound)(r => Ok(r))
+    case GET at url"/public/timeseries/$file" =>
+      ClasspathResource(s"/public/timeseries/$file").fold(NotFound)(r => Ok(r))
   }
 
   val index: AuthenticatedService = {
     case req if req.url.startsWith("/api/") =>
       _ => NotFound
     case _ =>
-      _ => Ok(ClasspathResource(s"/public/index.html"))
+      _ => Ok(ClasspathResource(s"/public/timeseries/index.html"))
   }
 
   /** List of */
