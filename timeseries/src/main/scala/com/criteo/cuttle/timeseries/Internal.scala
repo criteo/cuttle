@@ -43,6 +43,11 @@ private[timeseries] case class BackfillCreate(
   priority: Int
 )
 
+private[timeseries] case class JobListPayLoad(jobs: List[String])
+private[timeseries] object JobListPayLoad {
+  implicit val decoder: Decoder[JobListPayLoad] = deriveDecoder
+}
+
 private[timeseries] object SortQuery {
   implicit val decodeExecutionsParams: Decoder[SortQuery] = deriveDecoder[SortQuery]
 }
