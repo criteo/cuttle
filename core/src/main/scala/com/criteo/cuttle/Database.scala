@@ -397,7 +397,7 @@ private[cuttle] case class Queries(logger: Logger) {
   }
 
   val healthCheck: ConnectionIO[Boolean] =
-    sql"""select 1 from dual"""
+    sql"""SELECT @@global.read_only IS FALSE"""
       .query[Boolean]
       .unique
 }
