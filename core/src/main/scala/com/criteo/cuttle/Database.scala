@@ -186,14 +186,14 @@ object Database {
     import com.criteo.cuttle.ThreadPools.Implicits.doobieContextShift
 
     val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
-    val jdbcString = s"jdbc:mariadb://$locationString/${dbConfig.database}" +
+    val jdbcString = s"jdbc:mysql://$locationString/${dbConfig.database}" +
       "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true"
 
     for {
       connectThreadPool <- ThreadPools.doobieConnectThreadPoolResource
       transactThreadPool <- ThreadPools.doobieTransactThreadPoolResource
       transactor <- HikariTransactor.newHikariTransactor[IO](
-        "org.mariadb.jdbc.Driver",
+        "com.mysql.cj.jdbc.Driver",
         jdbcString,
         dbConfig.username,
         dbConfig.password,
