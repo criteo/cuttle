@@ -2,7 +2,6 @@ package com.criteo.cuttle.cron
 
 import cats.effect._
 
-import org.http4s._
 import org.http4s.implicits._
 import org.http4s.server.{AuthMiddleware, Router}
 import org.http4s.server.blaze._

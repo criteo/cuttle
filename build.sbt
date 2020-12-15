@@ -281,10 +281,7 @@ lazy val cron =
     .settings(commonSettings: _*)
     .settings(Defaults.itSettings: _*)
     .settings(
-      libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5",
-      libraryDependencies ++= Seq(
-        "com.criteo.lolhttp" %% "lolhtml",
-      ).map(_ % lolhttp)
+      libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5"
     )
     .settings(
       fork in Test := true

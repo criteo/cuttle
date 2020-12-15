@@ -1,13 +1,10 @@
 package com.criteo.cuttle.cron
 
-import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 import scala.util.{Success, Try}
 
-import cats._
 import cats.implicits._
-import cats.data.EitherT
 import cats.effect._
 
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}

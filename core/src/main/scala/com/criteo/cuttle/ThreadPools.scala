@@ -117,7 +117,6 @@ object ThreadPools {
     Executors.newCachedThreadPool(newThreadFactory(daemonThreads, poolName, threadCounter))
 
   private def makeResourceFromES(tp: => ExecutorService): Resource[IO, ExecutionContext] = {
-    import cats.implicits._
     val alloc = IO.delay(tp)
     val free = (es: ExecutorService) => IO.delay(es.shutdown())
     Resource.make(alloc)(free).map(ExecutionContext.fromExecutor)
