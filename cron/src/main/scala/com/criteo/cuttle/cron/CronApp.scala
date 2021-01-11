@@ -77,18 +77,16 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
 
     case req @ GET -> Root / "api" / "executions" / id / "streams" =>
       lazy val streams = executor.openStreams(id)
-      // TODO fix
-      req.headers.get(org.http4s.headers.Accept).contains(MediaType.`text/event-stream`) match {
-        case true =>
-          val stream = fs2.Stream(ServerSentEvent("BOS")) ++ streams
-            .through(fs2.text.utf8Decode)
-            .through(fs2.text.lines)
-            .chunks
-            .map(chunk => ServerSentEvent(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)).noSpaces)) ++
-            fs2.Stream(ServerSentEvent("EOS"))
-          Ok(stream)
-        case false =>
-          Ok(streams, `Content-Type`(MediaType.text.plain))
+      if (utils.acceptsEventStream(req)) {
+        val stream = fs2.Stream(ServerSentEvent("\"BOS\"")) ++ streams
+          .through(fs2.text.utf8Decode)
+          .through(fs2.text.lines)
+          .chunks
+          .map(chunk => ServerSentEvent(Json.fromValues(chunk.toArray.toIterable.map(_.asJson)).noSpaces)) ++
+          fs2.Stream(ServerSentEvent("\"EOS\""))
+        Ok(stream)
+      } else {
+        Ok(streams, `Content-Type`(MediaType.text.plain))
       }
     case GET -> Root / "api" / "jobs" / "paused" =>
       Ok(scheduler.getPausedDags.asJson)
@@ -226,7 +224,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
     }
 
     case request @ GET -> Root / "api" / "executions" / id =>
-      val events = request.multiParams.getOrElse("events", "")
+      val events = request.params.getOrElse("events", "")
       def getExecution =
         IO.suspend(executor.getExecution(scheduler.allContexts, id))
 
@@ -322,7 +320,7 @@ private[cron] case class CronApp(project: CronProject, executor: Executor[CronSc
   }
 
   private val publicAssets = HttpRoutes.of[IO] {
-    case GET -> Root / "public" / file =>
+    case GET -> Root / "public" / "cron" / file =>
       import ThreadPools.Implicits.serverContextShift
 
       StaticFile

@@ -4,7 +4,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const FlowStatusWebpackPlugin = require("flow-status-webpack-plugin");
 const merge = require("webpack-merge");
 const args = require("yargs").argv;
-const project = args.project;
+const project = args.project || "timeseries";
 
 const env = process.env.NODE_ENV || "production";
 

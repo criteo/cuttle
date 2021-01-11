@@ -4,7 +4,7 @@ import java.time.Instant
 
 import cats.syntax.either._
 import io.circe._
-import io.circe.generic.semiauto.deriveDecoder
+import io.circe.generic.semiauto._
 import io.circe.java8.time._
 
 import com.criteo.cuttle._
@@ -50,6 +50,7 @@ private[timeseries] object JobListPayLoad {
 
 private[timeseries] object SortQuery {
   implicit val decodeExecutionsParams: Decoder[SortQuery] = deriveDecoder[SortQuery]
+  implicit val encoder: Encoder[SortQuery] = deriveEncoder[SortQuery]
 }
 
 private[timeseries] case class SortQuery(
@@ -58,7 +59,6 @@ private[timeseries] case class SortQuery(
 ) {
   val asc = order.toLowerCase == "asc"
 }
-
 private[timeseries] object ExecutionsQuery {
   implicit val decodeExecutionsParams: Decoder[ExecutionsQuery] = deriveDecoder[ExecutionsQuery]
 }
@@ -113,4 +113,8 @@ private[timeseries] case class AggregatedJobExecution(period: Interval[Instant],
                                                       version: String = "")
     extends ExecutionPeriod {
   override val aggregated: Boolean = true
+}
+
+private[timeseries] object AggregatedJobExecution {
+  implicit val encoder: Encoder[AggregatedJobExecution] = deriveEncoder
 }

@@ -138,6 +138,13 @@ package object utils {
       .evalMap[IO, Json](r => encode(r))
       .map(k => ServerSentEvent(k.noSpaces))
 
-    Ok(stream)
+    import org.http4s.headers._
+
+    Ok(stream, `Content-Type`(MediaType.`text/event-stream`))
+  }
+
+  private[cuttle] def acceptsEventStream(r: Request[IO]): Boolean = {
+    val acceptMediaTypes = r.headers.get(org.http4s.headers.Accept).toList.flatMap(_.values.toList.map(_.mediaRange))
+    acceptMediaTypes.contains(MediaType.`text/event-stream`)
   }
 }

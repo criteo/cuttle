@@ -12,14 +12,16 @@ import cats.data.NonEmptyList
 import cats.data.Validated
 
 import doobie.implicits._
+
 import io.circe._
-import io.circe.generic.auto._
 import io.circe.java8.time._
 import io.circe.syntax._
+
 import org.http4s._
 import org.http4s.dsl.io._
 import org.http4s.circe._
-import org.http4s.headers.{`Content-Type`, Accept}
+import org.http4s.headers.`Content-Type`
+
 import com.criteo.cuttle.Auth._
 import com.criteo.cuttle.ExecutionStatus._
 import com.criteo.cuttle.Metrics.{Gauge, Prometheus}
@@ -271,7 +273,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
     }
 
     case request @ GET -> Root / "api" / "executions" / id =>
-      val events = request.multiParams.getOrElse("events", "")
+      val events = request.params.getOrElse("events", "")
       def getExecution =
         IO.suspend(executor.getExecution(scheduler.allContexts, id))
 
@@ -284,25 +286,23 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
 
     case req @ GET -> Root / "api" / "executions" / id / "streams" =>
       lazy val streams = executor.openStreams(id)
-      // TODO: check this
-      req.headers.get(Accept).contains(Accept(MediaType.`text/event-stream`)) match {
-        case true =>
-          Ok(
-            fs2.Stream(ServerSentEvent("BOS")) ++
-              streams
-                .through(fs2.text.utf8Decode)
-                .through(fs2.text.lines)
-                .chunks
-                .map(
-                  chunk =>
-                    ServerSentEvent(
-                      Json.fromValues(chunk.toArray.toIterable.map(_.asJson)).noSpaces
-                    )
-                ) ++
-              fs2.Stream(ServerSentEvent("EOS"))
-          )
-        case false =>
-          Ok(streams, `Content-Type`(MediaType.text.plain))
+      if (utils.acceptsEventStream(req)) {
+        Ok(
+          fs2.Stream(ServerSentEvent("\"BOS\"")) ++
+            streams
+              .through(fs2.text.utf8Decode)
+              .through(fs2.text.lines)
+              .chunks
+              .map(
+                chunk =>
+                  ServerSentEvent(
+                    Json.fromValues(chunk.toArray.toIterable.map(_.asJson)).noSpaces
+                  )
+              ) ++
+            fs2.Stream(ServerSentEvent("\"EOS\""))
+        )
+      } else {
+        Ok(streams, `Content-Type`(MediaType.text.plain))
       }
 
     case GET -> Root / "api" / "jobs" / "paused" =>
@@ -736,7 +736,8 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       }
 
       val watchedState = IO(snapshotWatchedState())
-      if (request.headers.get(org.http4s.headers.Accept).contains(MediaType.`text/event-stream`)) {
+
+      if (utils.acceptsEventStream(request)) {
         sse(
           watchedState.map(Some(_)),
           (s: WatchedState) => getExecutions(s)
@@ -1114,9 +1115,10 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
   }
 
   val publicAssets = HttpRoutes.of[IO] {
-    case GET -> Root / "public" / file =>
+    case GET -> Root / "public" / "timeseries" / file =>
       import ThreadPools.Implicits.serverContextShift
 
+      println(s"Requesting $file")
       StaticFile
         .fromResource[IO](s"/public/timeseries/$file", ThreadPools.blockingExecutionContext)
         .getOrElseF(NotFound())
@@ -1127,6 +1129,7 @@ private[timeseries] case class TimeSeriesApp(project: CuttleProject,
       NotFound()
     case _ =>
       import ThreadPools.Implicits.serverContextShift
+      println(s"Requesting index")
 
       StaticFile
         .fromResource[IO](s"/public/timeseries/index.html", ThreadPools.blockingExecutionContext)
