@@ -307,7 +307,7 @@ class JobsComp extends React.Component<Props, State> {
       }
     };
 
-    const jobs = selectedJobs
+    const jobs = selectedJobs;
     const persist = this.setState.bind(this);
     const pause = jobAction("pause", jobs, persist);
     const resume = jobAction("resume", jobs, persist);

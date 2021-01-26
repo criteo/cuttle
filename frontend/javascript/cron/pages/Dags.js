@@ -140,13 +140,13 @@ const sortFunction: Sort => DagsOrder = (sort: Sort) => (
   const userOrder = (a: DisplayedDag, b: DisplayedDag) =>
     a.pausedUser.localeCompare(b.pausedUser);
   const nextInstantOrder = (a: DisplayedDag, b: DisplayedDag) =>
-    new Date(a.nextInstant)
-      .toISOString()
-      .localeCompare(new Date(b.nextInstant).toISOString());
+    formatInstantForCompare(a.nextInstant).localeCompare(
+      formatInstantForCompare(b.nextInstant)
+    );
   const pausedDateOrder = (a: DisplayedDag, b: DisplayedDag) =>
-    new Date(a.pausedDate)
-      .toISOString()
-      .localeCompare(new Date(b.pausedDate).toISOString());
+    formatInstantForCompare(a.pausedDate).localeCompare(
+      formatInstantForCompare(b.pausedDate)
+    );
   const sortFn = (sort: Sort) => {
     switch (sort.column) {
       case "id":
@@ -167,6 +167,10 @@ const sortFunction: Sort => DagsOrder = (sort: Sort) => (
   };
 
   return sort.order === "desc" ? -sortFn(sort)(a, b) : sortFn(sort)(a, b);
+};
+
+const formatInstantForCompare = (str: string) => {
+  return (str && new Date(str).toISOString()) || str;
 };
 
 const processResponse = (response: Response) => {

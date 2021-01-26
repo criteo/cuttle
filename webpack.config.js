@@ -30,7 +30,7 @@ const common = {
   output: {
     filename: "[name].js",
     path: outputPath,
-    publicPath: `/public/${project}`
+    publicPath: `/public/${project}/`
   },
 
   devtool: "sourcemap",
