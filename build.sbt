@@ -225,7 +225,7 @@ lazy val cuttle =
         "org.typelevel" %% "cats-core" % catsCore,
         "codes.reactive" %% "scala-time" % "0.4.2",
         "com.zaxxer" % "nuprocess" % "1.1.3",
-        "mysql" % "mysql-connector-java" % "8.0.17"
+        "org.mariadb.jdbc" % "mariadb-java-client" % "2.7.0"
       ),
       libraryDependencies ++= Seq(
         "org.tpolecat" %% "doobie-core",
