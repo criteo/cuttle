@@ -267,7 +267,7 @@ class JobsComp extends React.Component<Props, State> {
                 case "actions":
                   return row.status === "paused" ? (
                     <a
-                      onClick={jobAction("resume", row.id, persist)}
+                      onClick={jobAction("resume", [row.id], persist)}
                       className={classNames(classes.link, classes.actionIcon)}
                       title="Resume"
                     >
@@ -275,7 +275,7 @@ class JobsComp extends React.Component<Props, State> {
                     </a>
                   ) : (
                     <a
-                      onClick={jobAction("pause", row.id, persist)}
+                      onClick={jobAction("pause", [row.id], persist)}
                       className={classNames(classes.link, classes.actionIcon)}
                       title="Pause"
                     >
@@ -307,7 +307,7 @@ class JobsComp extends React.Component<Props, State> {
       }
     };
 
-    const jobs = selectedJobs.join(",");
+    const jobs = selectedJobs;
     const persist = this.setState.bind(this);
     const pause = jobAction("pause", jobs, persist);
     const resume = jobAction("resume", jobs, persist);
