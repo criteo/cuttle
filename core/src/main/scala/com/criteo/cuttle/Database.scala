@@ -34,7 +34,7 @@ case class DBLocation(host: String, port: Int)
   * @param username JDBC username
   * @param password JDBC password
   */
-case class DatabaseConfig(locations: Seq[DBLocation], database: String, username: String, password: String)
+case class DatabaseConfig(locations: Seq[DBLocation], database: String, username: String, password: String, jdbcString: Option[String] = None)
 
 /** Utilities for [[DatabaseConfig]]. */
 object DatabaseConfig {
@@ -186,8 +186,9 @@ object Database {
     import com.criteo.cuttle.ThreadPools.Implicits.doobieContextShift
 
     val locationString = dbConfig.locations.map(dbLocation => s"${dbLocation.host}:${dbLocation.port}").mkString(",")
-    val jdbcString = s"jdbc:mariadb://$locationString/${dbConfig.database}" +
-      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true"
+
+    val jdbcString = dbConfig.jdbcString.getOrElse(s"jdbc:mariadb://$locationString/${dbConfig.database}" +
+      "?serverTimezone=UTC&useSSL=false&allowMultiQueries=true&failOverReadOnly=false&rewriteBatchedStatements=true")
 
     for {
       connectThreadPool <- ThreadPools.doobieConnectThreadPoolResource
