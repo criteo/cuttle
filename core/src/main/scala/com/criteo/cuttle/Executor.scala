@@ -618,11 +618,11 @@ class Executor[S <: Scheduling](val platforms: Seq[ExecutionPlatform],
   /**
     * Used to query archived executions without a context.
     */
-  private[cuttle] def rawArchivedExecutions(jobs: Set[String],
-                                            sort: String,
-                                            asc: Boolean,
-                                            offset: Int,
-                                            limit: Int): IO[Seq[ExecutionLog]] =
+  def rawArchivedExecutions(jobs: Set[String],
+                            sort: String,
+                            asc: Boolean,
+                            offset: Int,
+                            limit: Int): IO[Seq[ExecutionLog]] =
     queries.getRawExecutionLog(jobs, sort, asc, offset, limit).transact(xa)
 
   def cancelExecution(executionId: String)(implicit user: User): Unit = {
