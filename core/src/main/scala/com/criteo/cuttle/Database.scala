@@ -223,6 +223,14 @@ object Database {
       }
     )
   }
+
+  /* To be used only with a read-only db user as the mandatory lock check / creation is bypassed. */
+  def readOnlyConnect(dbConfig: DatabaseConfig)(implicit logger: Logger): XA = {
+    // FIXME we shouldn't use allocated as it's unsafe instead we have to flatMap on the Resource[HikariTransactor]
+    val (transactor, _) = newHikariTransactor(dbConfig).allocated.unsafeRunSync
+    logger.info("Allocated new read-only Hikari transactor")
+    connections.getOrElseUpdate(dbConfig, transactor)
+  }
 }
 
 private[cuttle] case class Queries(logger: Logger) {
