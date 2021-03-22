@@ -2,7 +2,7 @@ val devMode = settingKey[Boolean]("Some build optimization are applied in devMod
 val writeClasspath = taskKey[File]("Write the project classpath to a file.")
 val yarnInstall = taskKey[Unit]("Install yarn dependencies")
 
-val VERSION = "0.12.3"
+val VERSION = "0.12.4"
 
 lazy val catsCore = "1.6.1"
 lazy val circe = "0.11.1"
