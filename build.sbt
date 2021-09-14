@@ -13,7 +13,7 @@ lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
   scalaVersion := "2.11.12",
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  crossScalaVersions := Seq("2.11.12", "2.12.15"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
