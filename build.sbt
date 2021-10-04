@@ -232,7 +232,7 @@ lazy val cuttle =
         "org.tpolecat" %% "doobie-hikari"
       ).map(_ % doobie),
       libraryDependencies ++= Seq(
-        "org.scalatest" %% "scalatest" % "3.0.8",
+        "org.scalatest" %% "scalatest" % "3.1.2",
         "org.mockito" % "mockito-all" % "1.10.19",
         "org.tpolecat" %% "doobie-scalatest" % doobie
       ).map(_ % "it,test")
