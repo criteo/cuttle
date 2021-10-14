@@ -1,0 +1,40 @@
+name: Scala CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up JDK 11
+      uses: actions/setup-java@v2
+      with:
+        java-version: '11'
+        distribution: 'adopt'
+    - name: Prepare credentials
+      env:
+        MAVEN_PUBRING_GPG_BASE64: ${{ secrets.MAVEN_PUBRING_GPG_BASE64 }}
+        MAVEN_SECRING_GPG_BASE64: ${{ secrets.MAVEN_SECRING_GPG_BASE64 }}
+      run: echo $MAVEN_PUBRING_GPG_BASE64 > pubring.gpg && echo $MAVEN_SECRING_GPG_BASE64 > secring.gpg
+    - name: Install yarn
+      run: |
+        nvm install 6
+        curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+        echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+        sudo apt-get -qq update
+        sudo apt-get install -y yarn=1.13.0-1
+    - name: Run tests
+      env:
+        SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        MAVEN_SECRING_PASSWORD: ${{ secrets.MAVEN_SECRING_PASSWORD }}
+      run: sbt +test
+    - name: Clean credentials
+      if: always()
+      run: rm -f pubring.gpg && rm -f secring.gpg
