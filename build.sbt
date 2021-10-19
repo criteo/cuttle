@@ -55,8 +55,8 @@ lazy val commonSettings = Seq(
       Opts.resolver.sonatypeStaging
   ),
   pgpPassphrase := sys.env.get("SONATYPE_PASSWORD").map(_.toArray),
-  pgpSecretRing := file(".travis/secring.gpg"),
-  pgpPublicRing := file(".travis/pubring.gpg"),
+  pgpSecretRing := file(".secring.gpg"),
+  pgpPublicRing := file(".pubring.gpg"),
   pomExtra in Global := {
     <url>https://github.com/criteo/cuttle</url>
     <licenses>
