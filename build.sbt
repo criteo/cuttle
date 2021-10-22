@@ -7,7 +7,7 @@ val VERSION = "0.12.4"
 lazy val catsCore = "1.6.1"
 lazy val circe = "0.11.1"
 lazy val doobie = "0.7.0"
-lazy val lolhttp = "0.13.1"
+lazy val lolhttp = "0.13.4"
 
 lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
