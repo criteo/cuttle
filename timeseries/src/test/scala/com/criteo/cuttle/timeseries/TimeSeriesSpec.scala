@@ -84,6 +84,24 @@ class TimeSeriesSpec extends FunSuite with TestScheduling {
     )
   }
 
+  test("it shouldn't validate workflow with incorrect start dates of jobs taking into account the offset") {
+    val timeOffset = TimeSeriesDependency(Duration.ofHours(-1), Duration.ofHours(-1))
+    val workflow = jobAsWorkflow(job(0)).dependsOn((jobAsWorkflow(job(1)), timeOffset))
+
+    val validationRes = TimeSeriesUtils.validate(workflow)
+    assert(validationRes.isRight, "workflow should not have raised an error (backwards compatibility)")
+
+    val strictValidationRes = TimeSeriesUtils.validate(workflow, strictStartDateCheck = true)
+    assert(strictValidationRes.isLeft, "workflow passed strict start date validation")
+    assert(
+      strictValidationRes.left.get.toSet === Set(
+        "Job [0] depends on [1] with a low offset of [PT-1H]." +
+          "Expected it to start at the latest at [2017-03-25T01:00:00Z] but found [2017-03-25T02:00:00Z]"
+      ),
+      "errors messages are bad"
+    )
+  }
+
   test("it shouldn't validate cyclic workflow with incorrect start dates of jobs") {
     val badJob = Job("badJob", hourly(date"2117-03-25T02:00:00Z"))(completed)
     val workflow = job(0) dependsOn badJob dependsOn job(1) dependsOn badJob

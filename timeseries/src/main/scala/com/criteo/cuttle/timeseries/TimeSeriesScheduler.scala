@@ -1168,18 +1168,29 @@ object TimeSeriesUtils {
     * @param workflow workflow to be validated
     * @return either a validation errors list or a unit
     */
-  def validate(workflow: Workflow): Either[List[String], Unit] = {
-    val errors = collection.mutable.ListBuffer(Workflow.validate(workflow): _*)
-
-    workflow.edges.map {
-      case (childJob, parentJob, _) =>
-        if (childJob.scheduling.start.isBefore(parentJob.scheduling.start)) {
-          errors += s"Job [${childJob.id}] starts at [${childJob.scheduling.start.toString}] " +
-            s"before his parent [${parentJob.id}] at [${parentJob.scheduling.start.toString}]"
+  def validate(workflow: Workflow, strictStartDateCheck: Boolean = false): Either[List[String], Unit] = {
+    val errors = Workflow.validate(workflow) ++ workflow.edges.flatMap {
+      case (childJob, parentJob, timeSeriesDependency) =>
+        val childStart = childJob.scheduling.start
+        val parentStart = parentJob.scheduling.start
+        if (childStart.isBefore(parentStart)) {
+          Some(
+            s"Job [${childJob.id}] starts at [${childStart.toString}] " +
+              s"before his parent [${parentJob.id}] at [${parentStart.toString}]"
+          )
+        } else if (strictStartDateCheck && childStart.plus(timeSeriesDependency.offsetLow).isBefore(parentStart)) {
+          Some(
+            s"Job [${childJob.id}] depends on [${parentJob.id}] " +
+              s"with a low offset of [${timeSeriesDependency.offsetLow}]." +
+              s"Expected it to start at the latest at [${childStart.plus(timeSeriesDependency.offsetLow).toString}] " +
+              s"but found [${parentStart.toString}]"
+          )
+        } else {
+          None
         }
     }
 
-    if (errors.nonEmpty) Left(errors.toList)
+    if (errors.nonEmpty) Left(errors)
     else Right(())
   }
 
