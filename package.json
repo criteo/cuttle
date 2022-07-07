@@ -49,7 +49,7 @@
     "history": "^4.6.1",
     "lodash": "4.17.13",
     "markdown": "^0.5.0",
-    "moment": "^2.17.1",
+    "moment": "^2.29.4",
     "mozilla-fira-pack": "^0.0.1",
     "normalize.css": "^5.0.0",
     "numeraljs": "^1.5.6",
