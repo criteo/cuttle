@@ -34,13 +34,13 @@ lazy val commonSettings = Seq(
   devMode := Option(System.getProperty("devMode")).isDefined,
   writeClasspath := {
     val f = file(s"/tmp/classpath_${organization.value}.${name.value}")
-    val classpath = (fullClasspath in Test).value
+    val classpath = (Test / fullClasspath).value
     IO.write(f, classpath.map(_.data).mkString(":"))
     streams.value.log.info(f.getAbsolutePath)
     f
   },
   // test config
-  testOptions in IntegrationTest := Seq(Tests.Filter(_ endsWith "ITest"), Tests.Argument("-oF")),
+  (IntegrationTest / testOptions) := Seq(Tests.Filter(_ endsWith "ITest"), Tests.Argument("-oF")),
   // Maven config
   credentials += Credentials(
     "Sonatype Nexus Repository Manager",
@@ -57,7 +57,7 @@ lazy val commonSettings = Seq(
   pgpPassphrase := sys.env.get("SONATYPE_PASSWORD").map(_.toArray),
   pgpSecretRing := file(".secring.gpg"),
   pgpPublicRing := file(".pubring.gpg"),
-  pomExtra in Global := {
+  (Global / pomExtra) := {
     <url>https://github.com/criteo/cuttle</url>
     <licenses>
       <license>
@@ -164,10 +164,10 @@ def removeDependencies(groups: String*)(xml: scala.xml.Node) = {
 }
 
 def webpackSettings(project: String) = List(
-  resourceGenerators in Compile += Def.task {
+  (Compile / resourceGenerators) += Def.task {
     import scala.sys.process._
     val streams0 = streams.value
-    val webpackOutputDir: File = (resourceManaged in Compile).value / "public" / project
+    val webpackOutputDir: File = (Compile / resourceManaged).value / "public" / project
     if (devMode.value) {
       streams0.log.warn(s"Skipping webpack resource generation.")
       Nil
@@ -282,7 +282,7 @@ lazy val cron =
       libraryDependencies += "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.4.5"
     )
     .settings(
-      fork in Test := true
+      (Test / fork) := true
     )
     .settings(webpackSettings("cron"))
     .dependsOn(cuttle % "compile->compile;test->test")
@@ -297,8 +297,8 @@ lazy val examples =
     )
     .settings(
       publishArtifact := false,
-      fork in Test := true,
-      connectInput in Test := true,
+      (Test / fork) := true,
+      (Test / connectInput) := true,
       javaOptions ++= Seq("-Xmx256m", "-XX:+HeapDumpOnOutOfMemoryError")
     )
     .settings(
@@ -324,7 +324,7 @@ lazy val root =
     .settings(commonSettings: _*)
     .settings(
       publishArtifact := false,
-      scalacOptions in (ScalaUnidoc, unidoc) ++= Seq(
+      (ScalaUnidoc / unidoc / scalacOptions) ++= Seq(
         Seq(
           "-sourcepath",
           baseDirectory.value.getAbsolutePath
@@ -337,11 +337,11 @@ lazy val root =
           (baseDirectory.value / "core/src/main/scala/root.scala").getAbsolutePath
         )
       ).flatten,
-      unidocAllAPIMappings in (ScalaUnidoc, unidoc) ++= {
+      (ScalaUnidoc / unidoc / unidocAllAPIMappings) ++= {
         val allJars = {
-          (fullClasspath in cuttle in Compile).value ++
-            (fullClasspath in timeseries in Compile).value ++
-            (fullClasspath in cron in Compile).value
+          (Compile / fullClasspath in cuttle)(cuttle / fullClasspath).value ++
+            ((Compile / fullClasspath in timeseries)(timeseries / fullClasspath)).value ++
+            ((Compile / fullClasspath in cron)(cron / fullClasspath)).value
         }
         Seq(
           allJars
@@ -359,6 +359,6 @@ lazy val root =
             .toMap
         )
       },
-      unidocProjectFilter in (ScalaUnidoc, unidoc) := inProjects(cuttle, timeseries, cron)
+      (ScalaUnidoc / unidoc / unidocProjectFilter) := inProjects(cuttle, timeseries, cron)
     )
     .aggregate(cuttle, timeseries, cron, examples, localdb)
