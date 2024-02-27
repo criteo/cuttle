@@ -13,7 +13,7 @@ lazy val commonSettings = Seq(
   organization := "com.criteo.cuttle",
   version := VERSION,
   scalaVersion := "2.11.12",
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  crossScalaVersions := Seq("2.11.12", "2.12.19"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-encoding",
@@ -164,34 +164,37 @@ def removeDependencies(groups: String*)(xml: scala.xml.Node) = {
 }
 
 def webpackSettings(project: String) = List(
-  resourceGenerators in Compile += Def.task {
-    import scala.sys.process._
-    val streams0 = streams.value
-    val webpackOutputDir: File = (resourceManaged in Compile).value / "public" / project
-    if (devMode.value) {
-      streams0.log.warn(s"Skipping webpack resource generation.")
-      Nil
-    } else {
-      def listFiles(dir: File): Seq[File] =
-        IO.listFiles(dir)
-          .flatMap(
-            f =>
-              if (f.isDirectory) listFiles(f)
-              else Seq(f)
-          )
-      val logger = new ProcessLogger {
-        override def err(s: => String): Unit = streams0.log.info(s"ERR, $s")
-        override def buffer[T](f: => T): T = f
-        override def out(s: => String): Unit = streams0.log.info(s)
+  resourceGenerators in Compile += Def
+    .task {
+      import scala.sys.process._
+      val streams0 = streams.value
+      val webpackOutputDir: File = (resourceManaged in Compile).value / "public" / project
+      if (devMode.value) {
+        streams0.log.warn(s"Skipping webpack resource generation.")
+        Nil
+      } else {
+        def listFiles(dir: File): Seq[File] =
+          IO.listFiles(dir)
+            .flatMap(
+              f =>
+                if (f.isDirectory) listFiles(f)
+                else Seq(f)
+            )
+        val logger = new ProcessLogger {
+          override def err(s: => String): Unit = streams0.log.info(s"ERR, $s")
+          override def buffer[T](f: => T): T = f
+          override def out(s: => String): Unit = streams0.log.info(s)
+        }
+        logger.out(s"Generating UI assets to $webpackOutputDir...")
+        assert(
+          s"node node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail --project $project" ! logger == 0,
+          "webpack failed"
+        )
+        listFiles(webpackOutputDir)
       }
-      logger.out(s"Generating UI assets to $webpackOutputDir...")
-      assert(
-        s"node node_modules/webpack/bin/webpack.js --output-path $webpackOutputDir --bail --project $project" ! logger == 0,
-        "webpack failed"
-      )
-      listFiles(webpackOutputDir)
     }
-  }.dependsOn(cuttle / yarnInstall).taskValue
+    .dependsOn(cuttle / yarnInstall)
+    .taskValue
 )
 
 lazy val localdb = {
