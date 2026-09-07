@@ -19,7 +19,7 @@ import com.criteo.cuttle.platforms.local._
 
 object HelloCustomScheduling {
 
-  // A cuttle project is just embeded into any Scala application.
+  // A cuttle project is just embedded into any Scala application.
   def main(args: Array[String]): Unit = {
 
     // __Let's define our custom scheduler first!__

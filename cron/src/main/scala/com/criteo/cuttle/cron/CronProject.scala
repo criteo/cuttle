@@ -26,7 +26,7 @@ class CronProject private[cuttle] (val name: String,
 
   /**
     * Start scheduling and execution with the given environment. It also starts
-    * an HTTP server providing an Web UI and a JSON API.
+    * an HTTP server providing a Web UI and a JSON API.
     *
     * @param platforms      The configured [[ExecutionPlatform ExecutionPlatforms]] to use to execute jobs.
     * @param port           The port to use for the HTTP daemon.
@@ -71,7 +71,7 @@ class CronProject private[cuttle] (val name: String,
 }
 
 /**
-  * Create new projects using a timeseries scheduler.
+  * Create new projects using a cron scheduler.
   */
 object CronProject {
 
@@ -80,13 +80,13 @@ object CronProject {
     *
     * @param name          The project name as displayed in the UI.
     * @param version       The project version as displayed in the UI.
-    * @param description   The project version as displayed in the UI.
+    * @param description   The project description as displayed in the UI.
     * @param env           The environment as displayed in the UI (The string is the name while the boolean indicates
     *                      if the environment is a production one).
     * @param authenticator The way to authenticate HTTP request for the UI and the private API.
     * @param jobs          The workflow to run in this project.
     * @param scheduler     The scheduler instance to use to schedule the Workflow jobs.
-    * @param logger        The logger to use to log internal debug informations.
+    * @param logger        The logger to use to log internal debug information.
     */
   def apply(
     name: String,

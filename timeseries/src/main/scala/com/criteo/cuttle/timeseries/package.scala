@@ -11,12 +11,12 @@ import com.criteo.cuttle.timeseries.intervals.{Interval, MeasureKey}
 import scala.reflect.macros.blackbox
 
 /** A [[TimeSeries]] scheduler executes the [[com.criteo.cuttle.Workflow Workflow]] for the
-  * time partitions defined in a calendar. Each [[com.criteo.cuttle.Job Job]] defines how it mnaps
+  * time partitions defined in a calendar. Each [[com.criteo.cuttle.Job Job]] defines how it maps
   * to the calendar (for example Hourly or Daily UTC), and the [[com.criteo.cuttle.Scheduler Scheduler]]
-  * ensure that at least one [[com.criteo.cuttle.Execution Execution]] is created and successfully run
+  * ensures that at least one [[com.criteo.cuttle.Execution Execution]] is created and successfully run
   * for each defined Job/Period.
   *
-  * The scheduler also allow to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
+  * The scheduler also allows to [[Backfill]] already computed partitions. The [[Backfill]] can be recursive
   * or not and an audit log of backfills is kept.
   */
 package object timeseries {
@@ -30,7 +30,7 @@ package object timeseries {
       def edges = Set.empty
     }
 
-  /** Utility that allow to define compile time safe date literals. Meaning that compilation
+  /** Utility that allows to define compile time safe date literals. Meaning that compilation
     * will fail if the date literal cannot be parsed into a UTC instant.
     *
     * {{{
@@ -65,7 +65,7 @@ package object timeseries {
     * complete calendar hours starting at 00 minutes, 00 seconds.
     *
     * If the start instant does not match a round hour (0 minutes, 0 seconds), the calendar
-    * will actually start the next hour immediatly following the start instant.
+    * will actually start the next hour immediately following the start instant.
     *
     * The optional end instant allows to specify a finite calendar that will stop on the
     * end instant if it is a round hour or at the start of the hour otherwise.
@@ -94,12 +94,12 @@ package object timeseries {
       throw new IllegalArgumentException("hours should be a strictly positive divider of 24 different than 24")
     } else TimeSeries(calendar = NHourly(hours), start, end, batching)
 
-  /** Defines an daily calendar starting at the specified instant, and using the specified time zone.
-    * Days are defined as complete calendar days starting a midnight and during 24 hours. If the specified
-    * timezone defines lightsaving it is possible that some days are 23 or 25 horus thus.
+  /** Defines a daily calendar starting at the specified instant, and using the specified time zone.
+    * Days are defined as complete calendar days starting at midnight and during 24 hours. If the specified
+    * timezone defines daylight saving it is possible that some days are 23 or 25 hours thus.
     *
     * If the start instant does not match a round day (midnight), the calendar
-    * will actually start the next day immediatly following the start instant.
+    * will actually start the next day immediately following the start instant.
     *
     * The optional end instant allows to specify a finite calendar that will stop on the
     * end instant if it is a round day or at the start of the day otherwise.
@@ -140,7 +140,7 @@ package object timeseries {
     * during 28,29,30 or 31 days. The specified time zone is used to define the exact month start instant.
     *
     * If the start instant does not match a round month (1st at midnight), the calendar
-    * will actually start the next month immediatly following the start instant.
+    * will actually start the next month immediately following the start instant.
     *
     * The optional end instant allows to specify a finite calendar that will stop on the
     * end instant if it is a round month or at the start of the month otherwise.
