@@ -1,6 +1,6 @@
 // Example: Hello cuttle timeseries!
 
-// This a very simple cuttle project using the time series scheduler
+// This is a very simple cuttle project using the time series scheduler
 // to execute a bunch of shell scripts
 package com.criteo.cuttle.examples
 
@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 object HelloTimeSeries {
 
-  // A cuttle project is just embeded into any Scala application.
+  // A cuttle project is just embedded into any Scala application.
   def main(args: Array[String]): Unit = {
 
     // We define a common start date for all our jobs. This is required by the
@@ -72,7 +72,7 @@ object HelloTimeSeries {
     // Here is our third job. Look how we can also define some metadata such as a human friendly
     // name and a set of tags. This information is used in the UI to help retrieving your jobs.
     // This job will be executed in batching mode, it means that it will always wait for some period of
-    // time(10 seconds here) and create a single executions for each 5 consequent partition available to compute.
+    // time(10 seconds here) and create a single execution for each 5 consequent partitions available to compute.
     val hello3 =
       Job(
         "hello3",

@@ -232,7 +232,7 @@ private[timeseries] object Backfill {
   *
   * @param start Start instant of the partition to compute.
   * @param end End instant of the partition to compute.
-  * @param backfill If this execution is for a backfill, the [[Backfill]] informations are provided.
+  * @param backfill If this execution is for a backfill, the [[Backfill]] information is provided.
   */
 case class TimeSeriesContext(start: Instant,
                              end: Instant,

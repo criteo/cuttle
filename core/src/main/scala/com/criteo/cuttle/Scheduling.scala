@@ -7,7 +7,7 @@ import java.util.Comparator
 
 import Metrics.MetricProvider
 
-/** A scheduler interpret a [[Workflow]] and instanciate [[Execution Executions]] for all
+/** A scheduler interprets a [[Workflow]] and instantiates [[Execution Executions]] for all
   * defined [[Job Jobs]]. For example, a typical cuttle [[Scheduler]] is the [[timeseries.TimeSeries TimeSeries]]
   * scheduler that executes the graph for each time partition.
   *
@@ -16,13 +16,13 @@ import Metrics.MetricProvider
 trait Scheduler[S <: Scheduling] extends MetricProvider[S] {
   def name: String = this.getClass.getSimpleName
 
-  /** Starts the scheduler for the given [[Workflow]]. Immediatly the scheduler will start interpreting
+  /** Starts the scheduler for the given [[Workflow]]. Immediately the scheduler will start interpreting
     * the workflow and generate [[Execution Executions]] sent to the provided [[Executor]].
     *
     * @param jobs The jobs to run.
     * @param executor The executor to use to run the generated [[Execution Executions]].
     * @param xa The doobie transactor to use to persist the scheduler state if needed.
-    * @param logger The logger to use to log internal debug state if neeed.
+    * @param logger The logger to use to log internal debug state if needed.
     */
   def start(jobs: Workload[S], executor: Executor[S], xa: XA, logger: Logger): Unit
 
@@ -34,7 +34,7 @@ trait Scheduler[S <: Scheduling] extends MetricProvider[S] {
     */
   val allContexts: Fragment = Queries.getAllContexts
 
-  /** Returns a Json object containing the internal scheduler statistics informations.
+  /** Returns a Json object containing the internal scheduler statistics information.
     * These data will be send to the UI and can be used by the scheduler UI if needed.
     *
     * @param jobs Filter the statistics for the provided list of jobs.

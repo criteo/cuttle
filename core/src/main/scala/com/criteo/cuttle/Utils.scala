@@ -63,7 +63,7 @@ package object utils {
   private[cuttle] def awakeEvery(duration: FiniteDuration): fs2.Stream[IO, FiniteDuration] =
     fs2.Stream.awakeEvery[IO](duration)
 
-  /** Creates a  [[scala.concurrent.Future Future]] that resolve automatically
+  /** Creates a  [[scala.concurrent.Future Future]] that resolves automatically
     * after the given duration.
     */
   object Timeout {
@@ -74,7 +74,7 @@ package object utils {
       */
     implicit val timer: Timer[IO] = IO.timer(ExecutionContext.fromExecutor(scheduler))
 
-    /** Creates a  [[scala.concurrent.Future]] that resolve automatically
+    /** Creates a  [[scala.concurrent.Future]] that resolves automatically
       * after the given duration.
       *
       * @param timeout Duration for the timeout.
@@ -92,7 +92,7 @@ package object utils {
     }
 
     /**
-      * Creates a [[cats.effect.IO]] that resolve automatically
+      * Creates a [[cats.effect.IO]] that resolves automatically
       * after the given duration.
       * @param timeout Duration for the timeout.
       * @return

@@ -1,6 +1,6 @@
 package com.criteo.cuttle
 
-/** A logger used to output internal informations. */
+/** A logger used to output internal information. */
 trait Logger {
   def debug(message: => String): Unit
   def info(message: => String): Unit
